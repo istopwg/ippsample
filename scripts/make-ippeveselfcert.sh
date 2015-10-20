@@ -47,6 +47,7 @@ else
 		*)
 			platform=`uname`
 			;;
+	esac
 fi
 
 if test x$platform = xosx -a "x$CODESIGN_IDENTITY" = x; then
