@@ -152,7 +152,7 @@ start_test() {
 	total=`expr $total + 1`
 	echo $ac_n "$1: $ac_c"
 	echo "<dict><key>Name</key><string>$1</string>" >>"$PLIST"
-	echo "<key>FileId</key><string>org.pwg.ipp-everywhere.20151009.bonjour</string>" >>"$PLIST"
+	echo "<key>FileId</key><string>org.pwg.ipp-everywhere.@SELFCERTVERSION@.bonjour</string>" >>"$PLIST"
 }
 # end_test PASS/FAIL/SKIP
 end_test() {

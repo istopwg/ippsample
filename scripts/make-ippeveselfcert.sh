@@ -1,36 +1,58 @@
 #!/bin/sh
 #
-# "$Id: make-ippeveselfcert.sh 12897 2015-10-09 19:18:39Z msweet $"
+# Make an IPP Everywhere Printer self-certification package.
 #
-#   Make an IPP Everywhere Printer self-certification package.
+# Copyright 2014-2015 by the ISTO Printer Working Group.
+# Copyright 2007-2013 by Apple Inc.
+# Copyright 1997-2007 by Easy Software Products, all rights reserved.
 #
-#   Copyright 2014-2015 The Printer Working Group.
-#   Copyright 2007-2013 by Apple Inc.
-#   Copyright 1997-2007 by Easy Software Products, all rights reserved.
-#
-#   These coded instructions, statements, and computer programs are the
-#   property of Apple Inc. and are protected by Federal copyright
-#   law.  Distribution and use rights are outlined in the file "LICENSE.txt"
-#   which should have been included with this file.  If this file is
-#   file is missing or damaged, see the license at "http://www.cups.org/".
+# These coded instructions, statements, and computer programs are the
+# property of Apple Inc. and are protected by Federal copyright
+# law.  Distribution and use rights are outlined in the file "LICENSE.txt"
+# which should have been included with this file.  If this file is
+# file is missing or damaged, see the license at "http://www.cups.org/".
 #
 
 # Make sure we are running in the right directory...
-if test ! -f everywhere/make-ippeveselfcert.sh; then
-        echo "Run this script from the top-level CUPS source directory, e.g.:"
+if test ! -f scripts/make-ippeveselfcert.sh; then
+        echo "Run this script from the top-level source directory, e.g.:"
         echo ""
-        echo "    everywhere/make-ippeveselfcert.sh $*"
+        echo "    scripts/make-ippeveselfcert.sh $*"
         echo ""
         exit 1
 fi
 
-if test $# != 2; then
-	echo "Usage: everywhere/make-ippeveselfcert.sh platform YYYYMMDD"
+if test $# -lt 1 -o $# -gt 2; then
+	echo "Usage: everywhere/make-ippeveselfcert.sh version [platform]"
 	exit 1
 fi
 
-platform="$1"
-fileversion="$2"
+fileversion="$1"
+if test $# = 2; then
+	platform="$2"
+else
+	case `uname` in
+		Darwin)
+			platform="osx"
+			;;
+
+		Linux)
+			if test -x /usr/bin/dpkg; then
+				platform="ubuntu"
+			else
+				platform="rhel"
+			fi
+			;;
+
+		*)
+			platform=`uname`
+			;;
+fi
+
+if test x$platform = xosx -a "x$CODESIGN_IDENTITY" = x; then
+	echo "Please set the CODESIGN_IDENTITY environment variable before running."
+	exit 1
+fi
 
 echo Creating package directory...
 pkgdir="sw-ippeveselfcert10-$fileversion"
@@ -40,23 +62,32 @@ mkdir $pkgdir || exit 1
 
 echo Copying package files
 cp LICENSE.txt $pkgdir
-cp doc/help/man-ipp*.html $pkgdir
-cp everywhere/README.txt $pkgdir
-cp everywhere/man-ippserver.html $pkgdir
-cp everywhere/*-tests.* $pkgdir
-cp test/color.jpg $pkgdir
-cp test/document-*.pdf $pkgdir
-cp test/ippfind-static $pkgdir/ippfind
-cp test/ippserver $pkgdir
-cp test/ipptool-static $pkgdir/ipptool
-cp test/printer.png $pkgdir
+cp doc/man-ipp*.html $pkgdir
+cp scripts/README.txt $pkgdir
+cp scripts/color.jpg $pkgdir
+cp scripts/document-*.pdf $pkgdir
+cp tools/ippfind $pkgdir/ippfind
+cp tools/ippserver $pkgdir
+cp tools/ipptool $pkgdir/ipptool
+cp tools/printer.png $pkgdir
+
+for file in scripts/*-tests.*; do
+	sed -e "1,\$s/@SELFCERTVERSION@/$fileversion/g" $file > $pkgdir/`basename $file`
+done
 
 if test x$platform = xosx; then
+	# Sign executables...
+	codesign -s "$CODESIGN_IDENTITY" -fv $pkgdir/ippfind
+	codesign -s "$CODESIGN_IDENTITY" -fv $pkgdir/ippserver
+	codesign -s "$CODESIGN_IDENTITY" -fv $pkgdir/ipptool
+
+	# Make disk image...
 	pkgfile="$pkgdir-osx.dmg"
 	echo Creating disk image $pkgfile...
 	test -f $pkgfile && rm $pkgfile
 	hdiutil create -srcfolder $pkgdir $pkgfile
 else
+	# Make archive...
 	pkgfile="$pkgdir-$platform.tar.gz"
 	echo Creating archive $pkgfile...
 	tar czf $pkgfile $pkgdir || exit 1
@@ -66,7 +97,3 @@ echo Removing temporary files...
 rm -r $pkgdir
 
 echo Done.
-
-#
-# End of "$Id: make-ippeveselfcert.sh 12897 2015-10-09 19:18:39Z msweet $".
-#
