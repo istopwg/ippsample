@@ -1,8 +1,8 @@
 /*
- * "$Id: config.h 12875 2015-09-14 19:00:47Z msweet $"
+ * Configuration file for the IPP Everywhere Printer Self-Certification tools
+ * on Windows.
  *
- * Configuration file for CUPS on Windows.
- *
+ * Copyright 2015 by the ISTO Printer Working Group.
  * Copyright 2007-2014 by Apple Inc.
  * Copyright 1997-2007 by Easy Software Products.
  *
@@ -96,50 +96,8 @@ typedef unsigned long useconds_t;
  * Version of software...
  */
 
-#define CUPS_SVERSION "CUPS v2.2svn"
-#define CUPS_MINIMAL "CUPS/2.2svn"
-
-
-/*
- * Default user and groups...
- */
-
-#define CUPS_DEFAULT_USER	""
-#define CUPS_DEFAULT_GROUP	""
-#define CUPS_DEFAULT_SYSTEM_GROUPS ""
-#define CUPS_DEFAULT_PRINTOPERATOR_AUTH ""
-
-
-/*
- * Default file permissions...
- */
-
-#define CUPS_DEFAULT_CONFIG_FILE_PERM 0640
-#define CUPS_DEFAULT_LOG_FILE_PERM 0644
-
-
-/*
- * Default logging settings...
- */
-
-#define CUPS_DEFAULT_LOG_LEVEL "warn"
-#define CUPS_DEFAULT_ACCESS_LOG_LEVEL "actions"
-
-
-/*
- * Default fatal error settings...
- */
-
-#define CUPS_DEFAULT_FATAL_ERRORS "config"
-
-
-/*
- * Default browsing settings...
- */
-
-#define CUPS_DEFAULT_BROWSING 1
-#define CUPS_DEFAULT_BROWSE_LOCAL_PROTOCOLS ""
-#define CUPS_DEFAULT_DEFAULT_SHARED 1
+#define CUPS_SVERSION "IPPEVESELFCERT v20151009"
+#define CUPS_MINIMAL "IPPEVESELFCERT/20151009"
 
 
 /*
@@ -150,39 +108,10 @@ typedef unsigned long useconds_t;
 
 
 /*
- * Default printcap file...
- */
-
-#define CUPS_DEFAULT_PRINTCAP ""
-
-
-/*
- * Default Samba and LPD config files...
- */
-
-#define CUPS_DEFAULT_SMB_CONFIG_FILE ""
-#define CUPS_DEFAULT_LPD_CONFIG_FILE ""
-
-
-/*
- * Default MaxCopies value...
- */
-
-#define CUPS_DEFAULT_MAX_COPIES 9999
-
-
-/*
  * Do we have domain socket support, and if so what is the default one?
  */
 
 #undef CUPS_DEFAULT_DOMAINSOCKET
-
-
-/*
- * Default WebInterface value...
- */
-
-#undef CUPS_DEFAULT_WEBIF
 
 
 /*
@@ -192,16 +121,9 @@ typedef unsigned long useconds_t;
  *       variables at run-time...
  */
 
-#define CUPS_BINDIR "C:/CUPS/bin"
 #define CUPS_CACHEDIR "C:/CUPS/cache"
 #define CUPS_DATADIR "C:/CUPS/share"
-#define CUPS_DOCROOT "C:/CUPS/share/doc"
-#define CUPS_FONTPATH "C:/CUPS/share/fonts"
 #define CUPS_LOCALEDIR "C:/CUPS/locale"
-#define CUPS_LOGDIR "C:/CUPS/logs"
-#define CUPS_REQUESTS "C:/CUPS/spool"
-#define CUPS_SBINDIR "C:/CUPS/sbin"
-#define CUPS_SERVERBIN "C:/CUPS/lib"
 #define CUPS_SERVERROOT "C:/CUPS/etc"
 #define CUPS_STATEDIR "C:/CUPS/run"
 
@@ -219,30 +141,6 @@ typedef unsigned long useconds_t;
 
 #define HAVE_LIBZ 1
 #define HAVE_INFLATECOPY 1
-
-
-/*
- * Do we have PAM stuff?
- */
-
-#define HAVE_LIBPAM 0
-/* #undef HAVE_PAM_PAM_APPL_H */
-/* #undef HAVE_PAM_SET_ITEM */
-/* #undef HAVE_PAM_SETCRED */
-
-
-/*
- * Do we have <shadow.h>?
- */
-
-/* #undef HAVE_SHADOW_H */
-
-
-/*
- * Do we have <crypt.h>?
- */
-
-/* #undef HAVE_CRYPT_H */
 
 
 /*
@@ -297,27 +195,6 @@ typedef unsigned long useconds_t;
 
 
 /*
- * Do we have the geteuid() function?
- */
-
-/* #undef HAVE_GETEUID */
-
-
-/*
- * Do we have the setpgid() function?
- */
-
-/* #undef HAVE_SETPGID */
-
-
-/*
- * Do we have the vsyslog() function?
- */
-
-/* #undef HAVE_VSYSLOG */
-
-
-/*
  * Do we have the (v)snprintf() functions?
  */
 
@@ -339,21 +216,6 @@ typedef unsigned long useconds_t;
 
 /* #undef HAVE_WAITPID */
 /* #undef HAVE_WAIT3 */
-
-
-/*
- * Do we have the mallinfo function and malloc.h?
- */
-
-/* #undef HAVE_MALLINFO */
-/* #undef HAVE_MALLOC_H */
-
-
-/*
- * Do we have the POSIX ACL functions?
- */
-
-/* #undef HAVE_ACL_INIT */
 
 
 /*
@@ -424,13 +286,6 @@ typedef unsigned long useconds_t;
 
 
 /*
- * Do we have libpaper?
- */
-
-/* #undef HAVE_LIBPAPER */
-
-
-/*
  * Do we have mDNSResponder for DNS Service Discovery (aka Bonjour)?
  */
 
@@ -442,13 +297,6 @@ typedef unsigned long useconds_t;
  */
 
 #undef HAVE_AVAHI
-
-
-/*
- * Do we have <sys/ioctl.h>?
- */
-
-#undef HAVE_SYS_IOCTL_H
 
 
 /*
@@ -466,13 +314,6 @@ typedef unsigned long useconds_t;
 
 
 /*
- * Do we have rresvport_af()?
- */
-
-/* #undef HAVE_RRESVPORT_AF */
-
-
-/*
  * Do we have getaddrinfo()?
  */
 
@@ -484,13 +325,6 @@ typedef unsigned long useconds_t;
  */
 
 #define HAVE_GETNAMEINFO 1
-
-
-/*
- * Do we have getifaddrs()?
- */
-
-/* #undef HAVE_GETIFADDRS */
 
 
 /*
@@ -536,52 +370,6 @@ typedef unsigned long useconds_t;
 
 
 /*
- * Do we have launchd support?
- */
-
-/* #undef HAVE_LAUNCH_H */
-/* #undef HAVE_LAUNCHD */
-
-
-/*
- * Do we have systemd support?
- */
-
-/* #undef HAVE_SYSTEMD */
-
-
-/*
- * Various scripting languages...
- */
-
-/* #undef HAVE_JAVA */
-#define CUPS_JAVA	""
-/* #undef HAVE_PERL */
-#define CUPS_PERL	""
-/* #undef HAVE_PHP */
-#define CUPS_PHP	""
-/* #undef HAVE_PYTHON */
-#define CUPS_PYTHON	""
-
-
-/*
- * Location of the poppler/Xpdf pdftops program...
- */
-
-/* #undef HAVE_PDFTOPS */
-/* #undef HAVE_PDFTOPS_WITH_ORIGPAGESIZES */
-#define CUPS_PDFTOPS ""
-
-
-/*
- * Location of the Ghostscript gs program...
- */
-
-/* #undef HAVE_GHOSTSCRIPT */
-#define CUPS_GHOSTSCRIPT ""
-
-
-/*
  * Do we have CoreFoundation public and private headers?
  */
 
@@ -598,72 +386,12 @@ typedef unsigned long useconds_t;
 
 
 /*
- * Do we have the SCDynamicStoreCopyComputerName function?
- */
-
-/* #undef HAVE_SCDYNAMICSTORECOPYCOMPUTERNAME */
-
-
-/*
- * Do we have OS X 10.4's mbr_XXX functions?
- */
-
-/* #undef HAVE_MEMBERSHIP_H */
-/* #undef HAVE_MEMBERSHIPPRIV_H */
-/* #undef HAVE_MBR_UID_TO_UUID */
-
-
-/*
- * Do we have Darwin's notify_post header and function?
- */
-
-/* #undef HAVE_NOTIFY_H */
-/* #undef HAVE_NOTIFY_POST */
-
-
-/*
- * Do we have DBUS?
- */
-
-/* #undef HAVE_DBUS */
-/* #undef HAVE_DBUS_MESSAGE_ITER_INIT_APPEND */
-/* #undef HAVE_DBUS_THREADS_INIT */
-
-
-/*
- * Do we have the GSSAPI support library (for Kerberos support)?
- */
-
-/* #undef HAVE_GSS_ACQUIRE_CRED_EX_F */
-/* #undef HAVE_GSS_C_NT_HOSTBASED_SERVICE */
-/* #undef HAVE_GSS_GSSAPI_H */
-/* #undef HAVE_GSS_GSSAPI_SPI_H */
-/* #undef HAVE_GSSAPI */
-/* #undef HAVE_GSSAPI_GSSAPI_H */
-/* #undef HAVE_GSSAPI_H */
-
-
-/*
- * Default GSS service name...
- */
-
-#define CUPS_DEFAULT_GSSSERVICENAME "host"
-
-
-/*
  * Select/poll interfaces...
  */
 
 /* #undef HAVE_POLL */
 /* #undef HAVE_EPOLL */
 /* #undef HAVE_KQUEUE */
-
-
-/*
- * Do we have the <dlfcn.h> header?
- */
-
-/* #undef HAVE_DLFCN_H */
 
 
 /*
@@ -688,13 +416,6 @@ typedef unsigned long useconds_t;
 
 
 /*
- * Do we have <sandbox.h>?
- */
-
-/* #undef HAVE_SANDBOX_H */
-
-
-/*
  * Which random number generator function to use...
  */
 
@@ -715,27 +436,6 @@ typedef unsigned long useconds_t;
 #  define CUPS_RAND() rand()
 #  define CUPS_SRAND(v) srand(v)
 #endif /* HAVE_ARC4RANDOM */
-
-
-/*
- * Do we have vproc_transaction_begin/end?
- */
-
-/* #undef HAVE_VPROC_TRANSACTION_BEGIN */
-
-
-/*
- * Do we have libusb?
- */
-
-/* #undef HAVE_LIBUSB */
-
-
-/*
- * Do we have libwrap and tcpd.h?
- */
-
-/* #undef HAVE_TCPD_H */
 
 
 /*
@@ -765,21 +465,6 @@ typedef unsigned long useconds_t;
 
 
 /*
- * Do we have XPC?
- */
-
-/* #undef HAVE_XPC */
-/* #undef HAVE_XPC_PRIVATE_H */
-
-
-/*
- * Do we have Mini-XML?
- */
-
-/* #undef HAVE_MXML_H */
-
-
-/*
  * Do we have the C99 abs() function?
  */
 
@@ -797,7 +482,3 @@ static __inline int _cups_abs(int i) { return (i < 0 ? -i : i); }
 #endif /* !HAVE_ABS && !abs */
 
 #endif /* !_CUPS_CONFIG_H_ */
-
-/*
- * End of "$Id: config.h 12875 2015-09-14 19:00:47Z msweet $".
- */
