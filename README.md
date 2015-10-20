@@ -4,11 +4,11 @@ The IPP Everywhere Printer self-certification tools are used to test the conform
 
 The IPP Everywhere home page provides access to all information relevant to IPP Eveywhere:
 
-    http://www.pwg.org/ipp/everywhere.html
+    [http://www.pwg.org/ipp/everywhere.html](http://www.pwg.org/ipp/everywhere.html)
 
 The "ippeveselfcert@pwg.org" mailing list is used to discuss IPP Everywhere Printer Self-Certification. You can subscribe from the following page:
 
-    https://www.pwg.org/mailman/listinfo/ippeveselfcert
+    [https://www.pwg.org/mailman/listinfo/ippeveselfcert](https://www.pwg.org/mailman/listinfo/ippeveselfcert)
 
 # Compiling and Packaging
 
