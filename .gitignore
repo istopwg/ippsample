@@ -4,7 +4,7 @@ config.h
 config.log
 config.status
 cups/libcups.a
-sw-ippeveselfvert10-*
+sw-ippeveselfcert10-*
 tools/ippfind
 tools/ippserver
 tools/ipptool
