@@ -64,16 +64,20 @@ mkdir $pkgdir || exit 1
 echo Copying package files
 cp LICENSE.txt $pkgdir
 cp doc/man-ipp*.html $pkgdir
-cp scripts/README.txt $pkgdir
-cp scripts/color.jpg $pkgdir
-cp scripts/document-*.pdf $pkgdir
 cp tools/ippfind $pkgdir/ippfind
 cp tools/ippserver $pkgdir
 cp tools/ipptool $pkgdir/ipptool
 cp tools/printer.png $pkgdir
 
-for file in scripts/*-tests.*; do
-	sed -e "1,\$s/@SELFCERTVERSION@/$fileversion/g" $file > $pkgdir/`basename $file`
+for file in tests/*; do
+	case "$file" in
+		*.jpg | *.pdf)
+			cp "$file" $pkgdir
+			;;
+		*)
+			sed -e "1,\$s/@SELFCERTVERSION@/$fileversion/g" $file > $pkgdir/`basename $file`
+			;;
+	esac
 done
 
 if test x$platform = xosx; then
