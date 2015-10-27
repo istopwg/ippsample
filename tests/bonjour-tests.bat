@@ -21,7 +21,9 @@
 ::   bonjour-tests.bat 'Printer Name'
 ::
 
-set PLIST=%1 Bonjour Results.plist
+set name=%1
+set name=%name:~1,-1%
+set PLIST=%name% Bonjour Results.plist
 echo Sending output to "%PLIST%"...
 
 :: Write the standard XML plist header...
@@ -43,7 +45,7 @@ echo ^<dict^>^<key^>Name^</key^>^<string^>B-1. IPP Browse test^</string^> >>"%PL
 echo ^<key^>FileId^</key^>^<string^>org.pwg.ipp-everywhere.20151009.bonjour^</string^> >>"%PLIST%"
 
 set result=FAIL
-ippfind _ipp._tcp,_print.local. --name "%1" --quiet && set result=PASS
+ippfind _ipp._tcp,_print.local. --name "%name%" --quiet && set result=PASS
 if "%result%" == "PASS" (
 	set /a pass+=1
 ) else (
