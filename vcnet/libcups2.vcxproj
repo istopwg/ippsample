@@ -167,7 +167,8 @@
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <PostBuildEvent>
-      <Command />
+      <Command>signtool sign /n "IEEE INDUSTRY STANDARDS AND TECHNOLOGY ORGANIZATION" $(TargetPath)</Command>
+      <Message>Sign code with IEEE-ISTO cert.</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -196,11 +197,8 @@
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
     <PostBuildEvent>
-      <Command>if not "%25RC_XBS%25" == "YES" goto END
-if not exist "$(DSTROOT)\Program Files\Bonjour\$(Platform)"   mkdir "$(DSTROOT)\Program Files\Bonjour\$(Platform)"
-xcopy /I/Y "$(TargetPath)"                                                                  "$(DSTROOT)\Program Files\Bonjour\$(Platform)"
-:END
-</Command>
+      <Command>signtool sign /n "IEEE INDUSTRY STANDARDS AND TECHNOLOGY ORGANIZATION" $(TargetPath)</Command>
+      <Message>Sign code with IEEE-ISTO cert.</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
