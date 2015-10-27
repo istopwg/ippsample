@@ -55,6 +55,11 @@ if test x$platform = xosx -a "x$CODESIGN_IDENTITY" = x; then
 	exit 1
 fi
 
+if test x$platform = xosx -a "x$HDIUTIL_CERT" = x; then
+	echo "Please set the HDIUTIL_CERT environment variable before running."
+	exit 1
+fi
+
 echo Creating package directory...
 pkgdir="sw-ippeveselfcert10-$fileversion"
 
@@ -85,7 +90,7 @@ if test x$platform = xosx; then
 	pkgfile="$pkgdir-osx.dmg"
 	echo Creating disk image $pkgfile...
 	test -f $pkgfile && rm $pkgfile
-	hdiutil create -srcfolder $pkgdir $pkgfile
+	hdiutil create -srcfolder $pkgdir -certificate "$HDIUTIL_CERT" $pkgfile
 else
 	# Make archive...
 	pkgfile="$pkgdir-$platform.tar.gz"
