@@ -3951,6 +3951,24 @@ get_string(ipp_attribute_t *attr,	/* I - IPP attribute */
 
     return (buffer);
   }
+  else if (ippGetValueTag(attr) == IPP_TAG_URI)
+  {
+    if (httpSeparateURI(HTTP_URI_CODING_ALL, ptr, scheme, sizeof(scheme), userpass, sizeof(userpass), hostname, sizeof(hostname), &port, resource, sizeof(resource)) < HTTP_URI_STATUS_OK)
+      buffer[0] = '\0';
+    else
+    {
+     /*
+      * Normalize URI with no trailing dot...
+      */
+
+      if ((ptr = hostname + strlen(hostname) - 1) >= hostname && *ptr == '.')
+	*ptr = '\0';
+
+      httpAssembleURI(HTTP_URI_CODING_ALL, buffer, sizeof(buffer), scheme, userpass, hostname, port, resource);
+    }
+
+    return (buffer);
+  }
   else
     return (ptr);
 }
