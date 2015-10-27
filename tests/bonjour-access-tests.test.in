@@ -18,7 +18,7 @@
 #   ./ipptool -tI printer-uri bonjour-access-tests.test
 #
 
-FILE-ID "org.pwg.ipp-everywhere.20151009.bonjour"
+FILE-ID "org.pwg.ipp-everywhere.@CUPS_VERSION@.bonjour"
 
 {
 	# The name of the test...

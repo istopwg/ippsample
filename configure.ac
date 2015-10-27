@@ -29,4 +29,14 @@ sinclude(config-scripts/cups-ssl.m4)
 sinclude(config-scripts/cups-largefile.m4)
 sinclude(config-scripts/cups-dnssd.m4)
 
-AC_OUTPUT(Makedefs)
+AC_OUTPUT(Makedefs
+	  tests/bonjour-access-tests.test
+	  tests/bonjour-tests.bat
+	  tests/bonjour-tests.sh
+	  tests/bonjour-value-tests.test
+	  tests/document-tests.bat
+	  tests/document-tests.sh
+	  tests/document-tests.test
+	  tests/ipp-tests.bat
+	  tests/ipp-tests.sh
+	  tests/ipp-tests.test)

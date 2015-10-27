@@ -19,7 +19,7 @@
 #   ippfind ... -x ipptool -t "{}" bonjour-value-tests.test ";"
 #
 
-FILE-ID "org.pwg.ipp-everywhere.@SELFCERTVERSION@.bonjour"
+FILE-ID "org.pwg.ipp-everywhere.20151009.bonjour"
 
 {
 	# The name of the test...

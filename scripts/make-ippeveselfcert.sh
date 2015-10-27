@@ -64,21 +64,16 @@ mkdir $pkgdir || exit 1
 echo Copying package files
 cp LICENSE.txt $pkgdir
 cp doc/man-ipp*.html $pkgdir
+cp tests/README.txt $pkgdir
+cp tests/*.jpg $pkgdir
+cp tests/*.pdf $pkgdir
+cp tests/*.sh $pkgdir
+cp tests/*.test $pkgdir
 cp tools/ippfind $pkgdir/ippfind
 cp tools/ippserver $pkgdir
 cp tools/ipptool $pkgdir/ipptool
 cp tools/printer.png $pkgdir
 
-for file in tests/*; do
-	case "$file" in
-		*.jpg | *.pdf)
-			cp "$file" $pkgdir
-			;;
-		*)
-			sed -e "1,\$s/@SELFCERTVERSION@/$fileversion/g" $file > $pkgdir/`basename $file`
-			;;
-	esac
-done
 
 if test x$platform = xosx; then
 	# Sign executables...
