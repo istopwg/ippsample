@@ -15,6 +15,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ippserver", "ippserver.vcxp
 		{18950A1B-D37A-40C7-B2DF-C12986C0526E} = {18950A1B-D37A-40C7-B2DF-C12986C0526E}
 	EndProjectSection
 EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "sw-ippeveselfcert10", "sw-ippeveselfcert10.vdproj", "{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -46,6 +48,7 @@ Global
 		{18950A1B-D37A-40C7-B2DF-C12986C0526E}.Release|Win32.ActiveCfg = Release|Win32
 		{18950A1B-D37A-40C7-B2DF-C12986C0526E}.Release|Win32.Build.0 = Release|Win32
 		{18950A1B-D37A-40C7-B2DF-C12986C0526E}.Release|x64.ActiveCfg = Release|x64
+		{18950A1B-D37A-40C7-B2DF-C12986C0526E}.Release|x64.Build.0 = Release|x64
 		{B484DA0C-62C8-4C32-83B6-CCEB58968B85}.Debug|Win32.ActiveCfg = Debug|Win32
 		{B484DA0C-62C8-4C32-83B6-CCEB58968B85}.Debug|Win32.Build.0 = Debug|Win32
 		{B484DA0C-62C8-4C32-83B6-CCEB58968B85}.Debug|x64.ActiveCfg = Debug|x64
@@ -62,6 +65,14 @@ Global
 		{82A03BC7-0746-4B85-8908-3C7A3FAA58A9}.Release|Win32.Build.0 = Release|Win32
 		{82A03BC7-0746-4B85-8908-3C7A3FAA58A9}.Release|x64.ActiveCfg = Release|x64
 		{82A03BC7-0746-4B85-8908-3C7A3FAA58A9}.Release|x64.Build.0 = Release|x64
+		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Debug|Win32.ActiveCfg = Debug
+		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Debug|Win32.Build.0 = Debug
+		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Debug|x64.ActiveCfg = Debug
+		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Debug|x64.Build.0 = Debug
+		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Release|Win32.ActiveCfg = Release
+		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Release|Win32.Build.0 = Release
+		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Release|x64.ActiveCfg = Release
+		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Release|x64.Build.0 = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
