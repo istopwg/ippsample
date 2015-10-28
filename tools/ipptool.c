@@ -1,5 +1,5 @@
 /*
- * "$Id: ipptool.c 12948 2015-10-28 16:37:49Z msweet $"
+ * "$Id: ipptool.c 12951 2015-10-28 17:21:45Z msweet $"
  *
  * ipptool command for CUPS.
  *
@@ -1729,7 +1729,25 @@ do_tests(FILE         *outfile,		/* I - Output file */
 	        int	values[100],	/* Values */
 			num_values = 1;	/* Number of values */
 
-		values[0] = (int)strtol(token, &tokenptr, 10);
+		if (!isdigit(token[0] & 255) && token[0] != '-' && value == IPP_TAG_ENUM)
+		{
+		  char *ptr;		/* Pointer to next terminator */
+
+		  if ((ptr = strchr(token, ',')) != NULL)
+		    *ptr++ = '\0';
+		  else
+		    ptr = token + strlen(token);
+
+		  if ((i = ippEnumValue(attr, token)) < 0)
+		    tokenptr = NULL;
+		  else
+		    tokenptr = ptr;
+		}
+		else
+		  i = (int)strtol(tokenptr, &tokenptr, 0);
+
+		values[0] = i;
+
 		while (tokenptr && *tokenptr &&
 		       num_values < (int)(sizeof(values) / sizeof(values[0])))
 		{
@@ -1738,24 +1756,20 @@ do_tests(FILE         *outfile,		/* I - Output file */
 
 		  if (!isdigit(*tokenptr & 255) && *tokenptr != '-')
 		  {
-		    char *ptr, ch;	/* Pointer to next terminator */
+		    char *ptr;		/* Pointer to next terminator */
 
 		    if (value != IPP_TAG_ENUM)
 		      break;
 
                     if ((ptr = strchr(tokenptr, ',')) != NULL)
-                    {
-                      ch   = *ptr;
-                      *ptr = '\0';
-                    }
+                      *ptr++ = '\0';
                     else
-                    {
-                      ch  = '\0';
                       ptr = tokenptr + strlen(tokenptr);
-                    }
 
                     if ((i = ippEnumValue(attr, tokenptr)) < 0)
                       break;
+
+                    tokenptr = ptr;
 		  }
 		  else
 		    i = (int)strtol(tokenptr, &tokenptr, 0);
@@ -6177,5 +6191,5 @@ with_value_from(
 
 
 /*
- * End of "$Id: ipptool.c 12948 2015-10-28 16:37:49Z msweet $".
+ * End of "$Id: ipptool.c 12951 2015-10-28 17:21:45Z msweet $".
  */
