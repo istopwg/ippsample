@@ -5922,6 +5922,55 @@ with_value(FILE            *outfile,	/* I - Output file */
 
 	  regfree(&re);
 	}
+	else if (ippGetValueTag(attr) == IPP_TAG_URI)
+	{
+          if (!strncmp(value, "ipp://", 6) || !strncmp(value, "http://", 7) || !strncmp(value, "ipps://", 7) || !strncmp(value, "https://", 8))
+          {
+	    char	scheme[256],	/* URI scheme */
+			userpass[256],	/* username:password, if any */
+			hostname[256],	/* hostname */
+			*hostptr,	/* Pointer into hostname */
+			resource[1024];	/* Resource path */
+	    int		port;		/* Port number */
+
+            if (httpSeparateURI(HTTP_URI_CODING_ALL, value, scheme, sizeof(scheme), userpass, sizeof(userpass), hostname, sizeof(hostname), &port, resource, sizeof(resource)) >= HTTP_URI_STATUS_OK && (hostptr = hostname + strlen(hostname) - 1) > hostname && *hostptr == '.')
+            {
+             /*
+              * Strip trailing "." in hostname of URI...
+              */
+
+              *hostptr = '\0';
+              httpAssembleURI(HTTP_URI_CODING_ALL, temp, sizeof(temp), scheme, userpass, hostname, port, resource);
+              value = temp;
+            }
+          }
+
+	 /*
+	  * Value is a literal URI string, see if the value(s) match...
+	  */
+
+	  for (i = 0; i < attr->num_values; i ++)
+	  {
+	    if (!strcmp(value, get_string(attr, i, flags, temp, sizeof(temp))))
+	    {
+	      if (!matchbuf[0])
+		strlcpy(matchbuf,
+		        get_string(attr, i, flags, temp, sizeof(temp)),
+		        matchlen);
+
+	      if (!(flags & _CUPS_WITH_ALL))
+	      {
+	        match = 1;
+	        break;
+	      }
+	    }
+	    else if (flags & _CUPS_WITH_ALL)
+	    {
+	      match = 0;
+	      break;
+	    }
+	  }
+	}
 	else
 	{
 	 /*
