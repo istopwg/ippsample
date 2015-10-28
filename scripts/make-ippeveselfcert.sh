@@ -79,6 +79,7 @@ cp tools/ippserver $pkgdir
 cp tools/ipptool $pkgdir/ipptool
 cp tools/printer.png $pkgdir
 
+chmod +x $pkgdir/*.sh
 
 if test x$platform = xosx; then
 	# Sign executables...

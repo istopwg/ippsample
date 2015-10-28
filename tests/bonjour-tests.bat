@@ -67,16 +67,16 @@ echo ^<dict^>^<key^>Name^</key^>^<string^>B-2. IPP TXT keys test^</string^> >>"%
 echo ^<key^>FileId^</key^>^<string^>org.pwg.ipp-everywhere.20140826.bonjour^</string^> >>"%PLIST%"
 
 set result=FAIL
-ippfind "%1._ipp._tcp.local." --txt adminurl --txt pdl --txt rp --txt UUID --quiet && set result=PASS
+ippfind "%name%._ipp._tcp.local." --txt adminurl --txt pdl --txt rp --txt UUID --quiet && set result=PASS
 if "%result%" == "PASS" (
 	set /a pass+=1
 ) else (
 	set /a fail+=1
 	echo ^<key^>Errors^</key^>^<array^>^<string^> >>"%PLIST%"
-	ippfind "%1._ipp._tcp.local." -x echo adminurl="{txt_adminurl}" ";" >>"%PLIST%"
-	ippfind "%1._ipp._tcp.local." -x echo pdl="{txt_pdl}" ";" >>"%PLIST%"
-	ippfind "%1._ipp._tcp.local." -x echo rp="{txt_rp}" ";" >>"%PLIST%"
-	ippfind "%1._ipp._tcp.local." -x echo UUID="{txt_uuid}" ";" >>"%PLIST%"
+	ippfind "%name%._ipp._tcp.local." -x echo adminurl="{txt_adminurl}" ";" >>"%PLIST%"
+	ippfind "%name%._ipp._tcp.local." -x echo pdl="{txt_pdl}" ";" >>"%PLIST%"
+	ippfind "%name%._ipp._tcp.local." -x echo rp="{txt_rp}" ";" >>"%PLIST%"
+	ippfind "%name%._ipp._tcp.local." -x echo UUID="{txt_uuid}" ";" >>"%PLIST%"
 	echo ^</string^>^</array^> >>"%PLIST%"
 )
 
@@ -84,10 +84,10 @@ echo %result%
 if "%result%" == "FAIL" (
 	echo ^<key^>Successful^</key^>^<false /^> >>"%PLIST%"
 
-	ippfind "%1._ipp._tcp.local." -x echo adminurl="{txt_adminurl}" ";"
-	ippfind "%1._ipp._tcp.local." -x echo pdl="{txt_pdl}" ";"
-	ippfind "%1._ipp._tcp.local." -x echo rp="{txt_rp}" ";"
-	ippfind "%1._ipp._tcp.local." -x echo UUID="{txt_uuid}" ";"
+	ippfind "%name%._ipp._tcp.local." -x echo adminurl="{txt_adminurl}" ";"
+	ippfind "%name%._ipp._tcp.local." -x echo pdl="{txt_pdl}" ";"
+	ippfind "%name%._ipp._tcp.local." -x echo rp="{txt_rp}" ";"
+	ippfind "%name%._ipp._tcp.local." -x echo UUID="{txt_uuid}" ";"
 ) else (
 	echo ^<key^>Successful^</key^>^<true /^> >>"%PLIST%"
 )
@@ -100,13 +100,13 @@ echo ^<dict^>^<key^>Name^</key^>^<string^>B-3. IPP Resolve test^</string^> >>"%P
 echo ^<key^>FileId^</key^>^<string^>org.pwg.ipp-everywhere.20140826.bonjour^</string^> >>"%PLIST%"
 
 set result=FAIL
-(ippfind "%1._ipp._tcp.local." --ls && set result=PASS) >nul:
+(ippfind "%name%._ipp._tcp.local." --ls && set result=PASS) >nul:
 if "%result%" == "PASS" (
 	set /a pass+=1
 ) else (
 	set /a fail+=1
 	echo ^<key^>Errors^</key^>^<array^>^<string^> >>"%PLIST%"
-	ippfind "%1._ipp._tcp.local." --ls >>"%PLIST%"
+	ippfind "%name%._ipp._tcp.local." --ls >>"%PLIST%"
 	echo ^</string^>^</array^> >>"%PLIST%"
 )
 
@@ -125,17 +125,17 @@ echo ^<dict^>^<key^>Name^</key^>^<string^>B-4. IPP TXT values test^</string^> >>
 echo ^<key^>FileId^</key^>^<string^>org.pwg.ipp-everywhere.20140826.bonjour^</string^> >>"%PLIST%"
 
 set result=FAIL
-ippfind "%1._ipp._tcp.local." --txt-adminurl ^^^(http:^|https:^)// --txt-pdl image/pwg-raster --txt-pdl image/jpeg --txt-rp ^^ipp/^(print^|print/[^^/]+^)$ --txt-UUID ^^[0-9a-fA-F]{8,8}-[0-9a-fA-F]{4,4}-[0-9a-fA-F]{4,4}-[0-9a-fA-F]{4,4}-[0-9a-fA-F]{12,12}$ -x ipptool -q -d "ADMINURL={txt_adminurl}" -d "UUID={txt_uuid}" "{}" bonjour-value-tests.test ";" && set result=PASS
+ippfind "%name%._ipp._tcp.local." --txt-adminurl ^^^(http:^|https:^)// --txt-pdl image/pwg-raster --txt-pdl image/jpeg --txt-rp ^^ipp/^(print^|print/[^^/]+^)$ --txt-UUID ^^[0-9a-fA-F]{8,8}-[0-9a-fA-F]{4,4}-[0-9a-fA-F]{4,4}-[0-9a-fA-F]{4,4}-[0-9a-fA-F]{12,12}$ -x ipptool -q -d "ADMINURL={txt_adminurl}" -d "UUID={txt_uuid}" "{}" bonjour-value-tests.test ";" && set result=PASS
 if "%result%" == "PASS" (
 	set /a pass+=1
 ) else (
 	set /a fail+=1
 	echo ^<key^>Errors^</key^>^<array^>^<string^> >>"%PLIST%"
-	ippfind "%1._ipp._tcp.local." -x echo adminurl="{txt_adminurl}" ";" >>"%PLIST%"
-	ippfind "%1._ipp._tcp.local." -x echo pdl="{txt_pdl}" ";" >>"%PLIST%"
-	ippfind "%1._ipp._tcp.local." -x echo rp="{txt_rp}" ";" >>"%PLIST%"
-	ippfind "%1._ipp._tcp.local." -x echo UUID="{txt_uuid}" ";" >>"%PLIST%"
-	ippfind "%1._ipp._tcp.local." -x ipptool -t "{}" bonjour-value-tests.test ";" | findstr /r [TG][EO][DT]: >>"%PLIST%"
+	ippfind "%name%._ipp._tcp.local." -x echo adminurl="{txt_adminurl}" ";" >>"%PLIST%"
+	ippfind "%name%._ipp._tcp.local." -x echo pdl="{txt_pdl}" ";" >>"%PLIST%"
+	ippfind "%name%._ipp._tcp.local." -x echo rp="{txt_rp}" ";" >>"%PLIST%"
+	ippfind "%name%._ipp._tcp.local." -x echo UUID="{txt_uuid}" ";" >>"%PLIST%"
+	ippfind "%name%._ipp._tcp.local." -x ipptool -t "{}" bonjour-value-tests.test ";" | findstr /r [TG][EO][DT]: >>"%PLIST%"
 	echo ^</string^>^</array^> >>"%PLIST%"
 )
 
@@ -143,11 +143,11 @@ echo %result%
 if "%result%" == "FAIL" (
 	echo ^<key^>Successful^</key^>^<false /^> >>"%PLIST%"
 
-	ippfind "%1._ipp._tcp.local." -x echo adminurl="{txt_adminurl}" ";"
-	ippfind "%1._ipp._tcp.local." -x echo pdl="{txt_pdl}" ";"
-	ippfind "%1._ipp._tcp.local." -x echo rp="{txt_rp}" ";"
-	ippfind "%1._ipp._tcp.local." -x echo UUID="{txt_uuid}" ";"
-	ippfind "%1._ipp._tcp.local." -x ipptool -t "{}" bonjour-value-tests.test ";" | findstr /r [TG][EO][DT]:
+	ippfind "%name%._ipp._tcp.local." -x echo adminurl="{txt_adminurl}" ";"
+	ippfind "%name%._ipp._tcp.local." -x echo pdl="{txt_pdl}" ";"
+	ippfind "%name%._ipp._tcp.local." -x echo rp="{txt_rp}" ";"
+	ippfind "%name%._ipp._tcp.local." -x echo UUID="{txt_uuid}" ";"
+	ippfind "%name%._ipp._tcp.local." -x ipptool -t "{}" bonjour-value-tests.test ";" | findstr /r [TG][EO][DT]:
 ) else (
 	echo ^<key^>Successful^</key^>^<true /^> >>"%PLIST%"
 )
@@ -160,7 +160,7 @@ echo ^<dict^>^<key^>Name^</key^>^<string^>B-5. TLS tests^</string^> >>"%PLIST%"
 echo ^<key^>FileId^</key^>^<string^>org.pwg.ipp-everywhere.20140826.bonjour^</string^> >>"%PLIST%"
 
 set result=SKIP
-ippfind "%1._ipp._tcp.local." --txt tls --quiet && set result=PASS
+ippfind "%name%._ipp._tcp.local." --txt tls --quiet && set result=PASS
 if "%result%" == "PASS" (
 	set /a pass+=1
 	set HAVE_TLS=1
@@ -186,13 +186,13 @@ echo ^<key^>FileId^</key^>^<string^>org.pwg.ipp-everywhere.20140826.bonjour^</st
 
 if "%HAVE_TLS%" == "1" (
 	set result=FAIL
-	ippfind "%1._ipp._tcp.local." -x ipptool -E -q "{}" bonjour-access-tests.test ";" && set result=PASS
+	ippfind "%name%._ipp._tcp.local." -x ipptool -E -q "{}" bonjour-access-tests.test ";" && set result=PASS
 	if "%result%" == "PASS" (
 		set /a pass+=1
 	) else (
 		set /a fail+=1
 		echo ^<key^>Errors^</key^>^<array^>^<string^> >>"%PLIST"
-		ippfind "%1._ipp._tcp.local." -x ipptool -E -q "{}" bonjour-access-tests.test ";" >>"%PLIST%"
+		ippfind "%name%._ipp._tcp.local." -x ipptool -E -q "{}" bonjour-access-tests.test ";" >>"%PLIST%"
 		echo ^</string^>^</array^> >>"%PLIST%"
 	)
 ) else (
@@ -221,7 +221,7 @@ echo ^<key^>FileId^</key^>^<string^>org.pwg.ipp-everywhere.20140826.bonjour^</st
 
 if "%HAVE_TLS%" == "1" (
 	set result=FAIL
-	ippfind _ipps._tcp,_print.local. --name "%1" --quiet && set result=PASS
+	ippfind _ipps._tcp,_print.local. --name "%name%" --quiet && set result=PASS
 	if "%result%" == "PASS" (
 		set /a pass+=1
 	) else (
@@ -253,17 +253,17 @@ echo ^<key^>FileId^</key^>^<string^>org.pwg.ipp-everywhere.20140826.bonjour^</st
 
 if "%HAVE_TLS%" == "1" (
 	set result=FAIL
-	ippfind "%1._ipps._tcp.local." --txt adminurl --txt pdl --txt rp --txt TLS --txt UUID --quiet && set result=PASS
+	ippfind "%name%._ipps._tcp.local." --txt adminurl --txt pdl --txt rp --txt TLS --txt UUID --quiet && set result=PASS
 	if "%result%" == "PASS" (
 		set /a pass+=1
 	) else (
 		set /a fail+=1
 	        echo ^<key^>Errors^</key^>^<array^>^<string^> >>"%PLIST%"
-	        ippfind "%1._ipps._tcp.local." -x echo adminurl={txt_adminurl}" ";" >>"%PLIST%"
-	        ippfind "%1._ipps._tcp.local." -x echo pdl={txt_pdl}" ";" >>"%PLIST%"
-	        ippfind "%1._ipps._tcp.local." -x echo rp={txt_rp}" ";" >>"%PLIST%"
-	        ippfind "%1._ipps._tcp.local." -x echo TLS={txt_tls}" ";" >>"%PLIST%"
-	        ippfind "%1._ipps._tcp.local." -x echo UUID={txt_uuid}" ";" >>"%PLIST%"
+	        ippfind "%name%._ipps._tcp.local." -x echo adminurl={txt_adminurl}" ";" >>"%PLIST%"
+	        ippfind "%name%._ipps._tcp.local." -x echo pdl={txt_pdl}" ";" >>"%PLIST%"
+	        ippfind "%name%._ipps._tcp.local." -x echo rp={txt_rp}" ";" >>"%PLIST%"
+	        ippfind "%name%._ipps._tcp.local." -x echo TLS={txt_tls}" ";" >>"%PLIST%"
+	        ippfind "%name%._ipps._tcp.local." -x echo UUID={txt_uuid}" ";" >>"%PLIST%"
 	        echo ^</string^>^</array^> >>"%PLIST%"
 	)
 ) else (
@@ -275,11 +275,11 @@ echo %result%
 if "%result%" == "FAIL" (
 	echo ^<key^>Successful^</key^>^<false /^> >>"%PLIST%"
 
-        ippfind "%1._ipps._tcp.local." -x echo     adminurl={txt_adminurl}" ";"
-        ippfind "%1._ipps._tcp.local." -x echo     pdl={txt_pdl}" ";"
-        ippfind "%1._ipps._tcp.local." -x echo     rp={txt_rp}" ";"
-        ippfind "%1._ipps._tcp.local." -x echo     TLS={txt_tls}" ";"
-        ippfind "%1._ipps._tcp.local." -x echo     UUID={txt_uuid}" ";"
+        ippfind "%name%._ipps._tcp.local." -x echo     adminurl={txt_adminurl}" ";"
+        ippfind "%name%._ipps._tcp.local." -x echo     pdl={txt_pdl}" ";"
+        ippfind "%name%._ipps._tcp.local." -x echo     rp={txt_rp}" ";"
+        ippfind "%name%._ipps._tcp.local." -x echo     TLS={txt_tls}" ";"
+        ippfind "%name%._ipps._tcp.local." -x echo     UUID={txt_uuid}" ";"
 ) else (
 	if "%result%" == "SKIP" (
 		echo ^<key^>Successful^</key^>^<true /^> >>"%PLIST%"
@@ -298,13 +298,13 @@ echo ^<key^>FileId^</key^>^<string^>org.pwg.ipp-everywhere.20140826.bonjour^</st
 
 if "%HAVE_TLS%" == "1" (
 	set result=FAIL
-	(ippfind "%1._ipps._tcp.local." --ls && set result=PASS) >nul:
+	(ippfind "%name%._ipps._tcp.local." --ls && set result=PASS) >nul:
 	if "%result%" == "PASS" (
 		set /a pass+=1
 	) else (
 		set /a fail+=1
 		echo ^<key^>Errors^</key^>^<array^>^<string^> >>"%PLIST%"
-		ippfind "%1._ipps._tcp.local." --ls >>"%PLIST%"
+		ippfind "%name%._ipps._tcp.local." --ls >>"%PLIST%"
 		echo ^</string^>^</array^> >>"%PLIST%"
 	)
 ) else (
@@ -333,18 +333,18 @@ echo ^<key^>FileId^</key^>^<string^>org.pwg.ipp-everywhere.20140826.bonjour^</st
 
 if "%HAVE_TLS%" == "1" (
 	set result=FAIL
-	ippfind "%1._ipps._tcp.local." --txt-adminurl ^^^(http:^|https:^)// --txt-pdl image/pwg-raster --txt-pdl image/jpeg --txt-rp ^^ipp/^(print^|print/[^^/]+^)$ --txt-UUID ^^[0-9a-fA-F]{8,8}-[0-9a-fA-F]{4,4}-[0-9a-fA-F]{4,4}-[0-9a-fA-F]{4,4}-[0-9a-fA-F]{12,12}$ -x ipptool -q "{}" bonjour-value-tests.test ";" && set result=PASS
+	ippfind "%name%._ipps._tcp.local." --txt-adminurl ^^^(http:^|https:^)// --txt-pdl image/pwg-raster --txt-pdl image/jpeg --txt-rp ^^ipp/^(print^|print/[^^/]+^)$ --txt-UUID ^^[0-9a-fA-F]{8,8}-[0-9a-fA-F]{4,4}-[0-9a-fA-F]{4,4}-[0-9a-fA-F]{4,4}-[0-9a-fA-F]{12,12}$ -x ipptool -q "{}" bonjour-value-tests.test ";" && set result=PASS
 	if "%result%" == "PASS" (
 		set /a pass+=1
 	) else (
 		set /a fail+=1
 	        echo ^<key^>Errors^</key^>^<array^>^<string^> >>"%PLIST%"
-	        ippfind "%1._ipps._tcp.local." -x echo adminurl="{txt_adminurl}" ";" >>"%PLIST%"
-	        ippfind "%1._ipps._tcp.local." -x echo pdl="{txt_pdl}" ";" >>"%PLIST%"
-	        ippfind "%1._ipps._tcp.local." -x echo rp="{txt_rp}" ";" >>"%PLIST%"
-	        ippfind "%1._ipps._tcp.local." -x echo TLS="{txt_tls}" ";" >>"%PLIST%"
-	        ippfind "%1._ipps._tcp.local." -x echo UUID="{txt_uuid}" ";" >>"%PLIST%"
-		ippfind "%1._ipps._tcp.local." -x ipptool -t "{}" bonjour-value-tests.test ";" | findstr /r [TG][EO][DT]: >>"%PLIST"
+	        ippfind "%name%._ipps._tcp.local." -x echo adminurl="{txt_adminurl}" ";" >>"%PLIST%"
+	        ippfind "%name%._ipps._tcp.local." -x echo pdl="{txt_pdl}" ";" >>"%PLIST%"
+	        ippfind "%name%._ipps._tcp.local." -x echo rp="{txt_rp}" ";" >>"%PLIST%"
+	        ippfind "%name%._ipps._tcp.local." -x echo TLS="{txt_tls}" ";" >>"%PLIST%"
+	        ippfind "%name%._ipps._tcp.local." -x echo UUID="{txt_uuid}" ";" >>"%PLIST%"
+		ippfind "%name%._ipps._tcp.local." -x ipptool -t "{}" bonjour-value-tests.test ";" | findstr /r [TG][EO][DT]: >>"%PLIST"
 	        echo ^</string^>^</array^> >>"%PLIST%"
 	)
 ) else (
@@ -356,12 +356,12 @@ echo %result%
 if "%result%" == "FAIL" (
 	echo ^<key^>Successful^</key^>^<false /^> >>"%PLIST%"
 
-        ippfind "%1._ipps._tcp.local." -x echo adminurl="{txt_adminurl}" ";"
-        ippfind "%1._ipps._tcp.local." -x echo pdl="{txt_pdl}" ";"
-        ippfind "%1._ipps._tcp.local." -x echo rp="{txt_rp}" ";"
-        ippfind "%1._ipps._tcp.local." -x echo TLS="{txt_tls}" ";"
-        ippfind "%1._ipps._tcp.local." -x echo UUID="{txt_uuid}" ";"
-	ippfind "%1._ipp._tcp.local." -x ipptool -t "{}" bonjour-value-tests.test ";" | findstr /r [TG][EO][DT]:
+        ippfind "%name%._ipps._tcp.local." -x echo adminurl="{txt_adminurl}" ";"
+        ippfind "%name%._ipps._tcp.local." -x echo pdl="{txt_pdl}" ";"
+        ippfind "%name%._ipps._tcp.local." -x echo rp="{txt_rp}" ";"
+        ippfind "%name%._ipps._tcp.local." -x echo TLS="{txt_tls}" ";"
+        ippfind "%name%._ipps._tcp.local." -x echo UUID="{txt_uuid}" ";"
+	ippfind "%name%._ipp._tcp.local." -x ipptool -t "{}" bonjour-value-tests.test ";" | findstr /r [TG][EO][DT]:
 ) else (
 	if "%result%" == "SKIP" (
 		echo ^<key^>Successful^</key^>^<true /^> >>"%PLIST%"
