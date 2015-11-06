@@ -43,12 +43,14 @@ for file in color.jpg document-a4.pdf document-letter.pdf; do
 	fi
 done
 
-if test "`ls -d pwg-raster-samples-*dpi-20111130 2>/dev/null`" = ""; then
+if test "`ls -d pwg-raster-samples-*dpi-@PWGRASTER_VERSION@ 2>/dev/null`" = ""; then
 	echo "You must first download and extract the PWG Raster Format sample files from:"
 	echo ""
 	echo "    http://ftp.pwg.org/pub/pwg/ipp/examples/"
 	echo ""
 	echo "Before you can run this script."
+	echo ""
+	echo "(Look for the @PWGRASTER_VERSION@ files...)"
 	exit 1
 fi
 

@@ -649,6 +649,8 @@ CC
 AWK
 CUPS_REVISION
 CUPS_VERSION
+PWGRASTER_VERSION
+IPPEVESELFCERT_VERSION
 target_alias
 host_alias
 build_alias
@@ -2202,6 +2204,12 @@ ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
 ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
+
+
+IPPEVESELFCERT_VERSION="ippeveselfcert10"
+
+
+PWGRASTER_VERSION="20150616"
 
 
 

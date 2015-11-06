@@ -19,6 +19,18 @@ AC_PREREQ(2.60)
 dnl Package name and version...
 AC_INIT([IPPEVESELFCERT], [20151009], [https://github.com/istopwg/ippeveselfcert/issues], [ippeveselfcert], [http://www.pwg.org/ipp/everywhere.html])
 
+dnl IPP Everywhere Printer Self-Certification Manual Version; this is the
+dnl filename prefix...
+IPPEVESELFCERT_VERSION="ippeveselfcert10"
+AC_SUBST(IPPEVESELFCERT_VERSION)
+
+dnl PWG Raster Sample File Date/Version; this comes from:
+dnl
+dnl     http://ftp.pwg.org/pub/pwg/ipp/examples
+PWGRASTER_VERSION="20150616"
+AC_SUBST(PWGRASTER_VERSION)
+
+dnl Include common configuration scripts...
 sinclude(config-scripts/cups-opsys.m4)
 sinclude(config-scripts/cups-common.m4)
 sinclude(config-scripts/cups-compiler.m4)
@@ -29,6 +41,7 @@ sinclude(config-scripts/cups-ssl.m4)
 sinclude(config-scripts/cups-largefile.m4)
 sinclude(config-scripts/cups-dnssd.m4)
 
+dnl Generate a bunch of files...
 AC_OUTPUT(Makedefs
 	  tests/bonjour-access-tests.test
 	  tests/bonjour-tests.bat
