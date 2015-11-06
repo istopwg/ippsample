@@ -53,3 +53,5 @@ AC_OUTPUT(Makedefs
 	  tests/ipp-tests.bat
 	  tests/ipp-tests.sh
 	  tests/ipp-tests.test)
+
+chmod +x tests/*.sh
