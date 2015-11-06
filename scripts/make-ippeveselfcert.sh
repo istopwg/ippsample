@@ -22,14 +22,15 @@ if test ! -f scripts/make-ippeveselfcert.sh; then
         exit 1
 fi
 
-if test $# -lt 1 -o $# -gt 2; then
-	echo "Usage: everywhere/make-ippeveselfcert.sh version [platform]"
+if test $# -lt 2 -o $# -gt 3; then
+	echo "Usage: everywhere/make-ippeveselfcert.sh name version [platform]"
 	exit 1
 fi
 
-fileversion="$1"
-if test $# = 2; then
-	platform="$2"
+pkgname="$1"
+fileversion="$2"
+if test $# = 3; then
+	platform="$3"
 else
 	case `uname` in
 		Darwin)
@@ -50,18 +51,8 @@ else
 	esac
 fi
 
-if test x$platform = xosx -a "x$CODESIGN_IDENTITY" = x; then
-	echo "Please set the CODESIGN_IDENTITY environment variable before running."
-	exit 1
-fi
-
-if test x$platform = xosx -a "x$HDIUTIL_CERT" = x; then
-	echo "Please set the HDIUTIL_CERT environment variable before running."
-	exit 1
-fi
-
 echo Creating package directory...
-pkgdir="sw-ippeveselfcert10-$fileversion"
+pkgdir="sw-$pkgname-$fileversion"
 
 test -d $pkgdir && rm -r $pkgdir
 mkdir $pkgdir || exit 1
@@ -83,15 +74,19 @@ chmod +x $pkgdir/*.sh
 
 if test x$platform = xosx; then
 	# Sign executables...
+	if test "x$CODESIGN_IDENTITY" = x; then
+		CODESIGN_IDENTITY="IEEE INDUSTRY STANDARDS AND TECHNOLOGY ORGANIZATION"
+	fi
+
 	codesign -s "$CODESIGN_IDENTITY" -fv $pkgdir/ippfind
 	codesign -s "$CODESIGN_IDENTITY" -fv $pkgdir/ippserver
 	codesign -s "$CODESIGN_IDENTITY" -fv $pkgdir/ipptool
 
-	# Make disk image...
-	pkgfile="$pkgdir-osx.dmg"
-	echo Creating disk image $pkgfile...
+	# Make ZIP archive...
+	pkgfile="$pkgdir-osx.zip"
+	echo Creating ZIP file $pkgfile...
 	test -f $pkgfile && rm $pkgfile
-	hdiutil create -srcfolder $pkgdir -certificate "$HDIUTIL_CERT" $pkgfile
+	zip -r9 $pkgfile $pkgdir || exit 1
 else
 	# Make archive...
 	pkgfile="$pkgdir-$platform.tar.gz"

@@ -73,7 +73,7 @@ clang-changes:
 
 .PHONEY:	dist
 dist:	all
-	scripts/make-ippeveselfcert.sh $(SELFCERTVERSION)
+	scripts/make-ippeveselfcert.sh $(IPPEVESELFCERT_VERSION) $(SELFCERTVERSION)
 
 
 #
