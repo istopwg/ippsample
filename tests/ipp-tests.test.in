@@ -22,8 +22,8 @@
 # This test file is loosely based on the IPP/1.1, IPP/2.0 and IPP Everywhere
 # test files from the CUPS "test" directory.  Many of those tests have been
 # combined or removed, and all print tests are performed using a sample JPEG
-# file.  These tests also validate support for the 'media-empty' and
-# 'media-needed' keywords in the "printer-state-reasons" Printer attribute.
+# file.  These tests also validate support for the 'media-needed' keyword
+# in the "printer-state-reasons" Printer attribute.
 #
 
 FILE-ID "org.pwg.@IPPEVESELFCERT_VERSION@.ipp"
@@ -1067,31 +1067,13 @@ DEFINE SUPPLY_REGEX "/^(type\=[A-Za-z]+|(maxcapacity\=([0-9]|\-){0,1})(level\=([
 }
 
 
-# Test 'media-empty' reason
-{
-	PAUSE "Remove media from printer."
-
-	NAME "I-26. Media Empty: Printer correctly reports 'media-empty' when at least one removable tray is empty (MUST NOT be a manual feed or bypass tray)"
-	OPERATION Get-Printer-Attributes
-	GROUP operation-attributes-tag
-	ATTR charset attributes-charset utf-8
-	ATTR naturalLanguage attributes-natural-language en
-	ATTR uri printer-uri $uri
-	ATTR name requesting-user-name $user
-	ATTR keyword requested-attributes "printer-state-reasons"
-
-	STATUS successful-ok
-
-	EXPECT printer-state-reasons OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "/^media-empty/"
-	EXPECT !printer-state
-}
-
-
 # Test Print-Job operation
 #
 # Required by: RFC 2911 section 3.2.1
 {
-	NAME "I-27. Print-Job Operation (color.jpg)"
+	PAUSE "Remove media from printer."
+
+	NAME "I-26. Print-Job Operation (color.jpg)"
 	OPERATION Print-Job
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -1135,7 +1117,9 @@ DEFINE SUPPLY_REGEX "/^(type\=[A-Za-z]+|(maxcapacity\=([0-9]|\-){0,1})(level\=([
 
 # Test 'media-needed' reason
 {
-	NAME "I-28. Media Needed: Printer correctly reports 'media-needed' when a job is queued."
+	DELAY 10
+
+	NAME "I-27. Media Needed: Printer correctly reports 'media-needed' when a job is queued."
 	OPERATION Get-Printer-Attributes
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -1149,8 +1133,6 @@ DEFINE SUPPLY_REGEX "/^(type\=[A-Za-z]+|(maxcapacity\=([0-9]|\-){0,1})(level\=([
 	EXPECT printer-state-reasons OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "/^media-needed/"
 	EXPECT !printer-state
 }
-
-
 
 
 #
