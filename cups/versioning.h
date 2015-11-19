@@ -1,9 +1,9 @@
 /*
- * "$Id: versioning.h 12418 2015-01-22 15:49:23Z msweet $"
+ * "$Id: versioning.h 12983 2015-11-18 17:22:38Z msweet $"
  *
  *   API versioning definitions for CUPS.
  *
- *   Copyright 2007-2013 by Apple Inc.
+ *   Copyright 2007-2015 by Apple Inc.
  *
  *   These coded instructions, statements, and computer programs are the
  *   property of Apple Inc. and are protected by Federal copyright
@@ -66,6 +66,7 @@
 #    define _CUPS_API_1_6 AVAILABLE_MAC_OS_X_VERSION_10_8_AND_LATER
 #    define _CUPS_API_1_7 AVAILABLE_MAC_OS_X_VERSION_10_9_AND_LATER
 #    define _CUPS_API_2_0 AVAILABLE_MAC_OS_X_VERSION_10_10_AND_LATER
+#    define _CUPS_API_2_2
 #  else
 #    define _CUPS_API_1_1_19
 #    define _CUPS_API_1_1_20
@@ -77,6 +78,7 @@
 #    define _CUPS_API_1_6
 #    define _CUPS_API_1_7
 #    define _CUPS_API_2_0
+#    define _CUPS_API_2_2
 #  endif /* __APPLE__ && !_CUPS_SOURCE */
 
 /*
@@ -162,5 +164,5 @@
 #endif /* !_CUPS_VERSIONING_H_ */
 
 /*
- * End of "$Id: versioning.h 12418 2015-01-22 15:49:23Z msweet $".
+ * End of "$Id: versioning.h 12983 2015-11-18 17:22:38Z msweet $".
  */
