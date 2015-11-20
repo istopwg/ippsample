@@ -1,5 +1,5 @@
 #
-# Sample Infrastructure Printer and Proxy Makefile.
+# Makefile for sample IPP server implementation.
 #
 # Copyright 2015 by Apple Inc.
 #
@@ -19,28 +19,24 @@ include ../Makedefs
 # Object files...
 #
 
-INFRAOBJS =	\
+OBJS =	\
 		client.o \
 		conf.o \
 		device.o \
 		ipp.o \
-		ippinfra.o \
 		job.o \
+		log.o \
+		main.o \
 		printer.o \
 		subscription.o \
 		transform.o
 		
-PROXYOBJS =	\
-		ippproxy.o
-
-OBJS	=	$(INFRAOBJS) $(PROXYOBJS)
-
 
 #
 # Targets in this directory...
 #
 
-TARGETS =	ippinfra ippproxy
+TARGETS =	ippserver
 
 
 #
@@ -67,21 +63,12 @@ depend:
 
 
 #
-# ippinfra
+# ippserver
 #
 
-ippinfra:	$(INFRAOBJS) ../cups/libcups.a
+ippserver:	$(OBJS) ../cups/libcups.a
 	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ $(INFRAOBJS) $(LIBS)
-
-
-#
-# ippproxy
-#
-
-ippproxy:	$(PROXYOBJS) ../cups/libcups.a
-	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ $(PROXYOBJS) $(LIBS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
 
 #

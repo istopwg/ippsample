@@ -1,7 +1,6 @@
 #
-# Top-level Makefile for IPP Everywhere Printer Self-Certification tools.
+# Top-level Makefile for IPP sample implementations.
 #
-# Copyright 2015 by the ISTO Printer Working Group.
 # Copyright 2007-2015 by Apple Inc.
 # Copyright 1997-2007 by Easy Software Products, all rights reserved.
 #
@@ -15,13 +14,22 @@
 include Makedefs
 
 
+# Source directories...
+DIRS	=	\
+		cups \
+		proxy \
+		server \
+		tools
+
+
 #
 # Make all targets...
 #
 
 all:
-	(cd cups; $(MAKE) $(MFLAGS) all)
-	(cd tools; $(MAKE) $(MFLAGS) all)
+	for dir in $(DIRS); do \
+		(cd $$dir; $(MAKE) $(MFLAGS) all); \
+	done
 
 
 #
@@ -29,8 +37,9 @@ all:
 #
 
 clean:
-	(cd cups; $(MAKE) $(MFLAGS) clean)
-	(cd tools; $(MAKE) $(MFLAGS) clean)
+	for dir in $(DIRS); do \
+		(cd $$dir; $(MAKE) $(MFLAGS) clean); \
+	done
 
 
 #
@@ -47,8 +56,9 @@ distclean:	clean
 #
 
 depend:
-	(cd cups; $(MAKE) $(MFLAGS) depend)
-	(cd tools; $(MAKE) $(MFLAGS) depend)
+	for dir in $(DIRS); do \
+		(cd $$dir; $(MAKE) $(MFLAGS) depend); \
+	done
 
 
 #
@@ -73,7 +83,7 @@ clang-changes:
 
 .PHONEY:	dist
 dist:	all
-	scripts/make-ippeveselfcert.sh $(IPPEVESELFCERT_VERSION) $(SELFCERTVERSION)
+#	scripts/make-ippeveselfcert.sh $(IPPEVESELFCERT_VERSION) $(SELFCERTVERSION)
 
 
 #

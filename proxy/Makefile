@@ -1,8 +1,7 @@
 #
-# IPP tools makefile.
+# Sample Infrastructure Printer and Proxy Makefile.
 #
-# Copyright 2007-2015 by Apple Inc.
-# Copyright 1997-2006 by Easy Software Products, all rights reserved.
+# Copyright 2015 by Apple Inc.
 #
 # These coded instructions, statements, and computer programs are the
 # property of Apple Inc. and are protected by Federal copyright
@@ -10,16 +9,25 @@
 # which should have been included with this file.  If this file is
 # file is missing or damaged, see the license at "http://www.cups.org/".
 #
+# This file is subject to the Apple OS-Developed Software exception.
+#
 
 include ../Makedefs
 
 
-OBJS		=	\
-			ippfind.o \
-			ipptool.o
-TARGETS		=	\
-			ippfind \
-			ipptool
+#
+# Object files...
+#
+
+OBJS 	=	\
+		ippproxy.o
+
+
+#
+# Targets in this directory...
+#
+
+TARGETS =	ippproxy
 
 
 #
@@ -30,11 +38,11 @@ all:		$(TARGETS)
 
 
 #
-# Clean all object files...
+# Remove object and target files...
 #
 
 clean:
-	$(RM) $(TARGETS) $(OBJS)
+	$(RM) $(OBJS) $(TARGETS)
 
 
 #
@@ -46,21 +54,12 @@ depend:
 
 
 #
-# ippfind
+# ippproxy
 #
 
-ippfind:	ippfind.o ../cups/libcups.a
+ippproxy:	$(PROXYOBJS) ../cups/libcups.a
 	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ ippfind.o $(LIBS)
-
-
-#
-# ipptool
-#
-
-ipptool:	ipptool.o ../cups/libcups.a
-	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ ipptool.o $(LIBS)
+	$(CC) $(LDFLAGS) -o $@ $(PROXYOBJS) $(LIBS)
 
 
 #
