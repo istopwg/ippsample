@@ -1,5 +1,5 @@
 #
-# IPP tool makefile for CUPS.
+# IPP tools makefile.
 #
 # Copyright 2015 by the ISTO Printer Working Group.
 # Copyright 2007-2015 by Apple Inc.
