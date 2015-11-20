@@ -18,6 +18,9 @@ encode.o: encode.c cups-private.h string-private.h ../config.h \
   ipp-private.h ../cups/ipp.h http.h http-private.h ../cups/language.h \
   md5-private.h language-private.h ../cups/transcode.h pwg-private.h \
   ../cups/cups.h file.h pwg.h thread-private.h
+error.o: error.c ../cups/raster-private.h raster.h cups.h file.h \
+  versioning.h ipp.h http.h array.h language.h pwg.h \
+  ../cups/debug-private.h ../cups/string-private.h ../config.h
 file.o: file.c file-private.h cups-private.h string-private.h ../config.h \
   debug-private.h ../cups/versioning.h array-private.h ../cups/array.h \
   ipp-private.h ../cups/ipp.h http.h http-private.h ../cups/language.h \
@@ -94,6 +97,9 @@ pwg-media.o: pwg-media.c cups-private.h string-private.h ../config.h \
   ipp-private.h ../cups/ipp.h http.h http-private.h ../cups/language.h \
   md5-private.h language-private.h ../cups/transcode.h pwg-private.h \
   ../cups/cups.h file.h pwg.h thread-private.h
+raster.o: raster.c ../cups/raster-private.h raster.h cups.h file.h \
+  versioning.h ipp.h http.h array.h language.h pwg.h \
+  ../cups/debug-private.h ../cups/string-private.h ../config.h
 request.o: request.c cups-private.h string-private.h ../config.h \
   debug-private.h ../cups/versioning.h array-private.h ../cups/array.h \
   ipp-private.h ../cups/ipp.h http.h http-private.h ../cups/language.h \

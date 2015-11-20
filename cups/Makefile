@@ -34,6 +34,7 @@ OBJS	=	\
 		debug.o \
 		dir.o \
 		encode.o \
+		error.o \
 		file.o \
 		getputfile.o \
 		globals.o \
@@ -50,6 +51,7 @@ OBJS	=	\
 		md5passwd.o \
 		options.o \
 		pwg-media.o \
+		raster.o \
 		request.o \
 		snprintf.o \
 		string.o \

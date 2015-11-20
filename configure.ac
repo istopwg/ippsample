@@ -17,18 +17,7 @@ dnl We need at least autoconf 2.60...
 AC_PREREQ(2.60)
 
 dnl Package name and version...
-AC_INIT([IPPEVESELFCERT], [20151110], [https://github.com/istopwg/ippeveselfcert/issues], [ippeveselfcert], [http://www.pwg.org/ipp/everywhere.html])
-
-dnl IPP Everywhere Printer Self-Certification Manual Version; this is the
-dnl filename prefix...
-IPPEVESELFCERT_VERSION="ippeveselfcert10"
-AC_SUBST(IPPEVESELFCERT_VERSION)
-
-dnl PWG Raster Sample File Date/Version; this comes from:
-dnl
-dnl     http://ftp.pwg.org/pub/pwg/ipp/examples
-PWGRASTER_VERSION="20150616"
-AC_SUBST(PWGRASTER_VERSION)
+AC_INIT([IPPINFRA], [20151119], [https://github.com/istopwg/ippinfra/issues], [ippinfra], [http://www.pwg.org/ipp/])
 
 dnl Include common configuration scripts...
 sinclude(config-scripts/cups-opsys.m4)
@@ -42,16 +31,4 @@ sinclude(config-scripts/cups-largefile.m4)
 sinclude(config-scripts/cups-dnssd.m4)
 
 dnl Generate a bunch of files...
-AC_OUTPUT(Makedefs
-	  tests/bonjour-access-tests.test
-	  tests/bonjour-tests.bat
-	  tests/bonjour-tests.sh
-	  tests/bonjour-value-tests.test
-	  tests/document-tests.bat
-	  tests/document-tests.sh
-	  tests/document-tests.test
-	  tests/ipp-tests.bat
-	  tests/ipp-tests.sh
-	  tests/ipp-tests.test)
-
-chmod +x tests/*.sh
+AC_OUTPUT(Makedefs)
