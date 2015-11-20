@@ -12,8 +12,15 @@
  * This file is subject to the Apple OS-Developed Software exception.
  */
 
-#define _IPPINFRA_C_
-#include "ippinfra.h"
+#define _MAIN_C_
+#include "ippserver.h"
+
+
+/*
+ * Local functions...
+ */
+
+static void		usage(int status) __attribute__((noreturn));
 
 
 /*
@@ -36,7 +43,7 @@ main(int  argc,				/* I - Number of command-line args */
 		hostname[1024],		/* Auto-detected hostname */
 		proxy_user[256] = "",	/* Proxy username */
 		*proxy_pass = NULL;	/* Proxy password */
-  _ipp_printer_t *printer;		/* Printer object */
+  server_printer_t *printer;		/* Printer object */
 
 
  /*
@@ -202,4 +209,33 @@ main(int  argc,				/* I - Number of command-line args */
   serverDeletePrinter(printer);
 
   return (0);
+}
+
+
+/*
+ * 'usage()' - Show program usage.
+ */
+
+static void
+usage(int status)			/* O - Exit status */
+{
+  if (!status)
+  {
+    puts(CUPS_SVERSION " - Copyright 2010-2014 by Apple Inc. All rights reserved.");
+    puts("");
+  }
+
+  puts("Usage: ippinfra [options] \"name\"");
+  puts("");
+  puts("Options:");
+  printf("-d spool-directory      Spool directory "
+         "(default=/tmp/ippserver.%d)\n", (int)getpid());
+  puts("-h                      Show program help");
+  puts("-k                      Keep job spool files");
+  puts("-n hostname             Hostname for printer");
+  puts("-p port                 Port number (default=auto)");
+  puts("-u user:pass            Set proxy username and password");
+  puts("-v[vvv]                 Be (very) verbose");
+
+  exit(status);
 }

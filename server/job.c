@@ -110,56 +110,56 @@ typedef char _cups_cond_t;
 #  define _IPP_STATUS_ERROR_NOT_FETCHABLE		(ipp_status_t)0x0420
 
 /* Maximum lease duration value from RFC 3995 - 2^26-1 or ~2 years */
-#  define _IPP_NOTIFY_LEASE_DURATION_MAX		67108863
+#  define SERVER_NOTIFY_LEASE_DURATION_MAX		67108863
 /* But a value of 0 means "never expires"... */
-#  define _IPP_NOTIFY_LEASE_DURATION_FOREVER		0
+#  define SERVER_NOTIFY_LEASE_DURATION_FOREVER		0
 /* Default duration is 1 day */
-#  define _IPP_NOTIFY_LEASE_DURATION_DEFAULT		86400
+#  define SERVER_NOTIFY_LEASE_DURATION_DEFAULT		86400
 
 
 /*
  * Event mask enumeration...
  */
 
-enum _ipp_event_e			/* notify-events bit values */
+enum server_event_e			/* notify-events bit values */
 {
-  _IPP_EVENT_DOCUMENT_COMPLETED = 0x00000001,
-  _IPP_EVENT_DOCUMENT_CONFIG_CHANGED = 0x00000002,
-  _IPP_EVENT_DOCUMENT_CREATED = 0x00000004,
-  _IPP_EVENT_DOCUMENT_FETCHABLE = 0x00000008,
-  _IPP_EVENT_DOCUMENT_STATE_CHANGED = 0x00000010,
-  _IPP_EVENT_DOCUMENT_STOPPED = 0x00000020,
-  _IPP_EVENT_JOB_COMPLETED = 0x00000040,
-  _IPP_EVENT_JOB_CONFIG_CHANGED = 0x00000080,
-  _IPP_EVENT_JOB_CREATED = 0x00000100,
-  _IPP_EVENT_JOB_FETCHABLE = 0x00000200,
-  _IPP_EVENT_JOB_PROGRESS = 0x00000400,
-  _IPP_EVENT_JOB_STATE_CHANGED = 0x00000800,
-  _IPP_EVENT_JOB_STOPPED = 0x00001000,
-  _IPP_EVENT_PRINTER_CONFIG_CHANGED = 0x00002000,
-  _IPP_EVENT_PRINTER_FINISHINGS_CHANGED = 0x00004000,
-  _IPP_EVENT_PRINTER_MEDIA_CHANGED = 0x00008000,
-  _IPP_EVENT_PRINTER_QUEUE_ORDER_CHANGED = 0x00010000,
-  _IPP_EVENT_PRINTER_RESTARTED = 0x00020000,
-  _IPP_EVENT_PRINTER_SHUTDOWN = 0x00040000,
-  _IPP_EVENT_PRINTER_STATE_CHANGED = 0x00080000,
-  _IPP_EVENT_PRINTER_STOPPED = 0x00100000,
+  SERVER_EVENT_DOCUMENT_COMPLETED = 0x00000001,
+  SERVER_EVENT_DOCUMENT_CONFIG_CHANGED = 0x00000002,
+  SERVER_EVENT_DOCUMENT_CREATED = 0x00000004,
+  SERVER_EVENT_DOCUMENT_FETCHABLE = 0x00000008,
+  SERVER_EVENT_DOCUMENT_STATE_CHANGED = 0x00000010,
+  SERVER_EVENT_DOCUMENT_STOPPED = 0x00000020,
+  SERVER_EVENT_JOB_COMPLETED = 0x00000040,
+  SERVER_EVENT_JOB_CONFIG_CHANGED = 0x00000080,
+  SERVER_EVENT_JOB_CREATED = 0x00000100,
+  SERVER_EVENT_JOB_FETCHABLE = 0x00000200,
+  SERVER_EVENT_JOB_PROGRESS = 0x00000400,
+  SERVER_EVENT_JOB_STATE_CHANGED = 0x00000800,
+  SERVER_EVENT_JOB_STOPPED = 0x00001000,
+  SERVER_EVENT_PRINTER_CONFIG_CHANGED = 0x00002000,
+  SERVER_EVENT_PRINTER_FINISHINGS_CHANGED = 0x00004000,
+  SERVER_EVENT_PRINTER_MEDIA_CHANGED = 0x00008000,
+  SERVER_EVENT_PRINTER_QUEUE_ORDER_CHANGED = 0x00010000,
+  SERVER_EVENT_PRINTER_RESTARTED = 0x00020000,
+  SERVER_EVENT_PRINTER_SHUTDOWN = 0x00040000,
+  SERVER_EVENT_PRINTER_STATE_CHANGED = 0x00080000,
+  SERVER_EVENT_PRINTER_STOPPED = 0x00100000,
 
   /* "Wildcard" values... */
-  _IPP_EVENT_NONE = 0x00000000,		/* Nothing */
-  _IPP_EVENT_DOCUMENT_ALL = 0x0000003f,
-  _IPP_EVENT_DOCUMENT_STATE_ALL = 0x00000037,
-  _IPP_EVENT_JOB_ALL = 0x00001fc0,
-  _IPP_EVENT_JOB_STATE_ALL = 0x00001940,
-  _IPP_EVENT_PRINTER_ALL = 0x001fe000,
-  _IPP_EVENT_PRINTER_CONFIG_ALL = 0x0000e000,
-  _IPP_EVENT_PRINTER_STATE_ALL = 0x001e0000,
-  _IPP_EVENT_ALL = 0x001fffff		/* Everything */
+  SERVER_EVENT_NONE = 0x00000000,		/* Nothing */
+  SERVER_EVENT_DOCUMENT_ALL = 0x0000003f,
+  SERVER_EVENT_DOCUMENT_STATE_ALL = 0x00000037,
+  SERVER_EVENT_JOB_ALL = 0x00001fc0,
+  SERVER_EVENT_JOB_STATE_ALL = 0x00001940,
+  SERVER_EVENT_PRINTER_ALL = 0x001fe000,
+  SERVER_EVENT_PRINTER_CONFIG_ALL = 0x0000e000,
+  SERVER_EVENT_PRINTER_STATE_ALL = 0x001e0000,
+  SERVER_EVENT_ALL = 0x001fffff		/* Everything */
 };
-typedef unsigned int _ipp_event_t;	/* Bitfield for notify-events */
-#define _IPP_EVENT_DEFAULT _IPP_EVENT_JOB_COMPLETED
-#define _IPP_EVENT_DEFAULT_STRING "job-completed"
-static const char * const _ipp_events[] =
+typedef unsigned int server_event_t;	/* Bitfield for notify-events */
+#define SERVER_EVENT_DEFAULT SERVER_EVENT_JOB_COMPLETED
+#define SERVER_EVENT_DEFAULT_STRING "job-completed"
+static const char * const server_events[] =
 {					/* Strings for bits */
   "document-completed",
   "document-config-changed",
@@ -184,40 +184,40 @@ static const char * const _ipp_events[] =
   "printer-stopped"
 };
 
-enum _ipp_jreason_e			/* job-state-reasons bit values */
+enum server_jreason_e			/* job-state-reasons bit values */
 {
-  _IPP_JREASON_NONE = 0x00000000,	/* none */
-  _IPP_JREASON_ABORTED_BY_SYSTEM = 0x00000001,
-  _IPP_JREASON_COMPRESSION_ERROR = 0x00000002,
-  _IPP_JREASON_DOCUMENT_ACCESS_ERROR = 0x00000004,
-  _IPP_JREASON_DOCUMENT_FORMAT_ERROR = 0x00000008,
-  _IPP_JREASON_DOCUMENT_PASSWORD_ERROR = 0x00000010,
-  _IPP_JREASON_DOCUMENT_PERMISSION_ERROR = 0x00000020,
-  _IPP_JREASON_DOCUMENT_SECURITY_ERROR = 0x00000040,
-  _IPP_JREASON_DOCUMENT_UNPRINTABLE_ERROR = 0x00000080,
-  _IPP_JREASON_ERRORS_DETECTED = 0x00000100,
-  _IPP_JREASON_JOB_CANCELED_AT_DEVICE = 0x00000200,
-  _IPP_JREASON_JOB_CANCELED_BY_USER = 0x00000400,
-  _IPP_JREASON_JOB_COMPLETED_SUCCESSFULLY = 0x00000800,
-  _IPP_JREASON_JOB_COMPLETED_WITH_ERRORS = 0x00001000,
-  _IPP_JREASON_JOB_COMPLETED_WITH_WARNINGS = 0x00002000,
-  _IPP_JREASON_JOB_DATA_INSUFFICIENT = 0x00004000,
-  _IPP_JREASON_JOB_FETCHABLE = 0x00008000,
-  _IPP_JREASON_JOB_INCOMING = 0x00010000,
-  _IPP_JREASON_JOB_PASSWORD_WAIT = 0x00020000,
-  _IPP_JREASON_JOB_PRINTING = 0x00040000,
-  _IPP_JREASON_JOB_QUEUED = 0x00080000,
-  _IPP_JREASON_JOB_SPOOLING = 0x00100000,
-  _IPP_JREASON_JOB_STOPPED = 0x00200000,
-  _IPP_JREASON_JOB_TRANSFORMING = 0x00400000,
-  _IPP_JREASON_PRINTER_STOPPED = 0x00800000,
-  _IPP_JREASON_PRINTER_STOPPED_PARTLY = 0x01000000,
-  _IPP_JREASON_PROCESSING_TO_STOP_POINT = 0x02000000,
-  _IPP_JREASON_QUEUED_IN_DEVICE = 0x04000000,
-  _IPP_JREASON_WARNINGS_DETECTED = 0x08000000
+  SERVER_JREASON_NONE = 0x00000000,	/* none */
+  SERVER_JREASON_ABORTED_BY_SYSTEM = 0x00000001,
+  SERVER_JREASON_COMPRESSION_ERROR = 0x00000002,
+  SERVER_JREASON_DOCUMENT_ACCESS_ERROR = 0x00000004,
+  SERVER_JREASON_DOCUMENT_FORMAT_ERROR = 0x00000008,
+  SERVER_JREASON_DOCUMENT_PASSWORD_ERROR = 0x00000010,
+  SERVER_JREASON_DOCUMENT_PERMISSION_ERROR = 0x00000020,
+  SERVER_JREASON_DOCUMENT_SECURITY_ERROR = 0x00000040,
+  SERVER_JREASON_DOCUMENT_UNPRINTABLE_ERROR = 0x00000080,
+  SERVER_JREASON_ERRORS_DETECTED = 0x00000100,
+  SERVER_JREASON_JOB_CANCELED_AT_DEVICE = 0x00000200,
+  SERVER_JREASON_JOB_CANCELED_BY_USER = 0x00000400,
+  SERVER_JREASON_JOB_COMPLETED_SUCCESSFULLY = 0x00000800,
+  SERVER_JREASON_JOB_COMPLETED_WITH_ERRORS = 0x00001000,
+  SERVER_JREASON_JOB_COMPLETED_WITH_WARNINGS = 0x00002000,
+  SERVER_JREASON_JOB_DATA_INSUFFICIENT = 0x00004000,
+  SERVER_JREASON_JOB_FETCHABLE = 0x00008000,
+  SERVER_JREASON_JOB_INCOMING = 0x00010000,
+  SERVER_JREASON_JOB_PASSWORD_WAIT = 0x00020000,
+  SERVER_JREASON_JOB_PRINTING = 0x00040000,
+  SERVER_JREASON_JOB_QUEUED = 0x00080000,
+  SERVER_JREASON_JOB_SPOOLING = 0x00100000,
+  SERVER_JREASON_JOB_STOPPED = 0x00200000,
+  SERVER_JREASON_JOB_TRANSFORMING = 0x00400000,
+  SERVER_JREASON_PRINTER_STOPPED = 0x00800000,
+  SERVER_JREASON_PRINTER_STOPPED_PARTLY = 0x01000000,
+  SERVER_JREASON_PROCESSING_TO_STOP_POINT = 0x02000000,
+  SERVER_JREASON_QUEUED_IN_DEVICE = 0x04000000,
+  SERVER_JREASON_WARNINGS_DETECTED = 0x08000000
 };
-typedef unsigned int _ipp_jreason_t;	/* Bitfield for job-state-reasons */
-static const char * const _ipp_jreasons[] =
+typedef unsigned int server_jreason_t;	/* Bitfield for job-state-reasons */
+static const char * const server_jreasons[] =
 {					/* Strings for bits */
   "aborted-by-system",
   "compression-error",
@@ -249,34 +249,34 @@ static const char * const _ipp_jreasons[] =
   "warnings-detected"
 };
 
-enum _ipp_preason_e			/* printer-state-reasons bit values */
+enum server_preason_e			/* printer-state-reasons bit values */
 {
-  _IPP_PREASON_NONE = 0x0000,		/* none */
-  _IPP_PREASON_OTHER = 0x0001,		/* other */
-  _IPP_PREASON_COVER_OPEN = 0x0002,	/* cover-open */
-  _IPP_PREASON_INPUT_TRAY_MISSING = 0x0004,
+  SERVER_PREASON_NONE = 0x0000,		/* none */
+  SERVER_PREASON_OTHER = 0x0001,		/* other */
+  SERVER_PREASON_COVER_OPEN = 0x0002,	/* cover-open */
+  SERVER_PREASON_INPUT_TRAY_MISSING = 0x0004,
 					/* input-tray-missing */
-  _IPP_PREASON_MARKER_SUPPLY_EMPTY = 0x0008,
+  SERVER_PREASON_MARKER_SUPPLY_EMPTY = 0x0008,
 					/* marker-supply-empty */
-  _IPP_PREASON_MARKER_SUPPLY_LOW = 0x0010,
+  SERVER_PREASON_MARKER_SUPPLY_LOW = 0x0010,
 					/* marker-supply-low */
-  _IPP_PREASON_MARKER_WASTE_ALMOST_FULL = 0x0020,
+  SERVER_PREASON_MARKER_WASTE_ALMOST_FULL = 0x0020,
 					/* marker-waste-almost-full */
-  _IPP_PREASON_MARKER_WASTE_FULL = 0x0040,
+  SERVER_PREASON_MARKER_WASTE_FULL = 0x0040,
 					/* marker-waste-full */
-  _IPP_PREASON_MEDIA_EMPTY = 0x0080,	/* media-empty */
-  _IPP_PREASON_MEDIA_JAM = 0x0100,	/* media-jam */
-  _IPP_PREASON_MEDIA_LOW = 0x0200,	/* media-low */
-  _IPP_PREASON_MEDIA_NEEDED = 0x0400,	/* media-needed */
-  _IPP_PREASON_MOVING_TO_PAUSED = 0x0800,
+  SERVER_PREASON_MEDIA_EMPTY = 0x0080,	/* media-empty */
+  SERVER_PREASON_MEDIA_JAM = 0x0100,	/* media-jam */
+  SERVER_PREASON_MEDIA_LOW = 0x0200,	/* media-low */
+  SERVER_PREASON_MEDIA_NEEDED = 0x0400,	/* media-needed */
+  SERVER_PREASON_MOVING_TO_PAUSED = 0x0800,
 					/* moving-to-paused */
-  _IPP_PREASON_PAUSED = 0x1000,		/* paused */
-  _IPP_PREASON_SPOOL_AREA_FULL = 0x2000,/* spool-area-full */
-  _IPP_PREASON_TONER_EMPTY = 0x4000,	/* toner-empty */
-  _IPP_PREASON_TONER_LOW = 0x8000	/* toner-low */
+  SERVER_PREASON_PAUSED = 0x1000,		/* paused */
+  SERVER_PREASON_SPOOL_AREA_FULL = 0x2000,/* spool-area-full */
+  SERVER_PREASON_TONER_EMPTY = 0x4000,	/* toner-empty */
+  SERVER_PREASON_TONER_LOW = 0x8000	/* toner-low */
 };
-typedef unsigned int _ipp_preason_t;	/* Bitfield for printer-state-reasons */
-static const char * const _ipp_preasons[] =
+typedef unsigned int server_preason_t;	/* Bitfield for printer-state-reasons */
+static const char * const server_preasons[] =
 {					/* Strings for bits */
   "other",
   "cover-open",
@@ -301,25 +301,25 @@ static const char * const _ipp_preasons[] =
  * Structures...
  */
 
-typedef struct _ipp_filter_s		/**** Attribute filter ****/
+typedef struct server_filter_s		/**** Attribute filter ****/
 {
   cups_array_t		*ra;		/* Requested attributes */
   ipp_tag_t		group_tag;	/* Group to copy */
-} _ipp_filter_t;
+} server_filter_t;
 
-typedef struct _ipp_job_s _ipp_job_t;
+typedef struct server_job_s server_job_t;
 
-typedef struct _ipp_device_s		/**** Output Device data ****/
+typedef struct server_device_s		/**** Output Device data ****/
 {
   _cups_rwlock_t	rwlock;		/* Printer lock */
   char			*name,		/* printer-name (mapped to output-device) */
 			*uuid;		/* output-device-uuid */
   ipp_t			*attrs;		/* All printer attributes */
   ipp_pstate_t		state;		/* printer-state value */
-  _ipp_preason_t	reasons;	/* printer-state-reasons values */
-} _ipp_device_t;
+  server_preason_t	reasons;	/* printer-state-reasons values */
+} server_device_t;
 
-typedef struct _ipp_printer_s		/**** Printer data ****/
+typedef struct server_printer_s		/**** Printer data ****/
 {
   _cups_rwlock_t	rwlock;		/* Printer lock */
   int			ipv4,		/* IPv4 listener */
@@ -339,19 +339,19 @@ typedef struct _ipp_printer_s		/**** Printer data ****/
   time_t		config_time;	/* printer-config-change-time */
   ipp_pstate_t		state,		/* printer-state value */
 			dev_state;	/* Current device printer-state value */
-  _ipp_preason_t	state_reasons,	/* printer-state-reasons values */
+  server_preason_t	state_reasons,	/* printer-state-reasons values */
 			dev_reasons;	/* Current device printer-state-reasons values */
   time_t		state_time;	/* printer-state-change-time */
   cups_array_t		*jobs,		/* Jobs */
 			*active_jobs,	/* Active jobs */
 			*completed_jobs;/* Completed jobs */
-  _ipp_job_t		*processing_job;/* Current processing job */
+  server_job_t		*processing_job;/* Current processing job */
   int			next_job_id;	/* Next job-id value */
   cups_array_t		*subscriptions;	/* Subscriptions */
   int			next_sub_id;	/* Next notify-subscription-id value */
-} _ipp_printer_t;
+} server_printer_t;
 
-struct _ipp_job_s			/**** Job data ****/
+struct server_job_s			/**** Job data ****/
 {
   int			id;		/* job-id */
   _cups_rwlock_t	rwlock;		/* Job lock */
@@ -362,7 +362,7 @@ struct _ipp_job_s			/**** Job data ****/
   char			*dev_uuid;	/* output-device-uuid-assigned */
   ipp_jstate_t		state,		/* job-state value */
 			dev_state;	/* output-device-job-state value */
-  _ipp_jreason_t	state_reasons,	/* job-state-reasons values */
+  server_jreason_t	state_reasons,	/* job-state-reasons values */
   			dev_state_reasons;
 		      			/* output-device-job-state-reasons values */
   char			*dev_state_message;
@@ -376,17 +376,17 @@ struct _ipp_job_s			/**** Job data ****/
   int			cancel;		/* Non-zero when job canceled */
   char			*filename;	/* Print file name */
   int			fd;		/* Print file descriptor */
-  _ipp_printer_t	*printer;	/* Printer */
+  server_printer_t	*printer;	/* Printer */
 };
 
-typedef struct _ipp_subscription_s	/**** Subscription data ****/
+typedef struct server_subscription_s	/**** Subscription data ****/
 {
   int			id;		/* notify-subscription-id */
   const char		*uuid;		/* notify-subscription-uuid */
   _cups_rwlock_t	rwlock;		/* Subscription lock */
-  _ipp_event_t		mask;		/* Event mask */
-  _ipp_printer_t	*printer;	/* Printer */
-  _ipp_job_t		*job;		/* Job, if any */
+  server_event_t		mask;		/* Event mask */
+  server_printer_t	*printer;	/* Printer */
+  server_job_t		*job;		/* Job, if any */
   ipp_t			*attrs;		/* Attributes */
   const char		*username;	/* notify-subscriber-user-name */
   int			lease;		/* notify-lease-duration */
@@ -396,9 +396,9 @@ typedef struct _ipp_subscription_s	/**** Subscription data ****/
 			last_sequence;	/* Last notify-sequence-number used */
   cups_array_t		*events;	/* Events (ipp_t *'s) */
   int			pending_delete;	/* Non-zero when the subscription is about to be deleted/canceled */
-} _ipp_subscription_t;
+} server_subscription_t;
 
-typedef struct _ipp_client_s		/**** Client data ****/
+typedef struct server_client_s		/**** Client data ****/
 {
   http_t		*http;		/* HTTP connection */
   ipp_t			*request,	/* IPP request */
@@ -411,113 +411,113 @@ typedef struct _ipp_client_s		/**** Client data ****/
   http_addr_t		addr;		/* Client address */
   char			hostname[256],	/* Client hostname */
 			username[32];	/* Client authenticated username */
-  _ipp_printer_t	*printer;	/* Printer */
-  _ipp_job_t		*job;		/* Current job, if any */
+  server_printer_t	*printer;	/* Printer */
+  server_job_t		*job;		/* Current job, if any */
   int			fetch_compression,
 					/* Compress file? */
 			fetch_file;	/* File to fetch */
-} _ipp_client_t;
+} server_client_t;
 
 
 /*
  * Local functions...
  */
 
-static void		serverAddEvent(_ipp_printer_t *printer, _ipp_job_t *job, _ipp_event_t event, const char *message, ...) __attribute__((__format__(__printf__, 4, 5)));
-static void		serverCheckJobs(_ipp_printer_t *printer);
-static void		serverCleanJobs(_ipp_printer_t *printer);
-static int		compare_active_jobs(_ipp_job_t *a, _ipp_job_t *b);
-static int		compare_completed_jobs(_ipp_job_t *a, _ipp_job_t *b);
-static int		compare_devices(_ipp_device_t *a, _ipp_device_t *b);
-static int		compare_jobs(_ipp_job_t *a, _ipp_job_t *b);
+static void		serverAddEvent(server_printer_t *printer, server_job_t *job, server_event_t event, const char *message, ...) __attribute__((__format__(__printf__, 4, 5)));
+static void		serverCheckJobs(server_printer_t *printer);
+static void		serverCleanJobs(server_printer_t *printer);
+static int		compare_active_jobs(server_job_t *a, server_job_t *b);
+static int		compare_completed_jobs(server_job_t *a, server_job_t *b);
+static int		compare_devices(server_device_t *a, server_device_t *b);
+static int		compare_jobs(server_job_t *a, server_job_t *b);
 static void		copy_attributes(ipp_t *to, ipp_t *from, cups_array_t *ra,
 			                ipp_tag_t group_tag, int quickcopy);
-static void		copy_job_attributes(_ipp_client_t *client,
-			                    _ipp_job_t *job, cups_array_t *ra);
-static void		copy_job_state_reasons(ipp_t *ipp, ipp_tag_t group_tag, _ipp_job_t *job);
-static void		copy_printer_state_reasons(ipp_t *ipp, ipp_tag_t group_tag, _ipp_printer_t *printer);
-static void		copy_subscription_attributes(_ipp_client_t *client, _ipp_subscription_t *sub, cups_array_t *ra);
-static _ipp_client_t	*serverCreateClient(_ipp_printer_t *printer, int sock);
-static _ipp_device_t	*serverCreateDevice(_ipp_client_t *client);
-static _ipp_job_t	*serverCreateJob(_ipp_client_t *client);
-static void		serverCreateJobFilename(_ipp_printer_t *printer, _ipp_job_t *job, const char *format, char *fname, size_t fnamesize);
+static void		copy_job_attributes(server_client_t *client,
+			                    server_job_t *job, cups_array_t *ra);
+static void		copy_job_state_reasons(ipp_t *ipp, ipp_tag_t group_tag, server_job_t *job);
+static void		copy_printer_state_reasons(ipp_t *ipp, ipp_tag_t group_tag, server_printer_t *printer);
+static void		copy_subscription_attributes(server_client_t *client, server_subscription_t *sub, cups_array_t *ra);
+static server_client_t	*serverCreateClient(server_printer_t *printer, int sock);
+static server_device_t	*serverCreateDevice(server_client_t *client);
+static server_job_t	*serverCreateJob(server_client_t *client);
+static void		serverCreateJobFilename(server_printer_t *printer, server_job_t *job, const char *format, char *fname, size_t fnamesize);
 static int		serverCreateListener(int family, int port);
-static _ipp_subscription_t *serverCreateSubcription(_ipp_printer_t *printer, _ipp_job_t *job, int interval, int lease, const char *username, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
-static _ipp_printer_t	*serverCreatePrinter(const char *servername, int port, const char *name, const char *directory, const char *proxy_user, const char *proxy_pass);
+static server_subscription_t *serverCreateSubcription(server_printer_t *printer, server_job_t *job, int interval, int lease, const char *username, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
+static server_printer_t	*serverCreatePrinter(const char *servername, int port, const char *name, const char *directory, const char *proxy_user, const char *proxy_pass);
 static void		debug_attributes(const char *title, ipp_t *ipp,
 			                 int response);
-static void		serverDeleteClient(_ipp_client_t *client);
-static void		serverDeleteDevice(_ipp_device_t *device);
-static void		serverDeleteJob(_ipp_job_t *job);
-static void		serverDeletePrinter(_ipp_printer_t *printer);
-static void		serverDeleteSubscription(_ipp_subscription_t *sub);
-static int		filter_cb(_ipp_filter_t *filter, ipp_t *dst, ipp_attribute_t *attr);
-static _ipp_device_t	*serverFindDevice(_ipp_client_t *client);
-static _ipp_job_t	*serverFindJob(_ipp_client_t *client, int job_id);
-static _ipp_subscription_t *serverFindSubscription(_ipp_client_t *client, int sub_id);
-static _ipp_jreason_t	get_job_state_reasons_bits(ipp_attribute_t *attr);
-static _ipp_event_t	get_notify_events_bits(ipp_attribute_t *attr);
-static const char	*get_notify_subscribed_event(_ipp_event_t event);
-static _ipp_preason_t	get_printer_state_reasons_bits(ipp_attribute_t *attr);
-static void		html_escape(_ipp_client_t *client, const char *s,
+static void		serverDeleteClient(server_client_t *client);
+static void		serverDeleteDevice(server_device_t *device);
+static void		serverDeleteJob(server_job_t *job);
+static void		serverDeletePrinter(server_printer_t *printer);
+static void		serverDeleteSubscription(server_subscription_t *sub);
+static int		filter_cb(server_filter_t *filter, ipp_t *dst, ipp_attribute_t *attr);
+static server_device_t	*serverFindDevice(server_client_t *client);
+static server_job_t	*serverFindJob(server_client_t *client, int job_id);
+static server_subscription_t *serverFindSubscription(server_client_t *client, int sub_id);
+static server_jreason_t	get_job_state_reasons_bits(ipp_attribute_t *attr);
+static server_event_t	get_notify_events_bits(ipp_attribute_t *attr);
+static const char	*get_notify_subscribed_event(server_event_t event);
+static server_preason_t	get_printer_state_reasons_bits(ipp_attribute_t *attr);
+static void		html_escape(server_client_t *client, const char *s,
 			            size_t slen);
-static void		html_footer(_ipp_client_t *client);
-static void		html_header(_ipp_client_t *client, const char *title);
-static void		html_printf(_ipp_client_t *client, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
-static void		ipp_acknowledge_document(_ipp_client_t *client);
-static void		ipp_acknowledge_identify_printer(_ipp_client_t *client);
-static void		ipp_acknowledge_job(_ipp_client_t *client);
-static void		ipp_cancel_job(_ipp_client_t *client);
-static void		ipp_cancel_my_jobs(_ipp_client_t *client);
-static void		ipp_cancel_subscription(_ipp_client_t *client);
-static void		ipp_close_job(_ipp_client_t *client);
-static void		ipp_serverCreateJob(_ipp_client_t *client);
-static void		ipp_create_xxx_subscriptions(_ipp_client_t *client);
-static void		ipp_deregister_output_device(_ipp_client_t *client);
-static void		ipp_fetch_document(_ipp_client_t *client);
-static void		ipp_fetch_job(_ipp_client_t *client);
-static void		ipp_get_document_attributes(_ipp_client_t *client);
-static void		ipp_get_documents(_ipp_client_t *client);
-static void		ipp_get_job_attributes(_ipp_client_t *client);
-static void		ipp_get_jobs(_ipp_client_t *client);
-static void		ipp_get_notifications(_ipp_client_t *client);
-static void		ipp_get_output_device_attributes(_ipp_client_t *client);
-static void		ipp_get_printer_attributes(_ipp_client_t *client);
-static void		ipp_get_printer_supported_values(_ipp_client_t *client);
-static void		ipp_get_subscription_attributes(_ipp_client_t *client);
-static void		ipp_get_subscriptions(_ipp_client_t *client);
-static void		ipp_identify_printer(_ipp_client_t *client);
-static void		ipp_print_job(_ipp_client_t *client);
-static void		ipp_print_uri(_ipp_client_t *client);
-static void		ipp_renew_subscription(_ipp_client_t *client);
-static void		ipp_send_document(_ipp_client_t *client);
-static void		ipp_send_uri(_ipp_client_t *client);
-static void		ipp_update_active_jobs(_ipp_client_t *client);
-static void		ipp_update_document_status(_ipp_client_t *client);
-static void		ipp_update_job_status(_ipp_client_t *client);
-static void		ipp_update_output_device_attributes(_ipp_client_t *client);
-static void		ipp_validate_document(_ipp_client_t *client);
-static void		ipp_validate_job(_ipp_client_t *client);
-//static int		parse_options(_ipp_client_t *client, cups_option_t **options);
-static void		*serverProcessClient(_ipp_client_t *client);
-static int		serverProcessHTTP(_ipp_client_t *client);
-static int		serverProcessIPP(_ipp_client_t *client);
-static void		*serverProcessJob(_ipp_job_t *job);
-static int		serverRespondHTTP(_ipp_client_t *client, http_status_t code,
+static void		html_footer(server_client_t *client);
+static void		html_header(server_client_t *client, const char *title);
+static void		html_printf(server_client_t *client, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
+static void		ipp_acknowledge_document(server_client_t *client);
+static void		ipp_acknowledge_identify_printer(server_client_t *client);
+static void		ipp_acknowledge_job(server_client_t *client);
+static void		ipp_cancel_job(server_client_t *client);
+static void		ipp_cancel_my_jobs(server_client_t *client);
+static void		ipp_cancel_subscription(server_client_t *client);
+static void		ipp_close_job(server_client_t *client);
+static void		ipp_serverCreateJob(server_client_t *client);
+static void		ipp_create_xxx_subscriptions(server_client_t *client);
+static void		ipp_deregister_output_device(server_client_t *client);
+static void		ipp_fetch_document(server_client_t *client);
+static void		ipp_fetch_job(server_client_t *client);
+static void		ipp_get_document_attributes(server_client_t *client);
+static void		ipp_get_documents(server_client_t *client);
+static void		ipp_get_job_attributes(server_client_t *client);
+static void		ipp_get_jobs(server_client_t *client);
+static void		ipp_get_notifications(server_client_t *client);
+static void		ipp_get_output_device_attributes(server_client_t *client);
+static void		ipp_get_printer_attributes(server_client_t *client);
+static void		ipp_get_printer_supported_values(server_client_t *client);
+static void		ipp_get_subscription_attributes(server_client_t *client);
+static void		ipp_get_subscriptions(server_client_t *client);
+static void		ipp_identify_printer(server_client_t *client);
+static void		ipp_print_job(server_client_t *client);
+static void		ipp_print_uri(server_client_t *client);
+static void		ipp_renew_subscription(server_client_t *client);
+static void		ipp_send_document(server_client_t *client);
+static void		ipp_send_uri(server_client_t *client);
+static void		ipp_update_active_jobs(server_client_t *client);
+static void		ipp_update_document_status(server_client_t *client);
+static void		ipp_update_job_status(server_client_t *client);
+static void		ipp_update_output_device_attributes(server_client_t *client);
+static void		ipp_validate_document(server_client_t *client);
+static void		ipp_validate_job(server_client_t *client);
+//static int		parse_options(server_client_t *client, cups_option_t **options);
+static void		*serverProcessClient(server_client_t *client);
+static int		serverProcessHTTP(server_client_t *client);
+static int		serverProcessIPP(server_client_t *client);
+static void		*serverProcessJob(server_job_t *job);
+static int		serverRespondHTTP(server_client_t *client, http_status_t code,
 				     const char *content_coding,
 				     const char *type, size_t length);
-static void		serverRespondIPP(_ipp_client_t *client, ipp_status_t status,
+static void		serverRespondIPP(server_client_t *client, ipp_status_t status,
 			            const char *message, ...)
 			__attribute__ ((__format__ (__printf__, 3, 4)));
-static void		serverRespondUnsupported(_ipp_client_t *client,
+static void		serverRespondUnsupported(server_client_t *client,
 			                    ipp_attribute_t *attr);
-static void		serverRunPrinter(_ipp_printer_t *printer);
+static void		serverRunPrinter(server_printer_t *printer);
 static char		*serverTimeString(time_t tv, char *buffer, size_t bufsize);
-static void		serverUpdateDeviceAttributesNoLock(_ipp_printer_t *printer);
-static void		serverUpdateDeviceStateNoLock(_ipp_printer_t *printer);
+static void		serverUpdateDeviceAttributesNoLock(server_printer_t *printer);
+static void		serverUpdateDeviceStateNoLock(server_printer_t *printer);
 static void		usage(int status) __attribute__((noreturn));
-static int		valid_doc_attributes(_ipp_client_t *client);
-static int		valid_job_attributes(_ipp_client_t *client);
+static int		valid_doc_attributes(server_client_t *client);
+static int		valid_job_attributes(server_client_t *client);
 
 
 /*
@@ -550,7 +550,7 @@ main(int  argc,				/* I - Number of command-line args */
 		hostname[1024],		/* Auto-detected hostname */
 		proxy_user[256] = "",	/* Proxy username */
 		*proxy_pass = NULL;	/* Proxy password */
-  _ipp_printer_t *printer;		/* Printer object */
+  server_printer_t *printer;		/* Printer object */
 
 
  /*
@@ -724,13 +724,13 @@ main(int  argc,				/* I - Number of command-line args */
  */
 
 static void
-serverAddEvent(_ipp_printer_t *printer,	/* I - Printer */
-          _ipp_job_t     *job,		/* I - Job, if any */
-	  _ipp_event_t   event,		/* I - Event */
+serverAddEvent(server_printer_t *printer,	/* I - Printer */
+          server_job_t     *job,		/* I - Job, if any */
+	  server_event_t   event,		/* I - Event */
 	  const char     *message,	/* I - Printf-style notify-text message */
 	  ...)				/* I - Additional printf arguments */
 {
-  _ipp_subscription_t *sub;		/* Current subscription */
+  server_subscription_t *sub;		/* Current subscription */
   ipp_t		*n;			/* Notify attributes */
   char		text[1024];		/* notify-text value */
   va_list	ap;			/* Argument pointer */
@@ -740,9 +740,9 @@ serverAddEvent(_ipp_printer_t *printer,	/* I - Printer */
   vsnprintf(text, sizeof(text), message, ap);
   va_end(ap);
 
-  for (sub = (_ipp_subscription_t *)cupsArrayFirst(printer->subscriptions);
+  for (sub = (server_subscription_t *)cupsArrayFirst(printer->subscriptions);
        sub;
-       sub = (_ipp_subscription_t *)cupsArrayNext(printer->subscriptions))
+       sub = (server_subscription_t *)cupsArrayNext(printer->subscriptions))
   {
     if (sub->mask & event && (!sub->job || job == sub->job))
     {
@@ -760,16 +760,16 @@ serverAddEvent(_ipp_printer_t *printer,	/* I - Printer */
       ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-sequence-number", ++ sub->last_sequence);
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_KEYWORD, "notify-subscribed-event", NULL, get_notify_subscribed_event(event));
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_TEXT, "notify-text", NULL, text);
-      if (event & _IPP_EVENT_PRINTER_ALL)
+      if (event & SERVER_EVENT_PRINTER_ALL)
       {
 	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_ENUM, "printer-state", printer->state);
 	copy_printer_state_reasons(n, IPP_TAG_EVENT_NOTIFICATION, printer);
       }
-      if (event & _IPP_EVENT_JOB_ALL)
+      if (event & SERVER_EVENT_JOB_ALL)
       {
 	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_ENUM, "job-state", job->state);
 	copy_job_state_reasons(n, IPP_TAG_EVENT_NOTIFICATION, job);
-	if (event == _IPP_EVENT_JOB_CREATED)
+	if (event == SERVER_EVENT_JOB_CREATED)
 	{
 	  ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_NAME, "job-name", NULL, job->name);
 	  ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_NAME, "job-originating-user-name", NULL, job->username);
@@ -797,18 +797,18 @@ serverAddEvent(_ipp_printer_t *printer,	/* I - Printer */
  */
 
 static void
-serverCheckJobs(_ipp_printer_t *printer)	/* I - Printer */
+serverCheckJobs(server_printer_t *printer)	/* I - Printer */
 {
-  _ipp_job_t	*job;			/* Current job */
+  server_job_t	*job;			/* Current job */
 
 
   if (printer->processing_job)
     return;
 
   _cupsRWLockWrite(&(printer->rwlock));
-  for (job = (_ipp_job_t *)cupsArrayFirst(printer->active_jobs);
+  for (job = (server_job_t *)cupsArrayFirst(printer->active_jobs);
        job;
-       job = (_ipp_job_t *)cupsArrayNext(printer->active_jobs))
+       job = (server_job_t *)cupsArrayNext(printer->active_jobs))
   {
     if (job->state == IPP_JSTATE_PENDING)
     {
@@ -817,7 +817,7 @@ serverCheckJobs(_ipp_printer_t *printer)	/* I - Printer */
         job->state     = IPP_JSTATE_ABORTED;
 	job->completed = time(NULL);
 
-        serverAddEvent(printer, job, _IPP_EVENT_JOB_COMPLETED, "Job aborted because creation of processing thread failed.");
+        serverAddEvent(printer, job, SERVER_EVENT_JOB_COMPLETED, "Job aborted because creation of processing thread failed.");
       }
       break;
     }
@@ -831,9 +831,9 @@ serverCheckJobs(_ipp_printer_t *printer)	/* I - Printer */
  */
 
 static void
-serverCleanJobs(_ipp_printer_t *printer)	/* I - Printer */
+serverCleanJobs(server_printer_t *printer)	/* I - Printer */
 {
-  _ipp_job_t	*job;			/* Current job */
+  server_job_t	*job;			/* Current job */
   time_t	cleantime;		/* Clean time */
 
 
@@ -843,9 +843,9 @@ serverCleanJobs(_ipp_printer_t *printer)	/* I - Printer */
   cleantime = time(NULL) - 60;
 
   _cupsRWLockWrite(&(printer->rwlock));
-  for (job = (_ipp_job_t *)cupsArrayFirst(printer->jobs);
+  for (job = (server_job_t *)cupsArrayFirst(printer->jobs);
        job;
-       job = (_ipp_job_t *)cupsArrayNext(printer->jobs))
+       job = (server_job_t *)cupsArrayNext(printer->jobs))
     if (job->completed && job->completed < cleantime)
     {
       cupsArrayRemove(printer->jobs, job);
@@ -862,8 +862,8 @@ serverCleanJobs(_ipp_printer_t *printer)	/* I - Printer */
  */
 
 static int				/* O - Result of comparison */
-compare_active_jobs(_ipp_job_t *a,	/* I - First job */
-                    _ipp_job_t *b)	/* I - Second job */
+compare_active_jobs(server_job_t *a,	/* I - First job */
+                    server_job_t *b)	/* I - Second job */
 {
   int	diff;				/* Difference */
 
@@ -880,8 +880,8 @@ compare_active_jobs(_ipp_job_t *a,	/* I - First job */
  */
 
 static int				/* O - Result of comparison */
-compare_completed_jobs(_ipp_job_t *a,	/* I - First job */
-                       _ipp_job_t *b)	/* I - Second job */
+compare_completed_jobs(server_job_t *a,	/* I - First job */
+                       server_job_t *b)	/* I - Second job */
 {
   int	diff;				/* Difference */
 
@@ -898,8 +898,8 @@ compare_completed_jobs(_ipp_job_t *a,	/* I - First job */
  */
 
 static int				/* O - Result of comparison */
-compare_devices(_ipp_device_t *a,	/* I - First device */
-                _ipp_device_t *b)	/* I - Second device */
+compare_devices(server_device_t *a,	/* I - First device */
+                server_device_t *b)	/* I - Second device */
 {
   return (strcmp(a->uuid, b->uuid));
 }
@@ -910,8 +910,8 @@ compare_devices(_ipp_device_t *a,	/* I - First device */
  */
 
 static int				/* O - Result of comparison */
-compare_jobs(_ipp_job_t *a,		/* I - First job */
-             _ipp_job_t *b)		/* I - Second job */
+compare_jobs(server_job_t *a,		/* I - First job */
+             server_job_t *b)		/* I - Second job */
 {
   return (b->id - a->id);
 }
@@ -928,7 +928,7 @@ copy_attributes(ipp_t        *to,	/* I - Destination request */
 	        ipp_tag_t    group_tag,	/* I - Group to copy */
 	        int          quickcopy)	/* I - Do a quick copy? */
 {
-  _ipp_filter_t	filter;			/* Filter data */
+  server_filter_t	filter;			/* Filter data */
 
 
   filter.ra        = ra;
@@ -944,8 +944,8 @@ copy_attributes(ipp_t        *to,	/* I - Destination request */
 
 static void
 copy_job_attributes(
-    _ipp_client_t *client,		/* I - Client */
-    _ipp_job_t    *job,			/* I - Job */
+    server_client_t *client,		/* I - Client */
+    server_job_t    *job,			/* I - Job */
     cups_array_t  *ra)			/* I - requested-attributes */
 {
   copy_attributes(client->response, job->attrs, ra, IPP_TAG_JOB, 0);
@@ -996,7 +996,7 @@ copy_job_attributes(
 	    break;
 
 	case IPP_JSTATE_HELD :
-	    if (job->state_reasons & _IPP_JREASON_JOB_INCOMING)
+	    if (job->state_reasons & SERVER_JREASON_JOB_INCOMING)
 	      message = "Job incoming.";
 	    else if (ippFindAttribute(job->attrs, "job-hold-until", IPP_TAG_ZERO))
 	      message = "Job held.";
@@ -1005,7 +1005,7 @@ copy_job_attributes(
 	    break;
 
 	case IPP_JSTATE_PROCESSING :
-	    if (job->state_reasons & _IPP_JREASON_PROCESSING_TO_STOP_POINT)
+	    if (job->state_reasons & SERVER_JREASON_PROCESSING_TO_STOP_POINT)
 	    {
 	      if (job->cancel)
 		message = "Cancel in progress.";
@@ -1120,9 +1120,9 @@ static void
 copy_job_state_reasons(
     ipp_t      *ipp,			/* I - Attributes */
     ipp_tag_t  group_tag,		/* I - Group */
-    _ipp_job_t *job)			/* I - Printer */
+    server_job_t *job)			/* I - Printer */
 {
-  _ipp_jreason_t	creasons;	/* Combined job-state-reasons */
+  server_jreason_t	creasons;	/* Combined job-state-reasons */
 
 
   creasons = job->state_reasons | job->dev_state_reasons;
@@ -1135,13 +1135,13 @@ copy_job_state_reasons(
   {
     int			i,		/* Looping var */
 			num_reasons = 0;/* Number of reasons */
-    _ipp_jreason_t	reason;		/* Current reason */
+    server_jreason_t	reason;		/* Current reason */
     const char		*reasons[32];	/* Reason strings */
 
-    for (i = 0, reason = 1; i < (int)(sizeof(_ipp_jreasons) / sizeof(_ipp_jreasons[0])); i ++, reason <<= 1)
+    for (i = 0, reason = 1; i < (int)(sizeof(server_jreasons) / sizeof(server_jreasons[0])); i ++, reason <<= 1)
     {
       if (creasons & reason)
-        reasons[num_reasons ++] = _ipp_jreasons[i];
+        reasons[num_reasons ++] = server_jreasons[i];
     }
 
     ippAddStrings(ipp, group_tag, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-state-reasons", num_reasons, NULL, reasons);
@@ -1157,26 +1157,26 @@ static void
 copy_printer_state_reasons(
     ipp_t          *ipp,		/* I - Attributes */
     ipp_tag_t      group_tag,		/* I - Group */
-    _ipp_printer_t *printer)		/* I - Printer */
+    server_printer_t *printer)		/* I - Printer */
 {
-  _ipp_preason_t	creasons = printer->state_reasons | printer->dev_reasons;
+  server_preason_t	creasons = printer->state_reasons | printer->dev_reasons;
 					/* Combined reasons */
 
 
-  if (creasons == _IPP_PREASON_NONE)
+  if (creasons == SERVER_PREASON_NONE)
   {
     ippAddString(ipp, group_tag, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-state-reasons", NULL, "none");
   }
   else
   {
     int			i,		/* Looping var */				num_reasons = 0;/* Number of reasons */
-    _ipp_preason_t	reason;		/* Current reason */
+    server_preason_t	reason;		/* Current reason */
     const char		*reasons[32];	/* Reason strings */
 
-    for (i = 0, reason = 1; i < (int)(sizeof(_ipp_preasons) / sizeof(_ipp_preasons[0])); i ++, reason <<= 1)
+    for (i = 0, reason = 1; i < (int)(sizeof(server_preasons) / sizeof(server_preasons[0])); i ++, reason <<= 1)
     {
       if (creasons & reason)
-	reasons[num_reasons ++] = _ipp_preasons[i];
+	reasons[num_reasons ++] = server_preasons[i];
     }
 
     ippAddStrings(ipp, group_tag, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-state-reasons", num_reasons, NULL, reasons);
@@ -1190,8 +1190,8 @@ copy_printer_state_reasons(
 
 static void
 copy_subscription_attributes(
-    _ipp_client_t       *client,	/* I - Client */
-    _ipp_subscription_t *sub,		/* I - Subscription */
+    server_client_t       *client,	/* I - Client */
+    server_subscription_t *sub,		/* I - Subscription */
     cups_array_t        *ra)		/* I - requested-attributes */
 {
   copy_attributes(client->response, sub->attrs, ra, IPP_TAG_SUBSCRIPTION, 0);
@@ -1212,14 +1212,14 @@ copy_subscription_attributes(
  *                     object.
  */
 
-static _ipp_client_t *			/* O - Client */
-serverCreateClient(_ipp_printer_t *printer,	/* I - Printer */
+static server_client_t *			/* O - Client */
+serverCreateClient(server_printer_t *printer,	/* I - Printer */
               int            sock)	/* I - Listen socket */
 {
-  _ipp_client_t	*client;		/* Client */
+  server_client_t	*client;		/* Client */
 
 
-  if ((client = calloc(1, sizeof(_ipp_client_t))) == NULL)
+  if ((client = calloc(1, sizeof(server_client_t))) == NULL)
   {
     perror("Unable to allocate memory for client");
     return (NULL);
@@ -1254,17 +1254,17 @@ serverCreateClient(_ipp_printer_t *printer,	/* I - Printer */
  * 'serverCreateDevice()' - Create an output device tracking object.
  */
 
-static _ipp_device_t *			/* O - Device */
-serverCreateDevice(_ipp_client_t *client)	/* I - Client */
+static server_device_t *			/* O - Device */
+serverCreateDevice(server_client_t *client)	/* I - Client */
 {
-  _ipp_device_t		*device;	/* Device */
+  server_device_t		*device;	/* Device */
   ipp_attribute_t	*uuid;		/* output-device-uuid */
 
 
   if ((uuid = ippFindAttribute(client->request, "output-device-uuid", IPP_TAG_URI)) == NULL)
     return (NULL);
 
-  if ((device = calloc(1, sizeof(_ipp_device_t))) == NULL)
+  if ((device = calloc(1, sizeof(server_device_t))) == NULL)
     return (NULL);
 
   _cupsRWInit(&device->rwlock);
@@ -1285,10 +1285,10 @@ serverCreateDevice(_ipp_client_t *client)	/* I - Client */
  *                  request.
  */
 
-static _ipp_job_t *			/* O - Job */
-serverCreateJob(_ipp_client_t *client)	/* I - Client */
+static server_job_t *			/* O - Job */
+serverCreateJob(server_client_t *client)	/* I - Client */
 {
-  _ipp_job_t		*job;		/* Job */
+  server_job_t		*job;		/* Job */
   ipp_attribute_t	*attr;		/* Job attribute */
   char			uri[1024],	/* job-uri value */
 			uuid[64];	/* job-uuid value */
@@ -1300,7 +1300,7 @@ serverCreateJob(_ipp_client_t *client)	/* I - Client */
   * Allocate and initialize the job object...
   */
 
-  if ((job = calloc(1, sizeof(_ipp_job_t))) == NULL)
+  if ((job = calloc(1, sizeof(server_job_t))) == NULL)
   {
     perror("Unable to allocate memory for job");
     return (NULL);
@@ -1379,8 +1379,8 @@ serverCreateJob(_ipp_client_t *client)	/* I - Client */
  */
 
 static void serverCreateJobFilename(
-    _ipp_printer_t *printer,		/* I - Printer */
-    _ipp_job_t     *job,		/* I - Job */
+    server_printer_t *printer,		/* I - Printer */
+    server_job_t     *job,		/* I - Job */
     const char     *format,		/* I - Format or NULL */
     char           *fname,		/* I - Filename buffer */
     size_t         fnamesize)		/* I - Size of filename buffer */
@@ -1469,7 +1469,7 @@ serverCreateListener(int family,		/* I - Address family */
  *                      printer object.
  */
 
-static _ipp_printer_t *			/* O - Printer */
+static server_printer_t *			/* O - Printer */
 serverCreatePrinter(const char *servername,	/* I - Server hostname (NULL for default) */
                int        port,		/* I - Port number */
                const char *name,	/* I - printer-name */
@@ -1477,7 +1477,7 @@ serverCreatePrinter(const char *servername,	/* I - Server hostname (NULL for def
 	       const char *proxy_user,	/* I - Proxy account username */
 	       const char *proxy_pass)	/* I - Proxy account password */
 {
-  _ipp_printer_t	*printer;	/* Printer */
+  server_printer_t	*printer;	/* Printer */
   char			uri[1024],	/* Printer URI */
 			adminurl[1024],	/* printer-more-info URI */
 			supplyurl[1024],/* printer-supply-info-uri URI */
@@ -1587,7 +1587,7 @@ serverCreatePrinter(const char *servername,	/* I - Server hostname (NULL for def
   * Allocate memory for the printer...
   */
 
-  if ((printer = calloc(1, sizeof(_ipp_printer_t))) == NULL)
+  if ((printer = calloc(1, sizeof(server_printer_t))) == NULL)
   {
     perror("ippserver: Unable to allocate memory for printer");
     return (NULL);
@@ -1602,7 +1602,7 @@ serverCreatePrinter(const char *servername,	/* I - Server hostname (NULL for def
   printer->start_time     = time(NULL);
   printer->config_time    = printer->start_time;
   printer->state          = IPP_PSTATE_IDLE;
-  printer->state_reasons  = _IPP_PREASON_NONE;
+  printer->state_reasons  = SERVER_PREASON_NONE;
   printer->state_time     = printer->start_time;
   printer->jobs           = cupsArrayNew3((cups_array_func_t)compare_jobs, NULL, NULL, 0, NULL, (cups_afree_func_t)serverDeleteJob);
   printer->active_jobs    = cupsArrayNew((cups_array_func_t)compare_active_jobs, NULL);
@@ -1756,16 +1756,16 @@ serverCreatePrinter(const char *servername,	/* I - Server hostname (NULL for def
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-events-default", NULL, "job-completed");
 
   /* notify-events-supported */
-  ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-events-supported", sizeof(_ipp_events) / sizeof(_ipp_events[0]), NULL, _ipp_events);
+  ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-events-supported", sizeof(server_events) / sizeof(server_events[0]), NULL, server_events);
 
   /* notify-lease-duration-default */
   ippAddInteger(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "notify-lease-duration-default", 86400);
 
   /* notify-lease-duration-supported */
-  ippAddRange(printer->attrs, IPP_TAG_PRINTER, "notify-lease-duration-supported", 0, _IPP_NOTIFY_LEASE_DURATION_MAX);
+  ippAddRange(printer->attrs, IPP_TAG_PRINTER, "notify-lease-duration-supported", 0, SERVER_NOTIFY_LEASE_DURATION_MAX);
 
   /* notify-max-events-supported */
-  ippAddInteger(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "notify-lease-duration-default", (int)(sizeof(_ipp_events) / sizeof(_ipp_events[0])));
+  ippAddInteger(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "notify-lease-duration-default", (int)(sizeof(server_events) / sizeof(server_events[0])));
 
   /* notify-pull-method-supported */
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-pull-method-supported", NULL, "ippget");
@@ -1849,10 +1849,10 @@ serverCreatePrinter(const char *servername,	/* I - Server hostname (NULL for def
  *                           request.
  */
 
-static _ipp_subscription_t *		/* O - Subscription object */
+static server_subscription_t *		/* O - Subscription object */
 serverCreateSubcription(
-    _ipp_printer_t  *printer,		/* I - Printer */
-    _ipp_job_t      *job,		/* I - Job, if any */
+    server_printer_t  *printer,		/* I - Printer */
+    server_job_t      *job,		/* I - Job, if any */
     int             interval,		/* I - Interval for progress events */
     int             lease,		/* I - Lease duration */
     const char      *username,		/* I - User creating the subscription */
@@ -1860,7 +1860,7 @@ serverCreateSubcription(
     ipp_attribute_t *notify_attributes,	/* I - Attributes to report */
     ipp_attribute_t *notify_user_data)	/* I - User data, if any */
 {
-  _ipp_subscription_t	*sub;		/* Subscription */
+  server_subscription_t	*sub;		/* Subscription */
   ipp_attribute_t	*attr;		/* Subscription attribute */
   char			uuid[64];	/* notify-subscription-uuid value */
 
@@ -1869,7 +1869,7 @@ serverCreateSubcription(
   * Allocate and initialize the subscription object...
   */
 
-  if ((sub = calloc(1, sizeof(_ipp_subscription_t))) == NULL)
+  if ((sub = calloc(1, sizeof(server_subscription_t))) == NULL)
   {
     perror("Unable to allocate memory for subscription");
     return (NULL);
@@ -1878,7 +1878,7 @@ serverCreateSubcription(
   _cupsRWLockWrite(&(printer->rwlock));
 
   sub->id       = printer->next_sub_id ++;
-  sub->mask     = notify_events ? get_notify_events_bits(notify_events) : _IPP_EVENT_DEFAULT;
+  sub->mask     = notify_events ? get_notify_events_bits(notify_events) : SERVER_EVENT_DEFAULT;
   sub->printer  = printer;
   sub->job      = job;
   sub->interval = interval;
@@ -1916,7 +1916,7 @@ serverCreateSubcription(
   if (notify_events)
     ippCopyAttribute(sub->attrs, notify_events, 0);
   else
-    ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-events", NULL, _IPP_EVENT_DEFAULT_STRING);
+    ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-events", NULL, SERVER_EVENT_DEFAULT_STRING);
 
   ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-pull-method", NULL, "ippget");
 
@@ -1992,7 +1992,7 @@ debug_attributes(const char *title,	/* I - Title */
  */
 
 static void
-serverDeleteClient(_ipp_client_t *client)	/* I - Client */
+serverDeleteClient(server_client_t *client)	/* I - Client */
 {
   if (Verbosity)
     fprintf(stderr, "Closing connection from %s\n", client->hostname);
@@ -2023,7 +2023,7 @@ serverDeleteClient(_ipp_client_t *client)	/* I - Client */
  */
 
 static void
-serverDeleteDevice(_ipp_device_t *device)	/* I - Device */
+serverDeleteDevice(server_device_t *device)	/* I - Device */
 {
  /*
   * Free memory used for the device...
@@ -2048,7 +2048,7 @@ serverDeleteDevice(_ipp_device_t *device)	/* I - Device */
  */
 
 static void
-serverDeleteJob(_ipp_job_t *job)		/* I - Job */
+serverDeleteJob(server_job_t *job)		/* I - Job */
 {
   if (Verbosity)
     fprintf(stderr, "Removing job #%d from history.\n", job->id);
@@ -2077,7 +2077,7 @@ serverDeleteJob(_ipp_job_t *job)		/* I - Job */
  */
 
 static void
-serverDeletePrinter(_ipp_printer_t *printer)	/* I - Printer */
+serverDeletePrinter(server_printer_t *printer)	/* I - Printer */
 {
   _cupsRWLockWrite(&printer->rwlock);
 
@@ -2121,7 +2121,7 @@ serverDeletePrinter(_ipp_printer_t *printer)	/* I - Printer */
 
 static void
 serverDeleteSubscription(
-    _ipp_subscription_t *sub)		/* I - Subscription */
+    server_subscription_t *sub)		/* I - Subscription */
 {
   sub->pending_delete = 1;
 
@@ -2143,7 +2143,7 @@ serverDeleteSubscription(
  */
 
 static int				/* O - 1 to copy, 0 to ignore */
-filter_cb(_ipp_filter_t   *filter,	/* I - Filter parameters */
+filter_cb(server_filter_t   *filter,	/* I - Filter parameters */
           ipp_t           *dst,		/* I - Destination (unused) */
 	  ipp_attribute_t *attr)	/* I - Source attribute */
 {
@@ -2167,11 +2167,11 @@ filter_cb(_ipp_filter_t   *filter,	/* I - Filter parameters */
  * 'serverFindDevice()' - Find a device.
  */
 
-static _ipp_device_t *			/* I - Device */
-serverFindDevice(_ipp_client_t *client)	/* I - Client */
+static server_device_t *			/* I - Device */
+serverFindDevice(server_client_t *client)	/* I - Client */
 {
   ipp_attribute_t	*uuid;		/* output-device-uuid */
-  _ipp_device_t		key,		/* Search key */
+  server_device_t		key,		/* Search key */
 			*device;	/* Matching device */
 
 
@@ -2181,7 +2181,7 @@ serverFindDevice(_ipp_client_t *client)	/* I - Client */
   key.uuid = (char *)ippGetString(uuid, 0, NULL);
 
   _cupsRWLockRead(&client->printer->rwlock);
-  device = (_ipp_device_t *)cupsArrayFind(client->printer->devices, &key);
+  device = (server_device_t *)cupsArrayFind(client->printer->devices, &key);
   _cupsRWUnlock(&client->printer->rwlock);
 
   return (device);
@@ -2192,12 +2192,12 @@ serverFindDevice(_ipp_client_t *client)	/* I - Client */
  * 'serverFindJob()' - Find a job specified in a request.
  */
 
-static _ipp_job_t *			/* O - Job or NULL */
-serverFindJob(_ipp_client_t *client,		/* I - Client */
+static server_job_t *			/* O - Job or NULL */
+serverFindJob(server_client_t *client,		/* I - Client */
          int           job_id)		/* I - Job ID to find or 0 to lookup */
 {
   ipp_attribute_t	*attr;		/* job-id or job-uri attribute */
-  _ipp_job_t		key,		/* Job search key */
+  server_job_t		key,		/* Job search key */
 			*job;		/* Matching job, if any */
 
 
@@ -2221,7 +2221,7 @@ serverFindJob(_ipp_client_t *client,		/* I - Client */
   }
 
   _cupsRWLockRead(&(client->printer->rwlock));
-  job = (_ipp_job_t *)cupsArrayFind(client->printer->jobs, &key);
+  job = (server_job_t *)cupsArrayFind(client->printer->jobs, &key);
   _cupsRWUnlock(&(client->printer->rwlock));
 
   return (job);
@@ -2232,13 +2232,13 @@ serverFindJob(_ipp_client_t *client,		/* I - Client */
  * 'serverFindSubscription()' - Find a subcription.
  */
 
-static _ipp_subscription_t *		/* O - Subscription */
-serverFindSubscription(_ipp_client_t *client,/* I - Client */
+static server_subscription_t *		/* O - Subscription */
+serverFindSubscription(server_client_t *client,/* I - Client */
                   int           sub_id)	/* I - Subscription ID or 0 */
 {
   ipp_attribute_t	*notify_subscription_id;
 					/* notify-subscription-id */
-  _ipp_subscription_t	key,		/* Search key */
+  server_subscription_t	key,		/* Search key */
 			*sub;		/* Matching subscription */
 
 
@@ -2250,7 +2250,7 @@ serverFindSubscription(_ipp_client_t *client,/* I - Client */
     key.id = ippGetInteger(notify_subscription_id, 0);
 
   _cupsRWLockRead(&client->printer->rwlock);
-  sub = (_ipp_subscription_t *)cupsArrayFind(client->printer->subscriptions, &key);
+  sub = (server_subscription_t *)cupsArrayFind(client->printer->subscriptions, &key);
   _cupsRWUnlock(&client->printer->rwlock);
 
   return (sub);
@@ -2261,14 +2261,14 @@ serverFindSubscription(_ipp_client_t *client,/* I - Client */
  * 'get_job_state_reasons_bits()' - Get the bits associates with "job-state-reasons" values.
  */
 
-static _ipp_jreason_t			/* O - Bits */
+static server_jreason_t			/* O - Bits */
 get_job_state_reasons_bits(
     ipp_attribute_t *attr)		/* I - "job-state-reasons" attribute */
 {
   int			i, j,		/* Looping vars */
 			count;		/* Number of "job-state-reasons" values */
   const char		*keyword;	/* "job-state-reasons" value */
-  _ipp_jreason_t	jreasons = _IPP_JREASON_NONE;
+  server_jreason_t	jreasons = SERVER_JREASON_NONE;
 					/* Bits for "job-state-reasons" values */
 
 
@@ -2277,9 +2277,9 @@ get_job_state_reasons_bits(
   {
     keyword = ippGetString(attr, i, NULL);
 
-    for (j = 0; j < (int)(sizeof(_ipp_jreasons) / sizeof(_ipp_jreasons[0])); j ++)
+    for (j = 0; j < (int)(sizeof(server_jreasons) / sizeof(server_jreasons[0])); j ++)
     {
-      if (!strcmp(keyword, _ipp_jreasons[j]))
+      if (!strcmp(keyword, server_jreasons[j]))
       {
         jreasons |= 1 << j;
 	break;
@@ -2295,14 +2295,14 @@ get_job_state_reasons_bits(
  * 'get_notify_event_bits()' - Get the bits associated with "notify-events" values.
  */
 
-static _ipp_event_t			/* O - Bits */
+static server_event_t			/* O - Bits */
 get_notify_events_bits(
     ipp_attribute_t *attr)		/* I - "notify-events" attribute */
 {
   int		i, j,			/* Looping vars */
 		count;			/* Number of "notify-events" values */
   const char	*keyword;		/* "notify-events" value */
-  _ipp_event_t	events = _IPP_EVENT_NONE;
+  server_event_t	events = SERVER_EVENT_NONE;
 					/* Bits for "notify-events" values */
 
 
@@ -2311,9 +2311,9 @@ get_notify_events_bits(
   {
     keyword = ippGetString(attr, i, NULL);
 
-    for (j = 0; j < (int)(sizeof(_ipp_events) / sizeof(_ipp_events[0])); j ++)
+    for (j = 0; j < (int)(sizeof(server_events) / sizeof(server_events[0])); j ++)
     {
-      if (!strcmp(keyword, _ipp_jreasons[j]))
+      if (!strcmp(keyword, server_jreasons[j]))
       {
         events |= 1 << j;
 	break;
@@ -2331,14 +2331,14 @@ get_notify_events_bits(
 
 static const char *			/* O - Event name */
 get_notify_subscribed_event(
-    _ipp_event_t event)			/* I - Event bit */
+    server_event_t event)			/* I - Event bit */
 {
   int		i;			/* Looping var */
-  _ipp_event_t	mask;			/* Current mask */
+  server_event_t	mask;			/* Current mask */
 
-  for (i = 0, mask = 1; i < (int)(sizeof(_ipp_events) / sizeof(_ipp_events[0])); i ++, mask <<= 1)
+  for (i = 0, mask = 1; i < (int)(sizeof(server_events) / sizeof(server_events[0])); i ++, mask <<= 1)
     if (event & mask)
-      return (_ipp_events[i]);
+      return (server_events[i]);
 
   return ("none");
 }
@@ -2348,14 +2348,14 @@ get_notify_subscribed_event(
  * 'get_printer_state_reasons_bits()' - Get the bits associated with "printer-state-reasons" values.
  */
 
-static _ipp_preason_t			/* O - Bits */
+static server_preason_t			/* O - Bits */
 get_printer_state_reasons_bits(
     ipp_attribute_t *attr)		/* I - "printer-state-reasons" bits */
 {
   int			i, j,		/* Looping vars */
 			count;		/* Number of "printer-state-reasons" values */
   const char		*keyword;	/* "printer-state-reasons" value */
-  _ipp_preason_t	preasons = _IPP_PREASON_NONE;
+  server_preason_t	preasons = SERVER_PREASON_NONE;
 					/* Bits for "printer-state-reasons" values */
 
 
@@ -2364,9 +2364,9 @@ get_printer_state_reasons_bits(
   {
     keyword = ippGetString(attr, i, NULL);
 
-    for (j = 0; j < (int)(sizeof(_ipp_preasons) / sizeof(_ipp_preasons[0])); j ++)
+    for (j = 0; j < (int)(sizeof(server_preasons) / sizeof(server_preasons[0])); j ++)
     {
-      if (!strcmp(keyword, _ipp_preasons[j]))
+      if (!strcmp(keyword, server_preasons[j]))
       {
         preasons |= 1 << j;
 	break;
@@ -2383,7 +2383,7 @@ get_printer_state_reasons_bits(
  */
 
 static void
-html_escape(_ipp_client_t *client,	/* I - Client */
+html_escape(server_client_t *client,	/* I - Client */
 	    const char    *s,		/* I - String to write */
 	    size_t        slen)		/* I - Number of characters to write */
 {
@@ -2424,7 +2424,7 @@ html_escape(_ipp_client_t *client,	/* I - Client */
  */
 
 static void
-html_footer(_ipp_client_t *client)	/* I - Client */
+html_footer(server_client_t *client)	/* I - Client */
 {
   html_printf(client,
 	      "</div>\n"
@@ -2439,7 +2439,7 @@ html_footer(_ipp_client_t *client)	/* I - Client */
  */
 
 static void
-html_header(_ipp_client_t *client,	/* I - Client */
+html_header(server_client_t *client,	/* I - Client */
             const char    *title)	/* I - Title */
 {
   html_printf(client,
@@ -2487,7 +2487,7 @@ html_header(_ipp_client_t *client,	/* I - Client */
  */
 
 static void
-html_printf(_ipp_client_t *client,	/* I - Client */
+html_printf(server_client_t *client,	/* I - Client */
 	    const char    *format,	/* I - Printf-style format string */
 	    ...)			/* I - Additional arguments as needed */
 {
@@ -2708,10 +2708,10 @@ html_printf(_ipp_client_t *client,	/* I - Client */
 
 static void
 ipp_acknowledge_document(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
-  _ipp_device_t		*device;	/* Device */
-  _ipp_job_t		*job;		/* Job */
+  server_device_t		*device;	/* Device */
+  server_job_t		*job;		/* Job */
   ipp_attribute_t	*attr;		/* Attribute */
 
 
@@ -2749,7 +2749,7 @@ ipp_acknowledge_document(
 
 static void
 ipp_acknowledge_identify_printer(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
   // TODO: Implement this!
   serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Need to implement this.");
@@ -2762,10 +2762,10 @@ ipp_acknowledge_identify_printer(
 
 static void
 ipp_acknowledge_job(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
-  _ipp_device_t		*device;	/* Device */
-  _ipp_job_t		*job;		/* Job */
+  server_device_t		*device;	/* Device */
+  server_job_t		*job;		/* Job */
 
 
   if ((device = serverFindDevice(client)) == NULL)
@@ -2786,7 +2786,7 @@ ipp_acknowledge_job(
     return;
   }
 
-  if (!(job->state_reasons & _IPP_JREASON_JOB_FETCHABLE))
+  if (!(job->state_reasons & SERVER_JREASON_JOB_FETCHABLE))
   {
     serverRespondIPP(client, _IPP_STATUS_ERROR_NOT_FETCHABLE, "Job not fetchable.");
     return;
@@ -2795,9 +2795,9 @@ ipp_acknowledge_job(
   if (!job->dev_uuid)
     job->dev_uuid = strdup(device->uuid);
 
-  job->state_reasons &= (_ipp_jreason_t)~_IPP_JREASON_JOB_FETCHABLE;
+  job->state_reasons &= (server_jreason_t)~SERVER_JREASON_JOB_FETCHABLE;
 
-  serverAddEvent(client->printer, job, _IPP_EVENT_JOB_STATE_CHANGED, "Job acknowledged.");
+  serverAddEvent(client->printer, job, SERVER_EVENT_JOB_STATE_CHANGED, "Job acknowledged.");
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -2808,9 +2808,9 @@ ipp_acknowledge_job(
  */
 
 static void
-ipp_cancel_job(_ipp_client_t *client)	/* I - Client */
+ipp_cancel_job(server_client_t *client)	/* I - Client */
 {
-  _ipp_job_t		*job;		/* Job information */
+  server_job_t		*job;		/* Job information */
 
 
  /*
@@ -2863,7 +2863,7 @@ ipp_cancel_job(_ipp_client_t *client)	/* I - Client */
 
 	_cupsRWUnlock(&(client->printer->rwlock));
 
-        serverAddEvent(client->printer, job, _IPP_EVENT_JOB_COMPLETED, NULL);
+        serverAddEvent(client->printer, job, SERVER_EVENT_JOB_COMPLETED, NULL);
 
 	serverRespondIPP(client, IPP_STATUS_OK, NULL);
         break;
@@ -2877,7 +2877,7 @@ ipp_cancel_job(_ipp_client_t *client)	/* I - Client */
 
 static void
 ipp_cancel_my_jobs(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
   // TODO: Implement this!
   serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Need to implement this.");
@@ -2890,9 +2890,9 @@ ipp_cancel_my_jobs(
 
 static void
 ipp_cancel_subscription(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
-  _ipp_subscription_t	*sub;		/* Subscription */
+  server_subscription_t	*sub;		/* Subscription */
 
 
   if ((sub = serverFindSubscription(client, 0)) == NULL)
@@ -2914,9 +2914,9 @@ ipp_cancel_subscription(
  */
 
 static void
-ipp_close_job(_ipp_client_t *client)	/* I - Client */
+ipp_close_job(server_client_t *client)	/* I - Client */
 {
-  _ipp_job_t		*job;		/* Job information */
+  server_job_t		*job;		/* Job information */
 
 
  /*
@@ -2969,9 +2969,9 @@ ipp_close_job(_ipp_client_t *client)	/* I - Client */
  */
 
 static void
-ipp_serverCreateJob(_ipp_client_t *client)	/* I - Client */
+ipp_serverCreateJob(server_client_t *client)	/* I - Client */
 {
-  _ipp_job_t		*job;		/* New job */
+  server_job_t		*job;		/* New job */
   cups_array_t		*ra;		/* Attributes to send in response */
 
 
@@ -3037,9 +3037,9 @@ ipp_serverCreateJob(_ipp_client_t *client)	/* I - Client */
 
 static void
 ipp_create_xxx_subscriptions(
-    _ipp_client_t *client)
+    server_client_t *client)
 {
-  _ipp_subscription_t	*sub;		/* Subscription */
+  server_subscription_t	*sub;		/* Subscription */
   ipp_attribute_t	*attr;		/* Subscription attribute */
   const char		*username;	/* requesting-user-name or
 					   authenticated username */
@@ -3076,7 +3076,7 @@ ipp_create_xxx_subscriptions(
 
   while (attr)
   {
-    _ipp_job_t		*job = NULL;	/* Job */
+    server_job_t		*job = NULL;	/* Job */
     const char		*attrname,	/* Attribute name */
 			*pullmethod = NULL;
     					/* notify-pull-method */
@@ -3087,7 +3087,7 @@ ipp_create_xxx_subscriptions(
 			*notify_user_data = NULL;
 					/* notify-user-data */
     int			interval = 0,	/* notify-time-interval */
-			lease = _IPP_NOTIFY_LEASE_DURATION_DEFAULT;
+			lease = SERVER_NOTIFY_LEASE_DURATION_DEFAULT;
 					/* notify-lease-duration */
     ipp_status_t	status = IPP_STATUS_OK;
 					/* notify-status-code */
@@ -3250,9 +3250,9 @@ ipp_create_xxx_subscriptions(
 
 static void
 ipp_deregister_output_device(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
-  _ipp_device_t	*device;		/* Device */
+  server_device_t	*device;		/* Device */
 
 
  /*
@@ -3294,10 +3294,10 @@ ipp_deregister_output_device(
 
 static void
 ipp_fetch_document(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
-  _ipp_device_t		*device;	/* Device */
-  _ipp_job_t		*job;		/* Job */
+  server_device_t		*device;	/* Device */
+  server_job_t		*job;		/* Job */
   ipp_attribute_t	*attr;		/* Attribute */
   int			compression;	/* compression */
   char			filename[1024];	/* Job filename */
@@ -3376,10 +3376,10 @@ ipp_fetch_document(
  */
 
 static void
-ipp_fetch_job(_ipp_client_t *client)	/* I - Client */
+ipp_fetch_job(server_client_t *client)	/* I - Client */
 {
-  _ipp_device_t		*device;	/* Device */
-  _ipp_job_t		*job;		/* Job */
+  server_device_t		*device;	/* Device */
+  server_job_t		*job;		/* Job */
 
 
   if ((device = serverFindDevice(client)) == NULL)
@@ -3400,7 +3400,7 @@ ipp_fetch_job(_ipp_client_t *client)	/* I - Client */
     return;
   }
 
-  if (!(job->state_reasons & _IPP_JREASON_JOB_FETCHABLE))
+  if (!(job->state_reasons & SERVER_JREASON_JOB_FETCHABLE))
   {
     serverRespondIPP(client, _IPP_STATUS_ERROR_NOT_FETCHABLE, "Job not fetchable.");
     return;
@@ -3420,7 +3420,7 @@ ipp_fetch_job(_ipp_client_t *client)	/* I - Client */
 
 static void
 ipp_get_document_attributes(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
   // TODO: Implement this!
   serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Need to implement this.");
@@ -3435,7 +3435,7 @@ ipp_get_document_attributes(
  */
 
 static void
-ipp_get_documents(_ipp_client_t *client)/* I - Client */
+ipp_get_documents(server_client_t *client)/* I - Client */
 {
   // TODO: Implement this!
   serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Need to implement this.");
@@ -3448,9 +3448,9 @@ ipp_get_documents(_ipp_client_t *client)/* I - Client */
 
 static void
 ipp_get_job_attributes(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
-  _ipp_job_t	*job;			/* Job */
+  server_job_t	*job;			/* Job */
   cups_array_t	*ra;			/* requested-attributes */
 
 
@@ -3473,7 +3473,7 @@ ipp_get_job_attributes(
  */
 
 static void
-ipp_get_jobs(_ipp_client_t *client)	/* I - Client */
+ipp_get_jobs(server_client_t *client)	/* I - Client */
 {
   ipp_attribute_t	*attr;		/* Current attribute */
   const char		*which_jobs = NULL;
@@ -3484,7 +3484,7 @@ ipp_get_jobs(_ipp_client_t *client)	/* I - Client */
 			limit,		/* Maximum number of jobs to return */
 			count;		/* Number of jobs that match */
   const char		*username;	/* Username */
-  _ipp_job_t		*job;		/* Current job pointer */
+  server_job_t		*job;		/* Current job pointer */
   cups_array_t		*ra;		/* Requested attributes array */
 
 
@@ -3619,9 +3619,9 @@ ipp_get_jobs(_ipp_client_t *client)	/* I - Client */
 
   _cupsRWLockRead(&(client->printer->rwlock));
 
-  for (count = 0, job = (_ipp_job_t *)cupsArrayFirst(client->printer->jobs);
+  for (count = 0, job = (server_job_t *)cupsArrayFirst(client->printer->jobs);
        (limit <= 0 || count < limit) && job;
-       job = (_ipp_job_t *)cupsArrayNext(client->printer->jobs))
+       job = (server_job_t *)cupsArrayNext(client->printer->jobs))
   {
    /*
     * Filter out jobs that don't match...
@@ -3654,7 +3654,7 @@ ipp_get_jobs(_ipp_client_t *client)	/* I - Client */
 
 static void
 ipp_get_notifications(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
   ipp_attribute_t	*sub_ids,	/* notify-subscription-ids */
 			*seq_nums,	/* notify-sequence-numbers */
@@ -3663,7 +3663,7 @@ ipp_get_notifications(
 			count,		/* Number of IDs */
 			first = 1,	/* First event? */
 			seq_num;	/* Sequence number */
-  _ipp_subscription_t	*sub;		/* Current subscription */
+  server_subscription_t	*sub;		/* Current subscription */
   ipp_t			*event;		/* Current event */
 
 
@@ -3719,7 +3719,7 @@ ipp_get_notifications(
 
 static void
 ipp_get_output_device_attributes(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
   // TODO: Implement this!
   serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Need to implement this.");
@@ -3732,10 +3732,10 @@ ipp_get_output_device_attributes(
 
 static void
 ipp_get_printer_attributes(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
   cups_array_t		*ra;		/* Requested attributes array */
-  _ipp_printer_t	*printer;	/* Printer */
+  server_printer_t	*printer;	/* Printer */
 
 
  /*
@@ -3805,7 +3805,7 @@ ipp_get_printer_attributes(
 
 static void
 ipp_get_printer_supported_values(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
   cups_array_t	*ra = ippCreateRequestedArray(client->request);
 					/* Requested attributes */
@@ -3825,9 +3825,9 @@ ipp_get_printer_supported_values(
 
 static void
 ipp_get_subscription_attributes(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
-  _ipp_subscription_t	*sub;		/* Subscription */
+  server_subscription_t	*sub;		/* Subscription */
   cups_array_t		*ra = ippCreateRequestedArray(client->request);
 					/* Requested attributes */
 
@@ -3852,9 +3852,9 @@ ipp_get_subscription_attributes(
 
 static void
 ipp_get_subscriptions(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
-  _ipp_subscription_t	*sub;		/* Current subscription */
+  server_subscription_t	*sub;		/* Current subscription */
   cups_array_t		*ra = ippCreateRequestedArray(client->request);
 					/* Requested attributes */
   int			first = 1;	/* First time? */
@@ -3862,9 +3862,9 @@ ipp_get_subscriptions(
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
   _cupsRWLockRead(&client->printer->rwlock);
-  for (sub = (_ipp_subscription_t *)cupsArrayFirst(client->printer->subscriptions);
+  for (sub = (server_subscription_t *)cupsArrayFirst(client->printer->subscriptions);
        sub;
-       sub = (_ipp_subscription_t *)cupsArrayNext(client->printer->subscriptions))
+       sub = (server_subscription_t *)cupsArrayNext(client->printer->subscriptions))
   {
     if (first)
       first = 0;
@@ -3884,7 +3884,7 @@ ipp_get_subscriptions(
 
 static void
 ipp_identify_printer(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
   /* TODO: Do something */
 
@@ -3897,9 +3897,9 @@ ipp_identify_printer(
  */
 
 static void
-ipp_print_job(_ipp_client_t *client)	/* I - Client */
+ipp_print_job(server_client_t *client)	/* I - Client */
 {
-  _ipp_job_t		*job;		/* New job */
+  server_job_t		*job;		/* New job */
   char			filename[1024],	/* Filename buffer */
 			buffer[4096];	/* Copy buffer */
   ssize_t		bytes;		/* Bytes read */
@@ -4046,9 +4046,9 @@ ipp_print_job(_ipp_client_t *client)	/* I - Client */
  */
 
 static void
-ipp_print_uri(_ipp_client_t *client)	/* I - Client */
+ipp_print_uri(server_client_t *client)	/* I - Client */
 {
-  _ipp_job_t		*job;		/* New job */
+  server_job_t		*job;		/* New job */
   ipp_attribute_t	*uri;		/* document-uri */
   char			scheme[256],	/* URI scheme */
 			userpass[256],	/* Username and password info */
@@ -4356,9 +4356,9 @@ ipp_print_uri(_ipp_client_t *client)	/* I - Client */
 
 static void
 ipp_renew_subscription(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
-  _ipp_subscription_t	*sub;		/* Subscription */
+  server_subscription_t	*sub;		/* Subscription */
   ipp_attribute_t	*attr;		/* notify-lease-duration */
   int			lease;		/* Lease duration in seconds */
 
@@ -4386,7 +4386,7 @@ ipp_renew_subscription(
     lease = ippGetInteger(attr, 0);
   }
   else
-    lease = _IPP_NOTIFY_LEASE_DURATION_DEFAULT;
+    lease = SERVER_NOTIFY_LEASE_DURATION_DEFAULT;
 
   sub->lease = lease;
 
@@ -4405,9 +4405,9 @@ ipp_renew_subscription(
  */
 
 static void
-ipp_send_document(_ipp_client_t *client)/* I - Client */
+ipp_send_document(server_client_t *client)/* I - Client */
 {
-  _ipp_job_t		*job;		/* Job information */
+  server_job_t		*job;		/* Job information */
   char			filename[1024],	/* Filename buffer */
 			buffer[4096];	/* Copy buffer */
   ssize_t		bytes;		/* Bytes read */
@@ -4597,9 +4597,9 @@ ipp_send_document(_ipp_client_t *client)/* I - Client */
  */
 
 static void
-ipp_send_uri(_ipp_client_t *client)	/* I - Client */
+ipp_send_uri(server_client_t *client)	/* I - Client */
 {
-  _ipp_job_t		*job;		/* Job information */
+  server_job_t		*job;		/* Job information */
   ipp_attribute_t	*uri;		/* document-uri */
   char			scheme[256],	/* URI scheme */
 			userpass[256],	/* Username and password info */
@@ -4956,10 +4956,10 @@ ipp_send_uri(_ipp_client_t *client)	/* I - Client */
 
 static void
 ipp_update_active_jobs(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
-  _ipp_device_t		*device;	/* Output device */
-  _ipp_job_t		*job;		/* Job */
+  server_device_t		*device;	/* Output device */
+  server_job_t		*job;		/* Job */
   ipp_attribute_t	*job_ids,	/* job-ids */
 			*job_states;	/* output-device-job-states */
   int			i,		/* Looping var */
@@ -5031,9 +5031,9 @@ ipp_update_active_jobs(
   * Then look for jobs assigned to the device but not listed...
   */
 
-  for (job = (_ipp_job_t *)cupsArrayFirst(client->printer->jobs);
+  for (job = (server_job_t *)cupsArrayFirst(client->printer->jobs);
        job && num_different < 1000;
-       job = (_ipp_job_t *)cupsArrayNext(client->printer->jobs))
+       job = (server_job_t *)cupsArrayNext(client->printer->jobs))
   {
     if (job->dev_uuid && !strcmp(job->dev_uuid, device->uuid) && !ippContainsInteger(job_ids, job->id))
     {
@@ -5063,10 +5063,10 @@ ipp_update_active_jobs(
 
 static void
 ipp_update_document_status(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
-  _ipp_device_t		*device;	/* Device */
-  _ipp_job_t		*job;		/* Job */
+  server_device_t		*device;	/* Device */
+  server_job_t		*job;		/* Job */
   ipp_attribute_t	*attr;		/* Attribute */
 
 
@@ -5097,7 +5097,7 @@ ipp_update_document_status(
   if ((attr = ippFindAttribute(client->request, "impressions-completed", IPP_TAG_INTEGER)) != NULL)
   {
     job->impcompleted = ippGetInteger(attr, 0);
-    serverAddEvent(client->printer, job, _IPP_EVENT_JOB_PROGRESS, NULL);
+    serverAddEvent(client->printer, job, SERVER_EVENT_JOB_PROGRESS, NULL);
   }
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
@@ -5110,12 +5110,12 @@ ipp_update_document_status(
 
 static void
 ipp_update_job_status(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
-  _ipp_device_t		*device;	/* Device */
-  _ipp_job_t		*job;		/* Job */
+  server_device_t		*device;	/* Device */
+  server_job_t		*job;		/* Job */
   ipp_attribute_t	*attr;		/* Attribute */
-  _ipp_event_t		events = _IPP_EVENT_NONE;
+  server_event_t		events = SERVER_EVENT_NONE;
 					/* Event(s) */
 
 
@@ -5140,19 +5140,19 @@ ipp_update_job_status(
   if ((attr = ippFindAttribute(client->request, "job-impressions-completed", IPP_TAG_INTEGER)) != NULL)
   {
     job->impcompleted = ippGetInteger(attr, 0);
-    events |= _IPP_EVENT_JOB_PROGRESS;
+    events |= SERVER_EVENT_JOB_PROGRESS;
   }
 
   if ((attr = ippFindAttribute(client->request, "output-device-job-state", IPP_TAG_ENUM)) != NULL)
   {
     job->dev_state = (ipp_jstate_t)ippGetInteger(attr, 0);
-    events |= _IPP_EVENT_JOB_STATE_CHANGED;
+    events |= SERVER_EVENT_JOB_STATE_CHANGED;
   }
 
   if ((attr = ippFindAttribute(client->request, "output-device-job-state-reasons", IPP_TAG_KEYWORD)) != NULL)
   {
     job->dev_state_reasons = get_job_state_reasons_bits(attr);
-    events |= _IPP_EVENT_JOB_STATE_CHANGED;
+    events |= SERVER_EVENT_JOB_STATE_CHANGED;
   }
 
   if (events)
@@ -5168,12 +5168,12 @@ ipp_update_job_status(
 
 static void
 ipp_update_output_device_attributes(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
-  _ipp_device_t		*device;	/* Device */
+  server_device_t		*device;	/* Device */
   ipp_attribute_t	*attr,		/* Current attribute */
 			*dev_attr;	/* Device attribute */
-  _ipp_event_t		events = _IPP_EVENT_NONE;
+  server_event_t		events = SERVER_EVENT_NONE;
 					/* Config/state changed? */
 
 
@@ -5209,15 +5209,15 @@ ipp_update_output_device_attributes(
       continue;
 
     if (strncmp(attrname, "printer-alert", 13) || strncmp(attrname, "printer-state", 13))
-      events |= _IPP_EVENT_PRINTER_CONFIG_CHANGED;
+      events |= SERVER_EVENT_PRINTER_CONFIG_CHANGED;
     else
-      events |= _IPP_EVENT_PRINTER_STATE_CHANGED;
+      events |= SERVER_EVENT_PRINTER_STATE_CHANGED;
 
     if (!strcmp(attrname, "media-col-ready") || !strcmp(attrname, "media-ready"))
-      events |= _IPP_EVENT_PRINTER_MEDIA_CHANGED;
+      events |= SERVER_EVENT_PRINTER_MEDIA_CHANGED;
 
     if (!strcmp(attrname, "finishings-col-ready") || !strcmp(attrname, "finishings-ready"))
-      events |= _IPP_EVENT_PRINTER_FINISHINGS_CHANGED;
+      events |= SERVER_EVENT_PRINTER_FINISHINGS_CHANGED;
 
     if ((dotptr = strrchr(attrname, '.')) != NULL && isdigit(dotptr[1] & 255))
     {
@@ -5267,9 +5267,9 @@ ipp_update_output_device_attributes(
   if (events)
   {
     _cupsRWLockWrite(&client->printer->rwlock);
-    if (events & _IPP_EVENT_PRINTER_CONFIG_CHANGED)
+    if (events & SERVER_EVENT_PRINTER_CONFIG_CHANGED)
       serverUpdateDeviceAttributesNoLock(client->printer);
-    if (events & _IPP_EVENT_PRINTER_STATE_CHANGED)
+    if (events & SERVER_EVENT_PRINTER_STATE_CHANGED)
       serverUpdateDeviceStateNoLock(client->printer);
     _cupsRWUnlock(&client->printer->rwlock);
 
@@ -5284,7 +5284,7 @@ ipp_update_output_device_attributes(
 
 static void
 ipp_validate_document(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
   if (valid_doc_attributes(client))
     serverRespondIPP(client, IPP_STATUS_OK, NULL);
@@ -5296,7 +5296,7 @@ ipp_validate_document(
  */
 
 static void
-ipp_validate_job(_ipp_client_t *client)	/* I - Client */
+ipp_validate_job(server_client_t *client)	/* I - Client */
 {
   if (valid_job_attributes(client))
     serverRespondIPP(client, IPP_STATUS_OK, NULL);
@@ -5311,7 +5311,7 @@ ipp_validate_job(_ipp_client_t *client)	/* I - Client */
  */
 
 static int				/* O - Number of options */
-parse_options(_ipp_client_t *client,	/* I - Client */
+parse_options(server_client_t *client,	/* I - Client */
               cups_option_t **options)	/* O - Options */
 {
   char	*name,				/* Name */
@@ -5344,7 +5344,7 @@ parse_options(_ipp_client_t *client,	/* I - Client */
  */
 
 static void *				/* O - Exit status */
-serverProcessClient(_ipp_client_t *client)	/* I - Client */
+serverProcessClient(server_client_t *client)	/* I - Client */
 {
  /*
   * Loop until we are out of requests or timeout (30 seconds)...
@@ -5401,7 +5401,7 @@ serverProcessClient(_ipp_client_t *client)	/* I - Client */
  */
 
 int					/* O - 1 on success, 0 on failure */
-serverProcessHTTP(_ipp_client_t *client)	/* I - Client connection */
+serverProcessHTTP(server_client_t *client)	/* I - Client connection */
 {
   char			uri[1024];	/* URI */
   http_state_t		http_state;	/* HTTP state */
@@ -5658,9 +5658,9 @@ serverProcessHTTP(_ipp_client_t *client)	/* I - Client connection */
 	  * Show web status page...
 	  */
 
-          _ipp_job_t	*job;		/* Current job */
+          server_job_t	*job;		/* Current job */
 	  int		i;		/* Looping var */
-	  _ipp_preason_t reason;	/* Current reason */
+	  server_preason_t reason;	/* Current reason */
 	  static const char * const reasons[] =
 	  {				/* Reason strings */
 	    "Other",
@@ -5698,7 +5698,7 @@ serverProcessHTTP(_ipp_client_t *client)	/* I - Client connection */
             _cupsRWLockRead(&(client->printer->rwlock));
 
 	    html_printf(client, "<table class=\"striped\" summary=\"Jobs\"><thead><tr><th>Job #</th><th>Name</th><th>Owner</th><th>When</th></tr></thead><tbody>\n");
-	    for (job = (_ipp_job_t *)cupsArrayFirst(client->printer->jobs); job; job = (_ipp_job_t *)cupsArrayNext(client->printer->jobs))
+	    for (job = (server_job_t *)cupsArrayFirst(client->printer->jobs); job; job = (server_job_t *)cupsArrayNext(client->printer->jobs))
 	    {
 	      char	when[256],	/* When job queued/started/finished */
 			hhmmss[64];	/* Time HH:MM:SS */
@@ -5821,18 +5821,18 @@ serverProcessHTTP(_ipp_client_t *client)	/* I - Client connection */
 	      client->printer->photo_level = atoi(val);
 
             if ((client->printer->main_level < 100 && client->printer->main_level > 0) || (client->printer->envelope_level < 25 && client->printer->envelope_level > 0) || (client->printer->photo_level < 25 && client->printer->photo_level > 0))
-	      client->printer->state_reasons |= _IPP_PREASON_MEDIA_LOW;
+	      client->printer->state_reasons |= SERVER_PREASON_MEDIA_LOW;
 	    else
-	      client->printer->state_reasons &= (_ipp_preason_t)~_IPP_PREASON_MEDIA_LOW;
+	      client->printer->state_reasons &= (server_preason_t)~SERVER_PREASON_MEDIA_LOW;
 
             if ((client->printer->main_level == 0 && client->printer->main_size > _IPP_MEDIA_SIZE_NONE) || (client->printer->envelope_level == 0 && client->printer->envelope_size > _IPP_MEDIA_SIZE_NONE) || (client->printer->photo_level == 0 && client->printer->photo_size > _IPP_MEDIA_SIZE_NONE))
 	    {
-	      client->printer->state_reasons |= _IPP_PREASON_MEDIA_EMPTY;
+	      client->printer->state_reasons |= SERVER_PREASON_MEDIA_EMPTY;
 	      if (client->printer->active_job)
-	        client->printer->state_reasons |= _IPP_PREASON_MEDIA_NEEDED;
+	        client->printer->state_reasons |= SERVER_PREASON_MEDIA_NEEDED;
 	    }
 	    else
-	      client->printer->state_reasons &= (_ipp_preason_t)~(_IPP_PREASON_MEDIA_EMPTY | _IPP_PREASON_MEDIA_NEEDED);
+	      client->printer->state_reasons &= (server_preason_t)~(SERVER_PREASON_MEDIA_EMPTY | SERVER_PREASON_MEDIA_NEEDED);
 
 	    html_printf(client, "<blockquote>Media updated.</blockquote>\n");
           }
@@ -5911,7 +5911,7 @@ serverProcessHTTP(_ipp_client_t *client)	/* I - Client connection */
 	    char	name[64];	/* Form field */
 	    const char	*val;		/* Form value */
 
-            client->printer->state_reasons &= (_ipp_preason_t)~(_IPP_PREASON_MARKER_SUPPLY_EMPTY | _IPP_PREASON_MARKER_SUPPLY_LOW | _IPP_PREASON_MARKER_WASTE_ALMOST_FULL | _IPP_PREASON_MARKER_WASTE_FULL | _IPP_PREASON_TONER_EMPTY | _IPP_PREASON_TONER_LOW);
+            client->printer->state_reasons &= (server_preason_t)~(SERVER_PREASON_MARKER_SUPPLY_EMPTY | SERVER_PREASON_MARKER_SUPPLY_LOW | SERVER_PREASON_MARKER_WASTE_ALMOST_FULL | SERVER_PREASON_MARKER_WASTE_FULL | SERVER_PREASON_TONER_EMPTY | SERVER_PREASON_TONER_LOW);
 
 	    for (i = 0; i < (int)(sizeof(printer_supplies) / sizeof(printer_supplies[0])); i ++)
 	    {
@@ -5924,16 +5924,16 @@ serverProcessHTTP(_ipp_client_t *client)	/* I - Client connection */
 		if (i < 4)
 		{
 		  if (level == 0)
-		    client->printer->state_reasons |= _IPP_PREASON_TONER_EMPTY;
+		    client->printer->state_reasons |= SERVER_PREASON_TONER_EMPTY;
 		  else if (level < 10)
-		    client->printer->state_reasons |= _IPP_PREASON_TONER_LOW;
+		    client->printer->state_reasons |= SERVER_PREASON_TONER_LOW;
 		}
 		else
 		{
 		  if (level == 100)
-		    client->printer->state_reasons |= _IPP_PREASON_MARKER_WASTE_FULL;
+		    client->printer->state_reasons |= SERVER_PREASON_MARKER_WASTE_FULL;
 		  else if (level > 90)
-		    client->printer->state_reasons |= _IPP_PREASON_MARKER_WASTE_ALMOST_FULL;
+		    client->printer->state_reasons |= SERVER_PREASON_MARKER_WASTE_ALMOST_FULL;
 		}
 	      }
             }
@@ -6009,7 +6009,7 @@ serverProcessHTTP(_ipp_client_t *client)	/* I - Client connection */
  */
 
 static int				/* O - 1 on success, 0 on error */
-serverProcessIPP(_ipp_client_t *client)	/* I - Client */
+serverProcessIPP(server_client_t *client)	/* I - Client */
 {
   ipp_tag_t		group;		/* Current group tag */
   ipp_attribute_t	*attr;		/* Current attribute */
@@ -6329,21 +6329,21 @@ serverProcessIPP(_ipp_client_t *client)	/* I - Client */
  */
 
 static void *				/* O - Thread exit status */
-serverProcessJob(_ipp_job_t *job)		/* I - Job */
+serverProcessJob(server_job_t *job)		/* I - Job */
 {
   job->state                   = IPP_JSTATE_PROCESSING;
   job->printer->state          = IPP_PSTATE_PROCESSING;
   job->processing              = time(NULL);
   job->printer->processing_job = job;
 
-  serverAddEvent(job->printer, job, _IPP_EVENT_JOB_STATE_CHANGED, "Job processing.");
+  serverAddEvent(job->printer, job, SERVER_EVENT_JOB_STATE_CHANGED, "Job processing.");
 
  /*
   * TODO: Perform any preprocessing needed...
   */
 
-  // job->state_reasons |= _IPP_JREASON_JOB_TRANSFORMING;
-  // job->state_reasons &= ~_IPP_JREASON_JOB_TRANSFORMING;
+  // job->state_reasons |= SERVER_JREASON_JOB_TRANSFORMING;
+  // job->state_reasons &= ~SERVER_JREASON_JOB_TRANSFORMING;
 
  /*
   * Set the state to processing-stopped, fetchable, then send a
@@ -6351,9 +6351,9 @@ serverProcessJob(_ipp_job_t *job)		/* I - Job */
   */
 
   job->state         = IPP_JSTATE_STOPPED;
-  job->state_reasons |= _IPP_JREASON_JOB_FETCHABLE;
+  job->state_reasons |= SERVER_JREASON_JOB_FETCHABLE;
 
-  serverAddEvent(job->printer, job, _IPP_EVENT_JOB_STATE_CHANGED, "Job fetchable.");
+  serverAddEvent(job->printer, job, SERVER_EVENT_JOB_STATE_CHANGED, "Job fetchable.");
 
   return (NULL);
 }
@@ -6365,7 +6365,7 @@ serverProcessJob(_ipp_job_t *job)		/* I - Job */
 
 int					/* O - 1 on success, 0 on failure */
 serverRespondHTTP(
-    _ipp_client_t *client,		/* I - Client */
+    server_client_t *client,		/* I - Client */
     http_status_t code,			/* I - HTTP status of response */
     const char    *content_encoding,	/* I - Content-Encoding of response */
     const char    *type,		/* I - MIME media type of response */
@@ -6481,7 +6481,7 @@ serverRespondHTTP(
  */
 
 static void
-serverRespondIPP(_ipp_client_t *client,	/* I - Client */
+serverRespondIPP(server_client_t *client,	/* I - Client */
             ipp_status_t  status,	/* I - status-code */
 	    const char    *message,	/* I - printf-style status-message */
 	    ...)			/* I - Additional args as needed */
@@ -6524,7 +6524,7 @@ serverRespondIPP(_ipp_client_t *client,	/* I - Client */
 
 static void
 serverRespondUnsupported(
-    _ipp_client_t   *client,		/* I - Client */
+    server_client_t   *client,		/* I - Client */
     ipp_attribute_t *attr)		/* I - Atribute */
 {
   ipp_attribute_t	*temp;		/* Copy of attribute */
@@ -6545,12 +6545,12 @@ serverRespondUnsupported(
  */
 
 static void
-serverRunPrinter(_ipp_printer_t *printer)	/* I - Printer */
+serverRunPrinter(server_printer_t *printer)	/* I - Printer */
 {
   int		num_fds;		/* Number of file descriptors */
   struct pollfd	polldata[3];		/* poll() data */
   int		timeout;		/* Timeout for poll() */
-  _ipp_client_t	*client;		/* New client */
+  server_client_t	*client;		/* New client */
 
 
  /*
@@ -6640,14 +6640,14 @@ serverTimeString(time_t tv,			/* I - Time value */
 
 static void
 serverUpdateDeviceAttributesNoLock(
-    _ipp_printer_t *printer)		/* I - Printer */
+    server_printer_t *printer)		/* I - Printer */
 {
-  _ipp_device_t		*device;	/* Current device */
+  server_device_t		*device;	/* Current device */
   ipp_t			*dev_attrs;	/* Device attributes */
 
 
  /* TODO: Support multiple output devices, icons, etc... */
-  device    = (_ipp_device_t *)cupsArrayFirst(printer->devices);
+  device    = (server_device_t *)cupsArrayFirst(printer->devices);
   dev_attrs = ippNew();
 
   if (device)
@@ -6668,14 +6668,14 @@ serverUpdateDeviceAttributesNoLock(
 
 static void
 serverUpdateDeviceStateNoLock(
-    _ipp_printer_t *printer)		/* I - Printer */
+    server_printer_t *printer)		/* I - Printer */
 {
-  _ipp_device_t		*device;	/* Current device */
+  server_device_t		*device;	/* Current device */
   ipp_attribute_t	*attr;		/* Current attribute */
 
 
  /* TODO: Support multiple output devices, icons, etc... */
-  device = (_ipp_device_t *)cupsArrayFirst(printer->devices);
+  device = (server_device_t *)cupsArrayFirst(printer->devices);
 
   if ((attr = ippFindAttribute(device->attrs, "printer-state", IPP_TAG_ENUM)) != NULL)
     printer->dev_state = (ipp_pstate_t)ippGetInteger(attr, 0);
@@ -6685,7 +6685,7 @@ serverUpdateDeviceStateNoLock(
   if ((attr = ippFindAttribute(device->attrs, "printer-state-reasons", IPP_TAG_KEYWORD)) != NULL)
     printer->dev_reasons = get_printer_state_reasons_bits(attr);
   else
-    printer->dev_reasons = _IPP_PREASON_PAUSED;
+    printer->dev_reasons = SERVER_PREASON_PAUSED;
 
   printer->state_time = time(NULL);
 }
@@ -6730,7 +6730,7 @@ usage(int status)			/* O - Exit status */
 
 static int				/* O - 1 if valid, 0 if not */
 valid_doc_attributes(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
   int			valid = 1;	/* Valid attributes? */
   ipp_op_t		op = ippGetOperation(client->request);
@@ -6875,7 +6875,7 @@ valid_doc_attributes(
 
 static int				/* O - 1 if valid, 0 if not */
 valid_job_attributes(
-    _ipp_client_t *client)		/* I - Client */
+    server_client_t *client)		/* I - Client */
 {
   int			i,		/* Looping var */
 			valid = 1;	/* Valid attributes? */
