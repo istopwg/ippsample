@@ -4,11 +4,9 @@ config.h
 config.log
 config.status
 cups/libcups.a
-sw-ippeveselfcert10-*
-tests/pwg-raster-samples-*
+doc/mantohtml
+server/ippserver
 tools/ippfind
-tools/ippserver
 tools/ipptool
 xcuserdata
 *.o
-*Results.plist
