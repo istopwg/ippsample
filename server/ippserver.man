@@ -1,9 +1,9 @@
 .\"
 .\" "$Id$"
 .\"
-.\" ippinfra man page for CUPS.
+.\" ippserver man page for CUPS.
 .\"
-.\" Copyright 2014 by Apple Inc.
+.\" Copyright 2014-2015 by Apple Inc.
 .\"
 .\" These coded instructions, statements, and computer programs are the
 .\" property of Apple Inc. and are protected by Federal copyright
@@ -11,11 +11,11 @@
 .\" which should have been included with this file.  If this file is
 .\" file is missing or damaged, see the license at "http://www.cups.org/".
 .\"
-.TH ippinfra 1 "CUPS" "16 September 2014" "Apple Inc."
+.TH ippserver 1 "IPPSAMPLE" "30 November 2015" "Apple Inc."
 .SH NAME
-ippinfra \- a simple ipp infrastructure server
+ippserver \- a simple ipp server
 .SH SYNOPSIS
-.B ippinfra
+.B ippserver
 [
 .B \-d
 .I spool-directory
@@ -37,11 +37,11 @@ ippinfra \- a simple ipp infrastructure server
 ]
 .I service-name
 .SH DESCRIPTION
-.B ippinfra
+.B ippserver
 is a simple Internet Printing Protocol (IPP) infrastructure server conforming to the IPP Shared Infrastructure Extensions (INFRA) specification. It can be used as a very basic infrastructure server between standard IPP clients and IPP proxies conforming to the INFRA specification.
 .SH OPTIONS
 The following options are recognized by
-.B ippinfra:
+.B ippserver:
 .TP 5
 \fB\-d \fIspool-directory\fR
 Specifies the directory that will hold the print files.
@@ -71,28 +71,28 @@ The default is "test:test123".
 Be (very) verbose when logging activity to the standard output.
 .SH EXIT STATUS
 The
-.B ippinfra
+.B ippserver
 program returns 1 if it is unable to process the command-line arguments.
 Otherwise
-.B ippinfra
+.B ippserver
 will run continuously until terminated.
 .SH CONFORMING TO
 The
-.B ippinfra
+.B ippserver
 program is unique to CUPS and conforms to the IPP Shared Infrastructure Extensions (INFRA) specification as an Infrastructure Printer.
 .SH EXAMPLES
 Run
-.B ippinfra
+.B ippserver
 with a service name of My Cool Printer:
 .nf
 
-    ippinfra "My Cool Printer"
+    ippserver "My Cool Printer"
 .fi
 .LP
 Specify a proxy username of "foo" and password of "bar":
 .nf
 
-    ippinfra \-u foo:bar "My Cool Printer"
+    ippserver \-u foo:bar "My Cool Printer"
 .fi
 .SH SEE ALSO
 PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp)

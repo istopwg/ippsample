@@ -9,5 +9,6 @@ tests/pwg-raster-samples-*
 tools/ippfind
 tools/ippserver
 tools/ipptool
+xcuserdata
 *.o
 *Results.plist
