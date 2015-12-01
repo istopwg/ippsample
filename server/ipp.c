@@ -1,5 +1,5 @@
 /*
- * IPP processing code for IPP Infrastructure Printer sample implementation.
+ * IPP processing code for sample IPP server implementation.
  *
  * Copyright 2010-2015 by Apple Inc.
  *
@@ -19,17 +19,9 @@
  * Local functions...
  */
 
-static void		copy_attributes(ipp_t *to, ipp_t *from, cups_array_t *ra, ipp_tag_t group_tag, int quickcopy);
 static void		copy_job_attributes(server_client_t *client, server_job_t *job, cups_array_t *ra);
-static void		copy_job_state_reasons(ipp_t *ipp, ipp_tag_t group_tag, server_job_t *job);
-static void		copy_printer_state_reasons(ipp_t *ipp, ipp_tag_t group_tag, server_printer_t *printer);
 static void		copy_subscription_attributes(server_client_t *client, server_subscription_t *sub, cups_array_t *ra);
-static void		debug_attributes(const char *title, ipp_t *ipp, int response);
 static int		filter_cb(server_filter_t *filter, ipp_t *dst, ipp_attribute_t *attr);
-static server_jreason_t	get_job_state_reasons_bits(ipp_attribute_t *attr);
-static server_event_t	get_notify_events_bits(ipp_attribute_t *attr);
-static const char	*get_notify_subscribed_event(server_event_t event);
-static server_preason_t	get_printer_state_reasons_bits(ipp_attribute_t *attr);
 static void		ipp_acknowledge_document(server_client_t *client);
 static void		ipp_acknowledge_identify_printer(server_client_t *client);
 static void		ipp_acknowledge_job(server_client_t *client);
@@ -69,17 +61,18 @@ static int		valid_job_attributes(server_client_t *client);
 
 
 /*
- * 'copy_attributes()' - Copy attributes from one request to another.
+ * 'serverCopyAttributes()' - Copy attributes from one request to another.
  */
 
-static void
-copy_attributes(ipp_t        *to,	/* I - Destination request */
-	        ipp_t        *from,	/* I - Source request */
-	        cups_array_t *ra,	/* I - Requested attributes */
-	        ipp_tag_t    group_tag,	/* I - Group to copy */
-	        int          quickcopy)	/* I - Do a quick copy? */
+void
+serverCopyAttributes(
+    ipp_t        *to,			/* I - Destination request */
+    ipp_t        *from,			/* I - Source request */
+    cups_array_t *ra,			/* I - Requested attributes */
+    ipp_tag_t    group_tag,		/* I - Group to copy */
+    int          quickcopy)		/* I - Do a quick copy? */
 {
-  server_filter_t	filter;			/* Filter data */
+  server_filter_t	filter;		/* Filter data */
 
 
   filter.ra        = ra;
@@ -96,10 +89,10 @@ copy_attributes(ipp_t        *to,	/* I - Destination request */
 static void
 copy_job_attributes(
     server_client_t *client,		/* I - Client */
-    server_job_t    *job,			/* I - Job */
+    server_job_t    *job,		/* I - Job */
     cups_array_t  *ra)			/* I - requested-attributes */
 {
-  copy_attributes(client->response, job->attrs, ra, IPP_TAG_JOB, 0);
+  serverCopyAttributes(client->response, job->attrs, ra, IPP_TAG_JOB, 0);
 
   if (!ra || cupsArrayFind(ra, "date-time-at-completed"))
   {
@@ -189,7 +182,7 @@ copy_job_attributes(
   }
 
   if (!ra || cupsArrayFind(ra, "job-state-reasons"))
-    copy_job_state_reasons(client->response, IPP_TAG_JOB, job);
+    serverCopyJobStateReasons(client->response, IPP_TAG_JOB, job);
 /*
     switch (job->state)
     {
@@ -264,78 +257,6 @@ copy_job_attributes(
 
 
 /*
- * 'copy_job_state_reasons()' - Copy printer-state-reasons values.
- */
-
-static void
-copy_job_state_reasons(
-    ipp_t      *ipp,			/* I - Attributes */
-    ipp_tag_t  group_tag,		/* I - Group */
-    server_job_t *job)			/* I - Printer */
-{
-  server_jreason_t	creasons;	/* Combined job-state-reasons */
-
-
-  creasons = job->state_reasons | job->dev_state_reasons;
-
-  if (!creasons)
-  {
-    ippAddString(ipp, group_tag, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-state-reasons", NULL, "none");
-  }
-  else
-  {
-    int			i,		/* Looping var */
-			num_reasons = 0;/* Number of reasons */
-    server_jreason_t	reason;		/* Current reason */
-    const char		*reasons[32];	/* Reason strings */
-
-    for (i = 0, reason = 1; i < (int)(sizeof(server_jreasons) / sizeof(server_jreasons[0])); i ++, reason <<= 1)
-    {
-      if (creasons & reason)
-        reasons[num_reasons ++] = server_jreasons[i];
-    }
-
-    ippAddStrings(ipp, group_tag, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-state-reasons", num_reasons, NULL, reasons);
-  }
-}
-
-
-/*
- * 'copy_printer_state_reasons()' - Copy printer-state-reasons values.
- */
-
-static void
-copy_printer_state_reasons(
-    ipp_t          *ipp,		/* I - Attributes */
-    ipp_tag_t      group_tag,		/* I - Group */
-    server_printer_t *printer)		/* I - Printer */
-{
-  server_preason_t	creasons = printer->state_reasons | printer->dev_reasons;
-					/* Combined reasons */
-
-
-  if (creasons == SERVER_PREASON_NONE)
-  {
-    ippAddString(ipp, group_tag, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-state-reasons", NULL, "none");
-  }
-  else
-  {
-    int			i,		/* Looping var */				num_reasons = 0;/* Number of reasons */
-    server_preason_t	reason;		/* Current reason */
-    const char		*reasons[32];	/* Reason strings */
-
-    for (i = 0, reason = 1; i < (int)(sizeof(server_preasons) / sizeof(server_preasons[0])); i ++, reason <<= 1)
-    {
-      if (creasons & reason)
-	reasons[num_reasons ++] = server_preasons[i];
-    }
-
-    ippAddStrings(ipp, group_tag, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-state-reasons", num_reasons, NULL, reasons);
-  }
-}
-
-
-/*
  * 'copy_sub_attrs()' - Copy job attributes to the response.
  */
 
@@ -345,7 +266,7 @@ copy_subscription_attributes(
     server_subscription_t *sub,		/* I - Subscription */
     cups_array_t        *ra)		/* I - requested-attributes */
 {
-  copy_attributes(client->response, sub->attrs, ra, IPP_TAG_SUBSCRIPTION, 0);
+  serverCopyAttributes(client->response, sub->attrs, ra, IPP_TAG_SUBSCRIPTION, 0);
 
   if (!ra || cupsArrayFind(ra, "notify-lease-expiration-time"))
     ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-lease-expiration-time", (int)(sub->expire - client->printer->start_time));
@@ -355,56 +276,6 @@ copy_subscription_attributes(
 
   if (!ra || cupsArrayFind(ra, "notify-sequence-number"))
     ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-sequence-number", sub->last_sequence);
-}
-
-
-/*
- * 'debug_attributes()' - Print attributes in a request or response.
- */
-
-static void
-debug_attributes(const char *title,	/* I - Title */
-                 ipp_t      *ipp,	/* I - Request/response */
-                 int        type)	/* I - 0 = object, 1 = request, 2 = response */
-{
-  ipp_tag_t		group_tag;	/* Current group */
-  ipp_attribute_t	*attr;		/* Current attribute */
-  char			buffer[2048];	/* String buffer for value */
-  int			major, minor;	/* Version */
-
-
-  if (Verbosity <= 1)
-    return;
-
-  fprintf(stderr, "%s:\n", title);
-  major = ippGetVersion(ipp, &minor);
-  fprintf(stderr, "  version=%d.%d\n", major, minor);
-  if (type == 1)
-    fprintf(stderr, "  operation-id=%s(%04x)\n",
-            ippOpString(ippGetOperation(ipp)), ippGetOperation(ipp));
-  else if (type == 2)
-    fprintf(stderr, "  status-code=%s(%04x)\n",
-            ippErrorString(ippGetStatusCode(ipp)), ippGetStatusCode(ipp));
-  fprintf(stderr, "  request-id=%d\n\n", ippGetRequestId(ipp));
-
-  for (attr = ippFirstAttribute(ipp), group_tag = IPP_TAG_ZERO;
-       attr;
-       attr = ippNextAttribute(ipp))
-  {
-    if (ippGetGroupTag(attr) != group_tag)
-    {
-      group_tag = ippGetGroupTag(attr);
-      fprintf(stderr, "  %s\n", ippTagString(group_tag));
-    }
-
-    if (ippGetName(attr))
-    {
-      ippAttributeString(attr, buffer, sizeof(buffer));
-      fprintf(stderr, "    %s (%s%s) %s\n", ippGetName(attr),
-	      ippGetCount(attr) > 1 ? "1setOf " : "",
-	      ippTagString(ippGetValueTag(attr)), buffer);
-    }
-  }
 }
 
 
@@ -430,127 +301,6 @@ filter_cb(server_filter_t   *filter,	/* I - Filter parameters */
     return (0);
 
   return (!filter->ra || cupsArrayFind(filter->ra, (void *)name) != NULL);
-}
-
-
-/*
- * 'get_job_state_reasons_bits()' - Get the bits associates with "job-state-reasons" values.
- */
-
-static server_jreason_t			/* O - Bits */
-get_job_state_reasons_bits(
-    ipp_attribute_t *attr)		/* I - "job-state-reasons" attribute */
-{
-  int			i, j,		/* Looping vars */
-			count;		/* Number of "job-state-reasons" values */
-  const char		*keyword;	/* "job-state-reasons" value */
-  server_jreason_t	jreasons = SERVER_JREASON_NONE;
-					/* Bits for "job-state-reasons" values */
-
-
-  count = ippGetCount(attr);
-  for (i = 0; i < count; i ++)
-  {
-    keyword = ippGetString(attr, i, NULL);
-
-    for (j = 0; j < (int)(sizeof(server_jreasons) / sizeof(server_jreasons[0])); j ++)
-    {
-      if (!strcmp(keyword, server_jreasons[j]))
-      {
-        jreasons |= 1 << j;
-	break;
-      }
-    }
-  }
-
-  return (jreasons);
-}
-
-
-/*
- * 'get_notify_event_bits()' - Get the bits associated with "notify-events" values.
- */
-
-static server_event_t			/* O - Bits */
-get_notify_events_bits(
-    ipp_attribute_t *attr)		/* I - "notify-events" attribute */
-{
-  int		i, j,			/* Looping vars */
-		count;			/* Number of "notify-events" values */
-  const char	*keyword;		/* "notify-events" value */
-  server_event_t	events = SERVER_EVENT_NONE;
-					/* Bits for "notify-events" values */
-
-
-  count = ippGetCount(attr);
-  for (i = 0; i < count; i ++)
-  {
-    keyword = ippGetString(attr, i, NULL);
-
-    for (j = 0; j < (int)(sizeof(server_events) / sizeof(server_events[0])); j ++)
-    {
-      if (!strcmp(keyword, server_jreasons[j]))
-      {
-        events |= 1 << j;
-	break;
-      }
-    }
-  }
-
-  return (events);
-}
-
-
-/*
- * 'get_notify_subscribed_event()' - Get the event name.
- */
-
-static const char *			/* O - Event name */
-get_notify_subscribed_event(
-    server_event_t event)			/* I - Event bit */
-{
-  int		i;			/* Looping var */
-  server_event_t	mask;			/* Current mask */
-
-  for (i = 0, mask = 1; i < (int)(sizeof(server_events) / sizeof(server_events[0])); i ++, mask <<= 1)
-    if (event & mask)
-      return (server_events[i]);
-
-  return ("none");
-}
-
-
-/*
- * 'get_printer_state_reasons_bits()' - Get the bits associated with "printer-state-reasons" values.
- */
-
-static server_preason_t			/* O - Bits */
-get_printer_state_reasons_bits(
-    ipp_attribute_t *attr)		/* I - "printer-state-reasons" bits */
-{
-  int			i, j,		/* Looping vars */
-			count;		/* Number of "printer-state-reasons" values */
-  const char		*keyword;	/* "printer-state-reasons" value */
-  server_preason_t	preasons = SERVER_PREASON_NONE;
-					/* Bits for "printer-state-reasons" values */
-
-
-  count = ippGetCount(attr);
-  for (i = 0; i < count; i ++)
-  {
-    keyword = ippGetString(attr, i, NULL);
-
-    for (j = 0; j < (int)(sizeof(server_preasons) / sizeof(server_preasons[0])); j ++)
-    {
-      if (!strcmp(keyword, server_preasons[j]))
-      {
-        preasons |= 1 << j;
-	break;
-      }
-    }
-  }
-
-  return (preasons);
 }
 
 
@@ -640,7 +390,7 @@ ipp_acknowledge_job(
 
   if (!(job->state_reasons & SERVER_JREASON_JOB_FETCHABLE))
   {
-    serverRespondIPP(client, _IPP_STATUS_ERROR_NOT_FETCHABLE, "Job not fetchable.");
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FETCHABLE, "Job not fetchable.");
     return;
   }
 
@@ -1203,7 +953,7 @@ ipp_fetch_document(
 
     if (i >= count)
     {
-      serverRespondIPP(client, _IPP_STATUS_ERROR_NOT_FETCHABLE, "Document not available in requested format.");
+      serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FETCHABLE, "Document not available in requested format.");
       return;
     }
   }
@@ -1211,7 +961,7 @@ ipp_fetch_document(
     format = ippGetString(attr, 0, NULL);
   else
   {
-    serverRespondIPP(client, _IPP_STATUS_ERROR_NOT_FETCHABLE, "Document format unknown.");
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FETCHABLE, "Document format unknown.");
     return;
   }
 
@@ -1254,12 +1004,12 @@ ipp_fetch_job(server_client_t *client)	/* I - Client */
 
   if (!(job->state_reasons & SERVER_JREASON_JOB_FETCHABLE))
   {
-    serverRespondIPP(client, _IPP_STATUS_ERROR_NOT_FETCHABLE, "Job not fetchable.");
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FETCHABLE, "Job not fetchable.");
     return;
   }
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
-  copy_attributes(client->response, job->attrs, NULL, IPP_TAG_JOB, 0);
+  serverCopyAttributes(client->response, job->attrs, NULL, IPP_TAG_JOB, 0);
 }
 
 
@@ -1601,9 +1351,9 @@ ipp_get_printer_attributes(
 
   _cupsRWLockRead(&(printer->rwlock));
 
-  copy_attributes(client->response, printer->attrs, ra, IPP_TAG_ZERO,
+  serverCopyAttributes(client->response, printer->attrs, ra, IPP_TAG_ZERO,
 		  IPP_TAG_CUPS_CONST);
-  copy_attributes(client->response, printer->dev_attrs, ra, IPP_TAG_ZERO, IPP_TAG_ZERO);
+  serverCopyAttributes(client->response, printer->dev_attrs, ra, IPP_TAG_ZERO, IPP_TAG_ZERO);
 
   if (!ra || cupsArrayFind(ra, "printer-config-change-date-time"))
     ippAddDate(client->response, IPP_TAG_PRINTER, "printer-config-change-date-time", ippTimeToDate(printer->config_time));
@@ -1636,7 +1386,7 @@ ipp_get_printer_attributes(
   }
 
   if (!ra || cupsArrayFind(ra, "printer-state-reasons"))
-    copy_printer_state_reasons(client->response, IPP_TAG_PRINTER, printer);
+    serverCopyPrinterStateReasons(client->response, IPP_TAG_PRINTER, printer);
 
   if (!ra || cupsArrayFind(ra, "printer-up-time"))
     ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "printer-up-time", (int)(time(NULL) - printer->start_time));
@@ -1665,7 +1415,7 @@ ipp_get_printer_supported_values(
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  copy_attributes(client->response, client->printer->attrs, ra, IPP_TAG_PRINTER, 1);
+  serverCopyAttributes(client->response, client->printer->attrs, ra, IPP_TAG_PRINTER, 1);
 
   cupsArrayDelete(ra);
 }
@@ -2324,7 +2074,7 @@ ipp_send_document(server_client_t *client)/* I - Client */
     return;
   }
 
-  copy_attributes(job->attrs, client->request, NULL, IPP_TAG_JOB, 0);
+  serverCopyAttributes(job->attrs, client->request, NULL, IPP_TAG_JOB, 0);
 
  /*
   * Get the document format for the job...
@@ -3003,7 +2753,7 @@ ipp_update_job_status(
 
   if ((attr = ippFindAttribute(client->request, "output-device-job-state-reasons", IPP_TAG_KEYWORD)) != NULL)
   {
-    job->dev_state_reasons = get_job_state_reasons_bits(attr);
+    job->dev_state_reasons = serverGetJobStateReasonsBits(attr);
     events |= SERVER_EVENT_JOB_STATE_CHANGED;
   }
 
@@ -3159,8 +2909,9 @@ ipp_validate_job(server_client_t *client)	/* I - Client */
  * 'serverProcessIPP()' - Process an IPP request.
  */
 
-static int				/* O - 1 on success, 0 on error */
-serverProcessIPP(server_client_t *client)	/* I - Client */
+int					/* O - 1 on success, 0 on error */
+serverProcessIPP(
+    server_client_t *client)		/* I - Client */
 {
   ipp_tag_t		group;		/* Current group tag */
   ipp_attribute_t	*attr;		/* Current attribute */
@@ -3171,7 +2922,7 @@ serverProcessIPP(server_client_t *client)	/* I - Client */
   const char		*name;		/* Name of attribute */
 
 
-  debug_attributes("Request", client->request, 1);
+  serverLogAttributes("Request", client->request, 1);
 
  /*
   * First build an empty response message for this request...
@@ -3409,47 +3160,47 @@ serverProcessIPP(server_client_t *client)	/* I - Client */
 		ipp_validate_document(client);
 		break;
 
-            case _IPP_OP_ACKNOWLEDGE_DOCUMENT :
+            case IPP_OP_ACKNOWLEDGE_DOCUMENT :
 	        ipp_acknowledge_document(client);
 		break;
 
-            case _IPP_OP_ACKNOWLEDGE_IDENTIFY_PRINTER :
+            case IPP_OP_ACKNOWLEDGE_IDENTIFY_PRINTER :
 	        ipp_acknowledge_identify_printer(client);
 		break;
 
-            case _IPP_OP_ACKNOWLEDGE_JOB :
+            case IPP_OP_ACKNOWLEDGE_JOB :
 	        ipp_acknowledge_job(client);
 		break;
 
-            case _IPP_OP_FETCH_DOCUMENT :
+            case IPP_OP_FETCH_DOCUMENT :
 	        ipp_fetch_document(client);
 		break;
 
-            case _IPP_OP_FETCH_JOB :
+            case IPP_OP_FETCH_JOB :
 	        ipp_fetch_job(client);
 		break;
 
-            case _IPP_OP_GET_OUTPUT_DEVICE_ATTRIBUTES :
+            case IPP_OP_GET_OUTPUT_DEVICE_ATTRIBUTES :
 	        ipp_get_output_device_attributes(client);
 		break;
 
-            case _IPP_OP_UPDATE_ACTIVE_JOBS :
+            case IPP_OP_UPDATE_ACTIVE_JOBS :
 	        ipp_update_active_jobs(client);
 		break;
 
-            case _IPP_OP_UPDATE_DOCUMENT_STATUS :
+            case IPP_OP_UPDATE_DOCUMENT_STATUS :
 	        ipp_update_document_status(client);
 		break;
 
-            case _IPP_OP_UPDATE_JOB_STATUS :
+            case IPP_OP_UPDATE_JOB_STATUS :
 	        ipp_update_job_status(client);
 		break;
 
-            case _IPP_OP_UPDATE_OUTPUT_DEVICE_ATTRIBUTES :
+            case IPP_OP_UPDATE_OUTPUT_DEVICE_ATTRIBUTES :
 	        ipp_update_output_device_attributes(client);
 		break;
 
-            case _IPP_OP_DEREGISTER_OUTPUT_DEVICE :
+            case IPP_OP_DEREGISTER_OUTPUT_DEVICE :
 	        ipp_deregister_output_device(client);
 		break;
 
@@ -3470,6 +3221,8 @@ serverProcessIPP(server_client_t *client)	/* I - Client */
   if (httpGetState(client->http) != HTTP_STATE_POST_SEND)
     httpFlush(client->http);		/* Flush trailing (junk) data */
 
+  serverLogAttributes("Response", client->response, 2);
+
   return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "application/ipp",
                        client->fetch_file >= 0 ? 0 : ippLength(client->response)));
 }
@@ -3479,11 +3232,12 @@ serverProcessIPP(server_client_t *client)	/* I - Client */
  * 'serverRespondIPP()' - Send an IPP response.
  */
 
-static void
-serverRespondIPP(server_client_t *client,	/* I - Client */
-            ipp_status_t  status,	/* I - status-code */
-	    const char    *message,	/* I - printf-style status-message */
-	    ...)			/* I - Additional args as needed */
+void
+serverRespondIPP(
+    server_client_t *client,		/* I - Client */
+    ipp_status_t    status,		/* I - status-code */
+    const char      *message,		/* I - printf-style status-message */
+    ...)				/* I - Additional args as needed */
 {
   const char	*formatted = NULL;	/* Formatted message */
 
@@ -3521,9 +3275,9 @@ serverRespondIPP(server_client_t *client,	/* I - Client */
  * 'serverRespondUnsupported()' - Respond with an unsupported attribute.
  */
 
-static void
+void
 serverRespondUnsupported(
-    server_client_t   *client,		/* I - Client */
+    server_client_t *client,		/* I - Client */
     ipp_attribute_t *attr)		/* I - Atribute */
 {
   ipp_attribute_t	*temp;		/* Copy of attribute */

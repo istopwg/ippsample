@@ -88,10 +88,10 @@ typedef char _cups_cond_t;
 
 #ifdef _MAIN_C_
 #  define VAR
-#  define VALUE(x) =x
+#  define VALUE(...) =__VA_ARGS__
 #else
 #  define VAR extern
-#  define VALUE(x)
+#  define VALUE(...)
 #endif /* _MAIN_C_ */
 
 
@@ -149,7 +149,7 @@ enum server_event_e			/* notify-events bit values */
 typedef unsigned int server_event_t;	/* Bitfield for notify-events */
 #define SERVER_EVENT_DEFAULT SERVER_EVENT_JOB_COMPLETED
 #define SERVER_EVENT_DEFAULT_STRING "job-completed"
-VAR const char * const server_events[]
+VAR const char * const server_events[21]
 VALUE({					/* Strings for bits */
   "document-completed",
   "document-config-changed",
@@ -207,7 +207,7 @@ enum server_jreason_e			/* job-state-reasons bit values */
   SERVER_JREASON_WARNINGS_DETECTED = 0x08000000
 };
 typedef unsigned int server_jreason_t;	/* Bitfield for job-state-reasons */
-VAR const char * const server_jreasons[]
+VAR const char * const server_jreasons[28]
 VALUE({					/* Strings for bits */
   "aborted-by-system",
   "compression-error",
@@ -266,7 +266,7 @@ enum server_preason_e			/* printer-state-reasons bit values */
   SERVER_PREASON_TONER_LOW = 0x8000	/* toner-low */
 };
 typedef unsigned int server_preason_t;	/* Bitfield for printer-state-reasons */
-VAR const char * const server_preasons[]
+VAR const char * const server_preasons[16]
 VALUE({					/* Strings for bits */
   "other",
   "cover-open",
@@ -410,12 +410,25 @@ typedef struct server_client_s		/**** Client data ****/
 
 
 /*
+ * Globals...
+ */
+
+VAR int		KeepFiles	VALUE(0),
+		Verbosity	VALUE(0);
+//VAR _cups_mutex_t	SubscriptionMutex VALUE(_CUPS_MUTEX_INITIALIZER);
+VAR _cups_cond_t	SubscriptionCondition VALUE(_CUPS_COND_INITIALIZER);
+
+
+/*
  * Functions...
  */
 
 extern void		serverAddEvent(server_printer_t *printer, server_job_t *job, server_event_t event, const char *message, ...) __attribute__((__format__(__printf__, 4, 5)));
 extern void		serverCheckJobs(server_printer_t *printer);
 extern void		serverCleanJobs(server_printer_t *printer);
+extern void		serverCopyAttributes(ipp_t *to, ipp_t *from, cups_array_t *ra, ipp_tag_t group_tag, int quickcopy);
+extern void		serverCopyJobStateReasons(ipp_t *ipp, ipp_tag_t group_tag, server_job_t *job);
+extern void		serverCopyPrinterStateReasons(ipp_t *ipp, ipp_tag_t group_tag, server_printer_t *printer);
 extern server_client_t	*serverCreateClient(server_printer_t *printer, int sock);
 extern server_device_t	*serverCreateDevice(server_client_t *client);
 extern server_job_t	*serverCreateJob(server_client_t *client);
@@ -431,11 +444,16 @@ extern void		serverDeleteSubscription(server_subscription_t *sub);
 extern server_device_t	*serverFindDevice(server_client_t *client);
 extern server_job_t	*serverFindJob(server_client_t *client, int job_id);
 extern server_subscription_t *serverFindSubscription(server_client_t *client, int sub_id);
+extern server_jreason_t	serverGetJobStateReasonsBits(ipp_attribute_t *attr);
+extern server_event_t	serverGetNotifyEventsBits(ipp_attribute_t *attr);
+extern const char	*serverGetNotifySubscribedEvent(server_event_t event);
+extern server_preason_t	serverGetPrinterStateReasonsBits(ipp_attribute_t *attr);
 extern int		serverLoadConfiguration(const char *filename);
-extern void		serverLog(int level, const char *format, ...) __attribute__((__format(__printf__, 2, 3)));
-extern void		serverLogClient(int level, server_client_t *client, const char *format, ...) __attribute__((__format(__printf__, 3, 4)));
-extern void		serverLogJob(int level, server_job_t *job, const char *format, ...) __attribute__((__format(__printf__, 3, 4)));
-extern void		serverLogPrinter(int level, server_printer_t *printer, const char *format, ...) __attribute__((__format(__printf__, 3, 4)));
+extern void		serverLog(int level, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
+extern void		serverLogAttributes(const char *title, ipp_t *ipp, int type);
+extern void		serverLogClient(int level, server_client_t *client, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
+extern void		serverLogJob(int level, server_job_t *job, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
+extern void		serverLogPrinter(int level, server_printer_t *printer, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
 extern void		*serverProcessClient(server_client_t *client);
 extern int		serverProcessHTTP(server_client_t *client);
 extern int		serverProcessIPP(server_client_t *client);
@@ -445,5 +463,6 @@ extern void		serverRespondIPP(server_client_t *client, ipp_status_t status, cons
 extern void		serverRespondUnsupported(server_client_t *client, ipp_attribute_t *attr);
 extern void		serverRunPrinter(server_printer_t *printer);
 extern char		*serverTimeString(time_t tv, char *buffer, size_t bufsize);
+extern int		serverTransformJob(server_job_t *job, const char *format);
 extern void		serverUpdateDeviceAttributesNoLock(server_printer_t *printer);
 extern void		serverUpdateDeviceStateNoLock(server_printer_t *printer);

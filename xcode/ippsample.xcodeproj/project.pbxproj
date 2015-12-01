@@ -92,6 +92,7 @@
 		72B403021C0CE92400139783 /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
 		72B403031C0CE92400139783 /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
 		72B403041C0CE92400139783 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
+		72B403071C0DE7FC00139783 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -236,6 +237,7 @@
 		72B402F91C0CE87800139783 /* libz.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libz.dylib; path = usr/lib/libz.dylib; sourceTree = SDKROOT; };
 		72B402FB1C0CE8CE00139783 /* libiconv.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libiconv.dylib; path = usr/lib/libiconv.dylib; sourceTree = SDKROOT; };
 		72B402FC1C0CE8CE00139783 /* libresolv.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libresolv.dylib; path = usr/lib/libresolv.dylib; sourceTree = SDKROOT; };
+		72B403061C0DE7FC00139783 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -243,6 +245,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				72B403071C0DE7FC00139783 /* Security.framework in Frameworks */,
 				72B403021C0CE92400139783 /* libiconv.dylib in Frameworks */,
 				72B403031C0CE92400139783 /* libresolv.dylib in Frameworks */,
 				72B403041C0CE92400139783 /* libz.dylib in Frameworks */,
@@ -292,17 +295,12 @@
 		72B4020F1C0CDFB400139783 = {
 			isa = PBXGroup;
 			children = (
-				72B402FB1C0CE8CE00139783 /* libiconv.dylib */,
-				72B402FC1C0CE8CE00139783 /* libresolv.dylib */,
-				72B402F91C0CE87800139783 /* libz.dylib */,
-				72B402E91C0CE81900139783 /* ApplicationServices.framework */,
-				72B402EA1C0CE81900139783 /* CoreFoundation.framework */,
-				72B402EB1C0CE81900139783 /* SystemConfiguration.framework */,
 				72B402A11C0CE3AC00139783 /* config.h */,
-				72B402E11C0CE64000139783 /* Documentation */,
 				72B4022D1C0CE21C00139783 /* ippserver */,
 				72B4022A1C0CE16200139783 /* libcups */,
 				72B4022E1C0CE22300139783 /* tools */,
+				72B402E11C0CE64000139783 /* Documentation */,
+				72B403051C0DE49600139783 /* Frameworks */,
 				72B402191C0CDFB400139783 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -420,6 +418,20 @@
 				72B402A81C0CE43D00139783 /* ippserver.man */,
 			);
 			name = Documentation;
+			sourceTree = "<group>";
+		};
+		72B403051C0DE49600139783 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				72B403061C0DE7FC00139783 /* Security.framework */,
+				72B402FB1C0CE8CE00139783 /* libiconv.dylib */,
+				72B402FC1C0CE8CE00139783 /* libresolv.dylib */,
+				72B402F91C0CE87800139783 /* libz.dylib */,
+				72B402E91C0CE81900139783 /* ApplicationServices.framework */,
+				72B402EA1C0CE81900139783 /* CoreFoundation.framework */,
+				72B402EB1C0CE81900139783 /* SystemConfiguration.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -838,6 +850,7 @@
 				72B402291C0CE0E100139783 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		72B402CD1C0CE5EC00139783 /* Build configuration list for PBXNativeTarget "ipptool" */ = {
 			isa = XCConfigurationList;
@@ -846,6 +859,7 @@
 				72B402CF1C0CE5EC00139783 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		72B402DD1C0CE61D00139783 /* Build configuration list for PBXNativeTarget "ippfind" */ = {
 			isa = XCConfigurationList;
@@ -854,6 +868,7 @@
 				72B402DF1C0CE61D00139783 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

@@ -24,9 +24,103 @@ static void		html_escape(server_client_t *client, const char *s,
 static void		html_footer(server_client_t *client);
 static void		html_header(server_client_t *client, const char *title);
 static void		html_printf(server_client_t *client, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
-static void		usage(int status) __attribute__((noreturn));
-static int		valid_doc_attributes(server_client_t *client);
-static int		valid_job_attributes(server_client_t *client);
+
+
+
+/*
+ * 'serverCreateClient()' - Accept a new network connection and create a client object.
+ */
+
+server_client_t *			/* O - Client */
+serverCreateClient(
+    server_printer_t *printer,		/* I - Printer */
+    int              sock)		/* I - Listen socket */
+{
+  server_client_t	*client;	/* Client */
+
+
+  if ((client = calloc(1, sizeof(server_client_t))) == NULL)
+  {
+    perror("Unable to allocate memory for client");
+    return (NULL);
+  }
+
+  client->printer = printer;
+
+ /*
+  * Accept the client and get the remote address...
+  */
+
+  if ((client->http = httpAcceptConnection(sock, 1)) == NULL)
+  {
+    perror("Unable to accept client connection");
+
+    free(client);
+
+    return (NULL);
+  }
+
+  httpGetHostname(client->http, client->hostname, sizeof(client->hostname));
+
+  if (Verbosity)
+    fprintf(stderr, "Accepted connection from %s\n", client->hostname);
+
+  return (client);
+}
+
+
+/*
+ * 'serverCreateListener()' - Create a listener socket.
+ */
+
+int					/* O - Listener socket or -1 on error */
+serverCreateListener(int family,	/* I - Address family */
+                     int port)		/* I - Port number */
+{
+  int			sock;		/* Listener socket */
+  http_addrlist_t	*addrlist;	/* Listen address */
+  char			service[255];	/* Service port */
+
+
+  snprintf(service, sizeof(service), "%d", port);
+  if ((addrlist = httpAddrGetList(NULL, family, service)) == NULL)
+    return (-1);
+
+  sock = httpAddrListen(&(addrlist->addr), port);
+
+  httpAddrFreeList(addrlist);
+
+  return (sock);
+}
+
+
+/*
+ * 'serverDeleteClient()' - Close the socket and free all memory used by a client object.
+ */
+
+void
+serverDeleteClient(server_client_t *client)	/* I - Client */
+{
+  if (Verbosity)
+    fprintf(stderr, "Closing connection from %s\n", client->hostname);
+
+ /*
+  * Flush pending writes before closing...
+  */
+
+  httpFlushWrite(client->http);
+
+ /*
+  * Free memory...
+  */
+
+  httpClose(client->http);
+
+  ippDelete(client->request);
+  ippDelete(client->response);
+
+  free(client);
+}
 
 
 /*
@@ -784,8 +878,6 @@ serverRespondHTTP(
    /*
     * Send an IPP response...
     */
-
-    debug_attributes("Response", client->response, 2);
 
     ippSetState(client->response, IPP_STATE_IDLE);
 
