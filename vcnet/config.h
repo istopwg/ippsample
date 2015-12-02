@@ -1,6 +1,5 @@
 /*
- * Configuration file for the IPP Everywhere Printer Self-Certification tools
- * on Windows.
+ * Configuration file for the IPP samples on Windows.
  *
  * Copyright 2015 by the ISTO Printer Working Group.
  * Copyright 2007-2014 by Apple Inc.

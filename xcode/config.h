@@ -1,6 +1,5 @@
-/* config.h.  Generated from config.h.in by configure.  */
 /*
- * Configuration file for the IPP Everywhere Printer Self-Certification tools.
+ * Configuration file for the IPP samples.
  *
  * Copyright 2015 by the ISTO Printer Working Group.
  * Copyright 2007-2015 by Apple Inc.
