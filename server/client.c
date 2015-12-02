@@ -1,7 +1,7 @@
 /*
  * Client code for sample IPP server implementation.
  *
- * Copyright 2010-2014 by Apple Inc.
+ * Copyright 2010-2015 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -24,6 +24,7 @@ static void		html_escape(server_client_t *client, const char *s,
 static void		html_footer(server_client_t *client);
 static void		html_header(server_client_t *client, const char *title);
 static void		html_printf(server_client_t *client, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
+static int		parse_options(server_client_t *client, cups_option_t **options);
 
 
 
@@ -391,18 +392,14 @@ serverProcessHTTP(
 	return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, NULL, 0));
 
     case HTTP_STATE_HEAD :
-#if 0 /* TODO: Work out icon support */
         if (!strcmp(client->uri, "/icon.png"))
 	  return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", 0));
-	else
-#endif /* 0 */
-	if (!strcmp(client->uri, "/") || !strcmp(client->uri, "/media") || !strcmp(client->uri, "/supplies"))
+	else if (!strcmp(client->uri, "/") || !strcmp(client->uri, "/media") || !strcmp(client->uri, "/supplies"))
 	  return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "text/html", 0));
 	else
 	  return (serverRespondHTTP(client, HTTP_STATUS_NOT_FOUND, NULL, NULL, 0));
 
     case HTTP_STATE_GET :
-#if 0 /* TODO: Work out icon support */
         if (!strcmp(client->uri, "/icon.png"))
 	{
 	 /*
@@ -436,9 +433,7 @@ serverProcessHTTP(
 	  else
 	    return (serverRespondHTTP(client, HTTP_STATUS_NOT_FOUND, NULL, NULL, 0));
 	}
-	else
-#endif /* 0 */
-	if (!strcmp(client->uri, "/"))
+	else if (!strcmp(client->uri, "/"))
 	{
 	 /*
 	  * Show web status page...
@@ -1226,4 +1221,38 @@ html_printf(server_client_t *client,	/* I - Client */
     httpWrite2(client->http, start, (size_t)(format - start));
 
   va_end(ap);
+}
+
+
+/*
+ * 'parse_options()' - Parse URL options into CUPS options.
+ *
+ * The client->options string is destroyed by this function.
+ */
+
+static int				/* O - Number of options */
+parse_options(server_client_t *client,	/* I - Client */
+              cups_option_t **options)	/* O - Options */
+{
+  char	*name,				/* Name */
+      	*value,				/* Value */
+	*next;				/* Next name=value pair */
+  int	num_options = 0;		/* Number of options */
+
+
+  *options = NULL;
+
+  for (name = client->options; name && *name; name = next)
+  {
+    if ((value = strchr(name, '=')) == NULL)
+      break;
+
+    *value++ = '\0';
+    if ((next = strchr(value, '&')) != NULL)
+      *next++ = '\0';
+
+    num_options = cupsAddOption(name, value, num_options, options);
+  }
+
+  return (num_options);
 }

@@ -53,6 +53,15 @@ extern char **environ;
 #  include <poll.h>
 #endif /* WIN32 */
 
+#ifdef HAVE_DNSSD
+#  include <dns_sd.h>
+#elif defined(HAVE_AVAHI)
+#  include <avahi-client/client.h>
+#  include <avahi-client/publish.h>
+#  include <avahi-common/error.h>
+#  include <avahi-common/thread-watch.h>
+#endif /* HAVE_DNSSD */
+
 #ifdef HAVE_SYS_MOUNT_H
 #  include <sys/mount.h>
 #endif /* HAVE_SYS_MOUNT_H */
@@ -107,6 +116,14 @@ typedef char _cups_cond_t;
 #  define SERVER_NOTIFY_LEASE_DURATION_DEFAULT		86400
 
 
+/* URL scheme for web resources... */
+#  ifdef HAVE_SSL
+#    define SERVER_WEB_SCHEME "https"
+#  else
+#    define SERVER_WEB_SCHEME "http"
+#  endif /* HAVE_SSL */
+
+
 /*
  * Event mask enumeration...
  */
@@ -151,6 +168,7 @@ typedef unsigned int server_event_t;	/* Bitfield for notify-events */
 #define SERVER_EVENT_DEFAULT_STRING "job-completed"
 VAR const char * const server_events[21]
 VALUE({					/* Strings for bits */
+  /* "none" is implied for no bits set */
   "document-completed",
   "document-config-changed",
   "document-created",
@@ -209,6 +227,7 @@ enum server_jreason_e			/* job-state-reasons bit values */
 typedef unsigned int server_jreason_t;	/* Bitfield for job-state-reasons */
 VAR const char * const server_jreasons[28]
 VALUE({					/* Strings for bits */
+  /* "none" is implied for no bits set */
   "aborted-by-system",
   "compression-error",
   "document-access-error",
@@ -268,6 +287,7 @@ enum server_preason_e			/* printer-state-reasons bit values */
 typedef unsigned int server_preason_t;	/* Bitfield for printer-state-reasons */
 VAR const char * const server_preasons[16]
 VALUE({					/* Strings for bits */
+  /* "none" is implied for no bits set */
   "other",
   "cover-open",
   "input-tray-missing",
@@ -285,6 +305,24 @@ VALUE({					/* Strings for bits */
   "toner-empty",
   "toner-low"
 });
+
+
+/*
+ * Base types...
+ */
+
+#  ifdef HAVE_DNSSD
+typedef DNSServiceRef server_srv_t;	/* Service reference */
+typedef TXTRecordRef server_txt_t;	/* TXT record */
+
+#  elif defined(HAVE_AVAHI)
+typedef AvahiEntryGroup *server_srv_t;	/* Service reference */
+typedef AvahiStringList *server_txt_t;	/* TXT record */
+
+#  else
+typedef void *server_srv_t;		/* Service reference */
+typedef void *server_txt_t;		/* TXT record */
+#  endif /* HAVE_DNSSD */
 
 
 /*
@@ -314,10 +352,16 @@ typedef struct server_printer_s		/**** Printer data ****/
   _cups_rwlock_t	rwlock;		/* Printer lock */
   int			ipv4,		/* IPv4 listener */
 			ipv6;		/* IPv6 listener */
-  char			*name,		/* printer-name */
+  server_srv_t		ipp_ref,	/* Bonjour IPP service */
+			ipps_ref,	/* Bonjour IPPS service */
+			http_ref,	/* Bonjour HTTP service */
+			printer_ref;	/* Bonjour LPD service */
+  char			*dnssd_name,	/* printer-dnssd-name */
+			*name,		/* printer-name */
 			*directory,	/* Spool directory */
 			*hostname,	/* Hostname */
 			*uri,		/* printer-uri-supported */
+                        *icon,		/* Icon file */
 			*proxy_user,	/* Proxy username */
 			*proxy_pass;	/* Proxy password */
   int			port;		/* Port */
@@ -413,6 +457,13 @@ typedef struct server_client_s		/**** Client data ****/
  * Globals...
  */
 
+#ifdef HAVE_DNSSD
+static DNSServiceRef	DNSSDMaster = NULL;
+#elif defined(HAVE_AVAHI)
+static AvahiThreadedPoll *DNSSDMaster = NULL;
+static AvahiClient	*DNSSDClient = NULL;
+#endif /* HAVE_DNSSD */
+
 VAR int		KeepFiles	VALUE(0),
 		Verbosity	VALUE(0);
 //VAR _cups_mutex_t	SubscriptionMutex VALUE(_CUPS_MUTEX_INITIALIZER);
@@ -434,13 +485,14 @@ extern server_device_t	*serverCreateDevice(server_client_t *client);
 extern server_job_t	*serverCreateJob(server_client_t *client);
 extern void		serverCreateJobFilename(server_printer_t *printer, server_job_t *job, const char *format, char *fname, size_t fnamesize);
 extern int		serverCreateListener(int family, int port);
-extern server_printer_t	*serverCreatePrinter(const char *servername, int port, const char *name, const char *directory, const char *proxy_user, const char *proxy_pass);
+extern server_printer_t	*serverCreatePrinter(const char *servername, int port, const char *name, const char *directory, const char *location, const char *make, const char *model, const char *icon, const char *docformats, int pin, const char *subtype, const char *attrfile, const char *proxy_user, const char *proxy_pass);
 extern server_subscription_t *serverCreateSubcription(server_printer_t *printer, server_job_t *job, int interval, int lease, const char *username, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
 extern void		serverDeleteClient(server_client_t *client);
 extern void		serverDeleteDevice(server_device_t *device);
 extern void		serverDeleteJob(server_job_t *job);
 extern void		serverDeletePrinter(server_printer_t *printer);
 extern void		serverDeleteSubscription(server_subscription_t *sub);
+extern void		serverDNSSDInit(void);
 extern server_device_t	*serverFindDevice(server_client_t *client);
 extern server_job_t	*serverFindJob(server_client_t *client, int job_id);
 extern server_subscription_t *serverFindSubscription(server_client_t *client, int sub_id);

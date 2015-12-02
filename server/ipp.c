@@ -292,7 +292,9 @@ filter_cb(server_filter_t   *filter,	/* I - Filter parameters */
   * Filter attributes as needed...
   */
 
+#ifndef WIN32 /* Avoid MS compiler bug */
   (void)dst;
+#endif /* !WIN32 */
 
   ipp_tag_t group = ippGetGroupTag(attr);
   const char *name = ippGetName(attr);
@@ -1488,10 +1490,26 @@ static void
 ipp_identify_printer(
     server_client_t *client)		/* I - Client */
 {
-  /* TODO: Do something */
+  ipp_attribute_t	*actions,	/* identify-actions */
+			*message;	/* message */
+
+
+  actions = ippFindAttribute(client->request, "identify-actions", IPP_TAG_KEYWORD);
+  message = ippFindAttribute(client->request, "message", IPP_TAG_TEXT);
+
+  if (!actions || ippContainsString(actions, "sound"))
+  {
+    putchar(0x07);
+    fflush(stdout);
+  }
+
+  if (ippContainsString(actions, "display"))
+    printf("IDENTIFY from %s: %s\n", client->hostname, message ? ippGetString(message, 0, NULL) : "No message supplied");
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
+
+
 
 
 /*
@@ -3451,6 +3469,7 @@ valid_job_attributes(
     server_client_t *client)		/* I - Client */
 {
   int			i,		/* Looping var */
+			count,		/* Number of values */
 			valid = 1;	/* Valid attributes? */
   ipp_attribute_t	*attr,		/* Current attribute */
 			*supported;	/* xxx-supported attribute */
@@ -3557,31 +3576,98 @@ valid_job_attributes(
     }
     else
     {
-#if 0 /* TODO: Validate media */
-      for (i = 0;
-           i < (int)(sizeof(media_supported) / sizeof(media_supported[0]));
-	   i ++)
-        if (!strcmp(ippGetString(attr, 0, NULL), media_supported[i]))
-	  break;
+      supported = ippFindAttribute(client->printer->attrs, "media-supported", IPP_TAG_KEYWORD);
 
-      if (i >= (int)(sizeof(media_supported) / sizeof(media_supported[0])))
+      if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
       {
 	serverRespondUnsupported(client, attr);
 	valid = 0;
       }
-#endif /* 0 */
     }
   }
 
   if ((attr = ippFindAttribute(client->request, "media-col", IPP_TAG_ZERO)) != NULL)
   {
+    ipp_t		*col,		/* media-col collection */
+			*size;		/* media-size collection */
+    ipp_attribute_t	*member,	/* Member attribute */
+			*x_dim,		/* x-dimension */
+			*y_dim;		/* y-dimension */
+    int			x_value,	/* y-dimension value */
+			y_value;	/* x-dimension value */
+
     if (ippGetCount(attr) != 1 ||
         ippGetValueTag(attr) != IPP_TAG_BEGIN_COLLECTION)
     {
       serverRespondUnsupported(client, attr);
       valid = 0;
     }
-    /* TODO: check for valid media-col */
+
+    col = ippGetCollection(attr, 0);
+
+    if ((member = ippFindAttribute(col, "media-size-name", IPP_TAG_ZERO)) != NULL)
+    {
+      if (ippGetCount(member) != 1 ||
+	  (ippGetValueTag(member) != IPP_TAG_NAME &&
+	   ippGetValueTag(member) != IPP_TAG_NAMELANG &&
+	   ippGetValueTag(member) != IPP_TAG_KEYWORD))
+      {
+	serverRespondUnsupported(client, attr);
+	valid = 0;
+      }
+      else
+      {
+	supported = ippFindAttribute(client->printer->attrs, "media-supported", IPP_TAG_KEYWORD);
+
+	if (!ippContainsString(supported, ippGetString(member, 0, NULL)))
+	{
+	  serverRespondUnsupported(client, attr);
+	  valid = 0;
+	}
+      }
+    }
+    else if ((member = ippFindAttribute(col, "media-size", IPP_TAG_BEGIN_COLLECTION)) != NULL)
+    {
+      if (ippGetCount(member) != 1)
+      {
+	serverRespondUnsupported(client, attr);
+	valid = 0;
+      }
+      else
+      {
+	size = ippGetCollection(member, 0);
+
+	if ((x_dim = ippFindAttribute(size, "x-dimension", IPP_TAG_INTEGER)) == NULL || ippGetCount(x_dim) != 1 ||
+	    (y_dim = ippFindAttribute(size, "y-dimension", IPP_TAG_INTEGER)) == NULL || ippGetCount(y_dim) != 1)
+	{
+	  serverRespondUnsupported(client, attr);
+	  valid = 0;
+	}
+	else
+	{
+	  x_value   = ippGetInteger(x_dim, 0);
+	  y_value   = ippGetInteger(y_dim, 0);
+	  supported = ippFindAttribute(client->printer->attrs, "media-size-supported", IPP_TAG_BEGIN_COLLECTION);
+	  count     = ippGetCount(supported);
+
+	  for (i = 0; i < count ; i ++)
+	  {
+	    size  = ippGetCollection(supported, i);
+	    x_dim = ippFindAttribute(size, "x-dimension", IPP_TAG_ZERO);
+	    y_dim = ippFindAttribute(size, "y-dimension", IPP_TAG_ZERO);
+
+	    if (ippContainsInteger(x_dim, x_value) && ippContainsInteger(y_dim, y_value))
+	      break;
+	  }
+
+	  if (i >= count)
+	  {
+	    serverRespondUnsupported(client, attr);
+	    valid = 0;
+	  }
+	}
+      }
+    }
   }
 
   if ((attr = ippFindAttribute(client->request, "multiple-document-handling", IPP_TAG_ZERO)) != NULL)

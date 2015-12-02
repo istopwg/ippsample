@@ -33,12 +33,22 @@ main(int  argc,				/* I - Number of command-line args */
 {
   int		i;			/* Looping var */
   const char	*opt,			/* Current option character */
+		*attrfile = NULL,	/* Attributes file */
+		*command = NULL,	/* Command to run with job files */
 		*servername = NULL,	/* Server host name */
-		*name = NULL;		/* Printer name */
+		*name = NULL,		/* Printer name */
+		*location = "",		/* Location of printer */
+		*make = "Test",		/* Manufacturer */
+		*model = "Printer",	/* Model */
+		*icon = "printer.png",	/* Icon file */
+		*formats = "application/pdf,image/jpeg,image/pwg-raster";
+	      				/* Supported formats */
 #ifdef HAVE_SSL
   const char	*keypath = NULL;	/* Keychain path */
 #endif /* HAVE_SSL */
-  int		port = 0;		/* Port number (0 = auto) */
+  const char	*subtype = "_print";	/* Bonjour service subtype */
+  int		port = 0,		/* Port number (0 = auto) */
+		pin = 0;		/* PIN printing mode? */
   char		directory[1024] = "",	/* Spool directory */
 		hostname[1024],		/* Auto-detected hostname */
 		proxy_user[256] = "",	/* Proxy username */
@@ -66,6 +76,33 @@ main(int  argc,				/* I - Number of command-line args */
 	      break;
 #endif /* HAVE_SSL */
 
+	  case 'M' : /* -M manufacturer */
+	      i ++;
+	      if (i >= argc)
+	        usage(1);
+	      make = argv[i];
+	      break;
+
+          case 'P' : /* -P (PIN printing mode) */
+              pin = 1;
+              break;
+
+	  case 'a' : /* -a attributes-file */
+	      i ++;
+	      if (i >= argc)
+	        usage(1);
+
+	      attrfile = argv[i];
+	      break;
+
+          case 'c' : /* -c command */
+              i ++;
+	      if (i >= argc)
+	        usage(1);
+
+	      command = argv[i];
+	      break;
+
 	  case 'd' : /* -d spool-directory */
 	      i ++;
 	      if (i >= argc)
@@ -73,11 +110,39 @@ main(int  argc,				/* I - Number of command-line args */
 	      strlcpy(directory, argv[i], sizeof(directory));
 	      break;
 
+	  case 'f' : /* -f type/subtype[,...] */
+	      i ++;
+	      if (i >= argc)
+	        usage(1);
+	      formats = argv[i];
+	      break;
+
           case 'h' : /* -h (show help) */
 	      usage(0);
 
 	  case 'k' : /* -k (keep files) */
 	      KeepFiles = 1;
+	      break;
+
+	  case 'i' : /* -i icon.png */
+	      i ++;
+	      if (i >= argc)
+	        usage(1);
+	      icon = argv[i];
+	      break;
+
+	  case 'l' : /* -l location */
+	      i ++;
+	      if (i >= argc)
+	        usage(1);
+	      location = argv[i];
+	      break;
+
+	  case 'm' : /* -m model */
+	      i ++;
+	      if (i >= argc)
+	        usage(1);
+	      model = argv[i];
 	      break;
 
 	  case 'n' : /* -n hostname */
@@ -92,6 +157,13 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc || !isdigit(argv[i][0] & 255))
 	        usage(1);
 	      port = atoi(argv[i]);
+	      break;
+
+	  case 'r' : /* -r subtype */
+	      i ++;
+	      if (i >= argc)
+	        usage(1);
+	      subtype = argv[i];
 	      break;
 
           case 'u' : /* -u user:pass */
@@ -156,9 +228,22 @@ main(int  argc,				/* I - Number of command-line args */
 
   if (!directory[0])
   {
-    snprintf(directory, sizeof(directory), "/tmp/ippserver.%d", (int)getpid());
+    const char *tmpdir;			/* Temporary directory */
 
-    if (mkdir(directory, 0777) && errno != EEXIST)
+#ifdef WIN32
+    if ((tmpdir = getenv("TEMP")) == NULL)
+      tmpdir = "C:/TEMP";
+#elif defined(__APPLE__)
+    if ((tmpdir = getenv("TMPDIR")) == NULL)
+      tmpdir = "/private/tmp";
+#else
+    if ((tmpdir = getenv("TMPDIR")) == NULL)
+      tmpdir = "/tmp";
+#endif /* WIN32 */
+
+    snprintf(directory, sizeof(directory), "%s/ippserver.%d", tmpdir, (int)getpid());
+
+    if (mkdir(directory, 0755) && errno != EEXIST)
     {
       fprintf(stderr, "Unable to create spool directory \"%s\": %s\n",
 	      directory, strerror(errno));
@@ -190,10 +275,16 @@ main(int  argc,				/* I - Number of command-line args */
 #endif /* HAVE_SSL */
 
  /*
+  * Initialize Bonjour...
+  */
+
+  serverDNSSDInit();
+
+ /*
   * Create the printer...
   */
 
-  if ((printer = serverCreatePrinter(servername, port, name, directory, proxy_user, proxy_pass)) == NULL)
+  if ((printer = serverCreatePrinter(servername, port, name, directory, NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, proxy_user, proxy_pass)) == NULL)
     return (1);
 
  /*
