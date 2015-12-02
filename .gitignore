@@ -10,3 +10,4 @@ tools/ippfind
 tools/ipptool
 xcuserdata
 *.o
+*.xcworkspace
