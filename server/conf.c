@@ -13,14 +13,20 @@
  */
 
 #include "ippserver.h"
+#include <cups/file.h>
+#include <cups/dir.h>
+#include <fnmatch.h>
 
 
 /*
  * Local functions...
  */
 
+static int		compare_printers(server_printer_t *a, server_printer_t *b);
 static ipp_t		*get_collection(FILE *fp, const char *filename, int *linenum);
 static char		*get_token(FILE *fp, char *buf, int buflen, int *linenum);
+static server_printer_t	*load_printer(const char *conf, const char *icon);
+static int		load_system(const char *conf);
 
 
 /*
@@ -63,9 +69,68 @@ serverDNSSDInit(void)
 
 int					/* O - 1 if successful, 0 on error */
 serverLoadConfiguration(
-    const char *filename)		/* I - File to load */
+    const char *directory)		/* I - Configuration directory */
 {
+  cups_dir_t	*dir;			/* Directory pointer */
+  cups_dentry_t	*dent;			/* Directory entry */
+  char		filename[260],		/* Configuration file/directory */
+                *ptr;			/* Pointer into filename */
+  server_printer_t *printer;		/* Printer */
+
+
+ /*
+  * First read the system configuration file, if any...
+  */
+
+  snprintf(filename, sizeof(filename), "%s/system.conf", directory);
+  if (!load_system(filename))
+    return (0);
+
+ /*
+  * Then see if there are any print queues...
+  */
+
+  snprintf(filename, sizeof(filename), "%s/print", directory);
+  if ((dir = cupsDirOpen(filename)) != NULL)
+  {
+    while ((dent = cupsDirRead(dir)) != NULL)
+    {
+      if (fnmatch("*.conf", dent->filename, 0))
+      {
+       /*
+        * Load the conf file, with any associated icon image.
+        */
+
+        strlcpy(filename, dent->filename, sizeof(filename));
+        if ((ptr = filename + strlen(filename) - 5) > filename)
+          strlcpy(ptr, ".png", sizeof(filename) - (ptr - filename));
+
+        if ((printer = load_printer(dent->filename, access(filename, R_OK) ? NULL : filename)) == NULL)
+          continue;
+
+        if (!Printers)
+          Printers = cupsArrayNew((cups_array_func_t)compare_printers, NULL);
+
+        cupsArrayAdd(Printers, printer);
+      }
+    }
+
+    cupsDirClose(dir);
+  }
+
   return (1);
+}
+
+
+/*
+ * 'compare_printers()' - Compare two printers.
+ */
+
+static int				/* O - Result of comparison */
+compare_printers(server_printer_t *a,	/* I - First printer */
+                 server_printer_t *b)	/* I - Second printer */
+{
+  return (strcmp(a->resource, b->resource));
 }
 
 
@@ -678,3 +743,29 @@ load_attributes(const char *filename,	/* I - File to load */
 }
 
 
+/*
+ * 'load_printer()' - Load a printer configuration file and create a printer.
+ */
+
+static server_printer_t	*		/* O - New printer or NULL */
+load_printer(const char *conf,		/* I - Configuration file */
+             const char *icon)		/* I - Icon file */
+{
+  (void)conf;
+  (void)icon;
+
+  return (NULL);
+}
+
+
+/*
+ * 'load_system()' - Load the system configuration file.
+ */
+
+static int				/* O - 1 on success, 0 on failure */
+load_system(const char *conf)		/* I - Configuration file */
+{
+  (void)conf;
+
+  return (0);
+}

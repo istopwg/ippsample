@@ -350,8 +350,6 @@ typedef struct server_device_s		/**** Output Device data ****/
 typedef struct server_printer_s		/**** Printer data ****/
 {
   _cups_rwlock_t	rwlock;		/* Printer lock */
-  int			ipv4,		/* IPv4 listener */
-			ipv6;		/* IPv6 listener */
   server_srv_t		ipp_ref,	/* Bonjour IPP service */
 			ipps_ref,	/* Bonjour IPPS service */
 			http_ref,	/* Bonjour HTTP service */
@@ -360,6 +358,7 @@ typedef struct server_printer_s		/**** Printer data ****/
 			*name,		/* printer-name */
 			*directory,	/* Spool directory */
 			*hostname,	/* Hostname */
+                        *resource,	/* Resource path */
 			*uri,		/* printer-uri-supported */
                         *icon,		/* Icon file */
 			*proxy_user,	/* Proxy username */
@@ -458,14 +457,17 @@ typedef struct server_client_s		/**** Client data ****/
  */
 
 #ifdef HAVE_DNSSD
-static DNSServiceRef	DNSSDMaster = NULL;
+VAR DNSServiceRef	DNSSDMaster	VALUE(NULL);
 #elif defined(HAVE_AVAHI)
-static AvahiThreadedPoll *DNSSDMaster = NULL;
-static AvahiClient	*DNSSDClient = NULL;
+VAR AvahiThreadedPoll	*DNSSDMaster	VALUE(NULL);
+VAR AvahiClient		*DNSSDClient	VALUE(NULL);
 #endif /* HAVE_DNSSD */
 
-VAR int		KeepFiles	VALUE(0),
-		Verbosity	VALUE(0);
+VAR int			NumListeners	VALUE(0),
+			Listeners[16],
+                        KeepFiles	VALUE(0),
+			Verbosity	VALUE(0);
+VAR cups_array_t	*Printers	VALUE(NULL);
 //VAR _cups_mutex_t	SubscriptionMutex VALUE(_CUPS_MUTEX_INITIALIZER);
 VAR _cups_cond_t	SubscriptionCondition VALUE(_CUPS_COND_INITIALIZER);
 
@@ -500,7 +502,7 @@ extern server_jreason_t	serverGetJobStateReasonsBits(ipp_attribute_t *attr);
 extern server_event_t	serverGetNotifyEventsBits(ipp_attribute_t *attr);
 extern const char	*serverGetNotifySubscribedEvent(server_event_t event);
 extern server_preason_t	serverGetPrinterStateReasonsBits(ipp_attribute_t *attr);
-extern int		serverLoadConfiguration(const char *filename);
+extern int		serverLoadConfiguration(const char *directory);
 extern void		serverLog(int level, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
 extern void		serverLogAttributes(const char *title, ipp_t *ipp, int type);
 extern void		serverLogClient(int level, server_client_t *client, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
