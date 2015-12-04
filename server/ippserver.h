@@ -373,6 +373,7 @@ typedef struct server_printer_s		/**** Printer data ****/
                         *dnssd_name,	/* printer-dnssd-name */
 			*name,		/* printer-name */
                         *icon,		/* Icon file */
+                        *command,	/* Command to run for job processing */
 			*proxy_user;	/* Proxy username */
   cups_array_t		*devices;	/* Associated devices */
   ipp_t			*attrs;		/* Static attributes */
@@ -475,11 +476,15 @@ typedef struct server_listener_s	/**** Listener data ****/
 VAR char		*ConfigDirectory VALUE(NULL);
 VAR char		*DataDirectory	VALUE(NULL);
 VAR int			KeepFiles	VALUE(0);
+#ifdef HAVE_SSL
+VAR char		*KeychainPath	VALUE(NULL);
+#endif /* HAVE_SSL */
 VAR cups_array_t	*Listeners	VALUE(NULL);
 VAR char		*LogFile	VALUE(NULL);
 VAR server_loglevel_t	LogLevel	VALUE(SERVER_LOGLEVEL_ERROR);
 VAR int			MaxJobs		VALUE(100);
 VAR cups_array_t	*Printers	VALUE(NULL);
+VAR char		*ServerName	VALUE(NULL);
 VAR char		*SpoolDirectory	VALUE(NULL);
 
 #ifdef HAVE_DNSSD
@@ -508,7 +513,7 @@ extern server_device_t	*serverCreateDevice(server_client_t *client);
 extern server_job_t	*serverCreateJob(server_client_t *client);
 extern void		serverCreateJobFilename(server_printer_t *printer, server_job_t *job, const char *format, char *fname, size_t fnamesize);
 extern int		serverCreateListeners(const char *host, int port);
-extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, const char *location, const char *make, const char *model, const char *icon, const char *docformats, int pin, const char *subtype, ipp_t *attrs, const char *proxy_user);
+extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, const char *location, const char *make, const char *model, const char *icon, const char *docformats, int ppm, int ppm_color, int duplex, int pin, const char *subtype, ipp_t *attrs, const char *command, const char *proxy_user);
 extern server_subscription_t *serverCreateSubcription(server_printer_t *printer, server_job_t *job, int interval, int lease, const char *username, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
 extern void		serverDeleteClient(server_client_t *client);
 extern void		serverDeleteDevice(server_device_t *device);
@@ -516,6 +521,7 @@ extern void		serverDeleteJob(server_job_t *job);
 extern void		serverDeletePrinter(server_printer_t *printer);
 extern void		serverDeleteSubscription(server_subscription_t *sub);
 extern void		serverDNSSDInit(void);
+extern int		serverFinalizeConfiguration(void);
 extern server_device_t	*serverFindDevice(server_client_t *client);
 extern server_job_t	*serverFindJob(server_client_t *client, int job_id);
 extern server_subscription_t *serverFindSubscription(server_client_t *client, int sub_id);
@@ -523,6 +529,7 @@ extern server_jreason_t	serverGetJobStateReasonsBits(ipp_attribute_t *attr);
 extern server_event_t	serverGetNotifyEventsBits(ipp_attribute_t *attr);
 extern const char	*serverGetNotifySubscribedEvent(server_event_t event);
 extern server_preason_t	serverGetPrinterStateReasonsBits(ipp_attribute_t *attr);
+extern ipp_t		*serverLoadAttributes(const char *filename);
 extern int		serverLoadConfiguration(const char *directory);
 extern void		serverLog(server_loglevel_t level, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
 extern void		serverLogAttributes(const char *title, ipp_t *ipp, int type);

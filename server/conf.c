@@ -64,6 +64,108 @@ serverDNSSDInit(void)
 
 
 /*
+ * 'serverFinalizeConfiguration()' - Make final configuration choices.
+ */
+
+int					/* O - 1 on success, 0 on failure */
+serverFinalizeConfiguration(void)
+{
+  char	local[1024];			/* Local hostname */
+
+
+ /*
+  * Default hostname...
+  */
+
+  if (!ServerName && httpGetHostname(NULL, local, sizeof(local)))
+    ServerName = strdup(local);
+  else
+    ServerName = strdup("localhost");
+
+#ifdef HAVE_SSL
+ /*
+  * Setup TLS certificate for server...
+  */
+
+  cupsSetServerCredentials(KeychainPath, ServerName, 1);
+#endif /* HAVE_SSL */
+
+ /*
+  * Default directories...
+  */
+
+  if (!DataDirectory)
+  {
+    char	directory[1024];	/* New directory */
+    const char	*tmpdir;		/* Temporary directory */
+
+#ifdef WIN32
+    if ((tmpdir = getenv("TEMP")) == NULL)
+      tmpdir = "C:/TEMP";
+#elif defined(__APPLE__)
+    if ((tmpdir = getenv("TMPDIR")) == NULL)
+      tmpdir = "/private/tmp";
+#else
+    if ((tmpdir = getenv("TMPDIR")) == NULL)
+      tmpdir = "/tmp";
+#endif /* WIN32 */
+
+    snprintf(directory, sizeof(directory), "%s/ippserver.%d", tmpdir, (int)getpid());
+
+    if (mkdir(directory, 0755) && errno != EEXIST)
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Unable to create data directory \"%s\": %s", directory, strerror(errno));
+      return (0);
+    }
+
+    serverLog(SERVER_LOGLEVEL_INFO, "Using data directory \"%s\".", directory);
+
+    DataDirectory = strdup(directory);
+  }
+
+  if (!SpoolDirectory)
+  {
+    SpoolDirectory = strdup(DataDirectory);
+
+    serverLog(SERVER_LOGLEVEL_INFO, "Using spool directory \"%s\".", DataDirectory);
+  }
+
+ /*
+  * Initialize Bonjour...
+  */
+
+  serverDNSSDInit();
+
+ /*
+  * Apply default listeners if none are specified...
+  */
+
+  if (!Listeners)
+  {
+#ifdef WIN32
+   /*
+    * Windows is almost always used as a single user system, so use a default port
+    * number of 8631.
+    */
+
+    if (!serverCreateListeners(ServerName, 8631))
+      return (0);
+
+#else
+   /*
+    * Use 8000 + UID mod 1000 for the default port number...
+    */
+
+    if (!serverCreateListeners(ServerName, 8000 + (getuid() % 1000)))
+      return (0);
+#endif /* WIN32 */
+  }
+
+  return (1);
+}
+
+
+/*
  * 'serverLoadConfiguration()' - Load the server configuration file.
  */
 
@@ -766,6 +868,7 @@ load_printer(const char *conf,		/* I - Configuration file */
 {
   (void)conf;
   (void)icon;
+  int duplex = 1, ppm = 10, ppm_color = 10;		// TODO: Update
 
   return (NULL);
 }

@@ -33,9 +33,8 @@ main(int  argc,				/* I - Number of command-line args */
 {
   int		i;			/* Looping var */
   const char	*opt,			/* Current option character */
-		*attrfile = NULL,	/* Attributes file */
-		*command = NULL,	/* Command to run with job files */
-		*servername = NULL,	/* Server host name */
+		*confdir = NULL,	/* Configuration directory */
+                *command = NULL,	/* Command to run with job files */
 		*name = NULL,		/* Printer name */
 		*location = "",		/* Location of printer */
 		*make = "Test",		/* Manufacturer */
@@ -43,17 +42,12 @@ main(int  argc,				/* I - Number of command-line args */
 		*icon = "printer.png",	/* Icon file */
 		*formats = "application/pdf,image/jpeg,image/pwg-raster";
 	      				/* Supported formats */
-#ifdef HAVE_SSL
-  const char	*keypath = NULL;	/* Keychain path */
-#endif /* HAVE_SSL */
   const char	*subtype = "_print";	/* Bonjour service subtype */
   int		port = 0,		/* Port number (0 = auto) */
 		pin = 0;		/* PIN printing mode? */
-  char		directory[1024] = "",	/* Spool directory */
-		hostname[1024],		/* Auto-detected hostname */
-		proxy_user[256] = "",	/* Proxy username */
-		*proxy_pass = NULL;	/* Proxy password */
+  const char	*proxy_user = NULL;	/* Proxy username */
   server_printer_t *printer;		/* Printer object */
+  ipp_t		*attrs = NULL;		/* Extra printer attributes */
 
 
  /*
@@ -61,18 +55,28 @@ main(int  argc,				/* I - Number of command-line args */
   */
 
   for (i = 1; i < argc; i ++)
+  {
     if (argv[i][0] == '-')
     {
       for (opt = argv[i] + 1; *opt; opt ++)
       {
         switch (*opt)
 	{
+          case 'C' : /* -C config-directory */
+              i ++;
+              if (i >= argc)
+                usage(1);
+
+              confdir = argv[i];
+              break;
+
 #ifdef HAVE_SSL
 	  case 'K' : /* -K keypath */
 	      i ++;
 	      if (i >= argc)
 	        usage(1);
-	      keypath = argv[i];
+
+	      KeychainPath = strdup(argv[i]);
 	      break;
 #endif /* HAVE_SSL */
 
@@ -80,6 +84,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      i ++;
 	      if (i >= argc)
 	        usage(1);
+
 	      make = argv[i];
 	      break;
 
@@ -92,7 +97,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-	      attrfile = argv[i];
+	      attrs = serverLoadAttributes(argv[i]);
 	      break;
 
           case 'c' : /* -c command */
@@ -103,17 +108,19 @@ main(int  argc,				/* I - Number of command-line args */
 	      command = argv[i];
 	      break;
 
-	  case 'd' : /* -d spool-directory */
+	  case 'd' : /* -d data-directory */
 	      i ++;
 	      if (i >= argc)
 	        usage(1);
-	      strlcpy(directory, argv[i], sizeof(directory));
+
+	      DataDirectory = strdup(argv[i]);
 	      break;
 
 	  case 'f' : /* -f type/subtype[,...] */
 	      i ++;
 	      if (i >= argc)
 	        usage(1);
+
 	      formats = argv[i];
 	      break;
 
@@ -128,6 +135,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      i ++;
 	      if (i >= argc)
 	        usage(1);
+
 	      icon = argv[i];
 	      break;
 
@@ -135,6 +143,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      i ++;
 	      if (i >= argc)
 	        usage(1);
+
 	      location = argv[i];
 	      break;
 
@@ -142,6 +151,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      i ++;
 	      if (i >= argc)
 	        usage(1);
+
 	      model = argv[i];
 	      break;
 
@@ -149,13 +159,15 @@ main(int  argc,				/* I - Number of command-line args */
 	      i ++;
 	      if (i >= argc)
 	        usage(1);
-	      servername = argv[i];
+
+	      ServerName = strdup(argv[i]);
 	      break;
 
 	  case 'p' : /* -p port */
 	      i ++;
 	      if (i >= argc || !isdigit(argv[i][0] & 255))
 	        usage(1);
+
 	      port = atoi(argv[i]);
 	      break;
 
@@ -163,6 +175,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      i ++;
 	      if (i >= argc)
 	        usage(1);
+
 	      subtype = argv[i];
 	      break;
 
@@ -170,9 +183,8 @@ main(int  argc,				/* I - Number of command-line args */
 	      i ++;
 	      if (i >= argc)
 	        usage(1);
-	      strlcpy(proxy_user, argv[i], sizeof(proxy_user));
-	      if ((proxy_pass = strchr(proxy_user, ':')) != NULL)
-	        *proxy_pass++ = '\0';
+
+	      proxy_user = argv[i];
 	      break;
 
 	  case 'v' : /* -v (be verbose) */
@@ -180,7 +192,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      break;
 
           default : /* Unknown */
-	      fprintf(stderr, "Unknown option \"-%c\".\n", *opt);
+	      fprintf(stderr, "ippserver: Unknown option \"-%c\".\n", *opt);
 	      usage(1);
 	}
       }
@@ -191,113 +203,43 @@ main(int  argc,				/* I - Number of command-line args */
     }
     else
     {
-      fprintf(stderr, "Unexpected command-line argument \"%s\"\n", argv[i]);
+      fprintf(stderr, "ippserver: Unexpected command-line argument \"%s\"\n", argv[i]);
       usage(1);
     }
+  }
 
-  if (!name)
+  if (!name && !confdir)
     usage(1);
-
- /*
-  * Apply defaults as needed...
-  */
-
-  if (!servername)
-    servername = httpGetHostname(NULL, hostname, sizeof(hostname));
-
-  if (!port)
+  else if (confdir)
   {
-#ifdef WIN32
    /*
-    * Windows is almost always used as a single user system, so use a default port
-    * number of 8631.
+    * Load the configuration from the specified directory...
     */
 
-    port = 8631;
-
-#else
+    if (!serverLoadConfiguration(confdir))
+      return (1);
+  }
+  else
+  {
    /*
-    * Use 8000 + UID mod 1000 for the default port number...
+    * Create a single printer (backwards-compatibility mode)...
     */
 
-    port = 8000 + ((int)getuid() % 1000);
-#endif /* WIN32 */
+    if (!serverFinalizeConfiguration())
+      return (1);
 
-    fprintf(stderr, "Listening on port %d.\n", port);
+    if ((printer = serverCreatePrinter("/ipp/print", name, location, make, model, icon, formats, pin, subtype, attrs, command, proxy_user)) == NULL)
+      return (1);
+
+    Printers = cupsArrayNew(NULL, NULL);
+    cupsArrayAdd(Printers, printer);
   }
 
-  if (!directory[0])
-  {
-    const char *tmpdir;			/* Temporary directory */
-
-#ifdef WIN32
-    if ((tmpdir = getenv("TEMP")) == NULL)
-      tmpdir = "C:/TEMP";
-#elif defined(__APPLE__)
-    if ((tmpdir = getenv("TMPDIR")) == NULL)
-      tmpdir = "/private/tmp";
-#else
-    if ((tmpdir = getenv("TMPDIR")) == NULL)
-      tmpdir = "/tmp";
-#endif /* WIN32 */
-
-    snprintf(directory, sizeof(directory), "%s/ippserver.%d", tmpdir, (int)getpid());
-
-    if (mkdir(directory, 0755) && errno != EEXIST)
-    {
-      fprintf(stderr, "Unable to create spool directory \"%s\": %s\n",
-	      directory, strerror(errno));
-      usage(1);
-    }
-
-    if (Verbosity)
-      fprintf(stderr, "Using spool directory \"%s\".\n", directory);
-  }
-
-  if (!proxy_user[0])
-  {
-    strlcpy(proxy_user, "test", sizeof(proxy_user));
-
-    if (Verbosity)
-      fputs("Using proxy username \"test\".\n", stderr);
-  }
-
-  if (!proxy_pass)
-  {
-    proxy_pass = "test123";
-
-    if (Verbosity)
-      fputs("Using proxy password \"test123\".\n", stderr);
-  }
-
-#ifdef HAVE_SSL
-  cupsSetServerCredentials(keypath, servername, 1);
-#endif /* HAVE_SSL */
-
  /*
-  * Initialize Bonjour...
+  * Enter the server main loop...
   */
 
-  serverDNSSDInit();
-
- /*
-  * Create the printer...
-  */
-
-  if ((printer = serverCreatePrinter(servername, port, name, directory, NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, proxy_user, proxy_pass)) == NULL)
-    return (1);
-
- /*
-  * Run the print service...
-  */
-
-  serverRunPrinter(printer);
-
- /*
-  * Destroy the printer and exit...
-  */
-
-  serverDeletePrinter(printer);
+  serverRun();
 
   return (0);
 }
@@ -312,21 +254,33 @@ usage(int status)			/* O - Exit status */
 {
   if (!status)
   {
-    puts(CUPS_SVERSION " - Copyright 2010-2014 by Apple Inc. All rights reserved.");
+    puts(CUPS_SVERSION " - Copyright 2010-2015 by Apple Inc. All rights reserved.");
     puts("");
   }
 
-  puts("Usage: ippinfra [options] \"name\"");
+  puts("Usage: ippserver [options] \"name\"");
   puts("");
   puts("Options:");
-  printf("-d spool-directory      Spool directory "
-         "(default=/tmp/ippserver.%d)\n", (int)getpid());
+//  puts("-2                      Supports 2-sided printing (default=1-sided)");
+  puts("-C config-directory     Load settings and printers from the specified directory.");
+  puts("-M manufacturer         Manufacturer name (default=Test)");
+  puts("-P                      PIN printing mode");
+  puts("-a attributes-file      Load printer attributes from file");
+  puts("-c command              Run command for every print job");
+  printf("-d data-directory       Data/spool directory "
+         "(default=$TMPDIR/ippserver.%d)\n", (int)getpid());
+  puts("-f type/subtype[,...]   List of supported types "
+       "(default=application/pdf,image/jpeg)");
   puts("-h                      Show program help");
+  puts("-i iconfile.png         PNG icon file (default=printer.png)");
   puts("-k                      Keep job spool files");
+  puts("-l location             Location of printer (default=empty string)");
+  puts("-m model                Model name (default=Printer)");
   puts("-n hostname             Hostname for printer");
   puts("-p port                 Port number (default=auto)");
-  puts("-u user:pass            Set proxy username and password");
-  puts("-v[vvv]                 Be (very) verbose");
+  puts("-r subtype              Bonjour service subtype (default=_print)");
+  puts("-s speed[,color-speed]  Speed in pages per minute (default=10,0)");
+  puts("-v[v]                   Be (very) verbose");
 
   exit(status);
 }

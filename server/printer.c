@@ -87,12 +87,15 @@ serverCreatePrinter(
     const char *model,			/* I - printer-make-and-model */
     const char *icon,			/* I - printer-icons */
     const char *docformats,		/* I - document-format-supported */
+    int        ppm,			/* I - Pages per minute in grayscale */
+    int        ppm_color,		/* I - Pages per minute in color (0 for gray) */
+    int        duplex,			/* I - 1 = duplex, 0 = simplex */
     int        pin,			/* I - Require PIN printing */
     const char *subtype,		/* I - Bonjour service subtype */
     ipp_t      *attrs,			/* I - Attributes */
-    const char *proxy_user)		/* I - Proxy account username */
+    const char *command,		/* I - Command to run, if any */
+    const char *proxy_user)		/* I - Proxy account username, if any */
 {
-  int duplex = 1, ppm = 10, ppm_color = 10;		// TODO: Update
   int			i;		/* Looping var */
   server_printer_t	*printer;	/* Printer */
   server_listener_t	*lis;		/* Current listener */
@@ -119,6 +122,7 @@ serverCreatePrinter(
   struct statfs		spoolinfo;	/* FS info for spool directory */
   double		spoolsize;	/* FS size */
 #endif /* HAVE_STATVFS */
+  ipp_attribute_t	*attr;		/* Attribute */
   static const int	orients[4] =	/* orientation-requested-supported values */
   {
     IPP_ORIENT_PORTRAIT,
@@ -288,18 +292,6 @@ serverCreatePrinter(
     "W8",
     "DM1"
   };
-#ifdef HAVE_SSL
-  static const char * const uri_authentication_supported[] =
-  {					/* uri-authentication-supported values */
-    "none",
-    "none"
-  };
-  static const char * const uri_security_supported[] =
-  {					/* uri-security-supported values */
-    "none",
-    "tls"
-  };
-#endif /* HAVE_SSL */
   static const char * const which_jobs[] =
   {					/* which-jobs-supported values */
     "completed",
@@ -352,6 +344,9 @@ serverCreatePrinter(
 
   if (icon)
     printer->icon = strdup(icon);
+
+  if (command)
+    printer->command = strdup(command);
 
   if (proxy_user)
     printer->proxy_user = strdup(proxy_user);
@@ -844,7 +839,7 @@ serverCreatePrinter(
                "printer-make-and-model", NULL, make_model);
 
   /* printer-mandatory-job-attributes */
-  if (pin && !ippFindAttribute(printer->attrs, "", IPP_TAG_ZERO))
+  if (pin && !ippFindAttribute(printer->attrs, "printer-mandatory-job-attributes", IPP_TAG_ZERO))
   {
     static const char * const names[] =
     {
@@ -928,17 +923,20 @@ serverCreatePrinter(
     ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "urf-supported", (int)(sizeof(urf_supported) / sizeof(urf_supported[0])) - !duplex, NULL, urf_supported);
 
   /* uri-authentication-supported */
-#ifdef HAVE_SSL
-  ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-authentication-supported", 2, NULL, uri_authentication_supported);
-#else
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-authentication-supported", NULL, "none");
-#endif /* HAVE_SSL */
+  attr = ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-authentication-supported", NULL, proxy_user ? "basic"  : "none");
+  for (i = 1; i < cupsArrayCount(uris); i ++)
+    ippSetString(printer->attrs, &attr, i, proxy_user ? "basic"  : "none");
 
   /* uri-security-supported */
 #ifdef HAVE_SSL
-  ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", 2, NULL, uri_security_supported);
+  attr = ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", NULL, "tls");
+  for (i = 1; i < cupsArrayCount(uris); i ++)
+    ippSetString(printer->attrs, &attr, i, "tls");
+
 #else
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", NULL, "none");
+  attr = ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", NULL, "none");
+  for (i = 1; i < cupsArrayCount(uris); i ++)
+    ippSetString(printer->attrs, &attr, i, "none");
 #endif /* HAVE_SSL */
 
   /* which-jobs-supported */
