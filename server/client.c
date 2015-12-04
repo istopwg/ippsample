@@ -33,9 +33,7 @@ static int		parse_options(server_client_t *client, cups_option_t **options);
  */
 
 server_client_t *			/* O - Client */
-serverCreateClient(
-    server_printer_t *printer,		/* I - Printer */
-    int              sock)		/* I - Listen socket */
+serverCreateClient(int sock)		/* I - Listen socket */
 {
   server_client_t	*client;	/* Client */
 
@@ -46,7 +44,7 @@ serverCreateClient(
     return (NULL);
   }
 
-  client->printer = printer;
+//  client->printer = printer;
 
  /*
   * Accept the client and get the remote address...
@@ -54,7 +52,7 @@ serverCreateClient(
 
   if ((client->http = httpAcceptConnection(sock, 1)) == NULL)
   {
-    perror("Unable to accept client connection");
+    serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Unable to accept client connection: %s", cupsLastErrorString());
 
     free(client);
 
@@ -63,8 +61,7 @@ serverCreateClient(
 
   httpGetHostname(client->http, client->hostname, sizeof(client->hostname));
 
-  if (Verbosity)
-    fprintf(stderr, "Accepted connection from %s\n", client->hostname);
+  serverLogClient(SERVER_LOGLEVEL_INFO, client, "Accepted connection from \"%s\".", client->hostname);
 
   return (client);
 }
@@ -74,24 +71,50 @@ serverCreateClient(
  * 'serverCreateListener()' - Create a listener socket.
  */
 
-int					/* O - Listener socket or -1 on error */
-serverCreateListener(int family,	/* I - Address family */
-                     int port)		/* I - Port number */
+int					/* O - 1 on success, 0 on error */
+serverCreateListeners(const char *host,	/* I - Hostname, IP address, or "*" for any address */
+                      int        port)	/* I - Port number */
 {
   int			sock;		/* Listener socket */
-  http_addrlist_t	*addrlist;	/* Listen address */
-  char			service[255];	/* Service port */
+  http_addrlist_t	*addrlist,	/* Listen address(es) */
+			*addr;		/* Current address */
+  char			service[32],	/* Service port */
+			local[256];	/* Local hostname */
+  server_listener_t	*lis;		/* New listener */
 
 
   snprintf(service, sizeof(service), "%d", port);
-  if ((addrlist = httpAddrGetList(NULL, family, service)) == NULL)
-    return (-1);
+  if ((addrlist = httpAddrGetList(host, AF_UNSPEC, service)) == NULL)
+  {
+    fprintf(stderr, "ippserver: Unable to resolve Listen address \"%s\": %s\n", host, cupsLastErrorString());
+    return (0);
+  }
 
-  sock = httpAddrListen(&(addrlist->addr), port);
+  if (!strcmp(host, "*"))
+  {
+    httpGetHostname(NULL, local, sizeof(local));
+    host = local;
+  }
+
+  for (addr = addrlist; addr; addr = addr->next)
+  {
+    if ((sock = httpAddrListen(&(addrlist->addr), port)) < 0)
+      continue;
+
+    lis = calloc(1, sizeof(server_listener_t));
+    lis->fd = sock;
+    strlcpy(lis->host, host, sizeof(lis->host));
+    lis->port = port;
+
+    if (!Listeners)
+      Listeners = cupsArrayNew(NULL, NULL);
+
+    cupsArrayAdd(Listeners, lis);
+  }
 
   httpAddrFreeList(addrlist);
 
-  return (sock);
+  return (1);
 }
 
 
@@ -102,8 +125,7 @@ serverCreateListener(int family,	/* I - Address family */
 void
 serverDeleteClient(server_client_t *client)	/* I - Client */
 {
-  if (Verbosity)
-    fprintf(stderr, "Closing connection from %s\n", client->hostname);
+  serverLogClient(SERVER_LOGLEVEL_INFO, client, "Closing connection from \"%s\".", client->hostname);
 
  /*
   * Flush pending writes before closing...
@@ -897,6 +919,93 @@ serverRespondHTTP(
   }
 
   return (1);
+}
+
+
+/*
+ * 'serverRun()' - Run the server.
+ */
+
+void
+serverRun(void)
+{
+#if 0
+  int		num_fds;		/* Number of file descriptors */
+  struct pollfd	polldata[3];		/* poll() data */
+  int		timeout;		/* Timeout for poll() */
+  server_client_t	*client;		/* New client */
+
+
+ /*
+  * Setup poll() data for the Bonjour service socket and IPv4/6 listeners...
+  */
+
+  polldata[0].fd     = printer->ipv4;
+  polldata[0].events = POLLIN;
+
+  polldata[1].fd     = printer->ipv6;
+  polldata[1].events = POLLIN;
+
+  num_fds = 2;
+
+#ifdef HAVE_DNSSD
+  polldata[num_fds   ].fd     = DNSServiceRefSockFD(DNSSDMaster);
+  polldata[num_fds ++].events = POLLIN;
+#endif /* HAVE_DNSSD */
+
+ /*
+  * Loop until we are killed or have a hard error...
+  */
+
+  for (;;)
+  {
+    if (cupsArrayCount(printer->jobs))
+      timeout = 10;
+    else
+      timeout = -1;
+
+    if (poll(polldata, (nfds_t)num_fds, timeout) < 0 && errno != EINTR)
+    {
+      perror("poll() failed");
+      break;
+    }
+
+    if (polldata[0].revents & POLLIN)
+    {
+      if ((client = serverCreateClient(printer, printer->ipv4)) != NULL)
+      {
+	if (!_cupsThreadCreate((_cups_thread_func_t)serverProcessClient, client))
+	{
+	  perror("Unable to create client thread");
+	  serverDeleteClient(client);
+	}
+      }
+    }
+
+    if (polldata[1].revents & POLLIN)
+    {
+      if ((client = serverCreateClient(printer, printer->ipv6)) != NULL)
+      {
+	if (!_cupsThreadCreate((_cups_thread_func_t)serverProcessClient, client))
+	{
+	  perror("Unable to create client thread");
+	  serverDeleteClient(client);
+	}
+      }
+    }
+
+#ifdef HAVE_DNSSD
+    if (polldata[2].revents & POLLIN)
+      DNSServiceProcessResult(DNSSDMaster);
+#endif /* HAVE_DNSSD */
+
+   /*
+    * Clean out old jobs...
+    */
+
+    serverCleanJobs(printer);
+  }
+#endif // 0
 }
 
 

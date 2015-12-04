@@ -116,13 +116,29 @@ typedef char _cups_cond_t;
 #  define SERVER_NOTIFY_LEASE_DURATION_DEFAULT		86400
 
 
-/* URL scheme for web resources... */
+/* URL schemes and DNS-SD types for IPP and web resources... */
 #  ifdef HAVE_SSL
+#    define SERVER_IPP_SCHEME "ipps"
+#    define SERVER_IPP_TYPE "_ipps._tcp"
 #    define SERVER_WEB_SCHEME "https"
+#    define SERVER_WEB_TYPE "_https._tcp"
 #  else
+#    define SERVER_IPP_SCHEME "ipp"
+#    define SERVER_IPP_TYPE "_ipp._tcp"
 #    define SERVER_WEB_SCHEME "http"
+#    define SERVER_WEB_TYPE "_http._tcp"
 #  endif /* HAVE_SSL */
 
+/*
+ * LogLevel constants...
+ */
+
+typedef enum server_loglevel_e
+{
+  SERVER_LOGLEVEL_ERROR,
+  SERVER_LOGLEVEL_INFO,
+  SERVER_LOGLEVEL_DEBUG
+} server_loglevel_t;
 
 /*
  * Event mask enumeration...
@@ -350,21 +366,14 @@ typedef struct server_device_s		/**** Output Device data ****/
 typedef struct server_printer_s		/**** Printer data ****/
 {
   _cups_rwlock_t	rwlock;		/* Printer lock */
-  server_srv_t		ipp_ref,	/* Bonjour IPP service */
-			ipps_ref,	/* Bonjour IPPS service */
-			http_ref,	/* Bonjour HTTP service */
+  server_srv_t		ipp_ref,	/* Bonjour IPP(S) service */
+			http_ref,	/* Bonjour HTTP(S) service */
 			printer_ref;	/* Bonjour LPD service */
-  char			*dnssd_name,	/* printer-dnssd-name */
+  char			*resource,	/* Resource path */
+                        *dnssd_name,	/* printer-dnssd-name */
 			*name,		/* printer-name */
-			*directory,	/* Spool directory */
-			*hostname,	/* Hostname */
-                        *resource,	/* Resource path */
-			*uri,		/* printer-uri-supported */
                         *icon,		/* Icon file */
-			*proxy_user,	/* Proxy username */
-			*proxy_pass;	/* Proxy password */
-  int			port;		/* Port */
-  size_t		urilen;		/* Length of printer URI */
+			*proxy_user;	/* Proxy username */
   cups_array_t		*devices;	/* Associated devices */
   ipp_t			*attrs;		/* Static attributes */
   ipp_t			*dev_attrs;	/* Current device attributes */
@@ -417,7 +426,7 @@ typedef struct server_subscription_s	/**** Subscription data ****/
   int			id;		/* notify-subscription-id */
   const char		*uuid;		/* notify-subscription-uuid */
   _cups_rwlock_t	rwlock;		/* Subscription lock */
-  server_event_t		mask;		/* Event mask */
+  server_event_t	mask;		/* Event mask */
   server_printer_t	*printer;	/* Printer */
   server_job_t		*job;		/* Job, if any */
   ipp_t			*attrs;		/* Attributes */
@@ -451,10 +460,27 @@ typedef struct server_client_s		/**** Client data ****/
 			fetch_file;	/* File to fetch */
 } server_client_t;
 
+typedef struct server_listener_s	/**** Listener data ****/
+{
+  int	fd;				/* Listener socket */
+  char	host[256];			/* Hostname, if any */
+  int	port;				/* Port number */
+} server_listener_t;
+
 
 /*
  * Globals...
  */
+
+VAR char		*ConfigDirectory VALUE(NULL);
+VAR char		*DataDirectory	VALUE(NULL);
+VAR int			KeepFiles	VALUE(0);
+VAR cups_array_t	*Listeners	VALUE(NULL);
+VAR char		*LogFile	VALUE(NULL);
+VAR server_loglevel_t	LogLevel	VALUE(SERVER_LOGLEVEL_ERROR);
+VAR int			MaxJobs		VALUE(100);
+VAR cups_array_t	*Printers	VALUE(NULL);
+VAR char		*SpoolDirectory	VALUE(NULL);
 
 #ifdef HAVE_DNSSD
 VAR DNSServiceRef	DNSSDMaster	VALUE(NULL);
@@ -463,11 +489,6 @@ VAR AvahiThreadedPoll	*DNSSDMaster	VALUE(NULL);
 VAR AvahiClient		*DNSSDClient	VALUE(NULL);
 #endif /* HAVE_DNSSD */
 
-VAR int			NumListeners	VALUE(0),
-			Listeners[16],
-                        KeepFiles	VALUE(0),
-			Verbosity	VALUE(0);
-VAR cups_array_t	*Printers	VALUE(NULL);
 //VAR _cups_mutex_t	SubscriptionMutex VALUE(_CUPS_MUTEX_INITIALIZER);
 VAR _cups_cond_t	SubscriptionCondition VALUE(_CUPS_COND_INITIALIZER);
 
@@ -482,12 +503,12 @@ extern void		serverCleanJobs(server_printer_t *printer);
 extern void		serverCopyAttributes(ipp_t *to, ipp_t *from, cups_array_t *ra, ipp_tag_t group_tag, int quickcopy);
 extern void		serverCopyJobStateReasons(ipp_t *ipp, ipp_tag_t group_tag, server_job_t *job);
 extern void		serverCopyPrinterStateReasons(ipp_t *ipp, ipp_tag_t group_tag, server_printer_t *printer);
-extern server_client_t	*serverCreateClient(server_printer_t *printer, int sock);
+extern server_client_t	*serverCreateClient(int sock);
 extern server_device_t	*serverCreateDevice(server_client_t *client);
 extern server_job_t	*serverCreateJob(server_client_t *client);
 extern void		serverCreateJobFilename(server_printer_t *printer, server_job_t *job, const char *format, char *fname, size_t fnamesize);
-extern int		serverCreateListener(int family, int port);
-extern server_printer_t	*serverCreatePrinter(const char *servername, int port, const char *name, const char *directory, const char *location, const char *make, const char *model, const char *icon, const char *docformats, int pin, const char *subtype, const char *attrfile, const char *proxy_user, const char *proxy_pass);
+extern int		serverCreateListeners(const char *host, int port);
+extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, const char *location, const char *make, const char *model, const char *icon, const char *docformats, int pin, const char *subtype, ipp_t *attrs, const char *proxy_user);
 extern server_subscription_t *serverCreateSubcription(server_printer_t *printer, server_job_t *job, int interval, int lease, const char *username, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
 extern void		serverDeleteClient(server_client_t *client);
 extern void		serverDeleteDevice(server_device_t *device);
@@ -503,11 +524,11 @@ extern server_event_t	serverGetNotifyEventsBits(ipp_attribute_t *attr);
 extern const char	*serverGetNotifySubscribedEvent(server_event_t event);
 extern server_preason_t	serverGetPrinterStateReasonsBits(ipp_attribute_t *attr);
 extern int		serverLoadConfiguration(const char *directory);
-extern void		serverLog(int level, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
+extern void		serverLog(server_loglevel_t level, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
 extern void		serverLogAttributes(const char *title, ipp_t *ipp, int type);
-extern void		serverLogClient(int level, server_client_t *client, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
-extern void		serverLogJob(int level, server_job_t *job, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
-extern void		serverLogPrinter(int level, server_printer_t *printer, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
+extern void		serverLogClient(server_loglevel_t level, server_client_t *client, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
+extern void		serverLogJob(server_loglevel_t level, server_job_t *job, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
+extern void		serverLogPrinter(server_loglevel_t level, server_printer_t *printer, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
 extern void		*serverProcessClient(server_client_t *client);
 extern int		serverProcessHTTP(server_client_t *client);
 extern int		serverProcessIPP(server_client_t *client);
@@ -515,7 +536,7 @@ extern void		*serverProcessJob(server_job_t *job);
 extern int		serverRespondHTTP(server_client_t *client, http_status_t code, const char *content_coding, const char *type, size_t length);
 extern void		serverRespondIPP(server_client_t *client, ipp_status_t status, const char *message, ...) __attribute__ ((__format__ (__printf__, 3, 4)));
 extern void		serverRespondUnsupported(server_client_t *client, ipp_attribute_t *attr);
-extern void		serverRunPrinter(server_printer_t *printer);
+extern void		serverRun(void);
 extern char		*serverTimeString(time_t tv, char *buffer, size_t bufsize);
 extern int		serverTransformJob(server_job_t *job, const char *format);
 extern void		serverUpdateDeviceAttributesNoLock(server_printer_t *printer);

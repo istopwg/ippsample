@@ -1563,8 +1563,7 @@ ipp_print_job(server_client_t *client)	/* I - Client */
 
   serverCreateJobFilename(client->printer, job, NULL, filename, sizeof(filename));
 
-  if (Verbosity)
-    fprintf(stderr, "Creating job file \"%s\", format \"%s\".\n", filename, job->format);
+  serverLogJob(SERVER_LOGLEVEL_INFO, job, "Creating job file \"%s\", format \"%s\".", filename, job->format);
 
   if ((job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0)
   {
@@ -1781,20 +1780,15 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
   */
 
   if (!strcasecmp(job->format, "image/jpeg"))
-    snprintf(filename, sizeof(filename), "%s/%d.jpg",
-             client->printer->directory, job->id);
+    snprintf(filename, sizeof(filename), "%s/%d.jpg", SpoolDirectory, job->id);
   else if (!strcasecmp(job->format, "image/png"))
-    snprintf(filename, sizeof(filename), "%s/%d.png",
-             client->printer->directory, job->id);
+    snprintf(filename, sizeof(filename), "%s/%d.png", SpoolDirectory, job->id);
   else if (!strcasecmp(job->format, "application/pdf"))
-    snprintf(filename, sizeof(filename), "%s/%d.pdf",
-             client->printer->directory, job->id);
+    snprintf(filename, sizeof(filename), "%s/%d.pdf", SpoolDirectory, job->id);
   else if (!strcasecmp(job->format, "application/postscript"))
-    snprintf(filename, sizeof(filename), "%s/%d.ps",
-             client->printer->directory, job->id);
+    snprintf(filename, sizeof(filename), "%s/%d.ps", SpoolDirectory, job->id);
   else
-    snprintf(filename, sizeof(filename), "%s/%d.prn",
-             client->printer->directory, job->id);
+    snprintf(filename, sizeof(filename), "%s/%d.prn", SpoolDirectory, job->id);
 
   if ((job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0)
   {
@@ -2113,8 +2107,7 @@ ipp_send_document(server_client_t *client)/* I - Client */
 
   serverCreateJobFilename(client->printer, job, NULL, filename, sizeof(filename));
 
-  if (Verbosity)
-    fprintf(stderr, "Creating job file \"%s\", format \"%s\".\n", filename, job->format);
+  serverLogJob(SERVER_LOGLEVEL_INFO, job, "Creating job file \"%s\", format \"%s\".", filename, job->format);
 
   job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 
@@ -2381,20 +2374,15 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
   */
 
   if (!strcasecmp(job->format, "image/jpeg"))
-    snprintf(filename, sizeof(filename), "%s/%d.jpg",
-             client->printer->directory, job->id);
+    snprintf(filename, sizeof(filename), "%s/%d.jpg", SpoolDirectory, job->id);
   else if (!strcasecmp(job->format, "image/png"))
-    snprintf(filename, sizeof(filename), "%s/%d.png",
-             client->printer->directory, job->id);
+    snprintf(filename, sizeof(filename), "%s/%d.png", SpoolDirectory, job->id);
   else if (!strcasecmp(job->format, "application/pdf"))
-    snprintf(filename, sizeof(filename), "%s/%d.pdf",
-             client->printer->directory, job->id);
+    snprintf(filename, sizeof(filename), "%s/%d.pdf", SpoolDirectory, job->id);
   else if (!strcasecmp(job->format, "application/postscript"))
-    snprintf(filename, sizeof(filename), "%s/%d.ps",
-             client->printer->directory, job->id);
+    snprintf(filename, sizeof(filename), "%s/%d.ps", SpoolDirectory, job->id);
   else
-    snprintf(filename, sizeof(filename), "%s/%d.prn",
-             client->printer->directory, job->id);
+    snprintf(filename, sizeof(filename), "%s/%d.prn", SpoolDirectory, job->id);
 
   job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 
@@ -3367,8 +3355,7 @@ valid_doc_attributes(
 
       if (strcmp(compression, "none"))
       {
-	if (Verbosity)
-	  fprintf(stderr, "Receiving job file with \"%s\" compression.\n", compression);
+	serverLogClient(SERVER_LOGLEVEL_INFO, client, "Receiving job file with \"%s\" compression.", compression);
         httpSetField(client->http, HTTP_FIELD_CONTENT_ENCODING, compression);
       }
     }

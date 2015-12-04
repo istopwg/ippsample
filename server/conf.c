@@ -23,8 +23,8 @@
  */
 
 static int		compare_printers(server_printer_t *a, server_printer_t *b);
-static ipp_t		*get_collection(FILE *fp, const char *filename, int *linenum);
-static char		*get_token(FILE *fp, char *buf, int buflen, int *linenum);
+static ipp_t		*get_collection(cups_file_t *fp, const char *filename, int *linenum);
+static char		*get_token(cups_file_t *fp, char *buf, int buflen, int *linenum);
 static server_printer_t	*load_printer(const char *conf, const char *icon);
 static int		load_system(const char *conf);
 
@@ -139,9 +139,9 @@ compare_printers(server_printer_t *a,	/* I - First printer */
  */
 
 static ipp_t *				/* O  - Collection value */
-get_collection(FILE       *fp,		/* I  - File to read from */
-               const char *filename,	/* I  - Attributes filename */
-	       int        *linenum)	/* IO - Line number */
+get_collection(cups_file_t *fp,		/* I  - File to read from */
+               const char  *filename,	/* I  - Attributes filename */
+	       int         *linenum)	/* IO - Line number */
 {
   char		token[1024],		/* Token from file */
 		attr[128];		/* Attribute name */
@@ -341,10 +341,10 @@ get_collection(FILE       *fp,		/* I  - File to read from */
  */
 
 static char *				/* O  - Token from file or NULL on EOF */
-get_token(FILE *fp,			/* I  - File to read from */
-          char *buf,			/* I  - Buffer to read into */
-	  int  buflen,			/* I  - Length of buffer */
-	  int  *linenum)		/* IO - Current line number */
+get_token(cups_file_t *fp,		/* I  - File to read from */
+          char        *buf,		/* I  - Buffer to read into */
+	  int         buflen,		/* I  - Length of buffer */
+	  int         *linenum)		/* IO - Current line number */
 {
   int	ch,				/* Character from file */
 	quote;				/* Quoting character */
@@ -358,7 +358,7 @@ get_token(FILE *fp,			/* I  - File to read from */
     * Skip whitespace...
     */
 
-    while (isspace(ch = getc(fp)))
+    while (isspace(ch = cupsFileGetChar(fp)))
     {
       if (ch == '\n')
         (*linenum) ++;
@@ -380,7 +380,7 @@ get_token(FILE *fp,			/* I  - File to read from */
       bufptr = buf;
       bufend = buf + buflen - 1;
 
-      while ((ch = getc(fp)) != EOF)
+      while ((ch = cupsFileGetChar(fp)) != EOF)
       {
         if (ch == '\\')
 	{
@@ -391,7 +391,7 @@ get_token(FILE *fp,			/* I  - File to read from */
 	  if (bufptr < bufend)
 	    *bufptr++ = (char)ch;
 
-	  if ((ch = getc(fp)) != EOF && bufptr < bufend)
+	  if ((ch = cupsFileGetChar(fp)) != EOF && bufptr < bufend)
 	    *bufptr++ = (char)ch;
 	}
 	else if (ch == quote)
@@ -410,7 +410,7 @@ get_token(FILE *fp,			/* I  - File to read from */
       * Comment...
       */
 
-      while ((ch = getc(fp)) != EOF)
+      while ((ch = cupsFileGetChar(fp)) != EOF)
 	if (ch == '\n')
           break;
 
@@ -429,19 +429,29 @@ get_token(FILE *fp,			/* I  - File to read from */
       * Whitespace delimited text...
       */
 
-      ungetc(ch, fp);
-
       bufptr = buf;
       bufend = buf + buflen - 1;
 
-      while ((ch = getc(fp)) != EOF)
+      do
+      {
 	if (isspace(ch) || ch == '#')
           break;
 	else if (bufptr < bufend)
           *bufptr++ = (char)ch;
+      }
+      while ((ch = cupsFileGetChar(fp)) != EOF);
 
       if (ch == '#')
-        ungetc(ch, fp);
+      {
+        while ((ch = cupsFileGetChar(fp)) != EOF)
+        {
+          if (ch == '\n')
+          {
+            (*linenum) ++;
+            break;
+          }
+        }
+      }
       else if (ch == '\n')
         (*linenum) ++;
 
@@ -452,6 +462,8 @@ get_token(FILE *fp,			/* I  - File to read from */
   }
 }
 
+
+#if 0
 
 /*
  * 'load_attributes()' - Load printer attributes from a file.
@@ -741,6 +753,7 @@ load_attributes(const char *filename,	/* I - File to load */
 
   fclose(fp);
 }
+#endif // 0
 
 
 /*
@@ -765,7 +778,117 @@ load_printer(const char *conf,		/* I - Configuration file */
 static int				/* O - 1 on success, 0 on failure */
 load_system(const char *conf)		/* I - Configuration file */
 {
-  (void)conf;
+  cups_file_t	*fp;			/* File pointer */
+  int		status = 1,		/* Return value */
+		linenum = 0;		/* Current line number */
+  char		line[1024],		/* Line from file */
+		*value;			/* Pointer to value on line */
 
-  return (0);
+
+  if ((fp = cupsFileOpen(conf, "r")) == NULL)
+    return (errno == ENOENT);
+
+  while (cupsFileGetConf(fp, line, sizeof(line), &value, &linenum))
+  {
+    if (!value)
+    {
+      fprintf(stderr, "ippserver: Missing value on line %d of \"%s\".\n", linenum, conf);
+      status = 0;
+      break;
+    }
+
+    if (strcasecmp(line, "DataDirectory"))
+    {
+      if (access(value, R_OK))
+      {
+        fprintf(stderr, "ippserver: Unable to access DataDirectory \"%s\": %s\n", value, strerror(errno));
+        status = 0;
+        break;
+      }
+
+      DataDirectory = strdup(value);
+    }
+    else if (!strcasecmp(line, "KeepFiles"))
+    {
+      KeepFiles = !strcasecmp(value, "yes") || !strcasecmp(value, "true") || !strcasecmp(value, "on");
+    }
+    else if (!strcasecmp(line, "Listen"))
+    {
+      char	*ptr;			/* Pointer into host value */
+      int	port;			/* Port number */
+
+      if ((ptr = strrchr(value, ':')) != NULL && !isdigit(ptr[1] & 255))
+      {
+        fprintf(stderr, "ippserver: Bad Listen value \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
+        status = 0;
+        break;
+      }
+
+      if (ptr)
+      {
+        *ptr++ = '\0';
+        port   = atoi(ptr);
+      }
+      else
+        port = 8000 + (getuid() % 1000);
+
+      if (!serverCreateListeners(value, port))
+      {
+        status = 0;
+        break;
+      }
+    }
+    else if (!strcasecmp(line, "LogFile"))
+    {
+      if (!strcasecmp(value, "stderr"))
+        LogFile = NULL;
+      else
+        LogFile = strdup(value);
+    }
+    else if (!strcasecmp(line, "LogLevel"))
+    {
+      if (!strcasecmp(value, "error"))
+        LogLevel = SERVER_LOGLEVEL_ERROR;
+      else if (!strcasecmp(value, "info"))
+        LogLevel = SERVER_LOGLEVEL_INFO;
+      else if (!strcasecmp(value, "debug"))
+        LogLevel = SERVER_LOGLEVEL_DEBUG;
+      else
+      {
+        fprintf(stderr, "ippserver: Bad LogLevel value \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
+        status = 0;
+        break;
+      }
+    }
+    else if (!strcasecmp(line, "MaxJobs"))
+    {
+      if (!isdigit(*value & 255))
+      {
+        fprintf(stderr, "ippserver: Bad MaxJobs value \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
+        status = 0;
+        break;
+      }
+
+      MaxJobs = atoi(value);
+    }
+    else if (!strcasecmp(line, "SpoolDirectory"))
+    {
+      if (access(value, R_OK))
+      {
+        fprintf(stderr, "ippserver: Unable to access SpoolDirectory \"%s\": %s\n", value, strerror(errno));
+        status = 0;
+        break;
+      }
+
+      SpoolDirectory = strdup(value);
+    }
+    else
+    {
+      fprintf(stderr, "ippserver: Unknown directive \"%s\" on line %d.\n", line, linenum);
+    }
+  }
+
+  cupsFileClose(fp);
+
+  return (status);
 }

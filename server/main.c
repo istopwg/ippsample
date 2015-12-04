@@ -176,7 +176,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      break;
 
 	  case 'v' : /* -v (be verbose) */
-	      Verbosity ++;
+	      LogLevel ++;
 	      break;
 
           default : /* Unknown */

@@ -79,29 +79,27 @@ serverCopyPrinterStateReasons(
  */
 
 server_printer_t *			/* O - Printer */
-serverCreatePrinter(const char *servername,	/* I - Server hostname (NULL for default) */
-               int        port,		/* I - Port number */
-               const char *name,	/* I - printer-name */
-	       const char *directory,	/* I - Spool directory */
-	       const char *location,	/* I - printer-location */
-	       const char *make,	/* I - printer-make-and-model */
-	       const char *model,	/* I - printer-make-and-model */
-	       const char *icon,	/* I - printer-icons */
-	       const char *docformats,	/* I - document-format-supported */
-	       int        pin,		/* I - Require PIN printing */
-	       const char *subtype,	/* I - Bonjour service subtype */
-	       const char *attrfile,	/* I - Attributes file */
-	       const char *proxy_user,	/* I - Proxy account username */
-	       const char *proxy_pass)	/* I - Proxy account password */
+serverCreatePrinter(
+    const char *resource,		/* I - Resource path for URIs */
+    const char *name,			/* I - printer-name */
+    const char *location,		/* I - printer-location */
+    const char *make,			/* I - printer-make-and-model */
+    const char *model,			/* I - printer-make-and-model */
+    const char *icon,			/* I - printer-icons */
+    const char *docformats,		/* I - document-format-supported */
+    int        pin,			/* I - Require PIN printing */
+    const char *subtype,		/* I - Bonjour service subtype */
+    ipp_t      *attrs,			/* I - Attributes */
+    const char *proxy_user)		/* I - Proxy account username */
 {
   int duplex = 1, ppm = 10, ppm_color = 10;		// TODO: Update
   int			i;		/* Looping var */
   server_printer_t	*printer;	/* Printer */
+  server_listener_t	*lis;		/* Current listener */
+  cups_array_t		*uris;		/* Array of URIs */
   char			uri[1024],	/* Printer URI */
-#ifdef HAVE_SSL
-			securi[1024],	/* Secure printer URI */
-			*uris[2],	/* All URIs */
-#endif /* HAVE_SSL */
+			*uriptr,	/* Current URI */
+			**uriptrs,	/* All URIs */
 			icons[1024],	/* printer-icons URI */
 			adminurl[1024],	/* printer-more-info URI */
 			supplyurl[1024],/* printer-supply-info-uri URI */
@@ -326,13 +324,9 @@ serverCreatePrinter(const char *servername,	/* I - Server hostname (NULL for def
     return (NULL);
   }
 
-  printer->ipv4           = -1;
-  printer->ipv6           = -1;
+  printer->resource       = strdup(resource);
   printer->name           = strdup(name);
   printer->dnssd_name     = strdup(printer->name);
-  printer->directory      = strdup(directory);
-  printer->hostname       = strdup(servername);
-  printer->port           = port;
   printer->start_time     = time(NULL);
   printer->config_time    = printer->start_time;
   printer->state          = IPP_PSTATE_IDLE;
@@ -343,57 +337,42 @@ serverCreatePrinter(const char *servername,	/* I - Server hostname (NULL for def
   printer->completed_jobs = cupsArrayNew((cups_array_func_t)compare_completed_jobs, NULL);
   printer->next_job_id    = 1;
 
-  httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "ipp", NULL,
-		  printer->hostname, printer->port, "/ipp/print");
-  printer->uri    = strdup(uri);
-  printer->urilen = strlen(uri);
+  uris = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+  for (lis = cupsArrayFirst(Listeners); lis; lis = cupsArrayNext(Listeners))
+  {
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPP_SCHEME, NULL, lis->host, lis->port, resource);
 
-#ifdef HAVE_SSL
-  httpAssembleURI(HTTP_URI_CODING_ALL, securi, sizeof(securi), "ipps", NULL, printer->hostname, printer->port, "/ipp/print");
-#endif /* HAVE_SSL */
+    if (!cupsArrayFind(uris, uri))
+      cupsArrayAdd(uris, uri);
+  }
+
+  uriptrs = calloc(cupsArrayCount(uris), sizeof(char *));
+  for (i = 0, uriptr = cupsArrayFirst(uris); uriptr; i ++, uriptr = cupsArrayNext(uris))
+    uriptrs[i] = uriptr;
 
   if (icon)
     printer->icon = strdup(icon);
 
   if (proxy_user)
     printer->proxy_user = strdup(proxy_user);
-  if (proxy_pass)
-    printer->proxy_pass = strdup(proxy_pass);
 
   printer->devices = cupsArrayNew((cups_array_func_t)compare_devices, NULL);
 
   _cupsRWInit(&(printer->rwlock));
 
  /*
-  * Create the listener sockets...
-  */
-
-  if ((printer->ipv4 = serverCreateListener(AF_INET, printer->port)) < 0)
-  {
-    perror("Unable to create IPv4 listener");
-    goto bad_printer;
-  }
-
-  if ((printer->ipv6 = serverCreateListener(AF_INET6, printer->port)) < 0)
-  {
-    perror("Unable to create IPv6 listener");
-    goto bad_printer;
-  }
-
- /*
   * Prepare values for the printer attributes...
   */
 
-  httpAssembleURI(HTTP_URI_CODING_ALL, icons, sizeof(icons), SERVER_WEB_SCHEME, NULL, printer->hostname, printer->port, "/icon.png");
-  httpAssembleURI(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), SERVER_WEB_SCHEME, NULL, printer->hostname, printer->port, "/");
-  httpAssembleURI(HTTP_URI_CODING_ALL, supplyurl, sizeof(supplyurl), SERVER_WEB_SCHEME, NULL, printer->hostname, printer->port, "/supplies");
+  lis = cupsArrayFirst(Listeners);
 
-  if (Verbosity)
-  {
-    fprintf(stderr, "printer-more-info=\"%s\"\n", adminurl);
-    fprintf(stderr, "printer-supply-info-uri=\"%s\"\n", supplyurl);
-    fprintf(stderr, "printer-uri=\"%s\"\n", uri);
-  }
+  httpAssembleURIf(HTTP_URI_CODING_ALL, icons, sizeof(icons), SERVER_WEB_SCHEME, NULL, lis->host, lis->port, "%s/icon.png", resource + 4);
+  httpAssembleURIf(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), SERVER_WEB_SCHEME, NULL, lis->host, lis->port, "%s/", resource + 4);
+  httpAssembleURIf(HTTP_URI_CODING_ALL, supplyurl, sizeof(supplyurl), SERVER_WEB_SCHEME, NULL, lis->host, lis->port, "%s/supplies", resource + 4);
+
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-more-info=\"%s\"", adminurl);
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-supply-info-uri=\"%s\"", supplyurl);
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-uri=\"%s\"", cupsArrayFirst(uris));
 
   snprintf(make_model, sizeof(make_model), "%s %s", make, model);
 
@@ -443,7 +422,7 @@ serverCreatePrinter(const char *servername,	/* I - Server hostname (NULL for def
   */
 
 #ifdef HAVE_STATVFS
-  if (statvfs(printer->directory, &spoolinfo))
+  if (statvfs(SpoolDirectory, &spoolinfo))
     k_supported = INT_MAX;
   else if ((spoolsize = (double)spoolinfo.f_frsize *
                         spoolinfo.f_blocks / 1024) > INT_MAX)
@@ -452,7 +431,7 @@ serverCreatePrinter(const char *servername,	/* I - Server hostname (NULL for def
     k_supported = (int)spoolsize;
 
 #elif defined(HAVE_STATFS)
-  if (statfs(printer->directory, &spoolinfo))
+  if (statfs(SpoolDirectory, &spoolinfo))
     k_supported = INT_MAX;
   else if ((spoolsize = (double)spoolinfo.f_bsize *
                         spoolinfo.f_blocks / 1024) > INT_MAX)
@@ -469,10 +448,10 @@ serverCreatePrinter(const char *servername,	/* I - Server hostname (NULL for def
   * performance when the client provides a requested-attributes attribute...
   */
 
-  printer->attrs = ippNew();
-
-//  if (attrfile)
-//    load_attributes(attrfile, printer->attrs);
+  if (attrs)
+    printer->attrs = attrs;
+  else
+    printer->attrs = ippNew();
 
   /* charset-configured */
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_CHARSET), "charset-configured", NULL, "utf-8");
@@ -908,18 +887,10 @@ serverCreatePrinter(const char *servername,	/* I - Server hostname (NULL for def
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-supply-info-uri", NULL, supplyurl);
 
   /* printer-uri-supported */
-#ifdef HAVE_SSL
-  uris[0] = uri;
-  uris[1] = securi;
-
-  ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uri-supported", 2, NULL, (const char **)uris);
-
-#else
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uri-supported", NULL, uri);
-#endif /* HAVE_SSL */
+  ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uri-supported", cupsArrayCount(uris), NULL, (const char **)uriptrs);
 
   /* printer-uuid */
-  httpAssembleUUID(printer->hostname, port, name, 0, uuid, sizeof(uuid));
+  httpAssembleUUID(lis->host, lis->port, name, 0, uuid, sizeof(uuid));
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uuid", NULL, uuid);
 
   /* pwg-raster-document-xxx-supported */
@@ -1012,19 +983,11 @@ serverDeletePrinter(server_printer_t *printer)	/* I - Printer */
 {
   _cupsRWLockWrite(&printer->rwlock);
 
-  if (printer->ipv4 >= 0)
-    close(printer->ipv4);
-
-  if (printer->ipv6 >= 0)
-    close(printer->ipv6);
-
 #if HAVE_DNSSD
   if (printer->printer_ref)
     DNSServiceRefDeallocate(printer->printer_ref);
   if (printer->ipp_ref)
     DNSServiceRefDeallocate(printer->ipp_ref);
-  if (printer->ipps_ref)
-    DNSServiceRefDeallocate(printer->ipps_ref);
   if (printer->http_ref)
     DNSServiceRefDeallocate(printer->http_ref);
 #elif defined(HAVE_AVAHI)
@@ -1034,31 +997,22 @@ serverDeletePrinter(server_printer_t *printer)	/* I - Printer */
     avahi_entry_group_free(printer->printer_ref);
   if (printer->ipp_ref)
     avahi_entry_group_free(printer->ipp_ref);
-  if (printer->ipps_ref)
-    avahi_entry_group_free(printer->ipps_ref);
   if (printer->http_ref)
     avahi_entry_group_free(printer->http_ref);
 
   avahi_threaded_poll_unlock(DNSSDMaster);
 #endif /* HAVE_DNSSD */
 
+  if (printer->resource)
+    free(printer->resource);
   if (printer->dnssd_name)
     free(printer->dnssd_name);
   if (printer->name)
     free(printer->name);
-  if (printer->directory)
-    free(printer->directory);
-  if (printer->hostname)
-    free(printer->hostname);
-  if (printer->uri)
-    free(printer->uri);
   if (printer->icon)
     free(printer->icon);
   if (printer->proxy_user)
     free(printer->proxy_user);
-  if (printer->proxy_pass)
-    free(printer->proxy_pass);
-
 
   ippDelete(printer->attrs);
   ippDelete(printer->dev_attrs);
@@ -1105,91 +1059,6 @@ serverGetPrinterStateReasonsBits(
   }
 
   return (preasons);
-}
-
-
-/*
- * 'serverRunPrinter()' - Run the printer service.
- */
-
-void
-serverRunPrinter(server_printer_t *printer)	/* I - Printer */
-{
-  int		num_fds;		/* Number of file descriptors */
-  struct pollfd	polldata[3];		/* poll() data */
-  int		timeout;		/* Timeout for poll() */
-  server_client_t	*client;		/* New client */
-
-
- /*
-  * Setup poll() data for the Bonjour service socket and IPv4/6 listeners...
-  */
-
-  polldata[0].fd     = printer->ipv4;
-  polldata[0].events = POLLIN;
-
-  polldata[1].fd     = printer->ipv6;
-  polldata[1].events = POLLIN;
-
-  num_fds = 2;
-
-#ifdef HAVE_DNSSD
-  polldata[num_fds   ].fd     = DNSServiceRefSockFD(DNSSDMaster);
-  polldata[num_fds ++].events = POLLIN;
-#endif /* HAVE_DNSSD */
-
- /*
-  * Loop until we are killed or have a hard error...
-  */
-
-  for (;;)
-  {
-    if (cupsArrayCount(printer->jobs))
-      timeout = 10;
-    else
-      timeout = -1;
-
-    if (poll(polldata, (nfds_t)num_fds, timeout) < 0 && errno != EINTR)
-    {
-      perror("poll() failed");
-      break;
-    }
-
-    if (polldata[0].revents & POLLIN)
-    {
-      if ((client = serverCreateClient(printer, printer->ipv4)) != NULL)
-      {
-	if (!_cupsThreadCreate((_cups_thread_func_t)serverProcessClient, client))
-	{
-	  perror("Unable to create client thread");
-	  serverDeleteClient(client);
-	}
-      }
-    }
-
-    if (polldata[1].revents & POLLIN)
-    {
-      if ((client = serverCreateClient(printer, printer->ipv6)) != NULL)
-      {
-	if (!_cupsThreadCreate((_cups_thread_func_t)serverProcessClient, client))
-	{
-	  perror("Unable to create client thread");
-	  serverDeleteClient(client);
-	}
-      }
-    }
-
-#ifdef HAVE_DNSSD
-    if (polldata[2].revents & POLLIN)
-      DNSServiceProcessResult(DNSSDMaster);
-#endif /* HAVE_DNSSD */
-
-   /*
-    * Clean out old jobs...
-    */
-
-    serverCleanJobs(printer);
-  }
 }
 
 
@@ -1280,8 +1149,7 @@ dnssd_callback(
   }
   else if (strcasecmp(name, printer->dnssd_name))
   {
-    if (Verbosity)
-      fprintf(stderr, "Now using DNS-SD service name \"%s\".\n", name);
+    serverLogPrinter(SERVER_LOGLEVEL_INFO, printer, "Now using DNS-SD service name \"%s\".", name);
 
     /* No lock needed since only the main thread accesses/changes this */
     free(printer->dnssd_name);
@@ -1367,6 +1235,8 @@ register_printer(
   char			make_model[256],/* Make and model together */
 			product[256],	/* Product string */
 			regtype[256];	/* Bonjour service type */
+  server_listener_t	*lis = cupsArrayFirst(Listeners);
+					/* Listen socket */
 
 
  /*
@@ -1377,24 +1247,17 @@ register_printer(
   snprintf(product, sizeof(product), "(%s)", model);
 
   TXTRecordCreate(&ipp_txt, 1024, NULL);
-  TXTRecordSetValue(&ipp_txt, "rp", 9, "ipp/print");
-  TXTRecordSetValue(&ipp_txt, "ty", (uint8_t)strlen(make_model),
-                    make_model);
-  TXTRecordSetValue(&ipp_txt, "adminurl", (uint8_t)strlen(adminurl),
-                    adminurl);
+  TXTRecordSetValue(&ipp_txt, "rp", (uint8_t)strlen(printer->resource), printer->resource);
+  TXTRecordSetValue(&ipp_txt, "ty", (uint8_t)strlen(make_model), make_model);
+  TXTRecordSetValue(&ipp_txt, "adminurl", (uint8_t)strlen(adminurl), adminurl);
   if (*location)
-    TXTRecordSetValue(&ipp_txt, "note", (uint8_t)strlen(location),
-		      location);
-  TXTRecordSetValue(&ipp_txt, "product", (uint8_t)strlen(product),
-                    product);
-  TXTRecordSetValue(&ipp_txt, "pdl", (uint8_t)strlen(formats),
-                    formats);
+    TXTRecordSetValue(&ipp_txt, "note", (uint8_t)strlen(location), location);
+  TXTRecordSetValue(&ipp_txt, "product", (uint8_t)strlen(product), product);
+  TXTRecordSetValue(&ipp_txt, "pdl", (uint8_t)strlen(formats), formats);
   TXTRecordSetValue(&ipp_txt, "Color", 1, color ? "T" : "F");
   TXTRecordSetValue(&ipp_txt, "Duplex", 1, duplex ? "T" : "F");
-  TXTRecordSetValue(&ipp_txt, "usb_MFG", (uint8_t)strlen(make),
-                    make);
-  TXTRecordSetValue(&ipp_txt, "usb_MDL", (uint8_t)strlen(model),
-                    model);
+  TXTRecordSetValue(&ipp_txt, "usb_MFG", (uint8_t)strlen(make), make);
+  TXTRecordSetValue(&ipp_txt, "usb_MDL", (uint8_t)strlen(model), model);
   TXTRecordSetValue(&ipp_txt, "UUID", (uint8_t)strlen(uuid), uuid);
 #  ifdef HAVE_SSL
   TXTRecordSetValue(&ipp_txt, "TLS", 3, "1.2");
@@ -1421,8 +1284,7 @@ register_printer(
 			          (DNSServiceRegisterReply)dnssd_callback,
 			          printer)) != kDNSServiceErr_NoError)
   {
-    fprintf(stderr, "Unable to register \"%s._printer._tcp\": %d\n",
-            printer->dnssd_name, error);
+    serverLogPrinter(SERVER_LOGLEVEL_ERROR, printer, "Unable to register \"%s._printer._tcp\": %d", printer->dnssd_name, error);
     return (0);
   }
 
@@ -1434,53 +1296,23 @@ register_printer(
   printer->ipp_ref = DNSSDMaster;
 
   if (subtype && *subtype)
-    snprintf(regtype, sizeof(regtype), "_ipp._tcp,%s", subtype);
+    snprintf(regtype, sizeof(regtype), SERVER_IPP_TYPE ",%s", subtype);
   else
-    strlcpy(regtype, "_ipp._tcp", sizeof(regtype));
+    strlcpy(regtype, SERVER_IPP_TYPE, sizeof(regtype));
 
   if ((error = DNSServiceRegister(&(printer->ipp_ref),
                                   kDNSServiceFlagsShareConnection,
                                   0 /* interfaceIndex */, printer->dnssd_name,
 				  regtype, NULL /* domain */,
-				  NULL /* host */, htons(printer->port),
+				  NULL /* host */, htons(lis->port),
 				  TXTRecordGetLength(&ipp_txt),
 				  TXTRecordGetBytesPtr(&ipp_txt),
 			          (DNSServiceRegisterReply)dnssd_callback,
 			          printer)) != kDNSServiceErr_NoError)
   {
-    fprintf(stderr, "Unable to register \"%s.%s\": %d\n",
-            printer->dnssd_name, regtype, error);
+    serverLogPrinter(SERVER_LOGLEVEL_ERROR, printer, "Unable to register \"%s.%s\": %d", printer->dnssd_name, regtype, error);
     return (0);
   }
-
-#  ifdef HAVE_SSL
- /*
-  * Then register the _ipps._tcp (IPP) service type with the real port number to
-  * advertise our IPPS printer...
-  */
-
-  printer->ipps_ref = DNSSDMaster;
-
-  if (subtype && *subtype)
-    snprintf(regtype, sizeof(regtype), "_ipps._tcp,%s", subtype);
-  else
-    strlcpy(regtype, "_ipps._tcp", sizeof(regtype));
-
-  if ((error = DNSServiceRegister(&(printer->ipps_ref),
-                                  kDNSServiceFlagsShareConnection,
-                                  0 /* interfaceIndex */, printer->dnssd_name,
-				  regtype, NULL /* domain */,
-				  NULL /* host */, htons(printer->port),
-				  TXTRecordGetLength(&ipp_txt),
-				  TXTRecordGetBytesPtr(&ipp_txt),
-			          (DNSServiceRegisterReply)dnssd_callback,
-			          printer)) != kDNSServiceErr_NoError)
-  {
-    fprintf(stderr, "Unable to register \"%s.%s\": %d\n",
-            printer->dnssd_name, regtype, error);
-    return (0);
-  }
-#  endif /* HAVE_SSL */
 
  /*
   * Similarly, register the _http._tcp,_printer (HTTP) service type with the
@@ -1492,14 +1324,13 @@ register_printer(
   if ((error = DNSServiceRegister(&(printer->http_ref),
                                   kDNSServiceFlagsShareConnection,
                                   0 /* interfaceIndex */, printer->dnssd_name,
-				  "_http._tcp,_printer", NULL /* domain */,
-				  NULL /* host */, htons(printer->port),
+				  SERVER_WEB_TYPE ",_printer", NULL /* domain */,
+				  NULL /* host */, htons(lis->port),
 				  0 /* txtLen */, NULL, /* txtRecord */
 			          (DNSServiceRegisterReply)dnssd_callback,
 			          printer)) != kDNSServiceErr_NoError)
   {
-    fprintf(stderr, "Unable to register \"%s.%s\": %d\n",
-            printer->dnssd_name, regtype, error);
+    serverLogPrinter(SERVER_LOGLEVEL_ERROR, printer, "Unable to register \"%s.%s\": %d", printer->dnssd_name, SERVER_WEB_TYPE ",_printer", error);
     return (0);
   }
 
@@ -1513,7 +1344,7 @@ register_printer(
   */
 
   ipp_txt = NULL;
-  ipp_txt = avahi_string_list_add_printf(ipp_txt, "rp=ipp/print");
+  ipp_txt = avahi_string_list_add_printf(ipp_txt, "rp=%s", printer->resource);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "ty=%s %s", make, model);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "adminurl=%s", adminurl);
   if (*location)
@@ -1547,32 +1378,19 @@ register_printer(
   * Then register the _ipp._tcp (IPP)...
   */
 
-  avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_ipp._tcp", NULL, NULL, printer->port, ipp_txt);
+  avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPP_TYPE, NULL, NULL, lis->port, ipp_txt);
   if (subtype && *subtype)
   {
-    snprintf(temp, sizeof(temp), "%s._sub._ipp._tcp", subtype);
-    avahi_entry_group_add_service_subtype(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_ipp._tcp", NULL, temp);
+    snprintf(temp, sizeof(temp), "%s._sub." SERVER_IPP_TYPE, subtype);
+    avahi_entry_group_add_service_subtype(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPP_TYPE, NULL, temp);
   }
-
-#ifdef HAVE_SSL
- /*
-  * _ipps._tcp (IPPS) for secure printing...
-  */
-
-  avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_ipps._tcp", NULL, NULL, printer->port, ipp_txt);
-  if (subtype && *subtype)
-  {
-    snprintf(temp, sizeof(temp), "%s._sub._ipps._tcp", subtype);
-    avahi_entry_group_add_service_subtype(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_ipps._tcp", NULL, temp);
-  }
-#endif /* HAVE_SSL */
 
  /*
   * Finally _http.tcp (HTTP) for the web interface...
   */
 
-  avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_http._tcp", NULL, NULL, printer->port, NULL);
-  avahi_entry_group_add_service_subtype(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_http._tcp", NULL, "_printer._sub._http._tcp");
+  avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_WEB_TYPE, NULL, NULL, lis->port, NULL);
+  avahi_entry_group_add_service_subtype(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_WEB_TYPE, NULL, "_printer._sub." SERVER_WEB_TYPE);
 
  /*
   * Commit it...

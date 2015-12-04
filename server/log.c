@@ -21,8 +21,8 @@
  */
 
 void
-serverLog(int        level,		/* I - Log level */
-          const char *format,		/* I - Printf-style format string */
+serverLog(server_loglevel_t level,	/* I - Log level */
+          const char        *format,	/* I - Printf-style format string */
           ...)				/* I - Additional arguments as needed */
 {
   (void)level;
@@ -45,7 +45,7 @@ serverLogAttributes(const char *title,	/* I - Title */
   int			major, minor;	/* Version */
 
 
-  if (Verbosity <= 1)
+  if (LogLevel >= SERVER_LOGLEVEL_DEBUG)
     return;
 
   fprintf(stderr, "%s:\n", title);
@@ -86,9 +86,9 @@ serverLogAttributes(const char *title,	/* I - Title */
 
 void
 serverLogClient(
-     int             level,		/* I - Log level */
-     server_client_t *client,		/* I - Client */
-     const char      *format,		/* I - Printf-style format string */
+     server_loglevel_t level,		/* I - Log level */
+     server_client_t   *client,		/* I - Client */
+     const char        *format,		/* I - Printf-style format string */
      ...)				/* I - Additional arguments as needed */
 {
   (void)level;
@@ -103,9 +103,9 @@ serverLogClient(
 
 void
 serverLogJob(
-     int          level,		/* I - Log level */
-     server_job_t *job,			/* I - Job */
-     const char   *format,		/* I - Printf-style format string */
+     server_loglevel_t level,		/* I - Log level */
+     server_job_t      *job,		/* I - Job */
+     const char        *format,		/* I - Printf-style format string */
      ...)				/* I - Additional arguments as needed */
 {
   (void)level;
@@ -120,9 +120,9 @@ serverLogJob(
 
 void
 serverLogPrinter(
-     int              level,		/* I - Log level */
-     server_printer_t *printer,		/* I - Printer */
-     const char       *format,		/* I - Printf-style format string */
+     server_loglevel_t level,		/* I - Log level */
+     server_printer_t  *printer,	/* I - Printer */
+     const char        *format,		/* I - Printf-style format string */
      ...)				/* I - Additional arguments as needed */
 {
   (void)level;
