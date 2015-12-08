@@ -166,6 +166,390 @@ serverFinalizeConfiguration(void)
 
 
 /*
+ * 'serverLoadAttributes()' - Load printer attributes from a file.
+ *
+ * Syntax is based on ipptool format:
+ *
+ *    ATTR value-tag name value
+ *    AUTHTYPE "scheme"
+ *    COMMAND "/path/to/command"
+ *    DEVICE-URI "uri"
+ *    MAKE "manufacturer"
+ *    MODEL "model name"
+ *    PROXY-USER "username"
+ *
+ * AUTH schemes are "none" for no authentication or "basic" for HTTP Basic
+ * authentication.
+ *
+ * DEVICE-URI values can be "socket", "ipp", or "ipps" URIs.
+ */
+
+ipp_t *					/* O - Attributes */
+serverLoadAttributes(
+    const char *filename,		/* I - File to load */
+    char       **authtype,		/* O - Authentication type, if any */
+    char       **command,		/* O - Command to run, if any */
+    char       **device_uri,		/* O - Device URI, if any */
+    char       **make,			/* O - Manufacturer */
+    char       **model,			/* O - Model */
+    char       **proxy_user)		/* O - Proxy user, if any */
+{
+  ipp_t		*attrs;			/* Attributes to return */
+  cups_file_t	*fp;			/* File */
+  int		linenum = 0;		/* Current line number */
+  char		attr[128],		/* Attribute name */
+		token[1024],		/* Token from file */
+		*tokenptr;		/* Pointer into token */
+  ipp_tag_t	value;			/* Current value type */
+  ipp_attribute_t *attrptr,		/* Attribute pointer */
+		*lastcol = NULL;	/* Last collection attribute */
+
+
+  if ((fp = cupsFileOpen(filename, "r")) == NULL)
+  {
+    serverLog(SERVER_LOGLEVEL_ERROR, "Unable to open \"%s\": %s", filename, strerror(errno));
+    return (NULL);
+  }
+
+  attrs = ippNew();
+
+  while (get_token(fp, token, sizeof(token), &linenum) != NULL)
+  {
+    if (!_cups_strcasecmp(token, "ATTR"))
+    {
+     /*
+      * Attribute...
+      */
+
+      if (!get_token(fp, token, sizeof(token), &linenum))
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing ATTR value tag on line %d of \"%s\".", linenum, filename);
+        goto load_error;
+      }
+
+      if ((value = ippTagValue(token)) == IPP_TAG_ZERO)
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Bad ATTR value tag \"%s\" on line %d of \"%s\".", token, linenum, filename);
+        goto load_error;
+      }
+
+      if (!get_token(fp, attr, sizeof(attr), &linenum))
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing ATTR name on line %d of \"%s\".", linenum, filename);
+        goto load_error;
+      }
+
+      if (!get_token(fp, token, sizeof(token), &linenum))
+      {
+	fserverLog(SERVER_LOGLEVEL_ERROR, "Missing ATTR value on line %d of \"%s\".", linenum, filename);
+        goto load_error;
+      }
+
+      attrptr = NULL;
+
+      switch (value)
+      {
+	case IPP_TAG_BOOLEAN :
+	    if (!_cups_strcasecmp(token, "true"))
+	      attrptr = ippAddBoolean(attrs, IPP_TAG_PRINTER, attr, 1);
+	    else
+	      attrptr = ippAddBoolean(attrs, IPP_TAG_PRINTER, attr, (char)atoi(token));
+	    break;
+
+	case IPP_TAG_INTEGER :
+	case IPP_TAG_ENUM :
+	    if (!strchr(token, ','))
+	      attrptr = ippAddInteger(attrs, IPP_TAG_PRINTER, value, attr, (int)strtol(token, &tokenptr, 0));
+	    else
+	    {
+	      int	values[100],	/* Values */
+			num_values = 1;	/* Number of values */
+
+	      values[0] = (int)strtol(token, &tokenptr, 10);
+	      while (tokenptr && *tokenptr &&
+		     num_values < (int)(sizeof(values) / sizeof(values[0])))
+	      {
+		if (*tokenptr == ',')
+		  tokenptr ++;
+		else if (!isdigit(*tokenptr & 255) && *tokenptr != '-')
+		  break;
+
+		values[num_values] = (int)strtol(tokenptr, &tokenptr, 0);
+		num_values ++;
+	      }
+
+	      attrptr = ippAddIntegers(attrs, IPP_TAG_PRINTER, value, attr, num_values, values);
+	    }
+
+	    if (!tokenptr || *tokenptr)
+	    {
+	      serverLog(SERVER_LOGLEVEL_ERROR, "Bad %s value \"%s\" on line %d of \"%s\".", ippTagString(value), token, linenum, filename);
+              goto load_error;
+	    }
+	    break;
+
+	case IPP_TAG_RESOLUTION :
+	    {
+	      int	xres,		/* X resolution */
+			yres;		/* Y resolution */
+	      ipp_res_t	units;		/* Units */
+	      char	*start,		/* Start of value */
+			*ptr,		/* Pointer into value */
+			*next = NULL;	/* Next value */
+
+	      for (start = token; start; start = next)
+	      {
+		xres = yres = (int)strtol(start, (char **)&ptr, 10);
+		if (ptr > start && xres > 0)
+		{
+		  if (*ptr == 'x')
+		    yres = (int)strtol(ptr + 1, (char **)&ptr, 10);
+		}
+
+		if (ptr && (next = strchr(ptr, ',')) != NULL)
+		  *next++ = '\0';
+
+		if (ptr <= start || xres <= 0 || yres <= 0 || !ptr ||
+		    (_cups_strcasecmp(ptr, "dpi") &&
+		     _cups_strcasecmp(ptr, "dpc") &&
+		     _cups_strcasecmp(ptr, "dpcm") &&
+		     _cups_strcasecmp(ptr, "other")))
+		{
+		  serverLog(SERVER_LOGLEVEL_ERROR, "Bad resolution value \"%s\" on line %d of \"%s\".", token, linenum, filename);
+                  goto load_error;
+		}
+
+		if (!_cups_strcasecmp(ptr, "dpc") || !_cups_strcasecmp(ptr, "dpcm"))
+		  units = IPP_RES_PER_CM;
+		else
+		  units = IPP_RES_PER_INCH;
+
+                if (attrptr)
+		  ippSetResolution(attrs, &attrptr, ippGetCount(attrptr), units, xres, yres);
+		else
+		  attrptr = ippAddResolution(attrs, IPP_TAG_PRINTER, attr, units, xres, yres);
+	      }
+	    }
+	    break;
+
+	case IPP_TAG_RANGE :
+	    {
+	      int	lowers[4],	/* Lower value */
+			uppers[4],	/* Upper values */
+			num_vals;	/* Number of values */
+
+
+	      num_vals = sscanf(token, "%d-%d,%d-%d,%d-%d,%d-%d",
+				lowers + 0, uppers + 0,
+				lowers + 1, uppers + 1,
+				lowers + 2, uppers + 2,
+				lowers + 3, uppers + 3);
+
+	      if ((num_vals & 1) || num_vals == 0)
+	      {
+		serverLog(SERVER_LOGLEVEL_ERROR, "Bad rangeOfInteger value \"%s\" on line %d of \"%s\".", token, linenum, filename);
+                goto load_error;
+	      }
+
+	      attrptr = ippAddRanges(attrs, IPP_TAG_PRINTER, attr, num_vals / 2, lowers,
+				     uppers);
+	    }
+	    break;
+
+	case IPP_TAG_BEGIN_COLLECTION :
+	    if (!strcmp(token, "{"))
+	    {
+	      ipp_t	*col = get_collection(fp, filename, &linenum);
+				    /* Collection value */
+
+	      if (col)
+	      {
+		attrptr = lastcol = ippAddCollection(attrs, IPP_TAG_PRINTER, attr, col);
+		ippDelete(col);
+	      }
+	      else
+		exit(1);
+	    }
+	    else
+	    {
+	      serverLog(SERVER_LOGLEVEL_ERROR, "Bad ATTR collection value on line %d of \"%s\".", linenum, filename);
+              goto load_error;
+	    }
+
+	    do
+	    {
+	      ipp_t	*col;			/* Collection value */
+	      long	pos = cupsFileTell(fp);	/* Save position of file */
+
+	      if (!get_token(fp, token, sizeof(token), &linenum))
+		break;
+
+	      if (strcmp(token, ","))
+	      {
+		cupsFileSeek(fp, pos);
+		break;
+	      }
+
+	      if (!get_token(fp, token, sizeof(token), &linenum) || strcmp(token, "{"))
+	      {
+		serverLog(SERVER_LOGLEVEL_ERROR, "Unexpected \"%s\" on line %d of \"%s\".", token, linenum, filename);
+                goto load_error;
+	      }
+
+	      if ((col = get_collection(fp, filename, &linenum)) == NULL)
+		break;
+
+	      ippSetCollection(attrs, &attrptr, ippGetCount(attrptr), col);
+	      lastcol = attrptr;
+	    }
+	    while (!strcmp(token, "{"));
+	    break;
+
+	case IPP_TAG_STRING :
+	    attrptr = ippAddOctetString(attrs, IPP_TAG_PRINTER, attr, token, (int)strlen(token));
+	    break;
+
+	default :
+	    serverLog(SERVER_LOGLEVEL_ERROR, "Unsupported ATTR value tag %s on line %d of \"%s\".", ippTagString(value), linenum, filename);
+            goto load_error;
+
+	case IPP_TAG_TEXTLANG :
+	case IPP_TAG_NAMELANG :
+	case IPP_TAG_TEXT :
+	case IPP_TAG_NAME :
+	case IPP_TAG_KEYWORD :
+	case IPP_TAG_URI :
+	case IPP_TAG_URISCHEME :
+	case IPP_TAG_CHARSET :
+	case IPP_TAG_LANGUAGE :
+	case IPP_TAG_MIMETYPE :
+	    if (!strchr(token, ','))
+	      attrptr = ippAddString(attrs, IPP_TAG_PRINTER, value, attr, NULL, token);
+	    else
+	    {
+	     /*
+	      * Multiple string values...
+	      */
+
+	      int	num_values;	/* Number of values */
+	      char	*values[100],	/* Values */
+			*ptr;		/* Pointer to next value */
+
+
+	      values[0]  = token;
+	      num_values = 1;
+
+	      for (ptr = strchr(token, ','); ptr; ptr = strchr(ptr, ','))
+	      {
+		if (ptr > token && ptr[-1] == '\\')
+		  _cups_strcpy(ptr - 1, ptr);
+		else
+		{
+		  *ptr++ = '\0';
+		  values[num_values] = ptr;
+		  num_values ++;
+		  if (num_values >= (int)(sizeof(values) / sizeof(values[0])))
+		    break;
+		}
+	      }
+
+	      attrptr = ippAddStrings(attrs, IPP_TAG_PRINTER, value, attr, num_values, NULL, (const char **)values);
+	    }
+	    break;
+      }
+
+      if (!attrptr)
+      {
+        serverLog(SERVER_LOGLEVEL_ERROR, "Unable to add attribute on line %d of \"%s\": %s", linenum, filename, cupsLastErrorString());
+        goto load_error;
+      }
+    }
+    else if (!_cups_strcasecmp(token, "AUTHTYPE") && authtype)
+    {
+      if (!get_token(fp, token, sizeof(token), &linenum))
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing AUTHTYPE value on line %d of \"%s\".", linenum, filename);
+        goto load_error;
+      }
+
+      *authtype = strdup(token);
+    }
+    else if (!_cups_strcasecmp(token, "COMMAND") && command)
+    {
+      if (!get_token(fp, token, sizeof(token), &linenum))
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing COMMAND value on line %d of \"%s\".", linenum, filename);
+        goto load_error;
+      }
+
+      *command = strdup(token);
+    }
+    else if (!_cups_strcasecmp(token, "DEVICE-URI") && device_uri)
+    {
+      if (!get_token(fp, token, sizeof(token), &linenum))
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing DEVICE-URI value on line %d of \"%s\".", linenum, filename);
+        goto load_error;
+      }
+
+      *device_uri = strdup(token);
+    }
+    else if (!_cups_strcasecmp(token, "MAKE") && make)
+    {
+      if (!get_token(fp, token, sizeof(token), &linenum))
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing MAKE value on line %d of \"%s\".", linenum, filename);
+        goto load_error;
+      }
+
+      *make = strdup(token);
+    }
+    else if (!_cups_strcasecmp(token, "MODEL") && model)
+    {
+      if (!get_token(fp, token, sizeof(token), &linenum))
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing MAKE value on line %d of \"%s\".", linenum, filename);
+        goto load_error;
+      }
+
+      *make = strdup(token);
+    }
+    else if (!_cups_strcasecmp(token, "PROXY-USER") && proxy_user)
+    {
+      if (!get_token(fp, token, sizeof(token), &linenum))
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing PROXY-USER value on line %d of \"%s\".", linenum, filename);
+        goto load_error;
+      }
+
+      *proxy_user = strdup(token);
+    }
+    else
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Unknown directive \"%s\" on line %d of \"%s\".", token, linenum, filename);
+      goto load_error;
+    }
+  }
+
+  cupsFileClose(fp);
+
+  return (attrs);
+
+ /*
+  * If we get here something bad happened...
+  */
+
+  load_error:
+
+  cupsFileClose(fp);
+
+  ippDelete(attrs);
+
+  return (NULL);
+}
+
+
+/*
  * 'serverLoadConfiguration()' - Load the server configuration file.
  */
 
@@ -565,315 +949,6 @@ get_token(cups_file_t *fp,		/* I  - File to read from */
 }
 
 
-#if 0
-
-/*
- * 'load_attributes()' - Load printer attributes from a file.
- *
- * Syntax is based on ipptool format:
- *
- *    ATTR value-tag name value
- */
-
-static void
-load_attributes(const char *filename,	/* I - File to load */
-                ipp_t      *attrs)	/* I - Printer attributes */
-{
-  int		linenum = 0;		/* Current line number */
-  FILE		*fp = NULL;		/* Test file */
-  char		attr[128],		/* Attribute name */
-		token[1024],		/* Token from file */
-		*tokenptr;		/* Pointer into token */
-  ipp_tag_t	value;			/* Current value type */
-  ipp_attribute_t *attrptr,		/* Attribute pointer */
-		*lastcol = NULL;	/* Last collection attribute */
-
-
-  if ((fp = fopen(filename, "r")) == NULL)
-  {
-    fprintf(stderr, "ippserver: Unable to open \"%s\": %s\n", filename, strerror(errno));
-    exit(1);
-  }
-
-  while (get_token(fp, token, sizeof(token), &linenum) != NULL)
-  {
-    if (!_cups_strcasecmp(token, "ATTR"))
-    {
-     /*
-      * Attribute...
-      */
-
-      if (!get_token(fp, token, sizeof(token), &linenum))
-      {
-	fprintf(stderr, "ippserver: Missing ATTR value tag on line %d of \"%s\".\n", linenum, filename);
-        exit(1);
-      }
-
-      if ((value = ippTagValue(token)) == IPP_TAG_ZERO)
-      {
-	fprintf(stderr, "ippserver: Bad ATTR value tag \"%s\" on line %d of \"%s\".\n", token, linenum, filename);
-	exit(1);
-      }
-
-      if (!get_token(fp, attr, sizeof(attr), &linenum))
-      {
-	fprintf(stderr, "ippserver: Missing ATTR name on line %d of \"%s\".\n", linenum, filename);
-	exit(1);
-      }
-
-      if (!get_token(fp, token, sizeof(token), &linenum))
-      {
-	fprintf(stderr, "ippserver: Missing ATTR value on line %d of \"%s\".\n", linenum, filename);
-	exit(1);
-      }
-
-      attrptr = NULL;
-
-      switch (value)
-      {
-	case IPP_TAG_BOOLEAN :
-	    if (!_cups_strcasecmp(token, "true"))
-	      attrptr = ippAddBoolean(attrs, IPP_TAG_PRINTER, attr, 1);
-	    else
-	      attrptr = ippAddBoolean(attrs, IPP_TAG_PRINTER, attr, (char)atoi(token));
-	    break;
-
-	case IPP_TAG_INTEGER :
-	case IPP_TAG_ENUM :
-	    if (!strchr(token, ','))
-	      attrptr = ippAddInteger(attrs, IPP_TAG_PRINTER, value, attr, (int)strtol(token, &tokenptr, 0));
-	    else
-	    {
-	      int	values[100],	/* Values */
-			num_values = 1;	/* Number of values */
-
-	      values[0] = (int)strtol(token, &tokenptr, 10);
-	      while (tokenptr && *tokenptr &&
-		     num_values < (int)(sizeof(values) / sizeof(values[0])))
-	      {
-		if (*tokenptr == ',')
-		  tokenptr ++;
-		else if (!isdigit(*tokenptr & 255) && *tokenptr != '-')
-		  break;
-
-		values[num_values] = (int)strtol(tokenptr, &tokenptr, 0);
-		num_values ++;
-	      }
-
-	      attrptr = ippAddIntegers(attrs, IPP_TAG_PRINTER, value, attr, num_values, values);
-	    }
-
-	    if (!tokenptr || *tokenptr)
-	    {
-	      fprintf(stderr, "ippserver: Bad %s value \"%s\" on line %d of \"%s\".\n", ippTagString(value), token, linenum, filename);
-	      exit(1);
-	    }
-	    break;
-
-	case IPP_TAG_RESOLUTION :
-	    {
-	      int	xres,		/* X resolution */
-			yres;		/* Y resolution */
-	      ipp_res_t	units;		/* Units */
-	      char	*start,		/* Start of value */
-			*ptr,		/* Pointer into value */
-			*next = NULL;	/* Next value */
-
-	      for (start = token; start; start = next)
-	      {
-		xres = yres = (int)strtol(start, (char **)&ptr, 10);
-		if (ptr > start && xres > 0)
-		{
-		  if (*ptr == 'x')
-		    yres = (int)strtol(ptr + 1, (char **)&ptr, 10);
-		}
-
-		if (ptr && (next = strchr(ptr, ',')) != NULL)
-		  *next++ = '\0';
-
-		if (ptr <= start || xres <= 0 || yres <= 0 || !ptr ||
-		    (_cups_strcasecmp(ptr, "dpi") &&
-		     _cups_strcasecmp(ptr, "dpc") &&
-		     _cups_strcasecmp(ptr, "dpcm") &&
-		     _cups_strcasecmp(ptr, "other")))
-		{
-		  fprintf(stderr, "ippserver: Bad resolution value \"%s\" on line %d of \"%s\".\n", token, linenum, filename);
-		  exit(1);
-		}
-
-		if (!_cups_strcasecmp(ptr, "dpc") || !_cups_strcasecmp(ptr, "dpcm"))
-		  units = IPP_RES_PER_CM;
-		else
-		  units = IPP_RES_PER_INCH;
-
-                if (attrptr)
-		  ippSetResolution(attrs, &attrptr, ippGetCount(attrptr), units, xres, yres);
-		else
-		  attrptr = ippAddResolution(attrs, IPP_TAG_PRINTER, attr, units, xres, yres);
-	      }
-	    }
-	    break;
-
-	case IPP_TAG_RANGE :
-	    {
-	      int	lowers[4],	/* Lower value */
-			uppers[4],	/* Upper values */
-			num_vals;	/* Number of values */
-
-
-	      num_vals = sscanf(token, "%d-%d,%d-%d,%d-%d,%d-%d",
-				lowers + 0, uppers + 0,
-				lowers + 1, uppers + 1,
-				lowers + 2, uppers + 2,
-				lowers + 3, uppers + 3);
-
-	      if ((num_vals & 1) || num_vals == 0)
-	      {
-		fprintf(stderr, "ippserver: Bad rangeOfInteger value \"%s\" on line %d of \"%s\".", token, linenum, filename);
-		exit(1);
-	      }
-
-	      attrptr = ippAddRanges(attrs, IPP_TAG_PRINTER, attr, num_vals / 2, lowers,
-				     uppers);
-	    }
-	    break;
-
-	case IPP_TAG_BEGIN_COLLECTION :
-	    if (!strcmp(token, "{"))
-	    {
-	      ipp_t	*col = get_collection(fp, filename, &linenum);
-				    /* Collection value */
-
-	      if (col)
-	      {
-		attrptr = lastcol = ippAddCollection(attrs, IPP_TAG_PRINTER, attr, col);
-		ippDelete(col);
-	      }
-	      else
-		exit(1);
-	    }
-	    else
-	    {
-	      fprintf(stderr, "ippserver: Bad ATTR collection value on line %d of \"%s\".\n", linenum, filename);
-	      exit(1);
-	    }
-
-	    do
-	    {
-	      ipp_t	*col;			/* Collection value */
-	      long	pos = ftell(fp);	/* Save position of file */
-
-	      if (!get_token(fp, token, sizeof(token), &linenum))
-		break;
-
-	      if (strcmp(token, ","))
-	      {
-		fseek(fp, pos, SEEK_SET);
-		break;
-	      }
-
-	      if (!get_token(fp, token, sizeof(token), &linenum) || strcmp(token, "{"))
-	      {
-		fprintf(stderr, "ippserver: Unexpected \"%s\" on line %d of \"%s\".\n", token, linenum, filename);
-		exit(1);
-	      }
-
-	      if ((col = get_collection(fp, filename, &linenum)) == NULL)
-		break;
-
-	      ippSetCollection(attrs, &attrptr, ippGetCount(attrptr), col);
-	      lastcol = attrptr;
-	    }
-	    while (!strcmp(token, "{"));
-	    break;
-
-	case IPP_TAG_STRING :
-	    attrptr = ippAddOctetString(attrs, IPP_TAG_PRINTER, attr, token, (int)strlen(token));
-	    break;
-
-	default :
-	    fprintf(stderr, "ippserver: Unsupported ATTR value tag %s on line %d of \"%s\".\n", ippTagString(value), linenum, filename);
-	    exit(1);
-
-	case IPP_TAG_TEXTLANG :
-	case IPP_TAG_NAMELANG :
-	case IPP_TAG_TEXT :
-	case IPP_TAG_NAME :
-	case IPP_TAG_KEYWORD :
-	case IPP_TAG_URI :
-	case IPP_TAG_URISCHEME :
-	case IPP_TAG_CHARSET :
-	case IPP_TAG_LANGUAGE :
-	case IPP_TAG_MIMETYPE :
-	    if (!strchr(token, ','))
-	      attrptr = ippAddString(attrs, IPP_TAG_PRINTER, value, attr, NULL, token);
-	    else
-	    {
-	     /*
-	      * Multiple string values...
-	      */
-
-	      int	num_values;	/* Number of values */
-	      char	*values[100],	/* Values */
-			*ptr;		/* Pointer to next value */
-
-
-	      values[0]  = token;
-	      num_values = 1;
-
-	      for (ptr = strchr(token, ','); ptr; ptr = strchr(ptr, ','))
-	      {
-		if (ptr > token && ptr[-1] == '\\')
-		  _cups_strcpy(ptr - 1, ptr);
-		else
-		{
-		  *ptr++ = '\0';
-		  values[num_values] = ptr;
-		  num_values ++;
-		  if (num_values >= (int)(sizeof(values) / sizeof(values[0])))
-		    break;
-		}
-	      }
-
-	      attrptr = ippAddStrings(attrs, IPP_TAG_PRINTER, value, attr, num_values, NULL, (const char **)values);
-	    }
-	    break;
-      }
-
-      if (!attrptr)
-      {
-        fprintf(stderr, "ippserver: Unable to add attribute on line %d of \"%s\": %s\n", linenum, filename, cupsLastErrorString());
-        exit(1);
-      }
-    }
-    else
-    {
-      fprintf(stderr, "ippserver: Unknown directive \"%s\" on line %d of \"%s\".\n", token, linenum, filename);
-      exit(1);
-    }
-  }
-
-  fclose(fp);
-}
-#endif // 0
-
-
-/*
- * 'load_printer()' - Load a printer configuration file and create a printer.
- */
-
-static server_printer_t	*		/* O - New printer or NULL */
-load_printer(const char *conf,		/* I - Configuration file */
-             const char *icon)		/* I - Icon file */
-{
-  (void)conf;
-  (void)icon;
-  int duplex = 1, ppm = 10, ppm_color = 10;		// TODO: Update
-
-  return (NULL);
-}
-
-
 /*
  * 'load_system()' - Load the system configuration file.
  */
@@ -900,7 +975,7 @@ load_system(const char *conf)		/* I - Configuration file */
       break;
     }
 
-    if (strcasecmp(line, "DataDirectory"))
+    if (_cups_strcasecmp(line, "DataDirectory"))
     {
       if (access(value, R_OK))
       {
@@ -911,11 +986,28 @@ load_system(const char *conf)		/* I - Configuration file */
 
       DataDirectory = strdup(value);
     }
-    else if (!strcasecmp(line, "KeepFiles"))
+    else if (_cups_strcasecmp(line, "Encryption"))
+    {
+      if (!_cups_strcasecmp(value, "always"))
+        Encryption = HTTP_ENCRYPTION_ALWAYS;
+      else if (!_cups_strcasecmp(value, "ifrequested"))
+        Encryption = HTTP_ENCRYPTION_IF_REQUESTED;
+      else if (!_cups_strcasecmp(value, "never"))
+        Encryption = HTTP_ENCRYPTION_NEVER;
+      else if (!_cups_strcasecmp(value, "required"))
+        Encryption = HTTP_ENCRYPTION_REQUIRED;
+      else
+      {
+        fprintf(stderr, "ippserver: Bad Encryption value \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
+        status = 0;
+        break;
+      }
+    }
+    else if (!_cups_strcasecmp(line, "KeepFiles"))
     {
       KeepFiles = !strcasecmp(value, "yes") || !strcasecmp(value, "true") || !strcasecmp(value, "on");
     }
-    else if (!strcasecmp(line, "Listen"))
+    else if (!_cups_strcasecmp(line, "Listen"))
     {
       char	*ptr;			/* Pointer into host value */
       int	port;			/* Port number */
@@ -941,20 +1033,20 @@ load_system(const char *conf)		/* I - Configuration file */
         break;
       }
     }
-    else if (!strcasecmp(line, "LogFile"))
+    else if (!_cups_strcasecmp(line, "LogFile"))
     {
-      if (!strcasecmp(value, "stderr"))
+      if (!_cups_strcasecmp(value, "stderr"))
         LogFile = NULL;
       else
         LogFile = strdup(value);
     }
     else if (!strcasecmp(line, "LogLevel"))
     {
-      if (!strcasecmp(value, "error"))
+      if (!_cups_strcasecmp(value, "error"))
         LogLevel = SERVER_LOGLEVEL_ERROR;
-      else if (!strcasecmp(value, "info"))
+      else if (!_cups_strcasecmp(value, "info"))
         LogLevel = SERVER_LOGLEVEL_INFO;
-      else if (!strcasecmp(value, "debug"))
+      else if (!_cups_strcasecmp(value, "debug"))
         LogLevel = SERVER_LOGLEVEL_DEBUG;
       else
       {
@@ -963,7 +1055,7 @@ load_system(const char *conf)		/* I - Configuration file */
         break;
       }
     }
-    else if (!strcasecmp(line, "MaxJobs"))
+    else if (!_cups_strcasecmp(line, "MaxJobs"))
     {
       if (!isdigit(*value & 255))
       {
@@ -974,7 +1066,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       MaxJobs = atoi(value);
     }
-    else if (!strcasecmp(line, "SpoolDirectory"))
+    else if (!_cups_strcasecmp(line, "SpoolDirectory"))
     {
       if (access(value, R_OK))
       {
