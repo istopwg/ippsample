@@ -48,6 +48,7 @@
 #define CUPS_DATADIR    "/usr/share/cups"
 #define CUPS_LOCALEDIR	"/usr/share/locale"
 #define CUPS_SERVERROOT	"/etc/cups"
+#define CUPS_SERVERBIN	""
 #define CUPS_STATEDIR	"/var/run/cups"
 
 

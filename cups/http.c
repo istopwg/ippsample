@@ -1,9 +1,9 @@
 /*
- * "$Id: http.c 12964 2015-11-13 19:37:47Z msweet $"
+ * "$Id: http.c 13014 2015-12-11 18:59:09Z msweet $"
  *
  * HTTP routines for CUPS.
  *
- * Copyright 2007-2014 by Apple Inc.
+ * Copyright 2007-2015 by Apple Inc.
  * Copyright 1997-2007 by Easy Software Products, all rights reserved.
  *
  * This file contains Kerberos support code, copyright 2006 by
@@ -2428,8 +2428,7 @@ httpReconnect2(http_t *http,		/* I - HTTP connection */
                   httpAddrPort(&(current->addr))));
 #endif /* DEBUG */
 
-  if ((addr = httpAddrConnect2(http->addrlist, &(http->fd), msec,
-                               cancel)) == NULL)
+  if ((addr = httpAddrConnect2(http->addrlist, &(http->fd), msec, cancel)) == NULL)
   {
    /*
     * Unable to connect...
@@ -4850,5 +4849,5 @@ http_write_chunk(http_t     *http,	/* I - HTTP connection */
 
 
 /*
- * End of "$Id: http.c 12964 2015-11-13 19:37:47Z msweet $".
+ * End of "$Id: http.c 13014 2015-12-11 18:59:09Z msweet $".
  */

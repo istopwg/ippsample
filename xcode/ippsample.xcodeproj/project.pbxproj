@@ -7,6 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		72737CF61C24BA4F007CBEF6 /* dest-job.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CEF1C24BA4F007CBEF6 /* dest-job.c */; };
+		72737CF71C24BA4F007CBEF6 /* dest-localization.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF01C24BA4F007CBEF6 /* dest-localization.c */; };
+		72737CF81C24BA4F007CBEF6 /* dest-options.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF11C24BA4F007CBEF6 /* dest-options.c */; };
+		72737CF91C24BA4F007CBEF6 /* dest.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF21C24BA4F007CBEF6 /* dest.c */; };
+		72737CFA1C24BA4F007CBEF6 /* getdevices.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF31C24BA4F007CBEF6 /* getdevices.c */; };
+		72737CFB1C24BA4F007CBEF6 /* notify.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF41C24BA4F007CBEF6 /* notify.c */; };
+		72737CFC1C24BA4F007CBEF6 /* util.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF51C24BA4F007CBEF6 /* util.c */; };
 		72B402681C0CE27900139783 /* array-private.h in Headers */ = {isa = PBXBuildFile; fileRef = 72B4022F1C0CE27800139783 /* array-private.h */; };
 		72B402691C0CE27900139783 /* array.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B402301C0CE27800139783 /* array.c */; };
 		72B4026A1C0CE27900139783 /* array.h in Headers */ = {isa = PBXBuildFile; fileRef = 72B402311C0CE27800139783 /* array.h */; };
@@ -150,6 +157,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		72737CEF1C24BA4F007CBEF6 /* dest-job.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "dest-job.c"; path = "../cups/dest-job.c"; sourceTree = "<group>"; };
+		72737CF01C24BA4F007CBEF6 /* dest-localization.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "dest-localization.c"; path = "../cups/dest-localization.c"; sourceTree = "<group>"; };
+		72737CF11C24BA4F007CBEF6 /* dest-options.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "dest-options.c"; path = "../cups/dest-options.c"; sourceTree = "<group>"; };
+		72737CF21C24BA4F007CBEF6 /* dest.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = dest.c; path = ../cups/dest.c; sourceTree = "<group>"; };
+		72737CF31C24BA4F007CBEF6 /* getdevices.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = getdevices.c; path = ../cups/getdevices.c; sourceTree = "<group>"; };
+		72737CF41C24BA4F007CBEF6 /* notify.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = notify.c; path = ../cups/notify.c; sourceTree = "<group>"; };
+		72737CF51C24BA4F007CBEF6 /* util.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = util.c; path = ../cups/util.c; sourceTree = "<group>"; };
 		72B402181C0CDFB400139783 /* ippserver */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ippserver; sourceTree = BUILT_PRODUCTS_DIR; };
 		72B402261C0CE0E100139783 /* libcups.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libcups.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		72B4022F1C0CE27800139783 /* array-private.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "array-private.h"; path = "../cups/array-private.h"; sourceTree = "<group>"; };
@@ -327,6 +341,10 @@
 				72B402341C0CE27800139783 /* cups.h */,
 				72B402351C0CE27800139783 /* debug-private.h */,
 				72B402361C0CE27800139783 /* debug.c */,
+				72737CEF1C24BA4F007CBEF6 /* dest-job.c */,
+				72737CF01C24BA4F007CBEF6 /* dest-localization.c */,
+				72737CF11C24BA4F007CBEF6 /* dest-options.c */,
+				72737CF21C24BA4F007CBEF6 /* dest.c */,
 				72B402371C0CE27800139783 /* dir.c */,
 				72B402381C0CE27800139783 /* dir.h */,
 				72B402391C0CE27800139783 /* encode.c */,
@@ -334,6 +352,7 @@
 				72B4023B1C0CE27800139783 /* file-private.h */,
 				72B4023C1C0CE27800139783 /* file.c */,
 				72B4023D1C0CE27800139783 /* file.h */,
+				72737CF31C24BA4F007CBEF6 /* getdevices.c */,
 				72B4023E1C0CE27800139783 /* getputfile.c */,
 				72B4023F1C0CE27800139783 /* globals.c */,
 				72B402401C0CE27800139783 /* hash.c */,
@@ -354,6 +373,7 @@
 				72B4024F1C0CE27800139783 /* md5-private.h */,
 				72B402501C0CE27800139783 /* md5.c */,
 				72B402511C0CE27800139783 /* md5passwd.c */,
+				72737CF41C24BA4F007CBEF6 /* notify.c */,
 				72B402521C0CE27800139783 /* options.c */,
 				72B402531C0CE27800139783 /* pwg-media.c */,
 				72B402541C0CE27800139783 /* pwg-private.h */,
@@ -375,6 +395,7 @@
 				72B402641C0CE27900139783 /* transcode.c */,
 				72B402651C0CE27900139783 /* transcode.h */,
 				72B402661C0CE27900139783 /* usersys.c */,
+				72737CF51C24BA4F007CBEF6 /* util.c */,
 				72B402671C0CE27900139783 /* versioning.h */,
 			);
 			name = libcups;
@@ -616,6 +637,7 @@
 				72B402891C0CE27900139783 /* md5.c in Sources */,
 				72B4027D1C0CE27900139783 /* http-support.c in Sources */,
 				72B4029C1C0CE27900139783 /* tls.c in Sources */,
+				72737CF91C24BA4F007CBEF6 /* dest.c in Sources */,
 				72B4027B1C0CE27900139783 /* http-addrlist.c in Sources */,
 				72B4027A1C0CE27900139783 /* http-addr.c in Sources */,
 				72B402701C0CE27900139783 /* dir.c in Sources */,
@@ -624,7 +646,10 @@
 				72B4028A1C0CE27900139783 /* md5passwd.c in Sources */,
 				72B402691C0CE27900139783 /* array.c in Sources */,
 				72B402721C0CE27900139783 /* encode.c in Sources */,
+				72737CF71C24BA4F007CBEF6 /* dest-localization.c in Sources */,
 				72B4029D1C0CE27900139783 /* transcode.c in Sources */,
+				72737CFC1C24BA4F007CBEF6 /* util.c in Sources */,
+				72737CF61C24BA4F007CBEF6 /* dest-job.c in Sources */,
 				72B4027E1C0CE27900139783 /* http.c in Sources */,
 				72B402841C0CE27900139783 /* langprintf.c in Sources */,
 				72B402961C0CE27900139783 /* tempfile.c in Sources */,
@@ -632,10 +657,13 @@
 				72B402771C0CE27900139783 /* getputfile.c in Sources */,
 				72B402931C0CE27900139783 /* snprintf.c in Sources */,
 				72B402951C0CE27900139783 /* string.c in Sources */,
+				72737CFB1C24BA4F007CBEF6 /* notify.c in Sources */,
 				72B4028C1C0CE27900139783 /* pwg-media.c in Sources */,
 				72B402981C0CE27900139783 /* thread.c in Sources */,
 				72B4026B1C0CE27900139783 /* auth.c in Sources */,
+				72737CFA1C24BA4F007CBEF6 /* getdevices.c in Sources */,
 				72B4029F1C0CE27900139783 /* usersys.c in Sources */,
+				72737CF81C24BA4F007CBEF6 /* dest-options.c in Sources */,
 				72B402821C0CE27900139783 /* ipp.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

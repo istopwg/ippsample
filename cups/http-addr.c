@@ -19,7 +19,6 @@
  * Include necessary headers...
  */
 
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include "cups-private.h"
 #include <sys/stat.h>
 #ifdef HAVE_RESOLV_H

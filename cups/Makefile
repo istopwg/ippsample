@@ -31,10 +31,15 @@ OBJS	=	\
 		array.o \
 		auth.o \
 		debug.o \
+		dest.o \
+		dest-job.o \
+		dest-localization.o \
+		dest-options.o \
 		dir.o \
 		encode.o \
 		error.o \
 		file.o \
+		getdevices.o \
 		getputfile.o \
 		globals.o \
 		hash.o \
@@ -48,6 +53,7 @@ OBJS	=	\
 		language.o \
 		md5.o \
 		md5passwd.o \
+		notify.o \
 		options.o \
 		pwg-media.o \
 		raster.o \
@@ -58,7 +64,8 @@ OBJS	=	\
 		thread.o \
 		tls.o \
 		transcode.o \
-		usersys.o
+		usersys.o \
+		util.o
 
 
 #

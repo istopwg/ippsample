@@ -1,8 +1,9 @@
 /*
+ * "$Id: globals.c 13007 2015-12-09 16:56:00Z msweet $"
+ *
  * Global variable access routines for CUPS.
  *
- * Copyright 2015 by the ISTO Printer Working Group.
- * Copyright 2007-2013 by Apple Inc.
+ * Copyright 2007-2015 by Apple Inc.
  * Copyright 1997-2007 by Easy Software Products, all rights reserved.
  *
  * These coded instructions, statements, and computer programs are the
@@ -24,7 +25,6 @@
 /*
  * Local globals...
  */
-
 
 #ifdef DEBUG
 static int		cups_global_index = 0;
@@ -265,6 +265,9 @@ cups_globals_alloc(void)
   if ((cg->cups_datadir = getenv("CUPS_DATADIR")) == NULL)
     cg->cups_datadir = installdir;
 
+  if ((cg->cups_serverbin = getenv("CUPS_SERVERBIN")) == NULL)
+    cg->cups_serverbin = installdir;
+
   if ((cg->cups_serverroot = getenv("CUPS_SERVERROOT")) == NULL)
     cg->cups_serverroot = confdir;
 
@@ -287,6 +290,7 @@ cups_globals_alloc(void)
     */
 
     cg->cups_datadir    = CUPS_DATADIR;
+    cg->cups_serverbin  = CUPS_SERVERBIN;
     cg->cups_serverroot = CUPS_SERVERROOT;
     cg->cups_statedir   = CUPS_STATEDIR;
     cg->localedir       = CUPS_LOCALEDIR;
@@ -299,6 +303,9 @@ cups_globals_alloc(void)
 
     if ((cg->cups_datadir = getenv("CUPS_DATADIR")) == NULL)
       cg->cups_datadir = CUPS_DATADIR;
+
+    if ((cg->cups_serverbin = getenv("CUPS_SERVERBIN")) == NULL)
+      cg->cups_serverbin = CUPS_SERVERBIN;
 
     if ((cg->cups_serverroot = getenv("CUPS_SERVERROOT")) == NULL)
       cg->cups_serverroot = CUPS_SERVERROOT;
@@ -350,6 +357,8 @@ cups_globals_free(_cups_globals_t *cg)	/* I - Pointer to global data */
   cupsFileClose(cg->stdio_files[1]);
   cupsFileClose(cg->stdio_files[2]);
 
+  cupsFreeOptions(cg->cupsd_num_settings, cg->cupsd_settings);
+
   free(cg);
 }
 #endif /* HAVE_PTHREAD_H || WIN32 */
@@ -373,5 +382,5 @@ cups_globals_init(void)
 
 
 /*
- * End of "$Id: globals.c 12480 2015-02-03 12:36:34Z msweet $".
+ * End of "$Id: globals.c 13007 2015-12-09 16:56:00Z msweet $".
  */

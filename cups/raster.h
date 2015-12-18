@@ -1,20 +1,20 @@
 /*
- * "$Id: raster.h 4027 2012-11-16 01:00:05Z msweet $"
+ * "$Id: raster.h 13024 2015-12-18 20:34:33Z msweet $"
  *
- *   Raster file definitions for CUPS.
+ * Raster file definitions for CUPS.
  *
- *   Copyright 2007-2012 by Apple Inc.
- *   Copyright 1997-2006 by Easy Software Products.
+ * Copyright 2007-2015 by Apple Inc.
+ * Copyright 1997-2006 by Easy Software Products.
  *
- *   This file is part of the CUPS Imaging library.
+ * This file is part of the CUPS Imaging library.
  *
- *   These coded instructions, statements, and computer programs are the
- *   property of Apple Inc. and are protected by Federal copyright
- *   law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- *   which should have been included with this file.  If this file is
- *   file is missing or damaged, see the license at "http://www.cups.org/".
+ * These coded instructions, statements, and computer programs are the
+ * property of Apple Inc. and are protected by Federal copyright
+ * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
+ * which should have been included with this file.  If this file is
+ * file is missing or damaged, see the license at "http://www.cups.org/".
  *
- *   This file is subject to the Apple OS-Developed Software exception.
+ * This file is subject to the Apple OS-Developed Software exception.
  */
 
 #ifndef _CUPS_RASTER_H_
@@ -388,6 +388,9 @@ extern const char	*cupsRasterErrorString(void) _CUPS_API_1_3;
 extern cups_raster_t	*cupsRasterOpenIO(cups_raster_iocb_t iocb, void *ctx,
 			                  cups_mode_t mode);
 
+/**** New in CUPS 2.2 ****/
+extern int		cupsRasterInitPWGHeader(cups_page_header2_t *h, pwg_media_t *media, const char *type, int xdpi, int ydpi, const char *sides, const char *sheet_back) _CUPS_API_2_2;
+
 #  ifdef __cplusplus
 }
 #  endif /* __cplusplus */
@@ -395,5 +398,5 @@ extern cups_raster_t	*cupsRasterOpenIO(cups_raster_iocb_t iocb, void *ctx,
 #endif /* !_CUPS_RASTER_H_ */
 
 /*
- * End of "$Id: raster.h 4027 2012-11-16 01:00:05Z msweet $".
+ * End of "$Id: raster.h 13024 2015-12-18 20:34:33Z msweet $".
  */
