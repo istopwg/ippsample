@@ -32,11 +32,13 @@ main(int  argc,				/* I - Number of command-line args */
      char *argv[])			/* I - Command-line arguments */
 {
   int		i;			/* Looping var */
-  const char	*opt,			/* Current option character */
+  char		*opt,			/* Current option character */
+		*authtype = NULL,	/* Type of authentication */
 		*confdir = NULL,	/* Configuration directory */
                 *command = NULL,	/* Command to run with job files */
-		*name = NULL,		/* Printer name */
-		*location = "",		/* Location of printer */
+		*device_uri = NULL,	/* Device URI */
+		*name = NULL;		/* Printer name */
+  const char	*location = "",		/* Location of printer */
 		*make = "Test",		/* Manufacturer */
 		*model = "Printer",	/* Model */
 		*icon = "printer.png",	/* Icon file */
@@ -44,6 +46,9 @@ main(int  argc,				/* I - Number of command-line args */
 	      				/* Supported formats */
   const char	*subtype = "_print";	/* Bonjour service subtype */
   int		port = 0,		/* Port number (0 = auto) */
+		duplex = 0,		/* Duplex mode */
+		ppm = 10,		/* Pages per minute for mono */
+		ppm_color = 0,		/* Pages per minute for color */
 		pin = 0;		/* PIN printing mode? */
   const char	*proxy_user = NULL;	/* Proxy username */
   server_printer_t *printer;		/* Printer object */
@@ -62,6 +67,10 @@ main(int  argc,				/* I - Number of command-line args */
       {
         switch (*opt)
 	{
+          case '2' : /* -2 (enable 2-sided printing) */
+              duplex = 1;
+              break;
+
           case 'C' : /* -C config-directory */
               i ++;
               if (i >= argc)
@@ -97,7 +106,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-	      attrs = serverLoadAttributes(argv[i]);
+	      attrs = serverLoadAttributes(argv[i], &authtype, &command, &device_uri, &make, &model, &proxy_user);
 	      break;
 
           case 'c' : /* -c command */
@@ -179,6 +188,14 @@ main(int  argc,				/* I - Number of command-line args */
 	      subtype = argv[i];
 	      break;
 
+          case 's' : /* -s speed[,color-speed] */
+              i ++;
+              if (i >= argc)
+                usage(1);
+              if (sscanf(argv[i], "%d,%d", &ppm, &ppm_color) < 1)
+                usage(1);
+              break;
+
           case 'u' : /* -u user:pass */
 	      i ++;
 	      if (i >= argc)
@@ -228,7 +245,7 @@ main(int  argc,				/* I - Number of command-line args */
     if (!serverFinalizeConfiguration())
       return (1);
 
-    if ((printer = serverCreatePrinter("/ipp/print", name, location, make, model, icon, formats, pin, subtype, attrs, command, proxy_user)) == NULL)
+    if ((printer = serverCreatePrinter("/ipp/print", name, location, make, model, icon, formats, ppm, ppm_color, duplex, pin, attrs, command, device_uri, proxy_user)) == NULL)
       return (1);
 
     Printers = cupsArrayNew(NULL, NULL);

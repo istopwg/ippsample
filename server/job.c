@@ -137,6 +137,8 @@ serverCreateJob(server_client_t *client)	/* I - Client */
   ipp_attribute_t	*attr;		/* Job attribute */
   char			uri[1024],	/* job-uri value */
 			uuid[64];	/* job-uuid value */
+  server_listener_t	*lis = (server_listener_t *)cupsArrayFirst(Listeners);
+					/* First listener */
 
 
   _cupsRWLockWrite(&(client->printer->rwlock));
@@ -200,8 +202,8 @@ serverCreateJob(server_client_t *client)	/* I - Client */
 
   job->id = client->printer->next_job_id ++;
 
-  snprintf(uri, sizeof(uri), "%s/%d", client->printer->uri, job->id);
-  httpAssembleUUID(client->printer->hostname, client->printer->port, client->printer->name, job->id, uuid, sizeof(uuid));
+  snprintf(uri, sizeof(uri), "%s/%d", client->printer->default_uri, job->id);
+  httpAssembleUUID(lis->host, lis->port, client->printer->name, job->id, uuid, sizeof(uuid));
 
   ippAddDate(job->attrs, IPP_TAG_JOB, "date-time-at-creation", ippTimeToDate(time(&job->created)));
   ippAddInteger(job->attrs, IPP_TAG_JOB, IPP_TAG_INTEGER, "job-id", job->id);
@@ -210,7 +212,7 @@ serverCreateJob(server_client_t *client)	/* I - Client */
   if ((attr = ippFindAttribute(client->request, "printer-uri", IPP_TAG_URI)) != NULL)
     ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_URI, "job-printer-uri", NULL, ippGetString(attr, 0, NULL));
   else
-    ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_URI, "job-printer-uri", NULL, client->printer->uri);
+    ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_URI, "job-printer-uri", NULL, client->printer->default_uri);
   ippAddInteger(job->attrs, IPP_TAG_JOB, IPP_TAG_INTEGER, "time-at-creation", (int)(job->created - client->printer->start_time));
 
   cupsArrayAdd(client->printer->jobs, job);
@@ -283,7 +285,7 @@ void serverCreateJobFilename(
   * Create a filename with the job-id, job-name, and document-format (extension)...
   */
 
-  snprintf(fname, fnamesize, "%s/%d-%s.%s", printer->directory, job->id, name, ext);
+  snprintf(fname, fnamesize, "%s/%s/%d-%s.%s", DataDirectory, printer->name, job->id, name, ext);
 }
 
 
@@ -295,8 +297,7 @@ void serverCreateJobFilename(
 void
 serverDeleteJob(server_job_t *job)		/* I - Job */
 {
-  if (Verbosity)
-    fprintf(stderr, "Removing job #%d from history.\n", job->id);
+  serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Removing job #%d from history.", job->id);
 
   _cupsRWLockWrite(&job->rwlock);
 
@@ -320,9 +321,10 @@ serverDeleteJob(server_job_t *job)		/* I - Job */
  * 'serverFindJob()' - Find a job specified in a request.
  */
 
-server_job_t *			/* O - Job or NULL */
-serverFindJob(server_client_t *client,		/* I - Client */
-         int           job_id)		/* I - Job ID to find or 0 to lookup */
+server_job_t *				/* O - Job or NULL */
+serverFindJob(
+    server_client_t *client,		/* I - Client */
+    int             job_id)		/* I - Job ID to find or 0 to lookup */
 {
   ipp_attribute_t	*attr;		/* job-id or job-uri attribute */
   server_job_t		key,		/* Job search key */
@@ -335,11 +337,18 @@ serverFindJob(server_client_t *client,		/* I - Client */
   }
   else if ((attr = ippFindAttribute(client->request, "job-uri", IPP_TAG_URI)) != NULL)
   {
-    const char *uri = ippGetString(attr, 0, NULL);
+    const char	*uri = ippGetString(attr, 0, NULL);
+					/* job-uri value */
+    char	scheme[32],		/* URI scheme */
+		userpass[256],		/* username:password */
+		host[256],		/* Hostname/IP */
+		resource[1024];		/* Resource path */
+    int		port;			/* Port number */
 
-    if (!strncmp(uri, client->printer->uri, client->printer->urilen) &&
-        uri[client->printer->urilen] == '/')
-      key.id = atoi(uri + client->printer->urilen + 1);
+    if (httpSeparateURI(HTTP_URI_CODING_ALL, uri, scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, resource, sizeof(resource)) >= HTTP_URI_STATUS_OK &&
+        !strncmp(resource, client->printer->resource, client->printer->resourcelen) &&
+        resource[client->printer->resourcelen] == '/')
+      key.id = atoi(resource + client->printer->resourcelen + 1);
     else
       return (NULL);
   }

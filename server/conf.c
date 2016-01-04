@@ -25,7 +25,6 @@
 static int		compare_printers(server_printer_t *a, server_printer_t *b);
 static ipp_t		*get_collection(cups_file_t *fp, const char *filename, int *linenum);
 static char		*get_token(cups_file_t *fp, char *buf, int buflen, int *linenum);
-static server_printer_t	*load_printer(const char *conf, const char *icon);
 static int		load_system(const char *conf);
 
 
@@ -70,7 +69,10 @@ serverDNSSDInit(void)
 int					/* O - 1 on success, 0 on failure */
 serverFinalizeConfiguration(void)
 {
-  char	local[1024];			/* Local hostname */
+  char			local[1024],	/* Local hostname */
+			uri[1024];	/* Printer URI */
+  server_printer_t	*printer;	/* Current printer */
+  server_listener_t	*lis;		/* First listener */
 
 
  /*
@@ -161,6 +163,22 @@ serverFinalizeConfiguration(void)
 #endif /* WIN32 */
   }
 
+ /*
+  * Save the default printer URI for each configured printer...
+  */
+
+  lis = (server_listener_t *)cupsArrayFirst(Listeners);
+  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  {
+#ifdef HAVE_SSL
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), Encryption != HTTP_ENCRYPTION_NEVER ? "ipps" : "ipp", NULL, lis->host, lis->port, printer->resource);
+#else
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "ipp", NULL, lis->host, lis->port, printer->resource);
+#endif /* HAVE_SSL */
+
+    printer->default_uri = strdup(uri);
+  }
+
   return (1);
 }
 
@@ -241,7 +259,7 @@ serverLoadAttributes(
 
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
-	fserverLog(SERVER_LOGLEVEL_ERROR, "Missing ATTR value on line %d of \"%s\".", linenum, filename);
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing ATTR value on line %d of \"%s\".", linenum, filename);
         goto load_error;
       }
 
@@ -560,8 +578,16 @@ serverLoadConfiguration(
   cups_dir_t	*dir;			/* Directory pointer */
   cups_dentry_t	*dent;			/* Directory entry */
   char		filename[260],		/* Configuration file/directory */
+		resource[1024],		/* Resource path */
                 *ptr;			/* Pointer into filename */
   server_printer_t *printer;		/* Printer */
+  ipp_t		*attrs;			/* Printer attributes */
+  char		*authtype,		/* AuthType value, if any */
+		*command,		/* Command value, if any */
+		*device_uri,		/* DeviceURI value, if any */
+		*make,			/* Make value, if any */
+		*model,			/* Model value, if any */
+		*proxy_user;		/* ProxyUser value, if any */
 
 
  /*
@@ -591,13 +617,25 @@ serverLoadConfiguration(
         if ((ptr = filename + strlen(filename) - 5) > filename)
           strlcpy(ptr, ".png", sizeof(filename) - (ptr - filename));
 
-        if ((printer = load_printer(dent->filename, access(filename, R_OK) ? NULL : filename)) == NULL)
+        if ((ptr = strrchr(dent->filename, '/')) != NULL)
+	  ptr ++;
+	else
+	  continue;
+
+        authtype = command = device_uri = make = model = proxy_user = NULL;
+
+        if ((attrs = serverLoadAttributes(dent->filename, &authtype, &command, &device_uri, &make, &model, &proxy_user)) != NULL)
+	{
+          snprintf(resource, sizeof(resource), "/ipp/print/%s", ptr);
+
+	  if ((printer = serverCreatePrinter(resource, ptr, NULL, make, model, access(filename, R_OK) ? NULL : filename, NULL, 0, 0, 0, 0, attrs, command, device_uri, proxy_user)) == NULL)
           continue;
 
-        if (!Printers)
-          Printers = cupsArrayNew((cups_array_func_t)compare_printers, NULL);
+	  if (!Printers)
+	    Printers = cupsArrayNew((cups_array_func_t)compare_printers, NULL);
 
-        cupsArrayAdd(Printers, printer);
+	  cupsArrayAdd(Printers, printer);
+	}
       }
     }
 

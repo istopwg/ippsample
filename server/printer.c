@@ -91,9 +91,9 @@ serverCreatePrinter(
     int        ppm_color,		/* I - Pages per minute in color (0 for gray) */
     int        duplex,			/* I - 1 = duplex, 0 = simplex */
     int        pin,			/* I - Require PIN printing */
-    const char *subtype,		/* I - Bonjour service subtype */
     ipp_t      *attrs,			/* I - Attributes */
     const char *command,		/* I - Command to run, if any */
+    const char *device_uri,		/* I - Device URI, if any */
     const char *proxy_user)		/* I - Proxy account username, if any */
 {
   int			i;		/* Looping var */
@@ -317,6 +317,7 @@ serverCreatePrinter(
   }
 
   printer->resource       = strdup(resource);
+  printer->resourcelen    = strlen(resource);
   printer->name           = strdup(name);
   printer->dnssd_name     = strdup(printer->name);
   printer->start_time     = time(NULL);
@@ -347,6 +348,9 @@ serverCreatePrinter(
 
   if (command)
     printer->command = strdup(command);
+
+  if (device_uri)
+    printer->device_uri = strdup(device_uri);
 
   if (proxy_user)
     printer->proxy_user = strdup(proxy_user);
@@ -950,7 +954,7 @@ serverCreatePrinter(
   * Register the printer with Bonjour...
   */
 
-  if (!register_printer(printer, location, make, model, docformats, adminurl, uuid + 9, ppm_color > 0, duplex, subtype))
+  if (!register_printer(printer, location, make, model, docformats, adminurl, uuid + 9, ppm_color > 0, duplex, DNSSDSubType))
     goto bad_printer;
 
  /*
@@ -1001,6 +1005,8 @@ serverDeletePrinter(server_printer_t *printer)	/* I - Printer */
   avahi_threaded_poll_unlock(DNSSDMaster);
 #endif /* HAVE_DNSSD */
 
+  if (printer->default_uri)
+    free(printer->default_uri);
   if (printer->resource)
     free(printer->resource);
   if (printer->dnssd_name)
@@ -1009,6 +1015,10 @@ serverDeletePrinter(server_printer_t *printer)	/* I - Printer */
     free(printer->name);
   if (printer->icon)
     free(printer->icon);
+  if (printer->command)
+    free(printer->command);
+  if (printer->device_uri)
+    free(printer->device_uri);
   if (printer->proxy_user)
     free(printer->proxy_user);
 
