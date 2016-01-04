@@ -27,7 +27,6 @@ static void		html_printf(server_client_t *client, const char *format, ...) __att
 static int		parse_options(server_client_t *client, cups_option_t **options);
 
 
-
 /*
  * 'serverCreateClient()' - Accept a new network connection and create a client object.
  */
