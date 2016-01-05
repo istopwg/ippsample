@@ -37,20 +37,21 @@ main(int  argc,				/* I - Number of command-line args */
 		*confdir = NULL,	/* Configuration directory */
                 *command = NULL,	/* Command to run with job files */
 		*device_uri = NULL,	/* Device URI */
-		*name = NULL;		/* Printer name */
-  const char	*location = "",		/* Location of printer */
-		*make = "Test",		/* Manufacturer */
-		*model = "Printer",	/* Model */
-		*icon = "printer.png",	/* Icon file */
-		*formats = "application/pdf,image/jpeg,image/pwg-raster";
+		*name = NULL,		/* Printer name */
+		*location = (char *)"",	/* Location of printer */
+		*make = (char *)"Test",	/* Manufacturer */
+		*model = (char *)"Printer",
+					/* Model */
+		*icon = (char *)"printer.png",
+					/* Icon file */
+		*formats = (char *)"application/pdf,image/jpeg,image/pwg-raster";
 	      				/* Supported formats */
-  const char	*subtype = "_print";	/* Bonjour service subtype */
   int		port = 0,		/* Port number (0 = auto) */
 		duplex = 0,		/* Duplex mode */
 		ppm = 10,		/* Pages per minute for mono */
 		ppm_color = 0,		/* Pages per minute for color */
 		pin = 0;		/* PIN printing mode? */
-  const char	*proxy_user = NULL;	/* Proxy username */
+  char		*proxy_user = NULL;	/* Proxy username */
   server_printer_t *printer;		/* Printer object */
   ipp_t		*attrs = NULL;		/* Extra printer attributes */
 
@@ -185,7 +186,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-	      subtype = argv[i];
+	      DNSSDSubType = strdup(argv[i]);
 	      break;
 
           case 's' : /* -s speed[,color-speed] */
@@ -224,6 +225,9 @@ main(int  argc,				/* I - Number of command-line args */
       usage(1);
     }
   }
+
+  if (!DNSSDSubType)
+    DNSSDSubType = strdup("_print");
 
   if (!name && !confdir)
     usage(1);

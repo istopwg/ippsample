@@ -900,12 +900,12 @@ static void
 ipp_fetch_document(
     server_client_t *client)		/* I - Client */
 {
-  server_device_t		*device;	/* Device */
+  server_device_t	*device;	/* Device */
   server_job_t		*job;		/* Job */
   ipp_attribute_t	*attr;		/* Attribute */
   int			compression;	/* compression */
   char			filename[1024];	/* Job filename */
-  const char		*format;	/* document-format */
+  const char		*format = NULL;	/* document-format */
 
 
   if ((device = serverFindDevice(client)) == NULL)
