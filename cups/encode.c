@@ -3,7 +3,7 @@
  *
  * Option encoding routines for CUPS.
  *
- * Copyright 2007-2015 by Apple Inc.
+ * Copyright 2007-2016 by Apple Inc.
  * Copyright 1997-2007 by Easy Software Products.
  *
  * These coded instructions, statements, and computer programs are the
@@ -542,14 +542,13 @@ cupsEncodeOptions2(
 	else if (*sep == ',' && !quote)
 	  count ++;
 	else if (*sep == '\\' && sep[1])
-	  sep ++;
+	  sep += 2;
       }
     }
     else
       count = 1;
 
-    DEBUG_printf(("2cupsEncodeOptions2: option=\"%s\", count=%d",
-                  option->name, count));
+    DEBUG_printf(("2cupsEncodeOptions2: option=\"%s\", value=\"%s\", count=%d", option->name, option->value, count));
 
    /*
     * Allocate memory for the attribute values...
@@ -633,6 +632,7 @@ cupsEncodeOptions2(
 	    * Skip quoted character...
 	    */
 
+	    memmove(sep, sep + 1, strlen(val));
 	    sep ++;
 	  }
 	}
