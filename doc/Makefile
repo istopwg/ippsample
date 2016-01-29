@@ -19,6 +19,7 @@ TARGETS		=	\
 			mantohtml
 HTML		=	\
 			ippfind.html \
+			ippproxy.html \
 			ippserver.html \
 			ipptool.html \
 			ipptoolfile.html

@@ -1,0 +1,55 @@
+<!DOCTYPE HTML>
+<html>
+<!-- SECTION: Man Pages -->
+<head>
+	<link rel="stylesheet" type="text/css" href="../cups-printable.css">
+	<title>ippproxy(1)</title>
+</head>
+<body>
+<h1 class="title">ippproxy(1)</h1>
+<h2 class="title"><a name="NAME">Name</a></h2>
+ippproxy - a simple ipp proxy client
+<h2 class="title"><a name="SYNOPSIS">Synopsis</a></h2>
+<b>ippproxy</b>
+[
+<b>-v[vvv]</b>
+]
+<i>infrastructure-printer-uri</i>
+<i>local-printer-uri</i>
+<h2 class="title"><a name="DESCRIPTION">Description</a></h2>
+<b>ippproxy</b>
+is a simple IPP proxy client conforming to the IPP Shared Infrastructure Extensions (INFRA) specification. It can be used to proxy access to a local IPP printer through an Infrastructure Printer such as
+<b>ippinfra</b>(1).
+<h2 class="title"><a name="OPTIONS">Options</a></h2>
+The following options are recognized by
+<b>ippproxy:</b>
+<dl class="man">
+<dt><b>-v[vvv]</b>
+<dd style="margin-left: 5.0em">Be (very) verbose when logging activity to the standard output.
+</dl>
+<h2 class="title"><a name="EXIT_STATUS">Exit Status</a></h2>
+The
+<b>ippproxy</b>
+program returns 1 if it is unable to process the command-line arguments or connect to either the infrastructure or local printers.
+Otherwise
+<b>ippproxy</b>
+will run continuously until terminated.
+<h2 class="title"><a name="CONFORMING_TO">Conforming To</a></h2>
+The
+<b>ippproxy</b>
+program is unique to CUPS and conforms to the IPP Shared Infrastructure Extensions (INFRA) specification.
+<h2 class="title"><a name="EXAMPLE">Example</a></h2>
+Run
+<b>ippproxy</b>
+with an infrastructure URI of "ipps://host.example.com/ipp/print" and a local URI of "ipp://10.0.1.2/ipp/print":
+<pre class="man">
+
+    ippproxy ipps://host.example.com/ipp/print ipp://10.0.1.2/ipp/print
+</pre>
+<h2 class="title"><a name="SEE_ALSO">See Also</a></h2>
+PWG Internet Printing Protocol Workgroup (<a href="http://www.pwg.org/ipp">http://www.pwg.org/ipp</a>)
+<h2 class="title"><a name="COPYRIGHT">Copyright</a></h2>
+Copyright &copy; 2007-2014 by Apple Inc.
+
+</body>
+</html>

@@ -1744,7 +1744,7 @@ do_tests(FILE         *outfile,		/* I - Output file */
 		    tokenptr = ptr;
 		}
 		else
-		  i = (int)strtol(tokenptr, &tokenptr, 0);
+		  i = (int)strtol(token, &tokenptr, 0);
 
 		values[0] = i;
 
@@ -2662,7 +2662,7 @@ do_tests(FILE         *outfile,		/* I - Output file */
 	      http->error != ETIMEDOUT)
 #endif /* WIN32 */
 	  {
-	    if (httpReconnect(http))
+	    if (httpReconnect2(http, 30000, NULL))
 	      prev_pass = 0;
 	  }
 	  else if (status == HTTP_STATUS_ERROR || status == HTTP_STATUS_CUPS_AUTHORIZATION_CANCELED)
@@ -2689,13 +2689,13 @@ do_tests(FILE         *outfile,		/* I - Output file */
 	  http->error != ETIMEDOUT)
 #endif /* WIN32 */
       {
-	if (httpReconnect(http))
+	if (httpReconnect2(http, 30000, NULL))
 	  prev_pass = 0;
       }
       else if (status == HTTP_STATUS_ERROR)
       {
         if (!Cancel)
-          httpReconnect(http);
+          httpReconnect2(http, 30000, NULL);
 
 	prev_pass = 0;
       }

@@ -6,6 +6,24 @@
 	objectVersion = 47;
 	objects = {
 
+/* Begin PBXAggregateTarget section */
+		72E0060D1C5C0C48006CF057 /* All */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = 72E0060E1C5C0C48006CF057 /* Build configuration list for PBXAggregateTarget "All" */;
+			buildPhases = (
+			);
+			dependencies = (
+				72E006121C5C0C52006CF057 /* PBXTargetDependency */,
+				72E006141C5C0C52006CF057 /* PBXTargetDependency */,
+				72E006161C5C0C52006CF057 /* PBXTargetDependency */,
+				72E006181C5C0C52006CF057 /* PBXTargetDependency */,
+				72E0061A1C5C0C52006CF057 /* PBXTargetDependency */,
+			);
+			name = All;
+			productName = All;
+		};
+/* End PBXAggregateTarget section */
+
 /* Begin PBXBuildFile section */
 		72737CF61C24BA4F007CBEF6 /* dest-job.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CEF1C24BA4F007CBEF6 /* dest-job.c */; };
 		72737CF71C24BA4F007CBEF6 /* dest-localization.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF01C24BA4F007CBEF6 /* dest-localization.c */; };
@@ -100,6 +118,13 @@
 		72B403031C0CE92400139783 /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
 		72B403041C0CE92400139783 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
 		72B403071C0DE7FC00139783 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
+		72E005F81C5C0B10006CF057 /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
+		72E005F91C5C0B10006CF057 /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
+		72E005FA1C5C0B10006CF057 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
+		72E005FB1C5C0B10006CF057 /* libcups.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups.a */; };
+		72E005FC1C5C0B10006CF057 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402E91C0CE81900139783 /* ApplicationServices.framework */; };
+		72E005FD1C5C0B10006CF057 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
+		72E006071C5C0B65006CF057 /* ippproxy.c in Sources */ = {isa = PBXBuildFile; fileRef = 72E006031C5C0B49006CF057 /* ippproxy.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -124,6 +149,48 @@
 			remoteGlobalIDString = 72B402251C0CE0E100139783;
 			remoteInfo = libcups;
 		};
+		72E005F41C5C0B10006CF057 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72B402251C0CE0E100139783;
+			remoteInfo = libcups;
+		};
+		72E006111C5C0C52006CF057 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72B402251C0CE0E100139783;
+			remoteInfo = libcups;
+		};
+		72E006131C5C0C52006CF057 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72B402D81C0CE61D00139783;
+			remoteInfo = ippfind;
+		};
+		72E006151C5C0C52006CF057 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72E005F21C5C0B10006CF057;
+			remoteInfo = ippproxy;
+		};
+		72E006171C5C0C52006CF057 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72B402171C0CDFB400139783;
+			remoteInfo = ippserver;
+		};
+		72E006191C5C0C52006CF057 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72B402C81C0CE5EC00139783;
+			remoteInfo = ipptool;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -146,6 +213,15 @@
 			runOnlyForDeploymentPostprocessing = 1;
 		};
 		72B402D71C0CE61D00139783 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		72E005FE1C5C0B10006CF057 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -229,7 +305,7 @@
 		72B402A51C0CE43D00139783 /* device.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = device.c; path = ../server/device.c; sourceTree = "<group>"; };
 		72B402A61C0CE43D00139783 /* ipp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ipp.c; path = ../server/ipp.c; sourceTree = "<group>"; };
 		72B402A71C0CE43D00139783 /* ippserver.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ippserver.h; path = ../server/ippserver.h; sourceTree = "<group>"; };
-		72B402A81C0CE43D00139783 /* ippserver.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ippserver.man; path = ../server/ippserver.man; sourceTree = "<group>"; };
+		72B402A81C0CE43D00139783 /* ippserver.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ippserver.man; path = ../doc/ippserver.man; sourceTree = "<group>"; };
 		72B402A91C0CE43D00139783 /* job.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = job.c; path = ../server/job.c; sourceTree = "<group>"; };
 		72B402AA1C0CE43D00139783 /* log.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = log.c; path = ../server/log.c; sourceTree = "<group>"; };
 		72B402AB1C0CE43D00139783 /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = main.c; path = ../server/main.c; sourceTree = "<group>"; };
@@ -252,6 +328,13 @@
 		72B402FB1C0CE8CE00139783 /* libiconv.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libiconv.dylib; path = usr/lib/libiconv.dylib; sourceTree = SDKROOT; };
 		72B402FC1C0CE8CE00139783 /* libresolv.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libresolv.dylib; path = usr/lib/libresolv.dylib; sourceTree = SDKROOT; };
 		72B403061C0DE7FC00139783 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		72E006021C5C0B10006CF057 /* ippproxy */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ippproxy; sourceTree = BUILT_PRODUCTS_DIR; };
+		72E006031C5C0B49006CF057 /* ippproxy.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ippproxy.c; path = ../proxy/ippproxy.c; sourceTree = "<group>"; };
+		72E006081C5C0BA8006CF057 /* ippfind.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ippfind.man; path = ../doc/ippfind.man; sourceTree = "<group>"; };
+		72E006091C5C0BA8006CF057 /* ipptool.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ipptool.man; path = ../doc/ipptool.man; sourceTree = "<group>"; };
+		72E0060A1C5C0BA8006CF057 /* ipptoolfile.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ipptoolfile.man; path = ../doc/ipptoolfile.man; sourceTree = "<group>"; };
+		72E0060B1C5C0BE3006CF057 /* ippproxy.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = ippproxy.html; path = ../doc/ippproxy.html; sourceTree = "<group>"; };
+		72E0060C1C5C0BE3006CF057 /* ippproxy.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ippproxy.man; path = ../doc/ippproxy.man; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -303,6 +386,19 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		72E005F71C5C0B10006CF057 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				72E005F81C5C0B10006CF057 /* libiconv.dylib in Frameworks */,
+				72E005F91C5C0B10006CF057 /* libresolv.dylib in Frameworks */,
+				72E005FA1C5C0B10006CF057 /* libz.dylib in Frameworks */,
+				72E005FB1C5C0B10006CF057 /* libcups.a in Frameworks */,
+				72E005FC1C5C0B10006CF057 /* ApplicationServices.framework in Frameworks */,
+				72E005FD1C5C0B10006CF057 /* CoreFoundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -310,6 +406,7 @@
 			isa = PBXGroup;
 			children = (
 				72B402A11C0CE3AC00139783 /* config.h */,
+				72E006061C5C0B4F006CF057 /* ippproxy */,
 				72B4022D1C0CE21C00139783 /* ippserver */,
 				72B4022A1C0CE16200139783 /* libcups */,
 				72B4022E1C0CE22300139783 /* tools */,
@@ -326,6 +423,7 @@
 				72B402261C0CE0E100139783 /* libcups.a */,
 				72B402C91C0CE5EC00139783 /* ipptool */,
 				72B402D91C0CE61D00139783 /* ippfind */,
+				72E006021C5C0B10006CF057 /* ippproxy */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -433,10 +531,15 @@
 			isa = PBXGroup;
 			children = (
 				72B402E21C0CE66200139783 /* ippfind.html */,
+				72E006081C5C0BA8006CF057 /* ippfind.man */,
+				72E0060B1C5C0BE3006CF057 /* ippproxy.html */,
+				72E0060C1C5C0BE3006CF057 /* ippproxy.man */,
 				72B402E31C0CE66200139783 /* ippserver.html */,
-				72B402E41C0CE66200139783 /* ipptool.html */,
-				72B402E51C0CE66200139783 /* ipptoolfile.html */,
 				72B402A81C0CE43D00139783 /* ippserver.man */,
+				72B402E41C0CE66200139783 /* ipptool.html */,
+				72E006091C5C0BA8006CF057 /* ipptool.man */,
+				72B402E51C0CE66200139783 /* ipptoolfile.html */,
+				72E0060A1C5C0BA8006CF057 /* ipptoolfile.man */,
 			);
 			name = Documentation;
 			sourceTree = "<group>";
@@ -453,6 +556,14 @@
 				72B402EB1C0CE81900139783 /* SystemConfiguration.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		72E006061C5C0B4F006CF057 /* ippproxy */ = {
+			isa = PBXGroup;
+			children = (
+				72E006031C5C0B49006CF057 /* ippproxy.c */,
+			);
+			name = ippproxy;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -562,6 +673,24 @@
 			productReference = 72B402D91C0CE61D00139783 /* ippfind */;
 			productType = "com.apple.product-type.tool";
 		};
+		72E005F21C5C0B10006CF057 /* ippproxy */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 72E005FF1C5C0B10006CF057 /* Build configuration list for PBXNativeTarget "ippproxy" */;
+			buildPhases = (
+				72E005F51C5C0B10006CF057 /* Sources */,
+				72E005F71C5C0B10006CF057 /* Frameworks */,
+				72E005FE1C5C0B10006CF057 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				72E005F31C5C0B10006CF057 /* PBXTargetDependency */,
+			);
+			name = ippproxy;
+			productName = ipptool;
+			productReference = 72E006021C5C0B10006CF057 /* ippproxy */;
+			productType = "com.apple.product-type.tool";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -583,6 +712,9 @@
 					72B402D81C0CE61D00139783 = {
 						CreatedOnToolsVersion = 7.1;
 					};
+					72E0060D1C5C0C48006CF057 = {
+						CreatedOnToolsVersion = 7.3;
+					};
 				};
 			};
 			buildConfigurationList = 72B402131C0CDFB400139783 /* Build configuration list for PBXProject "ippsample" */;
@@ -598,9 +730,11 @@
 			projectRoot = "";
 			targets = (
 				72B402251C0CE0E100139783 /* libcups */,
+				72B402D81C0CE61D00139783 /* ippfind */,
+				72E005F21C5C0B10006CF057 /* ippproxy */,
 				72B402171C0CDFB400139783 /* ippserver */,
 				72B402C81C0CE5EC00139783 /* ipptool */,
-				72B402D81C0CE61D00139783 /* ippfind */,
+				72E0060D1C5C0C48006CF057 /* All */,
 			);
 		};
 /* End PBXProject section */
@@ -684,6 +818,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		72E005F51C5C0B10006CF057 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				72E006071C5C0B65006CF057 /* ippproxy.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -701,6 +843,36 @@
 			isa = PBXTargetDependency;
 			target = 72B402251C0CE0E100139783 /* libcups */;
 			targetProxy = 72B402F41C0CE83A00139783 /* PBXContainerItemProxy */;
+		};
+		72E005F31C5C0B10006CF057 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72B402251C0CE0E100139783 /* libcups */;
+			targetProxy = 72E005F41C5C0B10006CF057 /* PBXContainerItemProxy */;
+		};
+		72E006121C5C0C52006CF057 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72B402251C0CE0E100139783 /* libcups */;
+			targetProxy = 72E006111C5C0C52006CF057 /* PBXContainerItemProxy */;
+		};
+		72E006141C5C0C52006CF057 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72B402D81C0CE61D00139783 /* ippfind */;
+			targetProxy = 72E006131C5C0C52006CF057 /* PBXContainerItemProxy */;
+		};
+		72E006161C5C0C52006CF057 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72E005F21C5C0B10006CF057 /* ippproxy */;
+			targetProxy = 72E006151C5C0C52006CF057 /* PBXContainerItemProxy */;
+		};
+		72E006181C5C0C52006CF057 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72B402171C0CDFB400139783 /* ippserver */;
+			targetProxy = 72E006171C5C0C52006CF057 /* PBXContainerItemProxy */;
+		};
+		72E0061A1C5C0C52006CF057 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72B402C81C0CE5EC00139783 /* ipptool */;
+			targetProxy = 72E006191C5C0C52006CF057 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -882,6 +1054,38 @@
 			};
 			name = Release;
 		};
+		72E006001C5C0B10006CF057 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		72E006011C5C0B10006CF057 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		72E0060F1C5C0C48006CF057 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		72E006101C5C0C48006CF057 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -929,6 +1133,23 @@
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
+		};
+		72E005FF1C5C0B10006CF057 /* Build configuration list for PBXNativeTarget "ippproxy" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				72E006001C5C0B10006CF057 /* Debug */,
+				72E006011C5C0B10006CF057 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		72E0060E1C5C0C48006CF057 /* Build configuration list for PBXAggregateTarget "All" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				72E0060F1C5C0C48006CF057 /* Debug */,
+				72E006101C5C0C48006CF057 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
 		};
 /* End XCConfigurationList section */
 	};
