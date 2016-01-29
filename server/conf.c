@@ -1014,7 +1014,7 @@ load_system(const char *conf)		/* I - Configuration file */
       break;
     }
 
-    if (_cups_strcasecmp(line, "DataDirectory"))
+    if (!_cups_strcasecmp(line, "DataDirectory"))
     {
       if (access(value, R_OK))
       {
@@ -1025,7 +1025,18 @@ load_system(const char *conf)		/* I - Configuration file */
 
       DataDirectory = strdup(value);
     }
-    else if (_cups_strcasecmp(line, "Encryption"))
+    else if (!_cups_strcasecmp(line, "DefaultPrinter"))
+    {
+      if (DefaultPrinter)
+      {
+        fprintf(stderr, "ippserver: Extra DefaultPrinter seen on line %d of \"%s\".\n", linenum, conf);
+        status = 0;
+        break;
+      }
+
+      DefaultPrinter = strdup(value);
+    }
+    else if (!_cups_strcasecmp(line, "Encryption"))
     {
       if (!_cups_strcasecmp(value, "always"))
         Encryption = HTTP_ENCRYPTION_ALWAYS;
@@ -1079,7 +1090,7 @@ load_system(const char *conf)		/* I - Configuration file */
       else
         LogFile = strdup(value);
     }
-    else if (!strcasecmp(line, "LogLevel"))
+    else if (!_cups_strcasecmp(line, "LogLevel"))
     {
       if (!_cups_strcasecmp(value, "error"))
         LogLevel = SERVER_LOGLEVEL_ERROR;

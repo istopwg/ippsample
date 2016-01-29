@@ -41,7 +41,7 @@ Configuration files are placed in a directory specified on the command-line. The
     "system.conf":
     DefaultPrinter foo
     LogLevel debug
-    LogOutput syslog
+    LogFile stderr
 
 Print services (queues) are placed in a subdirectory called "print", for example:
 
