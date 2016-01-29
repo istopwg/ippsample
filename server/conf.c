@@ -1,7 +1,7 @@
 /*
  * Configuration file support for sample IPP server implementation.
  *
- * Copyright 2015 by Apple Inc.
+ * Copyright 2015-2016 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -527,7 +527,7 @@ serverLoadAttributes(
     {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing MAKE value on line %d of \"%s\".", linenum, filename);
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing MODEL value on line %d of \"%s\".", linenum, filename);
         goto load_error;
       }
 
