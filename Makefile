@@ -1,7 +1,7 @@
 #
 # Top-level Makefile for IPP sample implementations.
 #
-# Copyright 2007-2015 by Apple Inc.
+# Copyright 2007-2016 by Apple Inc.
 # Copyright 1997-2007 by Easy Software Products, all rights reserved.
 #
 # These coded instructions, statements, and computer programs are the
@@ -28,6 +28,7 @@ DIRS	=	\
 
 all:
 	for dir in $(DIRS); do \
+		echo Making all in $$dir...; \
 		(cd $$dir; $(MAKE) $(MFLAGS) all); \
 	done
 
@@ -38,6 +39,7 @@ all:
 
 clean:
 	for dir in $(DIRS); do \
+		echo Cleaning all in $$dir...; \
 		(cd $$dir; $(MAKE) $(MFLAGS) clean); \
 	done
 
@@ -57,6 +59,7 @@ distclean:	clean
 
 depend:
 	for dir in $(DIRS); do \
+		echo Updating dependencies in $$dir...; \
 		(cd $$dir; $(MAKE) $(MFLAGS) depend); \
 	done
 

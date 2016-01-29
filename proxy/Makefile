@@ -1,7 +1,7 @@
 #
-# Sample Infrastructure Printer and Proxy Makefile.
+# Sample IPP Proxy Makefile.
 #
-# Copyright 2015 by Apple Inc.
+# Copyright 2015-2016 by Apple Inc.
 #
 # These coded instructions, statements, and computer programs are the
 # property of Apple Inc. and are protected by Federal copyright
@@ -57,9 +57,9 @@ depend:
 # ippproxy
 #
 
-ippproxy:	$(PROXYOBJS) ../cups/libcups.a
+ippproxy:	$(OBJS) ../cups/libcups.a
 	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ $(PROXYOBJS) $(LIBS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
 
 #
