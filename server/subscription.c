@@ -56,12 +56,12 @@ serverAddEvent(server_printer_t *printer,	/* I - Printer */
       ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-sequence-number", ++ sub->last_sequence);
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_KEYWORD, "notify-subscribed-event", NULL, serverGetNotifySubscribedEvent(event));
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_TEXT, "notify-text", NULL, text);
-      if (event & SERVER_EVENT_PRINTER_ALL)
+      if (printer && (event & SERVER_EVENT_PRINTER_ALL))
       {
 	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_ENUM, "printer-state", printer->state);
 	serverCopyPrinterStateReasons(n, IPP_TAG_EVENT_NOTIFICATION, printer);
       }
-      if (event & SERVER_EVENT_JOB_ALL)
+      if (job && (event & SERVER_EVENT_JOB_ALL))
       {
 	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_ENUM, "job-state", job->state);
 	serverCopyJobStateReasons(n, IPP_TAG_EVENT_NOTIFICATION, job);

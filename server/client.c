@@ -24,7 +24,9 @@ static void		html_escape(server_client_t *client, const char *s,
 static void		html_footer(server_client_t *client);
 static void		html_header(server_client_t *client, const char *title);
 static void		html_printf(server_client_t *client, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
+#if 0
 static int		parse_options(server_client_t *client, cups_option_t **options);
+#endif // 0
 
 
 /*
@@ -1332,6 +1334,7 @@ html_printf(server_client_t *client,	/* I - Client */
 }
 
 
+#if 0
 /*
  * 'parse_options()' - Parse URL options into CUPS options.
  *
@@ -1364,3 +1367,4 @@ parse_options(server_client_t *client,	/* I - Client */
 
   return (num_options);
 }
+#endif // 0

@@ -150,17 +150,20 @@ serverFinalizeConfiguration(void)
     * number of 8631.
     */
 
-    if (!serverCreateListeners(ServerName, 8631))
-      return (0);
+    if (!DefaultPort)
+      DefaultPort = 8631;
 
 #else
    /*
     * Use 8000 + UID mod 1000 for the default port number...
     */
 
-    if (!serverCreateListeners(ServerName, 8000 + (getuid() % 1000)))
-      return (0);
+    if (!DefaultPort)
+      DefaultPort = 8000 + (getuid() % 1000);
 #endif /* WIN32 */
+
+    if (!serverCreateListeners(ServerName, DefaultPort))
+      return (0);
   }
 
  /*
@@ -219,8 +222,7 @@ serverLoadAttributes(
 		token[1024],		/* Token from file */
 		*tokenptr;		/* Pointer into token */
   ipp_tag_t	value;			/* Current value type */
-  ipp_attribute_t *attrptr,		/* Attribute pointer */
-		*lastcol = NULL;	/* Last collection attribute */
+  ipp_attribute_t *attrptr;		/* Attribute pointer */
 
 
   if ((fp = cupsFileOpen(filename, "r")) == NULL)
@@ -382,7 +384,7 @@ serverLoadAttributes(
 
 	      if (col)
 	      {
-		attrptr = lastcol = ippAddCollection(attrs, IPP_TAG_PRINTER, attr, col);
+		attrptr = ippAddCollection(attrs, IPP_TAG_PRINTER, attr, col);
 		ippDelete(col);
 	      }
 	      else
@@ -418,7 +420,6 @@ serverLoadAttributes(
 		break;
 
 	      ippSetCollection(attrs, &attrptr, ippGetCount(attrptr), col);
-	      lastcol = attrptr;
 	    }
 	    while (!strcmp(token, "{"));
 	    break;
@@ -530,7 +531,7 @@ serverLoadAttributes(
         goto load_error;
       }
 
-      *make = strdup(token);
+      *model = strdup(token);
     }
     else if (!_cups_strcasecmp(token, "PROXY-USER") && proxy_user)
     {
@@ -615,7 +616,7 @@ serverLoadConfiguration(
 
         strlcpy(filename, dent->filename, sizeof(filename));
         if ((ptr = filename + strlen(filename) - 5) > filename)
-          strlcpy(ptr, ".png", sizeof(filename) - (ptr - filename));
+          strlcpy(ptr, ".png", sizeof(filename) - (size_t)(ptr - filename));
 
         if ((ptr = strrchr(dent->filename, '/')) != NULL)
 	  ptr ++;

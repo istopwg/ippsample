@@ -680,7 +680,7 @@ ipp_create_xxx_subscriptions(
 
   while (attr)
   {
-    server_job_t		*job = NULL;	/* Job */
+    server_job_t	*job = NULL;	/* Job */
     const char		*attrname,	/* Attribute name */
 			*pullmethod = NULL;
     					/* notify-pull-method */
@@ -831,7 +831,7 @@ ipp_create_xxx_subscriptions(
 	    break;
       }
 
-      if ((sub = serverCreateSubcription(client->printer, job, interval, lease, username, notify_events, notify_attributes, notify_user_data)) == NULL)
+      if ((sub = serverCreateSubcription(client->printer, job, interval, lease, username, notify_events, notify_attributes, notify_user_data)) != NULL)
       {
         ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-subscription-id", sub->id);
         ok_subs ++;
@@ -1261,8 +1261,8 @@ ipp_get_notifications(
     server_client_t *client)		/* I - Client */
 {
   ipp_attribute_t	*sub_ids,	/* notify-subscription-ids */
-			*seq_nums,	/* notify-sequence-numbers */
-			*notify_wait;	/* Wait for events? */
+			*seq_nums;	/* notify-sequence-numbers */
+//  ipp_attribute_t	*notify_wait;	/* Wait for events? */
   int			i,		/* Looping vars */
 			count,		/* Number of IDs */
 			first = 1,	/* First event? */
@@ -1279,7 +1279,7 @@ ipp_get_notifications(
 
   count       = ippGetCount(sub_ids);
   seq_nums    = ippFindAttribute(client->request, "notify-sequence-numbers", IPP_TAG_INTEGER);
-  notify_wait = ippFindAttribute(client->request, "notify-wait", IPP_TAG_BOOLEAN);
+//  notify_wait = ippFindAttribute(client->request, "notify-wait", IPP_TAG_BOOLEAN);
 
   if (seq_nums && count != ippGetCount(seq_nums))
   {
@@ -3392,7 +3392,7 @@ valid_doc_attributes(
     attr = ippAddString(client->request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, format);
   }
 
-  if (!strcmp(format, "application/octet-stream") && (ippGetOperation(client->request) == IPP_OP_PRINT_JOB || ippGetOperation(client->request) == IPP_OP_SEND_DOCUMENT))
+  if ((!format || !strcmp(format, "application/octet-stream")) && (ippGetOperation(client->request) == IPP_OP_PRINT_JOB || ippGetOperation(client->request) == IPP_OP_SEND_DOCUMENT))
   {
    /*
     * Auto-type the file using the first 8 bytes of the file...
@@ -3713,8 +3713,7 @@ valid_job_attributes(
     }
     else
     {
-      int	count,			/* Number of supported values */
-		xdpi,			/* Horizontal resolution for job template attribute */
+      int	xdpi,			/* Horizontal resolution for job template attribute */
 		ydpi,			/* Vertical resolution for job template attribute */
 		sydpi;			/* Vertical resolution for supported value */
       ipp_res_t	units,			/* Units for job template attribute */

@@ -478,6 +478,7 @@ typedef struct server_listener_s	/**** Listener data ****/
 
 VAR char		*ConfigDirectory VALUE(NULL);
 VAR char		*DataDirectory	VALUE(NULL);
+VAR int			DefaultPort	VALUE(0);
 VAR http_encryption_t	Encryption	VALUE(HTTP_ENCRYPTION_IF_REQUESTED);
 VAR int			KeepFiles	VALUE(0);
 #ifdef HAVE_SSL

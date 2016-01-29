@@ -46,8 +46,7 @@ main(int  argc,				/* I - Number of command-line args */
 					/* Icon file */
 		*formats = (char *)"application/pdf,image/jpeg,image/pwg-raster";
 	      				/* Supported formats */
-  int		port = 0,		/* Port number (0 = auto) */
-		duplex = 0,		/* Duplex mode */
+  int		duplex = 0,		/* Duplex mode */
 		ppm = 10,		/* Pages per minute for mono */
 		ppm_color = 0,		/* Pages per minute for color */
 		pin = 0;		/* PIN printing mode? */
@@ -178,7 +177,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc || !isdigit(argv[i][0] & 255))
 	        usage(1);
 
-	      port = atoi(argv[i]);
+	      DefaultPort = atoi(argv[i]);
 	      break;
 
 	  case 'r' : /* -r subtype */

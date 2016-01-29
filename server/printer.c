@@ -339,7 +339,7 @@ serverCreatePrinter(
       cupsArrayAdd(uris, uri);
   }
 
-  uriptrs = calloc(cupsArrayCount(uris), sizeof(char *));
+  uriptrs = calloc((size_t)cupsArrayCount(uris), sizeof(char *));
   for (i = 0, uriptr = cupsArrayFirst(uris); uriptr; i ++, uriptr = cupsArrayNext(uris))
     uriptrs[i] = uriptr;
 
