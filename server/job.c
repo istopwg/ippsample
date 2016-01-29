@@ -422,7 +422,6 @@ serverProcessJob(server_job_t *job)		/* I - Job */
 
   job->printer->state_reasons &= (server_preason_t)~SERVER_PREASON_MEDIA_NEEDED;
 
-#if 0
   if (job->printer->command)
   {
    /*
@@ -589,8 +588,8 @@ serverProcessJob(server_job_t *job)		/* I - Job */
 
 	      process_attr_message(job, line);
 	    }
-	    else if (Verbosity > 1)
-	      fprintf(stderr, "%s: %s\n", job->printer->command, line);
+	    else
+	      serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "%s: %s", job->printer->command, line);
 
 	    bytes = ptr - line;
             if (ptr < endptr)
@@ -620,20 +619,17 @@ serverProcessJob(server_job_t *job)		/* I - Job */
 #ifndef WIN32
       if (WIFEXITED(status))
 #endif /* !WIN32 */
-	fprintf(stderr, "Command \"%s\" exited with status %d.\n",
-		job->printer->command, WEXITSTATUS(status));
+	serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Command \"%s\" exited with status %d.", job->printer->command, WEXITSTATUS(status));
 #ifndef WIN32
       else
-	fprintf(stderr, "Command \"%s\" terminated with signal %d.\n",
-		job->printer->command, WTERMSIG(status));
+	serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Command \"%s\" terminated with signal %d.", job->printer->command, WTERMSIG(status));
 #endif /* !WIN32 */
       job->state = IPP_JSTATE_ABORTED;
     }
     else if (status < 0)
       job->state = IPP_JSTATE_ABORTED;
     else
-      fprintf(stderr, "Command \"%s\" completed successfully.\n",
-	      job->printer->command);
+      serverLogJob(SERVER_LOGLEVEL_INFO, job, "Command \"%s\" completed successfully.", job->printer->command);
 
    /*
     * Make sure processing takes at least 5 seconds...
@@ -644,7 +640,6 @@ serverProcessJob(server_job_t *job)		/* I - Job */
       sleep(5);
   }
   else
-#endif // 0
   {
    /*
     * Sleep for a random amount of time to simulate job processing.
