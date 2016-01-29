@@ -7,7 +7,7 @@ under alternate license terms.
 
 Contributions should be submitted as pull requests on the Github site:
 
-    http://github.com/istopwg/ippsample/issues
+    http://github.com/istopwg/ippsample/pulls
 
 
 ## Coding Guidelines
