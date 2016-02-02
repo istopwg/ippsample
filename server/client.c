@@ -37,6 +37,8 @@ server_client_t *			/* O - Client */
 serverCreateClient(int sock)		/* I - Listen socket */
 {
   server_client_t	*client;	/* Client */
+  static int		next_client_number = 1;
+					/* Next client number */
 
 
   if ((client = calloc(1, sizeof(server_client_t))) == NULL)
@@ -45,7 +47,7 @@ serverCreateClient(int sock)		/* I - Listen socket */
     return (NULL);
   }
 
-//  client->printer = printer;
+  client->number = next_client_number ++;
 
  /*
   * Accept the client and get the remote address...
@@ -87,7 +89,7 @@ serverCreateListeners(const char *host,	/* I - Hostname, IP address, or "*" for 
   snprintf(service, sizeof(service), "%d", port);
   if ((addrlist = httpAddrGetList(host, AF_UNSPEC, service)) == NULL)
   {
-    fprintf(stderr, "ippserver: Unable to resolve Listen address \"%s\": %s\n", host, cupsLastErrorString());
+    serverLog(SERVER_LOGLEVEL_ERROR, "Unable to resolve Listen address \"%s\": %s", host, cupsLastErrorString());
     return (0);
   }
 
@@ -176,15 +178,15 @@ serverProcessClient(
 
       if (recv(httpGetFd(client->http), buf, 1, MSG_PEEK) == 1 && (!buf[0] || !strchr("DGHOPT", buf[0])))
       {
-        fprintf(stderr, "%s Starting HTTPS session.\n", client->hostname);
+        serverLogClient(SERVER_LOGLEVEL_INFO, client, "Starting HTTPS session.");
 
 	if (httpEncryption(client->http, HTTP_ENCRYPTION_ALWAYS))
 	{
-	  fprintf(stderr, "%s Unable to encrypt connection: %s\n", client->hostname, cupsLastErrorString());
+	  serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Unable to encrypt connection: %s", cupsLastErrorString());
 	  break;
         }
 
-        fprintf(stderr, "%s Connection now encrypted.\n", client->hostname);
+        serverLogClient(SERVER_LOGLEVEL_INFO, client, "Connection now encrypted.");
       }
 
       first_time = 0;
@@ -270,27 +272,26 @@ serverProcessHTTP(
   if (http_state == HTTP_STATE_ERROR)
   {
     if (httpError(client->http) == EPIPE)
-      fprintf(stderr, "%s Client closed connection.\n", client->hostname);
+      serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Client closed connection.");
     else
-      fprintf(stderr, "%s Bad request line (%s).\n", client->hostname,
-              strerror(httpError(client->http)));
+      serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Bad request line (%s).", strerror(httpError(client->http)));
 
     return (0);
   }
   else if (http_state == HTTP_STATE_UNKNOWN_METHOD)
   {
-    fprintf(stderr, "%s Bad/unknown operation.\n", client->hostname);
+    serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Bad/unknown operation.");
     serverRespondHTTP(client, HTTP_STATUS_BAD_REQUEST, NULL, NULL, 0);
     return (0);
   }
   else if (http_state == HTTP_STATE_UNKNOWN_VERSION)
   {
-    fprintf(stderr, "%s Bad HTTP version.\n", client->hostname);
+    serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Bad HTTP version.");
     serverRespondHTTP(client, HTTP_STATUS_BAD_REQUEST, NULL, NULL, 0);
     return (0);
   }
 
-  fprintf(stderr, "%s %s %s\n", client->hostname, http_states[http_state],
+  serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s %s", http_states[http_state],
           uri);
 
  /*
@@ -303,7 +304,7 @@ serverProcessHTTP(
 		      client->uri, sizeof(client->uri)) < HTTP_URI_STATUS_OK &&
       (http_state != HTTP_STATE_OPTIONS || strcmp(uri, "*")))
   {
-    fprintf(stderr, "%s Bad URI \"%s\".\n", client->hostname, uri);
+    serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Bad URI \"%s\".", uri);
     serverRespondHTTP(client, HTTP_STATUS_BAD_REQUEST, NULL, NULL, 0);
     return (0);
   }
@@ -354,15 +355,16 @@ serverProcessHTTP(
       if (!serverRespondHTTP(client, HTTP_STATUS_SWITCHING_PROTOCOLS, NULL, NULL, 0))
         return (0);
 
-      fprintf(stderr, "%s Upgrading to encrypted connection.\n", client->hostname);
+      serverLogClient(SERVER_LOGLEVEL_INFO, client, "Upgrading to encrypted connection.");
 
       if (httpEncryption(client->http, HTTP_ENCRYPTION_REQUIRED))
       {
-        fprintf(stderr, "%s Unable to encrypt connection: %s\n", client->hostname, cupsLastErrorString());
+        serverLogClient(SERVER_LOGLEVEL_ERROR, client,
+        "Unable to encrypt connection: %s", cupsLastErrorString());
 	return (0);
       }
 
-      fprintf(stderr, "%s Connection now encrypted.\n", client->hostname);
+      serverLogClient(SERVER_LOGLEVEL_INFO, client, "Connection now encrypted.");
     }
     else
 #endif /* HAVE_SSL */
@@ -375,9 +377,7 @@ serverProcessHTTP(
   * Handle HTTP Expect...
   */
 
-  if (httpGetExpect(client->http) &&
-      (client->operation == HTTP_STATE_POST ||
-       client->operation == HTTP_STATE_PUT))
+  if (httpGetExpect(client->http) && (client->operation == HTTP_STATE_POST || client->operation == HTTP_STATE_PUT))
   {
     if (httpGetExpect(client->http) == HTTP_STATUS_CONTINUE)
     {
@@ -434,7 +434,7 @@ serverProcessHTTP(
 	  char		buffer[4096];	/* Copy buffer */
 	  ssize_t	bytes;		/* Bytes */
 
-          fprintf(stderr, "Icon file is \"%s\".\n", client->printer->icon);
+          serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Icon file is \"%s\".", client->printer->icon);
 
           if (!stat(client->printer->icon, &fileinfo) &&
 	      (fd = open(client->printer->icon, O_RDONLY)) >= 0)
@@ -766,8 +766,7 @@ serverProcessHTTP(
 	break;
 
     case HTTP_STATE_POST :
-	if (strcmp(httpGetField(client->http, HTTP_FIELD_CONTENT_TYPE),
-	           "application/ipp"))
+	if (strcmp(httpGetField(client->http, HTTP_FIELD_CONTENT_TYPE), "application/ipp"))
         {
 	 /*
 	  * Not an IPP request...
@@ -787,8 +786,7 @@ serverProcessHTTP(
 	{
 	  if (ipp_state == IPP_STATE_ERROR)
 	  {
-            fprintf(stderr, "%s IPP read error (%s).\n", client->hostname,
-	            cupsLastErrorString());
+            serverLogClient(SERVER_LOGLEVEL_ERROR, client, "IPP read error (%s).", cupsLastErrorString());
 	    serverRespondHTTP(client, HTTP_STATUS_BAD_REQUEST, NULL, NULL, 0);
 	    return (0);
 	  }
@@ -823,7 +821,7 @@ serverRespondHTTP(
   char	message[1024];			/* Text message */
 
 
-  fprintf(stderr, "%s %s\n", client->hostname, httpStatus(code));
+  serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s", httpStatus(code));
 
   if (code == HTTP_STATUS_CONTINUE)
   {
@@ -930,29 +928,18 @@ serverRespondHTTP(
 void
 serverRun(void)
 {
-#if 0
-  int		num_fds;		/* Number of file descriptors */
-  struct pollfd	polldata[3];		/* poll() data */
-  int		timeout;		/* Timeout for poll() */
-  server_client_t	*client;		/* New client */
-
-
- /*
-  * Setup poll() data for the Bonjour service socket and IPv4/6 listeners...
-  */
-
-  polldata[0].fd     = printer->ipv4;
-  polldata[0].events = POLLIN;
-
-  polldata[1].fd     = printer->ipv6;
-  polldata[1].events = POLLIN;
-
-  num_fds = 2;
-
 #ifdef HAVE_DNSSD
-  polldata[num_fds   ].fd     = DNSServiceRefSockFD(DNSSDMaster);
-  polldata[num_fds ++].events = POLLIN;
+  int			fd;		/* File descriptor */
 #endif /* HAVE_DNSSD */
+  int			max_fd;		/* Number of file descriptors */
+  fd_set		input;		/* select() input set */
+  struct timeval	timeout;	/* Timeout for poll() */
+  server_listener_t	*lis;		/* Listener */
+  server_client_t	*client;	/* New client */
+
+
+  serverLog(SERVER_LOGLEVEL_DEBUG, "serverRun: %d printers configured.", cupsArrayCount(Printers));
+  serverLog(SERVER_LOGLEVEL_DEBUG, "serverRun: %d listeners configured.", cupsArrayCount(Listeners));
 
  /*
   * Loop until we are killed or have a hard error...
@@ -960,53 +947,69 @@ serverRun(void)
 
   for (;;)
   {
-    if (cupsArrayCount(printer->jobs))
-      timeout = 10;
-    else
-      timeout = -1;
+   /*
+    * Setup select() data for the Bonjour service socket and listeners...
+    */
 
-    if (poll(polldata, (nfds_t)num_fds, timeout) < 0 && errno != EINTR)
+    FD_ZERO(&input);
+    max_fd = 0;
+
+    for (lis = (server_listener_t *)cupsArrayFirst(Listeners); lis; lis = (server_listener_t *)cupsArrayNext(Listeners))
     {
-      perror("poll() failed");
+      FD_SET(lis->fd, &input);
+      if (max_fd < lis->fd)
+        max_fd = lis->fd;
+    }
+
+#ifdef HAVE_DNSSD
+    fd = DNSServiceRefSockFD(DNSSDMaster);
+    FD_SET(fd, &input);
+    if (max_fd < fd)
+      max_fd = fd;
+#endif /* HAVE_DNSSD */
+
+    timeout.tv_sec  = 86400;
+    timeout.tv_usec = 0;
+
+    if (select(max_fd + 1, &input, NULL, NULL, &timeout) < 0 && errno != EINTR)
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Main loop failed (%s)", strerror(errno));
       break;
     }
 
-    if (polldata[0].revents & POLLIN)
+    for (lis = (server_listener_t *)cupsArrayFirst(Listeners); lis; lis = (server_listener_t *)cupsArrayNext(Listeners))
     {
-      if ((client = serverCreateClient(printer, printer->ipv4)) != NULL)
+      if (FD_ISSET(lis->fd, &input))
       {
-	if (!_cupsThreadCreate((_cups_thread_func_t)serverProcessClient, client))
-	{
-	  perror("Unable to create client thread");
-	  serverDeleteClient(client);
-	}
-      }
-    }
+        serverLog(SERVER_LOGLEVEL_DEBUG, "Incoming connection on listener %s:%d.", lis->host, lis->port);
 
-    if (polldata[1].revents & POLLIN)
-    {
-      if ((client = serverCreateClient(printer, printer->ipv6)) != NULL)
-      {
-	if (!_cupsThreadCreate((_cups_thread_func_t)serverProcessClient, client))
-	{
-	  perror("Unable to create client thread");
-	  serverDeleteClient(client);
-	}
+        if ((client = serverCreateClient(lis->fd)) != NULL)
+        {
+          if (!_cupsThreadCreate((_cups_thread_func_t)serverProcessClient, client))
+          {
+            serverLog(SERVER_LOGLEVEL_ERROR, "Unable to create client thread (%s)", strerror(errno));
+            serverDeleteClient(client);
+          }
+        }
       }
     }
 
 #ifdef HAVE_DNSSD
-    if (polldata[2].revents & POLLIN)
+    if (FD_ISSET(DNSServiceRefSockFD(DNSSDMaster), &input))
+    {
+      serverLog(SERVER_LOGLEVEL_DEBUG, "Input on DNS-SD socket.");
       DNSServiceProcessResult(DNSSDMaster);
+    }
 #endif /* HAVE_DNSSD */
 
+#if 0
    /*
     * Clean out old jobs...
     */
 
     serverCleanJobs(printer);
-  }
 #endif // 0
+  }
 }
 
 

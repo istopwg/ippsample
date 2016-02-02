@@ -236,6 +236,8 @@ main(int  argc,				/* I - Number of command-line args */
     * Load the configuration from the specified directory...
     */
 
+    serverLog(SERVER_LOGLEVEL_INFO, "Loading configuration from \"%s\".", confdir);
+
     if (!serverLoadConfiguration(confdir))
       return (1);
   }
@@ -244,6 +246,8 @@ main(int  argc,				/* I - Number of command-line args */
    /*
     * Create a single printer (backwards-compatibility mode)...
     */
+
+    serverLog(SERVER_LOGLEVEL_INFO, "Using default configuration with a single printer.");
 
     if (!serverFinalizeConfiguration())
       return (1);

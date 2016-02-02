@@ -446,6 +446,7 @@ typedef struct server_subscription_s	/**** Subscription data ****/
 
 typedef struct server_client_s		/**** Client data ****/
 {
+  int			number;		/* Client number */
   http_t		*http;		/* HTTP connection */
   ipp_t			*request,	/* IPP request */
 			*response;	/* IPP response */
@@ -531,6 +532,7 @@ extern void		serverDNSSDInit(void);
 extern int		serverFinalizeConfiguration(void);
 extern server_device_t	*serverFindDevice(server_client_t *client);
 extern server_job_t	*serverFindJob(server_client_t *client, int job_id);
+extern server_printer_t	*serverFindPrinter(const char *resource);
 extern server_subscription_t *serverFindSubscription(server_client_t *client, int sub_id);
 extern server_jreason_t	serverGetJobStateReasonsBits(ipp_attribute_t *attr);
 extern server_event_t	serverGetNotifyEventsBits(ipp_attribute_t *attr);

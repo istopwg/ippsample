@@ -17,6 +17,21 @@
 
 
 /*
+ * Local globals...
+ */
+
+static _cups_mutex_t	log_mutex = _CUPS_MUTEX_INITIALIZER;
+static int		log_fd = -1;
+
+
+/*
+ * Local functions...
+ */
+
+static void server_log_to_file(const char *format, va_list ap);
+
+
+/*
  * 'serverLog()' - Log a message.
  */
 
@@ -25,8 +40,15 @@ serverLog(server_loglevel_t level,	/* I - Log level */
           const char        *format,	/* I - Printf-style format string */
           ...)				/* I - Additional arguments as needed */
 {
-  (void)level;
-  (void)format;
+  va_list	ap;			/* Pointer to arguments */
+
+
+  if (level > LogLevel)
+    return;
+
+  va_start(ap, format);
+  server_log_to_file(format, ap);
+  va_end(ap);
 }
 
 
@@ -41,23 +63,20 @@ serverLogAttributes(const char *title,	/* I - Title */
 {
   ipp_tag_t		group_tag;	/* Current group */
   ipp_attribute_t	*attr;		/* Current attribute */
-  char			buffer[2048];	/* String buffer for value */
+  char			buffer[8192];	/* String buffer for value */
   int			major, minor;	/* Version */
 
 
-  if (LogLevel >= SERVER_LOGLEVEL_DEBUG)
+  if (LogLevel < SERVER_LOGLEVEL_DEBUG)
     return;
 
-  fprintf(stderr, "%s:\n", title);
   major = ippGetVersion(ipp, &minor);
-  fprintf(stderr, "  version=%d.%d\n", major, minor);
+  serverLog(SERVER_LOGLEVEL_DEBUG, "%s: version=%d.%d", title, major, minor);
   if (type == 1)
-    fprintf(stderr, "  operation-id=%s(%04x)\n",
-            ippOpString(ippGetOperation(ipp)), ippGetOperation(ipp));
+    serverLog(SERVER_LOGLEVEL_DEBUG, "%s: operation-id=%s(%04x)", title, ippOpString(ippGetOperation(ipp)), ippGetOperation(ipp));
   else if (type == 2)
-    fprintf(stderr, "  status-code=%s(%04x)\n",
-            ippErrorString(ippGetStatusCode(ipp)), ippGetStatusCode(ipp));
-  fprintf(stderr, "  request-id=%d\n\n", ippGetRequestId(ipp));
+    serverLog(SERVER_LOGLEVEL_DEBUG, "%s: status-code=%s(%04x)", title, ippErrorString(ippGetStatusCode(ipp)), ippGetStatusCode(ipp));
+  serverLog(SERVER_LOGLEVEL_DEBUG, "%s: request-id=%d", title, ippGetRequestId(ipp));
 
   for (attr = ippFirstAttribute(ipp), group_tag = IPP_TAG_ZERO;
        attr;
@@ -66,15 +85,13 @@ serverLogAttributes(const char *title,	/* I - Title */
     if (ippGetGroupTag(attr) != group_tag)
     {
       group_tag = ippGetGroupTag(attr);
-      fprintf(stderr, "  %s\n", ippTagString(group_tag));
+      serverLog(SERVER_LOGLEVEL_DEBUG, "%s: %s", title, ippTagString(group_tag));
     }
 
     if (ippGetName(attr))
     {
       ippAttributeString(attr, buffer, sizeof(buffer));
-      fprintf(stderr, "    %s (%s%s) %s\n", ippGetName(attr),
-	      ippGetCount(attr) > 1 ? "1setOf " : "",
-	      ippTagString(ippGetValueTag(attr)), buffer);
+      serverLog(SERVER_LOGLEVEL_DEBUG, "%s: %s (%s%s) %s", title, ippGetName(attr), ippGetCount(attr) > 1 ? "1setOf " : "", ippTagString(ippGetValueTag(attr)), buffer);
     }
   }
 }
@@ -91,9 +108,17 @@ serverLogClient(
      const char        *format,		/* I - Printf-style format string */
      ...)				/* I - Additional arguments as needed */
 {
-  (void)level;
-  (void)client;
-  (void)format;
+  char		temp[1024];		/* Temporary format string */
+  va_list	ap;			/* Pointer to arguments */
+
+
+  if (level > LogLevel)
+    return;
+
+  va_start(ap, format);
+  snprintf(temp, sizeof(temp), "[Client %d] %s", client->number, format);
+  server_log_to_file(format, ap);
+  va_end(ap);
 }
 
 
@@ -108,9 +133,17 @@ serverLogJob(
      const char        *format,		/* I - Printf-style format string */
      ...)				/* I - Additional arguments as needed */
 {
-  (void)level;
-  (void)job;
-  (void)format;
+  char		temp[1024];		/* Temporary format string */
+  va_list	ap;			/* Pointer to arguments */
+
+
+  if (level > LogLevel)
+    return;
+
+  va_start(ap, format);
+  snprintf(temp, sizeof(temp), "[Job %d] %s", job->id, format);
+  server_log_to_file(format, ap);
+  va_end(ap);
 }
 
 
@@ -125,9 +158,17 @@ serverLogPrinter(
      const char        *format,		/* I - Printf-style format string */
      ...)				/* I - Additional arguments as needed */
 {
-  (void)level;
-  (void)printer;
-  (void)format;
+  char		temp[1024];		/* Temporary format string */
+  va_list	ap;			/* Pointer to arguments */
+
+
+  if (level > LogLevel)
+    return;
+
+  va_start(ap, format);
+  snprintf(temp, sizeof(temp), "[Printer %s] %s", printer->name, format);
+  server_log_to_file(format, ap);
+  va_end(ap);
 }
 
 
@@ -145,4 +186,48 @@ serverTimeString(time_t tv,		/* I - Time value */
 
   strftime(buffer, bufsize, "%X", curtime);
   return (buffer);
+}
+
+
+/*
+ * 'server_log_to_file()' - Log a formatted message to a file.
+ */
+
+static void
+server_log_to_file(const char *format,	/* I - Printf-style format string */
+                   va_list    ap)	/* I - Pointer to additional arguments */
+{
+  char		buffer[8192];		/* Message buffer */
+  ssize_t	bytes;			/* Number of bytes in message */
+
+
+  if ((bytes = _cups_safe_vsnprintf(buffer, sizeof(buffer) - 1, format, ap)) > 0)
+  {
+    if (bytes > (sizeof(buffer) - 1))
+      bytes = sizeof(buffer) - 1;
+
+    if (buffer[bytes - 1] != '\n')
+      buffer[bytes ++] = '\n';
+
+    if (log_fd < 0)
+    {
+      _cupsMutexLock(&log_mutex);
+      if (log_fd < 0)
+      {
+        if (LogFile)
+        {
+          if ((log_fd = open(LogFile, O_CREAT | O_WRONLY | O_APPEND | O_CLOEXEC, 0644)) < 0)
+          {
+            fprintf(stderr, "Unable to open log file \"%s\": %s\n", LogFile, strerror(errno));
+            log_fd = 2;
+          }
+        }
+        else
+          log_fd = 2;
+      }
+      _cupsMutexUnlock(&log_mutex);
+    }
+
+    write(log_fd, buffer, (size_t)bytes);
+  }
 }

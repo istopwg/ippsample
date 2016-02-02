@@ -3049,23 +3049,53 @@ serverProcessIPP(
         char		scheme[32],	/* URI scheme */
 			userpass[32],	/* Username/password in URI */
 			host[256],	/* Host name in URI */
-			resource[256];	/* Resource path in URI */
+			resource[256],	/* Resource path in URI */
+                        *resptr;	/* Pointer into resource path */
 	int		port;		/* Port number in URI */
 
-        name = ippGetName(uri);
+        name            = ippGetName(uri);
+        client->printer = NULL;
 
         if (httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(uri, 0, NULL),
                             scheme, sizeof(scheme),
                             userpass, sizeof(userpass),
                             host, sizeof(host), &port,
                             resource, sizeof(resource)) < HTTP_URI_STATUS_OK)
+        {
 	  serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES,
-	              "Bad %s value '%s'.", name, ippGetString(uri, 0, NULL));
-        else if ((!strcmp(name, "job-uri") && strncmp(resource, "/ipp/print/", 11)) ||
-                 (!strcmp(name, "printer-uri") && strcmp(resource, "/ipp/print")))
-	  serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "%s %s not found.",
-		      name, ippGetString(uri, 0, NULL));
-	else
+	              "Bad \"%s\" value '%s'.", name, ippGetString(uri, 0, NULL));
+        }
+        else if (!strcmp(name, "job-uri"))
+        {
+         /*
+          * Validate job-uri...
+          */
+
+          if (strncmp(resource, "/ipp/print/", 11))
+          {
+            serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "\"%s\" '%s' not found.", name, ippGetString(uri, 0, NULL));
+          }
+          else
+          {
+           /*
+            * Strip job-id from resource...
+            */
+
+            if ((resptr = strchr(resource + 11, '/')) != NULL)
+              *resptr = '\0';
+
+            if ((client->printer = serverFindPrinter(resource)) == NULL)
+            {
+              serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "\"%s\" '%s' not found.", name, ippGetString(uri, 0, NULL));
+            }
+          }
+        }
+        else if ((client->printer = serverFindPrinter(resource)) == NULL)
+        {
+          serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "\"%s\" '%s' not found.", name, ippGetString(uri, 0, NULL));
+        }
+
+	if (client->printer)
 	{
 	 /*
 	  * Try processing the operation...

@@ -19,6 +19,13 @@
 
 
 /*
+ * Local globals...
+ */
+
+static _cups_mutex_t	printer_mutex = _CUPS_MUTEX_INITIALIZER;
+
+
+/*
  * Local functions...
  */
 
@@ -183,6 +190,39 @@ serverFinalizeConfiguration(void)
   }
 
   return (1);
+}
+
+
+/*
+ * 'serverFindPrinter()' - Find a printer by resource...
+ */
+
+server_printer_t *			/* O - Printer or NULL */
+serverFindPrinter(const char *resource)	/* I - Resource path */
+{
+  server_printer_t	key,		/* Search key */
+			*match = NULL;	/* Matching printer */
+
+
+  _cupsMutexLock(&printer_mutex);
+  if (cupsArrayCount(Printers) == 1 || !strcmp(resource, "/ipp/print"))
+  {
+   /*
+    * Just use the first printer...
+    */
+
+    match = cupsArrayFirst(Printers);
+    if (strcmp(match->resource, resource) && strcmp(resource, "/ipp/print"))
+      match = NULL;
+  }
+  else
+  {
+    key.resource = (char *)resource;
+    match        = (server_printer_t *)cupsArrayFind(Printers, &key);
+  }
+  _cupsMutexUnlock(&printer_mutex);
+
+  return (match);
 }
 
 
