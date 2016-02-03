@@ -76,10 +76,7 @@ serverDNSSDInit(void)
 int					/* O - 1 on success, 0 on failure */
 serverFinalizeConfiguration(void)
 {
-  char			local[1024],	/* Local hostname */
-			uri[1024];	/* Printer URI */
-  server_printer_t	*printer;	/* Current printer */
-  server_listener_t	*lis;		/* First listener */
+  char			local[1024];	/* Local hostname */
 
 
  /*
@@ -123,11 +120,11 @@ serverFinalizeConfiguration(void)
 
     if (mkdir(directory, 0755) && errno != EEXIST)
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Unable to create data directory \"%s\": %s", directory, strerror(errno));
+      serverLog(SERVER_LOGLEVEL_ERROR, "Unable to create default data directory \"%s\": %s", directory, strerror(errno));
       return (0);
     }
 
-    serverLog(SERVER_LOGLEVEL_INFO, "Using data directory \"%s\".", directory);
+    serverLog(SERVER_LOGLEVEL_INFO, "Using default data directory \"%s\".", directory);
 
     DataDirectory = strdup(directory);
   }
@@ -136,7 +133,7 @@ serverFinalizeConfiguration(void)
   {
     SpoolDirectory = strdup(DataDirectory);
 
-    serverLog(SERVER_LOGLEVEL_INFO, "Using spool directory \"%s\".", DataDirectory);
+    serverLog(SERVER_LOGLEVEL_INFO, "Using default spool directory \"%s\".", DataDirectory);
   }
 
  /*
@@ -169,24 +166,10 @@ serverFinalizeConfiguration(void)
       DefaultPort = 8000 + (getuid() % 1000);
 #endif /* WIN32 */
 
+    serverLog(SERVER_LOGLEVEL_INFO, "Using default listeners for %s:%d.", ServerName, DefaultPort);
+
     if (!serverCreateListeners(ServerName, DefaultPort))
       return (0);
-  }
-
- /*
-  * Save the default printer URI for each configured printer...
-  */
-
-  lis = (server_listener_t *)cupsArrayFirst(Listeners);
-  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
-  {
-#ifdef HAVE_SSL
-    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), Encryption != HTTP_ENCRYPTION_NEVER ? "ipps" : "ipp", NULL, lis->host, lis->port, printer->resource);
-#else
-    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "ipp", NULL, lis->host, lis->port, printer->resource);
-#endif /* HAVE_SSL */
-
-    printer->default_uri = strdup(uri);
   }
 
   return (1);
@@ -543,7 +526,7 @@ serverLoadAttributes(
 
       *command = strdup(token);
     }
-    else if (!_cups_strcasecmp(token, "DEVICE-URI") && device_uri)
+    else if (!_cups_strcasecmp(token, "DEVICEURI") && device_uri)
     {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
@@ -573,7 +556,7 @@ serverLoadAttributes(
 
       *model = strdup(token);
     }
-    else if (!_cups_strcasecmp(token, "PROXY-USER") && proxy_user)
+    else if (!_cups_strcasecmp(token, "PROXYUSER") && proxy_user)
     {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
@@ -618,7 +601,8 @@ serverLoadConfiguration(
 {
   cups_dir_t	*dir;			/* Directory pointer */
   cups_dentry_t	*dent;			/* Directory entry */
-  char		filename[260],		/* Configuration file/directory */
+  char		filename[1024],		/* Configuration file/directory */
+                iconname[1024],		/* Icon file */
 		resource[1024],		/* Resource path */
                 *ptr;			/* Pointer into filename */
   server_printer_t *printer;		/* Printer */
@@ -639,6 +623,9 @@ serverLoadConfiguration(
   if (!load_system(filename))
     return (0);
 
+  if (!serverFinalizeConfiguration())
+    return (0);
+
  /*
   * Then see if there are any print queues...
   */
@@ -646,30 +633,29 @@ serverLoadConfiguration(
   snprintf(filename, sizeof(filename), "%s/print", directory);
   if ((dir = cupsDirOpen(filename)) != NULL)
   {
+    serverLog(SERVER_LOGLEVEL_INFO, "Loading printers from \"%s\".", filename);
+
     while ((dent = cupsDirRead(dir)) != NULL)
     {
-      if (fnmatch("*.conf", dent->filename, 0))
+      if ((ptr = dent->filename + strlen(dent->filename) - 5) >= dent->filename && !strcmp(ptr, ".conf"))
       {
        /*
         * Load the conf file, with any associated icon image.
         */
 
-        strlcpy(filename, dent->filename, sizeof(filename));
-        if ((ptr = filename + strlen(filename) - 5) > filename)
-          strlcpy(ptr, ".png", sizeof(filename) - (size_t)(ptr - filename));
+        serverLog(SERVER_LOGLEVEL_INFO, "Loading printer from \"%s\".", dent->filename);
 
-        if ((ptr = strrchr(dent->filename, '/')) != NULL)
-	  ptr ++;
-	else
-	  continue;
+        snprintf(filename, sizeof(filename), "%s/print/%s", directory, dent->filename);
+        *ptr = '\0';
+        snprintf(iconname, sizeof(iconname), "%s/print/%s.png", directory, dent->filename);
 
         authtype = command = device_uri = make = model = proxy_user = NULL;
 
-        if ((attrs = serverLoadAttributes(dent->filename, &authtype, &command, &device_uri, &make, &model, &proxy_user)) != NULL)
+        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &make, &model, &proxy_user)) != NULL)
 	{
-          snprintf(resource, sizeof(resource), "/ipp/print/%s", ptr);
+          snprintf(resource, sizeof(resource), "/ipp/print/%s", dent->filename);
 
-	  if ((printer = serverCreatePrinter(resource, ptr, NULL, make, model, access(filename, R_OK) ? NULL : filename, NULL, 0, 0, 0, 0, attrs, command, device_uri, proxy_user)) == NULL)
+	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, proxy_user)) == NULL)
           continue;
 
 	  if (!Printers)
@@ -678,6 +664,9 @@ serverLoadConfiguration(
 	  cupsArrayAdd(Printers, printer);
 	}
       }
+      else
+        serverLog(SERVER_LOGLEVEL_INFO, "Skipping \"%s\".", dent->filename);
+
     }
 
     cupsDirClose(dir);

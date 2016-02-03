@@ -236,8 +236,6 @@ main(int  argc,				/* I - Number of command-line args */
     * Load the configuration from the specified directory...
     */
 
-    serverLog(SERVER_LOGLEVEL_INFO, "Loading configuration from \"%s\".", confdir);
-
     if (!serverLoadConfiguration(confdir))
       return (1);
   }

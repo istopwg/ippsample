@@ -110,8 +110,9 @@ serverCreatePrinter(
 			device_id[1024],/* printer-device-id */
 			make_model[128],/* printer-make-and-model */
 			uuid[128];	/* printer-uuid */
-  int			num_formats;	/* Number of document-format-supported values */
-  char			*defformat,	/* document-format-default value */
+  int			num_formats = 0;/* Number of document-format-supported values */
+  char			*defformat = NULL,
+					/* document-format-default value */
 			*formats[100],	/* document-format-supported values */
 			*ptr;		/* Pointer into string */
   const char		*prefix;	/* Prefix string */
@@ -306,6 +307,7 @@ serverCreatePrinter(
     "processing-stopped"
   };
 
+  serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreatePrinter(resource=\"%s\", name=\"%s\", location=\"%s\", make=\"%s\", model=\"%s\", icon=\"%s\", docformats=\"%s\", ppm=%d, ppm_color=%d, duplex=%d, pin=%d, attrs=%p, command=\"%s\", device_uri=\"%s\", proxy_user=\"%s\")", resource, name, location, make, model, icon, docformats, ppm, ppm_color, duplex, pin, attrs, command, device_uri, proxy_user);
 
  /*
   * Allocate memory for the printer...
@@ -366,9 +368,12 @@ serverCreatePrinter(
 
   lis = cupsArrayFirst(Listeners);
 
-  httpAssembleURIf(HTTP_URI_CODING_ALL, icons, sizeof(icons), SERVER_WEB_SCHEME, NULL, lis->host, lis->port, "%s/icon.png", resource + 4);
-  httpAssembleURIf(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), SERVER_WEB_SCHEME, NULL, lis->host, lis->port, "%s/", resource + 4);
-  httpAssembleURIf(HTTP_URI_CODING_ALL, supplyurl, sizeof(supplyurl), SERVER_WEB_SCHEME, NULL, lis->host, lis->port, "%s/supplies", resource + 4);
+  httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPP_SCHEME, NULL, lis->host, lis->port, resource);
+  printer->default_uri = strdup(uri);
+
+  httpAssembleURIf(HTTP_URI_CODING_ALL, icons, sizeof(icons), SERVER_WEB_SCHEME, NULL, lis->host, lis->port, "%s/icon.png", resource);
+  httpAssembleURI(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), SERVER_WEB_SCHEME, NULL, lis->host, lis->port, "/");
+  httpAssembleURI(HTTP_URI_CODING_ALL, supplyurl, sizeof(supplyurl), SERVER_WEB_SCHEME, NULL, lis->host, lis->port, "/supplies");
 
   serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-more-info=\"%s\"", adminurl);
   serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-supply-info-uri=\"%s\"", supplyurl);
@@ -376,16 +381,19 @@ serverCreatePrinter(
 
   snprintf(make_model, sizeof(make_model), "%s %s", make, model);
 
-  num_formats = 1;
-  formats[0]  = strdup(docformats);
-  defformat   = formats[0];
-  for (ptr = strchr(formats[0], ','); ptr; ptr = strchr(ptr, ','))
+  if (docformats)
   {
-    *ptr++ = '\0';
-    formats[num_formats++] = ptr;
+    num_formats = 1;
+    formats[0]  = strdup(docformats);
+    defformat   = formats[0];
+    for (ptr = strchr(formats[0], ','); ptr; ptr = strchr(ptr, ','))
+    {
+      *ptr++ = '\0';
+      formats[num_formats++] = ptr;
 
-    if (!strcasecmp(ptr, "application/octet-stream"))
-      defformat = ptr;
+      if (!strcasecmp(ptr, "application/octet-stream"))
+        defformat = ptr;
+    }
   }
 
   snprintf(device_id, sizeof(device_id), "MFG:%s;MDL:%s;", make, model);
@@ -476,13 +484,12 @@ serverCreatePrinter(
     ippAddRange(printer->attrs, IPP_TAG_PRINTER, "copies-supported", 1, 999);
 
   /* document-format-default */
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_MIMETYPE,
-               "document-format-default", NULL, defformat);
+  if (!ippFindAttribute(printer->attrs, "document-format-default", IPP_TAG_ZERO))
+    ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_MIMETYPE, "document-format-default", NULL, defformat);
 
   /* document-format-supported */
-  ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_MIMETYPE,
-                "document-format-supported", num_formats, NULL,
-		(const char * const *)formats);
+  if (!ippFindAttribute(printer->attrs, "document-format-supported", IPP_TAG_ZERO) && num_formats > 0)
+    ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_MIMETYPE, "document-format-supported", num_formats, NULL, (const char * const *)formats);
 
   /* document-password-supported */
   if (!ippFindAttribute(printer->attrs, "document-password-supported", IPP_TAG_ZERO))
@@ -826,8 +833,8 @@ serverCreatePrinter(
     ippAddInteger(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_UNKNOWN, "printer-geo-location", 0);
 
   /* printer-icons */
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI,
-               "printer-icons", NULL, icons);
+  if (icon)
+    ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-icons", NULL, icons);
 
   /* printer-is-accepting-jobs */
   ippAddBoolean(printer->attrs, IPP_TAG_PRINTER, "printer-is-accepting-jobs", 1);
@@ -947,7 +954,8 @@ serverCreatePrinter(
   /* which-jobs-supported */
   ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "which-jobs-supported", sizeof(which_jobs) / sizeof(which_jobs[0]), NULL, which_jobs);
 
-  free(formats[0]);
+  if (num_formats > 0)
+    free(formats[0]);
 
   snprintf(title, sizeof(title), "[Printer %s]", printer->name);
   serverLogAttributes(NULL, title, printer->attrs, 0);
@@ -1260,19 +1268,22 @@ register_printer(
   TXTRecordSetValue(&ipp_txt, "rp", (uint8_t)strlen(printer->resource), printer->resource);
   TXTRecordSetValue(&ipp_txt, "ty", (uint8_t)strlen(make_model), make_model);
   TXTRecordSetValue(&ipp_txt, "adminurl", (uint8_t)strlen(adminurl), adminurl);
-  if (*location)
+  if (location && *location)
     TXTRecordSetValue(&ipp_txt, "note", (uint8_t)strlen(location), location);
   TXTRecordSetValue(&ipp_txt, "product", (uint8_t)strlen(product), product);
-  TXTRecordSetValue(&ipp_txt, "pdl", (uint8_t)strlen(formats), formats);
+  if (formats)
+    TXTRecordSetValue(&ipp_txt, "pdl", (uint8_t)strlen(formats), formats);
   TXTRecordSetValue(&ipp_txt, "Color", 1, color ? "T" : "F");
   TXTRecordSetValue(&ipp_txt, "Duplex", 1, duplex ? "T" : "F");
-  TXTRecordSetValue(&ipp_txt, "usb_MFG", (uint8_t)strlen(make), make);
-  TXTRecordSetValue(&ipp_txt, "usb_MDL", (uint8_t)strlen(model), model);
+  if (make)
+    TXTRecordSetValue(&ipp_txt, "usb_MFG", (uint8_t)strlen(make), make);
+  if (model)
+    TXTRecordSetValue(&ipp_txt, "usb_MDL", (uint8_t)strlen(model), model);
   TXTRecordSetValue(&ipp_txt, "UUID", (uint8_t)strlen(uuid), uuid);
 #  ifdef HAVE_SSL
   TXTRecordSetValue(&ipp_txt, "TLS", 3, "1.2");
 #  endif /* HAVE_SSL */
-  if (strstr(formats, "image/urf"))
+  if (formats && strstr(formats, "image/urf"))
     TXTRecordSetValue(&ipp_txt, "URF", 66, "CP1,IS1-5-7,MT1-2-3-4-5-6-8-9-10-11-12-13,RS300,SRGB24,V1.4,W8,DM1");
 
   TXTRecordSetValue(&ipp_txt, "txtvers", 1, "1");

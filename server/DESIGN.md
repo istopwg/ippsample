@@ -47,12 +47,12 @@ Print services (queues) are placed in a subdirectory called "print", for example
 
     "print/foo.conf":
     DeviceURI ipp://foo.example.com/ipp/print
-    Attribute collection media-col-ready {media-size={x-dimension=21590 y-dimension=27940}},{media-size={x-dimension=21000 y-dimension=29700}}
-    Attribute keyword media-ready na_letter_8.5x11in,iso_a4_210x297mm
+    Attr collection media-col-ready {media-size={x-dimension=21590 y-dimension=27940}},{media-size={x-dimension=21000 y-dimension=29700}}
+    Attr keyword media-ready na_letter_8.5x11in,iso_a4_210x297mm
 
     "print/bar.conf":
     ProxyUser bar
-    Attribute keyword job-hold-until-default indefinite
+    Attr keyword job-hold-until-default indefinite
 
 The first example ("print/foo.conf") creates a direct print queue at "ipp://servername:port/ipp/print/foo" that overrides the "media-col-ready" and "media-ready" attributes reported by the printer with US Letter and ISO A4 media.
 

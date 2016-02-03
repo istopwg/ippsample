@@ -216,7 +216,8 @@ int					/* O - 1 on success, 0 on failure */
 serverProcessHTTP(
     server_client_t *client)		/* I - Client connection */
 {
-  char			uri[1024];	/* URI */
+  char			uri[1024],	/* URI */
+			*uriptr;	/* Pointer into URI */
   http_state_t		http_state;	/* HTTP state */
   http_status_t		http_status;	/* HTTP status */
   ipp_state_t		ipp_state;	/* State of IPP transfer */
@@ -416,15 +417,28 @@ serverProcessHTTP(
 	return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, NULL, 0));
 
     case HTTP_STATE_HEAD :
-        if (!strcmp(client->uri, "/icon.png"))
-	  return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", 0));
+        uriptr = client->uri + strlen(client->uri) - 9;
+
+        if (uriptr >= client->uri && !strcmp(uriptr, "/icon.png"))
+        {
+	  server_printer_t *printer;	/* Printer */
+
+          *uriptr = '\0';
+          if ((printer = serverFindPrinter(client->uri)) == NULL)
+            printer = (server_printer_t *)cupsArrayFirst(Printers);
+
+          if (printer && printer->icon)
+            return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", 0));
+        }
 	else if (!strcmp(client->uri, "/") || !strcmp(client->uri, "/media") || !strcmp(client->uri, "/supplies"))
 	  return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "text/html", 0));
-	else
-	  return (serverRespondHTTP(client, HTTP_STATUS_NOT_FOUND, NULL, NULL, 0));
+
+        return (serverRespondHTTP(client, HTTP_STATUS_NOT_FOUND, NULL, NULL, 0));
 
     case HTTP_STATE_GET :
-        if (!strcmp(client->uri, "/icon.png"))
+        uriptr = client->uri + strlen(client->uri) - 9;
+
+        if (uriptr >= client->uri && !strcmp(uriptr, "/icon.png"))
 	{
 	 /*
 	  * Send PNG icon file.
@@ -434,29 +448,35 @@ serverProcessHTTP(
 	  struct stat	fileinfo;	/* Icon file information */
 	  char		buffer[4096];	/* Copy buffer */
 	  ssize_t	bytes;		/* Bytes */
-	  server_printer_t *printer = (server_printer_t *)cupsArrayFirst(Printers);
+	  server_printer_t *printer;	/* Printer */
 
-          serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Icon file is \"%s\".", printer->icon);
+          *uriptr = '\0';
+          if ((printer = serverFindPrinter(client->uri)) == NULL)
+            printer = (server_printer_t *)cupsArrayFirst(Printers);
 
-          if (!stat(printer->icon, &fileinfo) &&
-	      (fd = open(printer->icon, O_RDONLY)) >= 0)
-	  {
-	    if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png",
-	                      (size_t)fileinfo.st_size))
-	    {
-	      close(fd);
-	      return (0);
-	    }
+          if (printer && printer->icon)
+          {
+            serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Icon file is \"%s\".", printer->icon);
 
-	    while ((bytes = read(fd, buffer, sizeof(buffer))) > 0)
-	      httpWrite2(client->http, buffer, (size_t)bytes);
+            if (!stat(printer->icon, &fileinfo) &&
+                (fd = open(printer->icon, O_RDONLY)) >= 0)
+            {
+              if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png",
+                                (size_t)fileinfo.st_size))
+              {
+                close(fd);
+                return (0);
+              }
 
-	    httpFlushWrite(client->http);
+              while ((bytes = read(fd, buffer, sizeof(buffer))) > 0)
+                httpWrite2(client->http, buffer, (size_t)bytes);
 
-	    close(fd);
-	  }
-	  else
-	    return (serverRespondHTTP(client, HTTP_STATUS_NOT_FOUND, NULL, NULL, 0));
+              httpFlushWrite(client->http);
+
+              close(fd);
+              return (1);
+            }
+          }
 	}
 	else if (!strcmp(client->uri, "/"))
 	{
@@ -496,9 +516,14 @@ serverProcessHTTP(
 
           for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
           {
-            html_printf(client,
-                        "<h2><img align=\"right\" src=\"/icon.png\" width=\"64\" height=\"64\">%s</h2>\n"
-                        "<p>%s, %d job(s).", printer->name, printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
+            if (printer->icon)
+              html_printf(client,
+                          "<h2><img align=\"right\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s</h2>\n"
+                          "<p>%s, %d job(s).", printer->resource, printer->name, printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
+            else
+              html_printf(client,
+                          "<h2>%s</h2>\n"
+                          "<p>%s, %d job(s).", printer->name, printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
             for (i = 0, reason = 1; i < (int)(sizeof(reasons) / sizeof(reasons[0])); i ++, reason <<= 1)
               if (printer->state_reasons & reason)
                 html_printf(client, "\n<br>&nbsp;&nbsp;&nbsp;&nbsp;%s", reasons[i]);
@@ -769,9 +794,8 @@ serverProcessHTTP(
 	  return (1);
 	}
 #endif /* 0 */
-	else
-	  return (serverRespondHTTP(client, HTTP_STATUS_NOT_FOUND, NULL, NULL, 0));
-	break;
+
+        return (serverRespondHTTP(client, HTTP_STATUS_NOT_FOUND, NULL, NULL, 0));
 
     case HTTP_STATE_POST :
 	if (strcmp(httpGetField(client->http, HTTP_FIELD_CONTENT_TYPE), "application/ipp"))
@@ -929,12 +953,12 @@ serverRespondHTTP(
       close(client->fetch_file);
       client->fetch_file = -1;
     }
-  }
 
-  if (length == 0)
-  {
-    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverRespondHTTP: Sending 0-length chunk.");
-    httpWrite2(client->http, "", 0);
+    if (length == 0)
+    {
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverRespondHTTP: Sending 0-length chunk.");
+      httpWrite2(client->http, "", 0);
+    }
   }
 
   serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverRespondHTTP: Flushing write buffer.");
