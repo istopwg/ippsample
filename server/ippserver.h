@@ -121,7 +121,7 @@ typedef char _cups_cond_t;
 #    define SERVER_IPP_SCHEME "ipps"
 #    define SERVER_IPP_TYPE "_ipps._tcp"
 #    define SERVER_WEB_SCHEME "https"
-#    define SERVER_WEB_TYPE "_https._tcp"
+#    define SERVER_WEB_TYPE "_http._tcp"
 #  else
 #    define SERVER_IPP_SCHEME "ipp"
 #    define SERVER_IPP_TYPE "_ipp._tcp"
@@ -541,7 +541,7 @@ extern server_preason_t	serverGetPrinterStateReasonsBits(ipp_attribute_t *attr);
 extern ipp_t		*serverLoadAttributes(const char *filename, char **authtype, char **command, char **device_uri, char **make, char **model, char **proxy_user);
 extern int		serverLoadConfiguration(const char *directory);
 extern void		serverLog(server_loglevel_t level, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
-extern void		serverLogAttributes(const char *title, ipp_t *ipp, int type);
+extern void		serverLogAttributes(server_client_t *client, const char *title, ipp_t *ipp, int type);
 extern void		serverLogClient(server_loglevel_t level, server_client_t *client, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
 extern void		serverLogJob(server_loglevel_t level, server_job_t *job, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
 extern void		serverLogPrinter(server_loglevel_t level, server_printer_t *printer, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));

@@ -98,6 +98,7 @@ serverCreatePrinter(
 {
   int			i;		/* Looping var */
   server_printer_t	*printer;	/* Printer */
+  char			title[256];	/* Title for attributes */
   server_listener_t	*lis;		/* Current listener */
   cups_array_t		*uris;		/* Array of URIs */
   char			uri[1024],	/* Printer URI */
@@ -948,7 +949,8 @@ serverCreatePrinter(
 
   free(formats[0]);
 
-  serverLogAttributes("Printer", printer->attrs, 0);
+  snprintf(title, sizeof(title), "[Printer %s]", printer->name);
+  serverLogAttributes(NULL, title, printer->attrs, 0);
 
  /*
   * Register the printer with Bonjour...

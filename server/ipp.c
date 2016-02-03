@@ -1100,7 +1100,7 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
                                IPP_TAG_KEYWORD)) != NULL)
   {
     which_jobs = ippGetString(attr, 0, NULL);
-    fprintf(stderr, "%s Get-Jobs which-jobs=%s", client->hostname, which_jobs);
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Get-Jobs which-jobs='%s'", which_jobs);
   }
 
   if (!which_jobs || !strcmp(which_jobs, "not-completed"))
@@ -1166,7 +1166,7 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
   {
     limit = ippGetInteger(attr, 0);
 
-    fprintf(stderr, "%s Get-Jobs limit=%d", client->hostname, limit);
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Get-Jobs limit=%d", limit);
   }
   else
     limit = 0;
@@ -1176,8 +1176,7 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
   {
     first_job_id = ippGetInteger(attr, 0);
 
-    fprintf(stderr, "%s Get-Jobs first-job-id=%d", client->hostname,
-            first_job_id);
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Get-Jobs first-job-id=%d", first_job_id);
   }
   else
     first_job_id = 1;
@@ -1193,8 +1192,7 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
   {
     int my_jobs = ippGetBoolean(attr, 0);
 
-    fprintf(stderr, "%s Get-Jobs my-jobs=%s\n", client->hostname,
-            my_jobs ? "true" : "false");
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Get-Jobs my-jobs=%s", my_jobs ? "true" : "false");
 
     if (my_jobs)
     {
@@ -1208,8 +1206,7 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
 
       username = ippGetString(attr, 0, NULL);
 
-      fprintf(stderr, "%s Get-Jobs requesting-user-name=\"%s\"\n",
-              client->hostname, username);
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Get-Jobs requesting-user-name='%s'", username);
     }
   }
 
@@ -2928,7 +2925,7 @@ serverProcessIPP(
   const char		*name;		/* Name of attribute */
 
 
-  serverLogAttributes("Request", client->request, 1);
+  serverLogAttributes(client, "Request:", client->request, 1);
 
  /*
   * First build an empty response message for this request...
@@ -3257,7 +3254,7 @@ serverProcessIPP(
   if (httpGetState(client->http) != HTTP_STATE_POST_SEND)
     httpFlush(client->http);		/* Flush trailing (junk) data */
 
-  serverLogAttributes("Response", client->response, 2);
+  serverLogAttributes(client, "Response:", client->response, 2);
 
   return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "application/ipp",
                        client->fetch_file >= 0 ? 0 : ippLength(client->response)));
@@ -3298,12 +3295,9 @@ serverRespondIPP(
   }
 
   if (formatted)
-    fprintf(stderr, "%s %s %s (%s)\n", client->hostname,
-	    ippOpString(client->operation_id), ippErrorString(status),
-	    formatted);
+    serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s %s (%s)", ippOpString(client->operation_id), ippErrorString(status), formatted);
   else
-    fprintf(stderr, "%s %s %s\n", client->hostname,
-	    ippOpString(client->operation_id), ippErrorString(status));
+    serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s %s", ippOpString(client->operation_id), ippErrorString(status));
 }
 
 
@@ -3379,15 +3373,12 @@ valid_doc_attributes(
     }
     else
     {
-      fprintf(stderr, "%s %s compression=\"%s\"\n", client->hostname, op_name, compression);
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s compression='%s'", op_name, compression);
 
       ippAddString(client->request, IPP_TAG_JOB, IPP_TAG_KEYWORD, "compression-supplied", NULL, compression);
 
       if (strcmp(compression, "none"))
-      {
-	serverLogClient(SERVER_LOGLEVEL_INFO, client, "Receiving job file with \"%s\" compression.", compression);
         httpSetField(client->http, HTTP_FIELD_CONTENT_ENCODING, compression);
-      }
     }
   }
 
@@ -3407,8 +3398,7 @@ valid_doc_attributes(
     {
       format = ippGetString(attr, 0, NULL);
 
-      fprintf(stderr, "%s %s document-format=\"%s\"\n",
-	      client->hostname, op_name, format);
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s document-format='%s'", op_name, format);
 
       ippAddString(client->request, IPP_TAG_JOB, IPP_TAG_MIMETYPE, "document-format-supplied", NULL, format);
     }
@@ -3450,8 +3440,7 @@ valid_doc_attributes(
 
     if (format)
     {
-      fprintf(stderr, "%s %s Auto-typed document-format=\"%s\"\n",
-	      client->hostname, op_name, format);
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s Auto-typed document-format='%s'", op_name, format);
 
       ippAddString(client->request, IPP_TAG_JOB, IPP_TAG_MIMETYPE, "document-format-detected", NULL, format);
     }

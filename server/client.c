@@ -433,11 +433,12 @@ serverProcessHTTP(
 	  struct stat	fileinfo;	/* Icon file information */
 	  char		buffer[4096];	/* Copy buffer */
 	  ssize_t	bytes;		/* Bytes */
+	  server_printer_t *printer = (server_printer_t *)cupsArrayFirst(Printers);
 
-          serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Icon file is \"%s\".", client->printer->icon);
+          serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Icon file is \"%s\".", printer->icon);
 
-          if (!stat(client->printer->icon, &fileinfo) &&
-	      (fd = open(client->printer->icon, O_RDONLY)) >= 0)
+          if (!stat(printer->icon, &fileinfo) &&
+	      (fd = open(printer->icon, O_RDONLY)) >= 0)
 	  {
 	    if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png",
 	                      (size_t)fileinfo.st_size))
@@ -462,6 +463,7 @@ serverProcessHTTP(
 	  * Show web status page...
 	  */
 
+	  server_printer_t *printer;	/* Current printer */
           server_job_t	*job;		/* Current job */
 	  int		i;		/* Looping var */
 	  server_preason_t reason;	/* Current reason */
@@ -488,52 +490,57 @@ serverProcessHTTP(
           if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
 	    return (0);
 
-          html_header(client, client->printer->name);
-          html_printf(client,
-		      "<p><img align=\"right\" src=\"/icon.png\" width=\"64\" height=\"64\"><b>ippserver (" CUPS_SVERSION ")</b></p>\n"
-		      "<p>%s, %d job(s).", client->printer->state == IPP_PSTATE_IDLE ? "Idle" : client->printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(client->printer->jobs));
-	  for (i = 0, reason = 1; i < (int)(sizeof(reasons) / sizeof(reasons[0])); i ++, reason <<= 1)
-	    if (client->printer->state_reasons & reason)
-	      html_printf(client, "\n<br>&nbsp;&nbsp;&nbsp;&nbsp;%s", reasons[i]);
-	  html_printf(client, "</p>\n");
-	  
-          if (cupsArrayCount(client->printer->jobs) > 0)
-	  {
-            _cupsRWLockRead(&(client->printer->rwlock));
+          html_header(client, "ippserver (" CUPS_SVERSION ")");
+          html_printf(client, "<h1>ippserver (" CUPS_SVERSION ")</h1>\n");
 
-	    html_printf(client, "<table class=\"striped\" summary=\"Jobs\"><thead><tr><th>Job #</th><th>Name</th><th>Owner</th><th>When</th></tr></thead><tbody>\n");
-	    for (job = (server_job_t *)cupsArrayFirst(client->printer->jobs); job; job = (server_job_t *)cupsArrayNext(client->printer->jobs))
-	    {
-	      char	when[256],	/* When job queued/started/finished */
-			hhmmss[64];	/* Time HH:MM:SS */
+          for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+          {
+            html_printf(client,
+                        "<h2><img align=\"right\" src=\"/icon.png\" width=\"64\" height=\"64\">%s</h2>\n"
+                        "<p>%s, %d job(s).", printer->name, printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
+            for (i = 0, reason = 1; i < (int)(sizeof(reasons) / sizeof(reasons[0])); i ++, reason <<= 1)
+              if (printer->state_reasons & reason)
+                html_printf(client, "\n<br>&nbsp;&nbsp;&nbsp;&nbsp;%s", reasons[i]);
+            html_printf(client, "</p>\n");
+            
+            if (cupsArrayCount(printer->jobs) > 0)
+            {
+              _cupsRWLockRead(&(printer->rwlock));
 
-              switch (job->state)
-	      {
-	        case IPP_JSTATE_PENDING :
-	        case IPP_JSTATE_HELD :
-		    snprintf(when, sizeof(when), "Queued at %s", serverTimeString(job->created, hhmmss, sizeof(hhmmss)));
-		    break;
-	        case IPP_JSTATE_PROCESSING :
-	        case IPP_JSTATE_STOPPED :
-		    snprintf(when, sizeof(when), "Started at %s", serverTimeString(job->processing, hhmmss, sizeof(hhmmss)));
-		    break;
-	        case IPP_JSTATE_ABORTED :
-		    snprintf(when, sizeof(when), "Aborted at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
-		    break;
-	        case IPP_JSTATE_CANCELED :
-		    snprintf(when, sizeof(when), "Canceled at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
-		    break;
-	        case IPP_JSTATE_COMPLETED :
-		    snprintf(when, sizeof(when), "Completed at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
-		    break;
-	      }
+              html_printf(client, "<table class=\"striped\" summary=\"Jobs\"><thead><tr><th>Job #</th><th>Name</th><th>Owner</th><th>When</th></tr></thead><tbody>\n");
+              for (job = (server_job_t *)cupsArrayFirst(printer->jobs); job; job = (server_job_t *)cupsArrayNext(printer->jobs))
+              {
+                char	when[256],	/* When job queued/started/finished */
+                          hhmmss[64];	/* Time HH:MM:SS */
 
-	      html_printf(client, "<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td></tr>\n", job->id, job->name, job->username, when);
-	    }
-	    html_printf(client, "</tbody></table>\n");
+                switch (job->state)
+                {
+                  case IPP_JSTATE_PENDING :
+                  case IPP_JSTATE_HELD :
+                      snprintf(when, sizeof(when), "Queued at %s", serverTimeString(job->created, hhmmss, sizeof(hhmmss)));
+                      break;
+                  case IPP_JSTATE_PROCESSING :
+                  case IPP_JSTATE_STOPPED :
+                      snprintf(when, sizeof(when), "Started at %s", serverTimeString(job->processing, hhmmss, sizeof(hhmmss)));
+                      break;
+                  case IPP_JSTATE_ABORTED :
+                      snprintf(when, sizeof(when), "Aborted at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
+                      break;
+                  case IPP_JSTATE_CANCELED :
+                      snprintf(when, sizeof(when), "Canceled at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
+                      break;
+                  case IPP_JSTATE_COMPLETED :
+                      snprintf(when, sizeof(when), "Completed at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
+                      break;
+                }
 
-	    _cupsRWUnlock(&(client->printer->rwlock));
-	  }
+                html_printf(client, "<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td></tr>\n", job->id, job->name, job->username, when);
+              }
+              html_printf(client, "</tbody></table>\n");
+
+              _cupsRWUnlock(&(printer->rwlock));
+            }
+          }
           html_footer(client);
 
 	  return (1);
@@ -981,7 +988,7 @@ serverRun(void)
     {
       if (FD_ISSET(lis->fd, &input))
       {
-        serverLog(SERVER_LOGLEVEL_DEBUG, "Incoming connection on listener %s:%d.", lis->host, lis->port);
+        serverLog(SERVER_LOGLEVEL_DEBUG, "serverRun: Incoming connection on listener %s:%d.", lis->host, lis->port);
 
         if ((client = serverCreateClient(lis->fd)) != NULL)
         {
@@ -997,7 +1004,7 @@ serverRun(void)
 #ifdef HAVE_DNSSD
     if (FD_ISSET(DNSServiceRefSockFD(DNSSDMaster), &input))
     {
-      serverLog(SERVER_LOGLEVEL_DEBUG, "Input on DNS-SD socket.");
+      serverLog(SERVER_LOGLEVEL_DEBUG, "serverRun: Input on DNS-SD socket.");
       DNSServiceProcessResult(DNSSDMaster);
     }
 #endif /* HAVE_DNSSD */

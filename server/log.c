@@ -57,9 +57,11 @@ serverLog(server_loglevel_t level,	/* I - Log level */
  */
 
 void
-serverLogAttributes(const char *title,	/* I - Title */
-                    ipp_t      *ipp,	/* I - Request/response */
-                    int        type)	/* I - 0 = object, 1 = request, 2 = response */
+serverLogAttributes(
+    server_client_t *client,		/* I - Client */
+    const char      *title,		/* I - Title */
+    ipp_t           *ipp,		/* I - Request/response */
+    int             type)		/* I - 0 = object, 1 = request, 2 = response */
 {
   ipp_tag_t		group_tag;	/* Current group */
   ipp_attribute_t	*attr;		/* Current attribute */
@@ -71,12 +73,12 @@ serverLogAttributes(const char *title,	/* I - Title */
     return;
 
   major = ippGetVersion(ipp, &minor);
-  serverLog(SERVER_LOGLEVEL_DEBUG, "%s: version=%d.%d", title, major, minor);
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s version=%d.%d", title, major, minor);
   if (type == 1)
-    serverLog(SERVER_LOGLEVEL_DEBUG, "%s: operation-id=%s(%04x)", title, ippOpString(ippGetOperation(ipp)), ippGetOperation(ipp));
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s operation-id=%s(%04x)", title, ippOpString(ippGetOperation(ipp)), ippGetOperation(ipp));
   else if (type == 2)
-    serverLog(SERVER_LOGLEVEL_DEBUG, "%s: status-code=%s(%04x)", title, ippErrorString(ippGetStatusCode(ipp)), ippGetStatusCode(ipp));
-  serverLog(SERVER_LOGLEVEL_DEBUG, "%s: request-id=%d", title, ippGetRequestId(ipp));
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s status-code=%s(%04x)", title, ippErrorString(ippGetStatusCode(ipp)), ippGetStatusCode(ipp));
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s request-id=%d", title, ippGetRequestId(ipp));
 
   for (attr = ippFirstAttribute(ipp), group_tag = IPP_TAG_ZERO;
        attr;
@@ -85,13 +87,13 @@ serverLogAttributes(const char *title,	/* I - Title */
     if (ippGetGroupTag(attr) != group_tag)
     {
       group_tag = ippGetGroupTag(attr);
-      serverLog(SERVER_LOGLEVEL_DEBUG, "%s: %s", title, ippTagString(group_tag));
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s %s", title, ippTagString(group_tag));
     }
 
     if (ippGetName(attr))
     {
       ippAttributeString(attr, buffer, sizeof(buffer));
-      serverLog(SERVER_LOGLEVEL_DEBUG, "%s: %s (%s%s) %s", title, ippGetName(attr), ippGetCount(attr) > 1 ? "1setOf " : "", ippTagString(ippGetValueTag(attr)), buffer);
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s %s (%s%s) %s", title, ippGetName(attr), ippGetCount(attr) > 1 ? "1setOf " : "", ippTagString(ippGetValueTag(attr)), buffer);
     }
   }
 }
@@ -116,8 +118,13 @@ serverLogClient(
     return;
 
   va_start(ap, format);
-  snprintf(temp, sizeof(temp), "[Client %d] %s", client->number, format);
-  server_log_to_file(format, ap);
+  if (client)
+  {
+    snprintf(temp, sizeof(temp), "[Client %d] %s", client->number, format);
+    server_log_to_file(temp, ap);
+  }
+  else
+    server_log_to_file(format, ap);
   va_end(ap);
 }
 
@@ -142,7 +149,7 @@ serverLogJob(
 
   va_start(ap, format);
   snprintf(temp, sizeof(temp), "[Job %d] %s", job->id, format);
-  server_log_to_file(format, ap);
+  server_log_to_file(temp, ap);
   va_end(ap);
 }
 
@@ -167,7 +174,7 @@ serverLogPrinter(
 
   va_start(ap, format);
   snprintf(temp, sizeof(temp), "[Printer %s] %s", printer->name, format);
-  server_log_to_file(format, ap);
+  server_log_to_file(temp, ap);
   va_end(ap);
 }
 
