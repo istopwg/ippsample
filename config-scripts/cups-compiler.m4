@@ -3,7 +3,7 @@ dnl "$Id: cups-compiler.m4 12742 2015-06-23 14:48:53Z msweet $"
 dnl
 dnl Compiler stuff for CUPS.
 dnl
-dnl Copyright 2007-2014 by Apple Inc.
+dnl Copyright 2007-2016 by Apple Inc.
 dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
 dnl
 dnl These coded instructions, statements, and computer programs are the
@@ -21,20 +21,20 @@ AC_SUBST(INSTALL_STRIP)
 AC_SUBST(OPTIM)
 
 AC_ARG_WITH(optim, [  --with-optim            set optimization flags ])
-AC_ARG_ENABLE(debug, [  --enable-debug          build with debugging symbols])
+AC_ARG_ENABLE(debug, [  --disable-debug          build without debugging symbols])
 AC_ARG_ENABLE(debug_guards, [  --enable-debug-guards   build with memory allocation guards])
-AC_ARG_ENABLE(debug_printfs, [  --enable-debug-printfs  build with CUPS_DEBUG_LOG support])
+AC_ARG_ENABLE(debug_printfs, [  --disable-debug-printfs  disable CUPS_DEBUG_LOG support])
 AC_ARG_ENABLE(unit_tests, [  --enable-unit-tests     build and run unit tests])
 
 dnl For debugging, keep symbols, otherwise strip them...
-if test x$enable_debug = xyes; then
+if test x$enable_debug != xno; then
 	OPTIM="-g"
 else
 	INSTALL_STRIP="-s"
 fi
 
 dnl Debug printfs can slow things down, so provide a separate option for that
-if test x$enable_debug_printfs = xyes; then
+if test x$enable_debug_printfs != xno; then
 	CFLAGS="$CFLAGS -DDEBUG"
 	CXXFLAGS="$CXXFLAGS -DDEBUG"
 fi

@@ -47,7 +47,8 @@ serverCreateClient(int sock)		/* I - Listen socket */
     return (NULL);
   }
 
-  client->number = next_client_number ++;
+  client->number     = next_client_number ++;
+  client->fetch_file = -1;
 
  /*
   * Accept the client and get the remote address...
@@ -866,8 +867,7 @@ serverRespondHTTP(
   if (type)
   {
     if (!strcmp(type, "text/html"))
-      httpSetField(client->http, HTTP_FIELD_CONTENT_TYPE,
-                   "text/html; charset=utf-8");
+      httpSetField(client->http, HTTP_FIELD_CONTENT_TYPE, "text/html; charset=utf-8");
     else
       httpSetField(client->http, HTTP_FIELD_CONTENT_TYPE, type);
 
@@ -892,9 +892,6 @@ serverRespondHTTP(
 
     if (httpPrintf(client->http, "%s", message) < 0)
       return (0);
-
-    if (httpWrite2(client->http, "", 0) < 0)
-      return (0);
   }
   else if (client->response)
   {
@@ -902,15 +899,24 @@ serverRespondHTTP(
     * Send an IPP response...
     */
 
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverRespondHTTP: Sending %d bytes of IPP response (Content-Length=%d)", (int)ippLength(client->response), (int)length);
+
     ippSetState(client->response, IPP_STATE_IDLE);
 
     if (ippWrite(client->http, client->response) != IPP_STATE_DATA)
+    {
+      serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Unable to write IPP response.");
       return (0);
+    }
+
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverRespondHTTP: Sent IPP response.");
 
     if (client->fetch_file >= 0)
     {
       ssize_t	bytes;			/* Bytes read */
       char	buffer[32768];		/* Buffer */
+
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverRespondHTTP: Sending file.");
 
       if (client->fetch_compression)
         httpSetField(client->http, HTTP_FIELD_CONTENT_ENCODING, "gzip");
@@ -918,11 +924,21 @@ serverRespondHTTP(
       while ((bytes = read(client->fetch_file, buffer, sizeof(buffer))) > 0)
         httpWrite2(client->http, buffer, (size_t)bytes);
 
-      httpWrite2(client->http, "", 0);
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverRespondHTTP: Sent file.");
+
       close(client->fetch_file);
       client->fetch_file = -1;
     }
   }
+
+  if (length == 0)
+  {
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverRespondHTTP: Sending 0-length chunk.");
+    httpWrite2(client->http, "", 0);
+  }
+
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverRespondHTTP: Flushing write buffer.");
+  httpFlushWrite(client->http);
 
   return (1);
 }

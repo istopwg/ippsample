@@ -10,5 +10,6 @@ server/ippserver
 tools/ippfind
 tools/ipptool
 xcuserdata
+*.log
 *.o
 *.xcworkspace

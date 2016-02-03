@@ -1329,9 +1329,9 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
-  --enable-debug          build with debugging symbols
+  --disable-debug          build without debugging symbols
   --enable-debug-guards   build with memory allocation guards
-  --enable-debug-printfs  build with CUPS_DEBUG_LOG support
+  --disable-debug-printfs  disable CUPS_DEBUG_LOG support
   --enable-unit-tests     build and run unit tests
   --enable-relro          build with the GCC relro option
   --disable-threads       disable multi-threading support
@@ -4396,13 +4396,13 @@ if test "${enable_unit_tests+set}" = set; then :
 fi
 
 
-if test x$enable_debug = xyes; then
+if test x$enable_debug != xno; then
 	OPTIM="-g"
 else
 	INSTALL_STRIP="-s"
 fi
 
-if test x$enable_debug_printfs = xyes; then
+if test x$enable_debug_printfs != xno; then
 	CFLAGS="$CFLAGS -DDEBUG"
 	CXXFLAGS="$CXXFLAGS -DDEBUG"
 fi
