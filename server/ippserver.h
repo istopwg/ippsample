@@ -322,6 +322,13 @@ VALUE({					/* Strings for bits */
   "toner-low"
 });
 
+typedef enum server_transform_e		/* Transform modes for server */
+{
+  SERVER_TRANSFORM_COMMAND,		/* Run command for print job processing */
+  SERVER_TRANSFORM_TO_CLIENT,		/* Send output to client */
+  SERVER_TRANSFORM_TO_FILE		/* Send output to file */
+} server_transform_t;
+
 
 /*
  * Base types...
@@ -554,6 +561,6 @@ extern void		serverRespondIPP(server_client_t *client, ipp_status_t status, cons
 extern void		serverRespondUnsupported(server_client_t *client, ipp_attribute_t *attr);
 extern void		serverRun(void);
 extern char		*serverTimeString(time_t tv, char *buffer, size_t bufsize);
-extern int		serverTransformJob(server_job_t *job, const char *format);
+extern int		serverTransformJob(server_job_t *job, const char *format, server_transform_t mode);
 extern void		serverUpdateDeviceAttributesNoLock(server_printer_t *printer);
 extern void		serverUpdateDeviceStateNoLock(server_printer_t *printer);

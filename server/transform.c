@@ -20,12 +20,15 @@
  */
 
 int					/* O - 0 on success, non-zero on error */
-serverTransformJob(server_job_t *job,	/* I - Job to transform */
-                   const char   *format)/* I - Destination MIME media type */
+serverTransformJob(
+    server_job_t       *job,		/* I - Job to transform */
+    const char         *format,		/* I - Destination MIME media type */
+    server_transform_t mode)		/* I - Transform mode */
 {
   // TODO: Implement me
   (void)job;
   (void)format;
+  (void)mode;
 
   return (1);
 }
