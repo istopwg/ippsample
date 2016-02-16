@@ -561,6 +561,6 @@ extern void		serverRespondIPP(server_client_t *client, ipp_status_t status, cons
 extern void		serverRespondUnsupported(server_client_t *client, ipp_attribute_t *attr);
 extern void		serverRun(void);
 extern char		*serverTimeString(time_t tv, char *buffer, size_t bufsize);
-extern int		serverTransformJob(server_job_t *job, const char *format, server_transform_t mode);
+extern int		serverTransformJob(server_job_t *job, const char *command, const char *format, server_transform_t mode);
 extern void		serverUpdateDeviceAttributesNoLock(server_printer_t *printer);
 extern void		serverUpdateDeviceStateNoLock(server_printer_t *printer);
