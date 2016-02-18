@@ -15,12 +15,18 @@
 #include "ippserver.h"
 
 
+#ifdef WIN32
+#  include <sys/timeb.h>
+#endif /* WIN32 */
+
+
 /*
  * Local functions...
  */
 
-static void		process_attr_message(server_job_t *job, char *message);
-static void		process_state_message(server_job_t *job, char *message);
+static void	process_attr_message(server_job_t *job, char *message);
+static void	process_state_message(server_job_t *job, char *message);
+static double	time_seconds(void);
 
 
 /*
@@ -29,6 +35,7 @@ static void		process_state_message(server_job_t *job, char *message);
 
 int					/* O - 0 on success, non-zero on error */
 serverTransformJob(
+    server_client_t    *client,		/* I - Client connection (if any) */
     server_job_t       *job,		/* I - Job to transform */
     const char         *command,	/* I - Command to run */
     const char         *format,		/* I - Destination MIME media type */
@@ -36,7 +43,7 @@ serverTransformJob(
 {
   int 		pid,			/* Process ID */
                 status = 0;		/* Exit status */
-  time_t	start,			/* Start time */
+  double	start,			/* Start time */
                 end;			/* End time */
   char		*myargv[3],		/* Command-line arguments */
 		*myenvp[200];		/* Environment variables */
@@ -45,23 +52,20 @@ serverTransformJob(
   char		val[1280],		/* IPP_NAME=value */
                 *valptr;		/* Pointer into string */
 #ifndef WIN32
-  int		mystdout[2],		/* Pipe for stdout */
-		mystderr[2];		/* Pipe for stderr */
-  char		line[2048],		/* Line from stderr */
+  int		mystdout[2] = {-1, -1},	/* Pipe for stdout */
+		mystderr[2] = {-1, -1};	/* Pipe for stderr */
+  struct pollfd	polldata[2];		/* Poll data */
+  int		pollcount;		/* Number of pipes to poll */
+  char		data[32768],		/* Data from stdout */
+		line[2048],		/* Line from stderr */
                 *ptr,			/* Pointer into line */
                 *endptr;		/* End of line */
   ssize_t	bytes;			/* Bytes read */
 #endif /* !WIN32 */
 
 
-  // TODO: implement mode
-  // TODO: implement timing report
-  (void)mode;
-  (void)mystdout;
-  (void)end;
-
   serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Running command \"%s %s\".", command, job->filename);
-  time(&start);
+  start = time_seconds();
 
  /*
   * Setup the command-line arguments...
@@ -148,6 +152,33 @@ serverTransformJob(
   status = _spawnvpe(_P_WAIT, command, myargv, myenvp);
 
 #else
+  if (mode == SERVER_TRANSFORM_TO_CLIENT)
+  {
+    if (pipe(mystdout))
+    {
+      serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Unable to create pipe for stdout: %s", strerror(errno));
+      goto transform_failure;
+    }
+  }
+  else
+  {
+    mystdout[0] = -1;
+
+    if (mode == SERVER_TRANSFORM_TO_FILE)
+    {
+      serverCreateJobFilename(job->printer, job, format, line, sizeof(line));
+      mystdout[1] = open(line, O_WRONLY | O_CREAT | O_TRUNC | O_EXCL, 0666);
+    }
+    else
+      mystdout[1] = open("/dev/null", O_WRONLY);
+
+    if (mystdout[1] < 0)
+    {
+      serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Unable to open file for stdout: %s", strerror(errno));
+      goto transform_failure;
+    }
+  }
+
   if (pipe(mystderr))
   {
     serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Unable to create pipe for stderr: %s", strerror(errno));
@@ -159,6 +190,12 @@ serverTransformJob(
    /*
     * Child comes here...
     */
+
+    close(1);
+    dup2(mystdout[1], 1);
+    if (mystdout[0] >= 0)
+      close(mystdout[0]);
+    close(mystdout[1]);
 
     close(2);
     dup2(mystderr[1], 2);
@@ -176,9 +213,6 @@ serverTransformJob(
 
     serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Unable to start job processing command: %s", strerror(errno));
 
-    close(mystderr[0]);
-    close(mystderr[1]);
-
     goto transform_failure;
   }
   else
@@ -191,46 +225,78 @@ serverTransformJob(
       free(myenvp[-- myenvc]);
 
    /*
-    * Read from the stderr pipe until EOF...
+    * Read from the stdout and stderr pipes until EOF...
     */
 
+    close(mystdout[1]);
     close(mystderr[1]);
 
     endptr = line;
-    while ((bytes = read(mystderr[0], endptr, sizeof(line) - (size_t)(endptr - line) - 1)) > 0)
+
+    pollcount = 0;
+    polldata[pollcount].fd     = mystderr[0];
+    polldata[pollcount].events = POLLIN;
+    pollcount ++;
+
+    if (mystdout[0] >= 0)
     {
-      endptr += bytes;
-      *endptr = '\0';
+      polldata[pollcount].fd     = mystdout[0];
+      polldata[pollcount].events = POLLIN;
+      pollcount ++;
+    }
 
-      while ((ptr = strchr(line, '\n')) != NULL)
+    while (poll(polldata, (nfds_t)pollcount, -1))
+    {
+      if (polldata[0].revents & POLLIN)
       {
-        *ptr++ = '\0';
-
-        if (!strncmp(line, "STATE:", 6))
+        if ((bytes = read(mystderr[0], endptr, sizeof(line) - (size_t)(endptr - line) - 1)) > 0)
         {
-         /*
-          * Process printer-state-reasons keywords.
-          */
+          endptr += bytes;
+          *endptr = '\0';
 
-          process_state_message(job, line);
+          while ((ptr = strchr(line, '\n')) != NULL)
+          {
+            *ptr++ = '\0';
+
+            if (!strncmp(line, "STATE:", 6))
+            {
+             /*
+              * Process printer-state-reasons keywords.
+              */
+
+              process_state_message(job, line);
+            }
+            else if (!strncmp(line, "ATTR:", 5))
+            {
+             /*
+              * Process printer attribute update.
+              */
+
+              process_attr_message(job, line);
+            }
+            else
+              serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "%s: %s", command, line);
+
+            bytes = ptr - line;
+            if (ptr < endptr)
+              memmove(line, ptr, (size_t)(endptr - ptr));
+            endptr -= bytes;
+            *endptr = '\0';
+          }
         }
-        else if (!strncmp(line, "ATTR:", 5))
-        {
-         /*
-          * Process printer attribute update.
-          */
-
-          process_attr_message(job, line);
-        }
-        else
-          serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "%s: %s", command, line);
-
-        bytes = ptr - line;
-        if (ptr < endptr)
-          memmove(line, ptr, (size_t)(endptr - ptr));
-        endptr -= bytes;
-        *endptr = '\0';
       }
+      else if (pollcount > 1 && polldata[1].revents & POLLIN)
+      {
+        if ((bytes = read(mystdout[0], data, sizeof(data))) > 0)
+          httpWrite2(client->http, data, (size_t)bytes);
+      }
+    }
+
+    if (mystdout[0] >= 0)
+    {
+      close(mystdout[0]);
+      httpFlushWrite(client->http);
+      httpWrite2(client->http, "", 0);
     }
 
     close(mystderr[0]);
@@ -256,6 +322,9 @@ serverTransformJob(
   }
 #endif /* WIN32 */
 
+  end = time_seconds();
+  serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Total transform time is %.3f seconds.", end - start);
+
   return (status);
 
  /*
@@ -263,6 +332,16 @@ serverTransformJob(
   */
 
   transform_failure:
+
+  if (mystdout[0] >= 0)
+    close(mystdout[0]);
+  if (mystdout[1] >= 0)
+    close(mystdout[1]);
+
+  if (mystderr[0] >= 0)
+    close(mystderr[0]);
+  if (mystderr[1] >= 0)
+    close(mystderr[1]);
 
   while (myenvc > 0)
     free(myenvp[-- myenvc]);
@@ -371,4 +450,30 @@ process_state_message(
   }
 
   job->printer->state_reasons = state_reasons;
+}
+
+
+/*
+ * 'time_seconds()' - Return the current time in fractional seconds.
+ */
+
+static double				/* O - Time in seconds */
+time_seconds(void)
+{
+#ifdef WIN32
+  struct _timeb curtime;		/* Current time */
+
+
+  _ftime(&curtime);
+
+  return ((double)curtime.time + 0.001 * curtime.millitm);
+
+#else
+  struct timeval curtime;		/* Current time */
+
+
+  gettimeofday(&curtime, NULL);
+
+  return ((double)curtime.tv_sec + 0.000001 * curtime.tv_usec);
+#endif /* WIN32 */
 }
