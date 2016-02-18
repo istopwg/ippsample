@@ -1,6 +1,4 @@
 /*
- * "$Id: dest.c 12733 2015-06-12 01:21:05Z msweet $"
- *
  * User-defined destination (and option) support for CUPS.
  *
  * Copyright 2007-2016 by Apple Inc.
@@ -568,6 +566,8 @@ cupsConnectDest(
   http_t	*http;			/* Connection to server */
 
 
+  DEBUG_printf(("cupsConnectDest(dest=%p, flags=0x%x, msec=%d, cancel=%p(%d), resource=\"%s\", resourcesize=" CUPS_LLFMT ", cb=%p, user_data=%p)", dest, flags, msec, cancel, cancel ? *cancel : -1, resource, CUPS_LLCAST resourcesize, cb, user_data));
+
  /*
   * Range check input...
   */
@@ -591,26 +591,39 @@ cupsConnectDest(
   * Grab the printer URI...
   */
 
-  if ((uri = cupsGetOption("printer-uri-supported", dest->num_options,
-                           dest->options)) == NULL)
+  if ((uri = cupsGetOption("printer-uri-supported", dest->num_options, dest->options)) == NULL)
+  {
+    if ((uri = cupsGetOption("resolved-device-uri", dest->num_options, dest->options)) == NULL)
+    {
+      if ((uri = cupsGetOption("device-uri", dest->num_options, dest->options)) != NULL)
+      {
+#if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
+        if (strstr(uri, "._tcp"))
+          uri = cups_dnssd_resolve(dest, uri, msec, cancel, cb, user_data);
+      }
+#endif /* HAVE_DNSSD || HAVE_AVAHI */
+    }
+
+    if (uri)
+      uri = _cupsCreateDest(dest->name, cupsGetOption("printer-info", dest->num_options, dest->options), NULL, uri, tempresource, sizeof(tempresource));
+
+    if (uri)
+    {
+      dest->num_options = cupsAddOption("printer-uri-supported", uri, dest->num_options, &dest->options);
+
+      uri = cupsGetOption("printer-uri-supported", dest->num_options, dest->options);
+    }
+  }
+
+  if (!uri)
   {
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(ENOENT), 0);
 
     if (cb)
-      (*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_ERROR,
-            dest);
+      (*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_ERROR, dest);
 
     return (NULL);
   }
-
-#if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
-  if (strstr(uri, "._tcp"))
-  {
-    if ((uri = cups_dnssd_resolve(dest, uri, msec, cancel, cb,
-                                  user_data)) == NULL)
-      return (NULL);
-  }
-#endif /* HAVE_DNSSD || HAVE_AVAHI */
 
   if (httpSeparateURI(HTTP_URI_CODING_ALL, uri, scheme, sizeof(scheme),
                       userpass, sizeof(userpass), hostname, sizeof(hostname),
@@ -630,16 +643,14 @@ cupsConnectDest(
   */
 
   if (cb)
-    (*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_RESOLVING,
-          dest);
+    (*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_RESOLVING, dest);
 
   snprintf(portstr, sizeof(portstr), "%d", port);
 
   if ((addrlist = httpAddrGetList(hostname, AF_UNSPEC, portstr)) == NULL)
   {
     if (cb)
-      (*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_ERROR,
-            dest);
+      (*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_ERROR, dest);
 
     return (NULL);
   }
@@ -649,8 +660,7 @@ cupsConnectDest(
     httpAddrFreeList(addrlist);
 
     if (cb)
-      (*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_CANCELED,
-            dest);
+      (*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_CANCELED, dest);
 
     return (NULL);
   }
@@ -664,8 +674,7 @@ cupsConnectDest(
   else
     encryption = HTTP_ENCRYPTION_IF_REQUESTED;
 
-  http = httpConnect2(hostname, port, addrlist, AF_UNSPEC, encryption, 1, 0,
-                      NULL);
+  http = httpConnect2(hostname, port, addrlist, AF_UNSPEC, encryption, 1, 0, NULL);
   httpAddrFreeList(addrlist);
 
  /*
@@ -680,17 +689,14 @@ cupsConnectDest(
   else
   {
     if (cb)
-      (*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_CONNECTING,
-            dest);
+      (*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_CONNECTING, dest);
 
     if (!httpReconnect2(http, msec, cancel) && cb)
     {
       if (cancel && *cancel)
-	(*cb)(user_data,
-	      CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_CONNECTING, dest);
+	(*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_CONNECTING, dest);
       else
-	(*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_ERROR,
-	      dest);
+	(*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_ERROR, dest);
     }
     else if (cb)
       (*cb)(user_data, CUPS_DEST_FLAGS_NONE, dest);
@@ -801,6 +807,83 @@ cupsCopyDest(cups_dest_t *dest,
   }
 
   return (num_dests);
+}
+
+
+/*
+ * '_cupsCreateDest()' - Create a local (temporary) queue.
+ */
+
+char *					/* O - Printer URI or @code NULL@ on error */
+_cupsCreateDest(const char *name,	/* I - Printer name */
+                const char *info,	/* I - Printer description of @code NULL@ */
+		const char *device_id,	/* I - 1284 Device ID or @code NULL@ */
+		const char *device_uri,	/* I - Device URI */
+		char       *uri,	/* I - Printer URI buffer */
+		size_t     urisize)	/* I - Size of URI buffer */
+{
+  http_t	*http;			/* Connection to server */
+  ipp_t		*request,		/* CUPS-Create-Local-Printer request */
+		*response;		/* CUPS-Create-Local-Printer response */
+  ipp_attribute_t *attr;		/* printer-uri-supported attribute */
+  ipp_pstate_t	state = IPP_PSTATE_STOPPED;
+					/* printer-state value */
+
+
+  if (!name || !device_uri || !uri || urisize < 32)
+    return (NULL);
+
+  if ((http = httpConnect2(cupsServer(), ippPort(), NULL, AF_UNSPEC, HTTP_ENCRYPTION_IF_REQUESTED, 1, 30000, NULL)) == NULL)
+    return (NULL);
+
+  request = ippNewRequest(IPP_OP_CUPS_CREATE_LOCAL_PRINTER);
+
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, "ipp://localhost/");
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+
+  ippAddString(request, IPP_TAG_PRINTER, IPP_TAG_URI, "device-uri", NULL, device_uri);
+  ippAddString(request, IPP_TAG_PRINTER, IPP_TAG_NAME, "printer-name", NULL, name);
+  if (info)
+    ippAddString(request, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-info", NULL, info);
+  if (device_id)
+    ippAddString(request, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-device-id", NULL, device_id);
+
+  response = cupsDoRequest(http, request, "/");
+
+  if ((attr = ippFindAttribute(response, "printer-uri-supported", IPP_TAG_URI)) != NULL)
+    strlcpy(uri, ippGetString(attr, 0, NULL), urisize);
+  else
+  {
+    ippDelete(response);
+    httpClose(http);
+    return (NULL);
+  }
+
+  if ((attr = ippFindAttribute(response, "printer-state", IPP_TAG_ENUM)) != NULL)
+    state = (ipp_pstate_t)ippGetInteger(attr, 0);
+
+  while (state == IPP_PSTATE_STOPPED && cupsLastError() == IPP_STATUS_OK)
+  {
+    sleep(1);
+    ippDelete(response);
+
+    request = ippNewRequest(IPP_OP_GET_PRINTER_ATTRIBUTES);
+
+    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, uri);
+    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", NULL, "printer-state");
+
+    response = cupsDoRequest(http, request, "/");
+
+    if ((attr = ippFindAttribute(response, "printer-state", IPP_TAG_ENUM)) != NULL)
+      state = (ipp_pstate_t)ippGetInteger(attr, 0);
+  }
+
+  ippDelete(response);
+
+  httpClose(http);
+
+  return (uri);
 }
 
 
@@ -1399,7 +1482,7 @@ cupsGetDestWithURI(const char *name,	/* I - Desired printer name or @code NULL@ 
   }
 
   dest->name        = _cupsStrAlloc(name);
-  dest->num_options = cupsAddOption("printer-uri-supported", uri, dest->num_options, &(dest->options));
+  dest->num_options = cupsAddOption("device-uri", uri, dest->num_options, &(dest->options));
   dest->num_options = cupsAddOption("printer-info", name, dest->num_options, &(dest->options));
 
   return (dest);
@@ -3278,14 +3361,20 @@ cups_dnssd_query_cb(
         */
 
         const char	*start, *next;	/* Pointer into value */
-        int		have_pdf = 0;	/* Have PDF? */
+        int		have_pdf = 0,	/* Have PDF? */
+			have_raster = 0;/* Have raster format support? */
 
         for (start = value; start && *start; start = next)
         {
-          if (!_cups_strncasecmp(start, "application/pdf", 15) &&
-              (!start[15] || start[15] == ','))
+          if (!_cups_strncasecmp(start, "application/pdf", 15) && (!start[15] || start[15] == ','))
           {
             have_pdf = 1;
+            break;
+          }
+          else if ((!_cups_strncasecmp(start, "image/pwg-raster", 16) && (!start[16] || start[16] == ',')) ||
+		   (!_cups_strncasecmp(start, "image/urf", 9) && (!start[9] || start[9] == ',')))
+          {
+            have_raster = 1;
             break;
           }
 
@@ -3293,7 +3382,7 @@ cups_dnssd_query_cb(
             next ++;
         }
 
-        if (!have_pdf)
+        if (!have_pdf && !have_raster)
           device->state = _CUPS_DNSSD_INCOMPATIBLE;
       }
       else if (!_cups_strcasecmp(key, "printer-type"))
@@ -3359,31 +3448,21 @@ cups_dnssd_query_cb(
     * Save the printer-xxx values...
     */
 
-    device->dest.num_options = cupsAddOption("printer-info", name,
-					     device->dest.num_options,
-					     &device->dest.options);
+    device->dest.num_options = cupsAddOption("printer-info", name, device->dest.num_options, &device->dest.options);
 
     if (make_and_model[0])
     {
       strlcat(make_and_model, " ", sizeof(make_and_model));
       strlcat(make_and_model, model, sizeof(make_and_model));
 
-      device->dest.num_options = cupsAddOption("printer-make-and-model",
-      					       make_and_model,
-					       device->dest.num_options,
-					       &device->dest.options);
+      device->dest.num_options = cupsAddOption("printer-make-and-model", make_and_model, device->dest.num_options, &device->dest.options);
     }
     else
-      device->dest.num_options = cupsAddOption("printer-make-and-model",
-      					       model,
-					       device->dest.num_options,
-					       &device->dest.options);
+      device->dest.num_options = cupsAddOption("printer-make-and-model", model, device->dest.num_options, &device->dest.options);
 
     device->type = type;
     snprintf(value, sizeof(value), "%u", type);
-    device->dest.num_options = cupsAddOption("printer-type", value,
-					     device->dest.num_options,
-					     &device->dest.options);
+    device->dest.num_options = cupsAddOption("printer-type", value, device->dest.num_options, &device->dest.options);
 
    /*
     * Save the URI...
@@ -3394,11 +3473,9 @@ cups_dnssd_query_cb(
                     !strcmp(device->regtype, "_ipps._tcp") ? "ipps" : "ipp",
                     NULL, uriname, 0, saw_printer_type ? "/cups" : "/");
 
-    DEBUG_printf(("6cups_dnssd_query: printer-uri-supported=\"%s\"", uri));
+    DEBUG_printf(("6cups_dnssd_query: device-uri=\"%s\"", uri));
 
-    device->dest.num_options = cupsAddOption("printer-uri-supported", uri,
-					     device->dest.num_options,
-					     &device->dest.options);
+    device->dest.num_options = cupsAddOption("device-uri", uri, device->dest.num_options, &device->dest.options);
   }
   else
     DEBUG_printf(("6cups_dnssd_query: Ignoring TXT record for '%s'.",
@@ -3444,18 +3521,14 @@ cups_dnssd_resolve(
     resolve.end_time.tv_sec += 75;
 
   if (cb)
-    (*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_RESOLVING,
-	  dest);
+    (*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_RESOLVING, dest);
 
-  if ((uri = _httpResolveURI(uri, tempuri, sizeof(tempuri),
-			     _HTTP_RESOLVE_FQDN, cups_dnssd_resolve_cb,
-			     &resolve)) == NULL)
+  if ((uri = _httpResolveURI(uri, tempuri, sizeof(tempuri), _HTTP_RESOLVE_DEFAULT, cups_dnssd_resolve_cb, &resolve)) == NULL)
   {
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Unable to resolve printer-uri."), 1);
 
     if (cb)
-      (*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_ERROR,
-	    dest);
+      (*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_ERROR, dest);
 
     return (NULL);
   }
@@ -3464,11 +3537,9 @@ cups_dnssd_resolve(
   * Save the resolved URI...
   */
 
-  dest->num_options = cupsAddOption("printer-uri-supported", uri,
-				    dest->num_options, &dest->options);
+  dest->num_options = cupsAddOption("resolved-device-uri", uri, dest->num_options, &dest->options);
 
-  return (cupsGetOption("printer-uri-supported", dest->num_options,
-                        dest->options));
+  return (cupsGetOption("resolved-device-uri", dest->num_options, dest->options));
 }
 
 
@@ -3488,8 +3559,11 @@ cups_dnssd_resolve_cb(void *context)	/* I - Resolve data */
   * If the cancel variable is set, return immediately.
   */
 
-  if (*resolve->cancel)
+  if (resolve->cancel && *(resolve->cancel))
+  {
+    DEBUG_puts("4cups_dnssd_resolve_cb: Canceled.");
     return (0);
+  }
 
  /*
   * Otherwise check the end time...
@@ -3497,9 +3571,11 @@ cups_dnssd_resolve_cb(void *context)	/* I - Resolve data */
 
   gettimeofday(&curtime, NULL);
 
-  return (curtime.tv_sec > resolve->end_time.tv_sec ||
+  DEBUG_printf(("4cups_dnssd_resolve_cb: curtime=%d.%06d, end_time=%d.%06d", (int)curtime.tv_sec, curtime.tv_usec, (int)resolve->end_time.tv_sec, resolve->end_time.tv_usec));
+
+  return (curtime.tv_sec < resolve->end_time.tv_sec ||
           (curtime.tv_sec == resolve->end_time.tv_sec &&
-           curtime.tv_usec > resolve->end_time.tv_usec));
+           curtime.tv_usec < resolve->end_time.tv_usec));
 }
 
 
@@ -3948,8 +4024,3 @@ cups_make_string(
 
   return (buffer);
 }
-
-
-/*
- * End of "$Id: dest.c 12733 2015-06-12 01:21:05Z msweet $".
- */

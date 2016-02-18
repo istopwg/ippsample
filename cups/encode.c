@@ -1,5 +1,5 @@
 /*
- * "$Id: encode.c 12668 2015-05-27 19:30:32Z msweet $"
+ * "$Id: encode.c 13088 2016-02-15 23:39:23Z msweet $"
  *
  * Option encoding routines for CUPS.
  *
@@ -281,6 +281,7 @@ static const _ipp_option_t ipp_options[] =
   { 0, "printer-info",		IPP_TAG_TEXT,		IPP_TAG_PRINTER },
   { 0, "printer-is-accepting-jobs", IPP_TAG_BOOLEAN,	IPP_TAG_PRINTER },
   { 0, "printer-is-shared",	IPP_TAG_BOOLEAN,	IPP_TAG_PRINTER },
+  { 0, "printer-is-temporary",	IPP_TAG_BOOLEAN,	IPP_TAG_PRINTER },
   { 0, "printer-location",	IPP_TAG_TEXT,		IPP_TAG_PRINTER },
   { 0, "printer-make-and-model", IPP_TAG_TEXT,		IPP_TAG_PRINTER },
   { 0, "printer-more-info",	IPP_TAG_URI,		IPP_TAG_PRINTER },
@@ -853,5 +854,5 @@ compare_ipp_options(_ipp_option_t *a,	/* I - First option */
 
 
 /*
- * End of "$Id: encode.c 12668 2015-05-27 19:30:32Z msweet $".
+ * End of "$Id: encode.c 13088 2016-02-15 23:39:23Z msweet $".
  */

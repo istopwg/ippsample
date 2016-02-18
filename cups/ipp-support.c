@@ -1,5 +1,5 @@
 /*
- * "$Id: ipp-support.c 12666 2015-05-25 19:38:09Z msweet $"
+ * "$Id: ipp-support.c 13105 2016-02-18 20:32:13Z msweet $"
  *
  * Internet Printing Protocol support functions for CUPS.
  *
@@ -247,7 +247,8 @@ static const char * const ipp_std_ops[] =
 		},
 		* const ipp_cups_ops2[] =
 		{
-		  "CUPS-Get-Document"
+		  "CUPS-Get-Document",
+		  "CUPS-Create-Local-Printer"
 		},
 		* const ipp_tag_names[] =
 		{			/* Value/group tag names */
@@ -1564,6 +1565,7 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
     "printer-input-tray",		/* IPP JPS3 */
     "printer-is-accepting-jobs",
     "printer-is-shared",		/* CUPS extension */
+    "printer-is-temporary",		/* CUPS extension */
     "printer-kind",			/* IPP Paid Printing */
     "printer-location",
     "printer-make-and-model",
@@ -1578,6 +1580,7 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
     "printer-organization",
     "printer-organizational-unit",
     "printer-output-tray",		/* IPP JPS3 */
+    "printer-queue-id",			/* CUPS extension */
     "printer-settable-attributes-supported",
     "printer-state",
     "printer-state-change-date-time",
@@ -2048,8 +2051,8 @@ ippOpString(ipp_op_t op)		/* I - Operation ID */
     return ("windows-ext");
   else if (op >= IPP_OP_CUPS_GET_DEFAULT && op <= IPP_OP_CUPS_GET_PPD)
     return (ipp_cups_ops[op - IPP_OP_CUPS_GET_DEFAULT]);
-  else if (op == IPP_OP_CUPS_GET_DOCUMENT)
-    return (ipp_cups_ops2[0]);
+  else if (op >= IPP_OP_CUPS_GET_DOCUMENT && op <= IPP_OP_CUPS_CREATE_LOCAL_PRINTER)
+    return (ipp_cups_ops2[op - IPP_OP_CUPS_GET_DOCUMENT]);
 
  /*
   * No, build an "0xxxxx" operation string...
@@ -2286,5 +2289,5 @@ ipp_col_string(ipp_t  *col,		/* I - Collection attribute */
 
 
 /*
- * End of "$Id: ipp-support.c 12666 2015-05-25 19:38:09Z msweet $".
+ * End of "$Id: ipp-support.c 13105 2016-02-18 20:32:13Z msweet $".
  */

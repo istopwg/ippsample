@@ -1,9 +1,7 @@
 /*
- * "$Id: tls-darwin.c 12675 2015-05-28 01:14:32Z msweet $"
- *
  * TLS support code for CUPS on OS X.
  *
- * Copyright 2007-2015 by Apple Inc.
+ * Copyright 2007-2016 by Apple Inc.
  * Copyright 1997-2007 by Easy Software Products, all rights reserved.
  *
  * These coded instructions, statements, and computer programs are the
@@ -109,7 +107,7 @@ cupsMakeServerCredentials(
   if (!keyParams)
     goto cleanup;
 
-  CFDictionaryAddValue(keyParams, kSecAttrKeyType, kSecAttrKeyTypeRSA);
+  CFDictionaryAddValue(keyParams, kSecAttrKeyType, kSecAttrKeyTypeECDSA);
   CFDictionaryAddValue(keyParams, kSecAttrKeySizeInBits, CFSTR("2048"));
   CFDictionaryAddValue(keyParams, kSecAttrLabel, CFSTR("CUPS Self-Signed Certificate"));
 
@@ -180,7 +178,7 @@ cleanup:
 		status,			/* Status of command */
 		i;			/* Looping var */
   char		command[1024],		/* Command */
-		*argv[4],		/* Command-line arguments */
+		*argv[5],		/* Command-line arguments */
 		*envp[1000],		/* Environment variables */
 		days[32],		/* CERTTOOL_EXPIRATION_DAYS env var */
 		keychain[1024],		/* Keychain argument */
@@ -218,10 +216,10 @@ cleanup:
                  "CUPS Self-Signed Certificate\n"
 		 			/* Enter key and certificate label */
                  "r\n"			/* Generate RSA key pair */
-                 "2048\n"		/* Key size in bits */
+                 "2048\n"		/* 2048 bit encryption key */
                  "y\n"			/* OK (y = yes) */
                  "b\n"			/* Usage (b=signing/encryption) */
-                 "s\n"			/* Sign with SHA1 */
+                 "2\n"			/* Sign with SHA256 */
                  "y\n"			/* OK (y = yes) */
                  "%s\n"			/* Common name */
                  "\n"			/* Country (default) */
@@ -1832,8 +1830,3 @@ http_cdsa_write(
 
   return (result);
 }
-
-
-/*
- * End of "$Id: tls-darwin.c 12675 2015-05-28 01:14:32Z msweet $".
- */

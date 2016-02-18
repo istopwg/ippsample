@@ -1,9 +1,7 @@
 /*
- * "$Id: dest-options.c 11882 2014-05-16 21:02:15Z msweet $"
- *
  * Destination option/media support for CUPS.
  *
- * Copyright 2012-2014 by Apple Inc.
+ * Copyright 2012-2016 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -706,6 +704,7 @@ cupsFindDestDefault(
   return (ippFindAttribute(dinfo->attrs, name, IPP_TAG_ZERO));
 }
 
+
 /*
  * 'cupsFindDestReady()' - Find the default value(s) for the given option.
  *
@@ -747,6 +746,7 @@ cupsFindDestReady(
   snprintf(name, sizeof(name), "%s-ready", option);
   return (ippFindAttribute(dinfo->ready_attrs, name, IPP_TAG_ZERO));
 }
+
 
 /*
  * 'cupsFindDestSupported()' - Find the default value(s) for the given option.
@@ -2267,5 +2267,5 @@ cups_update_ready(http_t       *http,	/* I - Connection to destination */
 
 
 /*
- * End of "$Id: dest-options.c 11882 2014-05-16 21:02:15Z msweet $".
+ * End of "$Id: dest-options.c 13099 2016-02-17 22:46:40Z msweet $".
  */
