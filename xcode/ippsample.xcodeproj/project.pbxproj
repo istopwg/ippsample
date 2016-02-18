@@ -18,6 +18,7 @@
 				72E006161C5C0C52006CF057 /* PBXTargetDependency */,
 				72E006181C5C0C52006CF057 /* PBXTargetDependency */,
 				72E0061A1C5C0C52006CF057 /* PBXTargetDependency */,
+				725C87C21C7664EF00FB3AD5 /* PBXTargetDependency */,
 			);
 			name = All;
 			productName = All;
@@ -25,6 +26,13 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		725C87B61C7664DE00FB3AD5 /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
+		725C87B71C7664DE00FB3AD5 /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
+		725C87B81C7664DE00FB3AD5 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
+		725C87B91C7664DE00FB3AD5 /* libcups.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups.a */; };
+		725C87BA1C7664DE00FB3AD5 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402E91C0CE81900139783 /* ApplicationServices.framework */; };
+		725C87BB1C7664DE00FB3AD5 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
+		725C87C41C767CF800FB3AD5 /* ipptransform.c in Sources */ = {isa = PBXBuildFile; fileRef = 725C87C31C767CF800FB3AD5 /* ipptransform.c */; };
 		72737CF61C24BA4F007CBEF6 /* dest-job.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CEF1C24BA4F007CBEF6 /* dest-job.c */; };
 		72737CF71C24BA4F007CBEF6 /* dest-localization.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF01C24BA4F007CBEF6 /* dest-localization.c */; };
 		72737CF81C24BA4F007CBEF6 /* dest-options.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF11C24BA4F007CBEF6 /* dest-options.c */; };
@@ -128,6 +136,20 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		725C87B21C7664DE00FB3AD5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72B402251C0CE0E100139783;
+			remoteInfo = libcups;
+		};
+		725C87C11C7664EF00FB3AD5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 725C87B01C7664DE00FB3AD5;
+			remoteInfo = ipptransform;
+		};
 		72B402E61C0CE7EA00139783 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
@@ -194,6 +216,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		725C87BC1C7664DE00FB3AD5 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
 		72B402161C0CDFB400139783 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -236,6 +267,8 @@
 		723D66D41C723CB70078B537 /* CONTRIBUTING.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = CONTRIBUTING.md; path = ../CONTRIBUTING.md; sourceTree = "<group>"; };
 		723D66D51C723CB70078B537 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
 		723D66D81C723CC20078B537 /* DESIGN.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = DESIGN.md; path = ../server/DESIGN.md; sourceTree = "<group>"; };
+		725C87C01C7664DE00FB3AD5 /* ipptransform */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ipptransform; sourceTree = BUILT_PRODUCTS_DIR; };
+		725C87C31C767CF800FB3AD5 /* ipptransform.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ipptransform.c; path = ../tools/ipptransform.c; sourceTree = "<group>"; };
 		72737CEF1C24BA4F007CBEF6 /* dest-job.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "dest-job.c"; path = "../cups/dest-job.c"; sourceTree = "<group>"; };
 		72737CF01C24BA4F007CBEF6 /* dest-localization.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "dest-localization.c"; path = "../cups/dest-localization.c"; sourceTree = "<group>"; };
 		72737CF11C24BA4F007CBEF6 /* dest-options.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "dest-options.c"; path = "../cups/dest-options.c"; sourceTree = "<group>"; };
@@ -341,6 +374,19 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		725C87B51C7664DE00FB3AD5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				725C87B61C7664DE00FB3AD5 /* libiconv.dylib in Frameworks */,
+				725C87B71C7664DE00FB3AD5 /* libresolv.dylib in Frameworks */,
+				725C87B81C7664DE00FB3AD5 /* libz.dylib in Frameworks */,
+				725C87B91C7664DE00FB3AD5 /* libcups.a in Frameworks */,
+				725C87BA1C7664DE00FB3AD5 /* ApplicationServices.framework in Frameworks */,
+				725C87BB1C7664DE00FB3AD5 /* CoreFoundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		72B402151C0CDFB400139783 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -427,6 +473,7 @@
 				72B402C91C0CE5EC00139783 /* ipptool */,
 				72B402D91C0CE61D00139783 /* ippfind */,
 				72E006021C5C0B10006CF057 /* ippproxy */,
+				725C87C01C7664DE00FB3AD5 /* ipptransform */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -524,6 +571,7 @@
 		72B4022E1C0CE22300139783 /* tools */ = {
 			isa = PBXGroup;
 			children = (
+				725C87C31C767CF800FB3AD5 /* ipptransform.c */,
 				72B402D01C0CE60400139783 /* ippfind.c */,
 				72B402D11C0CE60400139783 /* ipptool.c */,
 			);
@@ -608,6 +656,24 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
+		725C87B01C7664DE00FB3AD5 /* ipptransform */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 725C87BD1C7664DE00FB3AD5 /* Build configuration list for PBXNativeTarget "ipptransform" */;
+			buildPhases = (
+				725C87B31C7664DE00FB3AD5 /* Sources */,
+				725C87B51C7664DE00FB3AD5 /* Frameworks */,
+				725C87BC1C7664DE00FB3AD5 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				725C87B11C7664DE00FB3AD5 /* PBXTargetDependency */,
+			);
+			name = ipptransform;
+			productName = ipptool;
+			productReference = 725C87C01C7664DE00FB3AD5 /* ipptransform */;
+			productType = "com.apple.product-type.tool";
+		};
 		72B402171C0CDFB400139783 /* ippserver */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 72B4021F1C0CDFB400139783 /* Build configuration list for PBXNativeTarget "ippserver" */;
@@ -740,12 +806,21 @@
 				72E005F21C5C0B10006CF057 /* ippproxy */,
 				72B402171C0CDFB400139783 /* ippserver */,
 				72B402C81C0CE5EC00139783 /* ipptool */,
+				725C87B01C7664DE00FB3AD5 /* ipptransform */,
 				72E0060D1C5C0C48006CF057 /* All */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		725C87B31C7664DE00FB3AD5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				725C87C41C767CF800FB3AD5 /* ipptransform.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		72B402141C0CDFB400139783 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -835,6 +910,16 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		725C87B11C7664DE00FB3AD5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72B402251C0CE0E100139783 /* libcups */;
+			targetProxy = 725C87B21C7664DE00FB3AD5 /* PBXContainerItemProxy */;
+		};
+		725C87C21C7664EF00FB3AD5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 725C87B01C7664DE00FB3AD5 /* ipptransform */;
+			targetProxy = 725C87C11C7664EF00FB3AD5 /* PBXContainerItemProxy */;
+		};
 		72B402E71C0CE7EA00139783 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 72B402251C0CE0E100139783 /* libcups */;
@@ -883,6 +968,24 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		725C87BE1C7664DE00FB3AD5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		725C87BF1C7664DE00FB3AD5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		72B4021D1C0CDFB400139783 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1095,6 +1198,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		725C87BD1C7664DE00FB3AD5 /* Build configuration list for PBXNativeTarget "ipptransform" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				725C87BE1C7664DE00FB3AD5 /* Debug */,
+				725C87BF1C7664DE00FB3AD5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		72B402131C0CDFB400139783 /* Build configuration list for PBXProject "ippsample" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
