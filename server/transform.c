@@ -98,7 +98,7 @@ serverTransformJob(
   if ((attr = ippFindAttribute(job->attrs, "document-name", IPP_TAG_NAME)) != NULL && asprintf(myenvp + myenvc, "DOCUMENT_NAME=%s", ippGetString(attr, 0, NULL)) > 0)
     myenvc ++;
 
-  /* TODO: OUTPUT_ORDER */
+  /* TODO: OUTPUT_ORDER, defaults */
 
   if (asprintf(myenvp + myenvc, "OUTPUT_TYPE=%s", format) > 0)
     myenvc ++;

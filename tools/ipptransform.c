@@ -96,9 +96,13 @@ main(int  argc,				/* I - Number of command-line args */
 		*content_type,		/* Source content type */
 		*device_uri,		/* Destination URI */
 		*output_type,		/* Destination content type */
+		*resolutions,		/* pwg-raster-document-resolution-supported */
+		*sheet_back,		/* pwg-raster-document-sheet-back */
+		*types,			/* pwg-raster-document-type-supported */
 		*opt;			/* Option character */
   int		num_options;		/* Number of options */
   cups_option_t	*options;		/* Options */
+  int		fd = 1;			/* Output file/socket */
 
 
  /*
@@ -109,6 +113,9 @@ main(int  argc,				/* I - Number of command-line args */
   content_type = getenv("CONTENT_TYPE");
   device_uri   = getenv("DEVICE_URI");
   output_type  = getenv("OUTPUT_TYPE");
+  resolutions  = getenv("PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED");
+  sheet_back   = getenv("PWG_RASTER_DOCUMENT_SHEET_BACK");
+  types        = getenv("PWG_RASTER_DOCUMENT_TYPE_SUPPORTED");
 
   for (i = 1; i < argc; i ++)
   {
@@ -146,6 +153,27 @@ main(int  argc,				/* I - Number of command-line args */
 
 	      num_options = cupsParseOptions(argv[i], num_options, &options);
 	      break;
+	  case 'r' : /* pwg-raster-document-resolution-supported values */
+	      i ++;
+	      if (i >= argc)
+	        usage(1);
+
+	      resolutions = argv[i];
+	      break;
+	  case 's' : /* pwg-raster-document-sheet-back value */
+	      i ++;
+	      if (i >= argc)
+	        usage(1);
+
+	      sheet_back = argv[i];
+	      break;
+	  case 't' : /* pwg-raster-document-type-supported values */
+	      i ++;
+	      if (i >= argc)
+	        usage(1);
+
+	      types = argv[i];
+	      break;
 	  default :
 	      printf("ipptransform: Unknown option '-%c'.\n", *opt);
 	      usage(1);
@@ -165,6 +193,55 @@ main(int  argc,				/* I - Number of command-line args */
 
   if (!filename)
     usage(1);
+
+  if (!content_type)
+  {
+    if ((opt = strrchr(filename, '.')) != NULL)
+    {
+      if (!strcmp(opt, ".pdf"))
+        content_type = "application/pdf";
+      else if (!strcmp(opt, ".jpg") || !strcmp(opt, ".jpeg"))
+        content_type = "image/jpeg";
+    }
+  }
+
+  if (!content_type)
+  {
+    printf("Unknown format for \"%s\", please specify with '-i' option.\n", filename);
+    usage(1);
+  }
+  else if (strcmp(content_type, "application/pdf") && strcmp(content_type, "image/jpeg"))
+  {
+    printf("Unsupported format \"%s\" for \"%s\".\n", content_type, filename);
+    usage(1);
+  }
+
+  if (!output_type)
+  {
+    puts("Unknown output format, please specify with '-m' option.");
+    usage(1);
+  }
+  else if (strcmp(output_type, "application/vnd.hp-pcl") && strcmp(output_type, "image/pwg-raster"))
+  {
+    printf("Unsupported output format \"%s\".\n", output_type);
+    usage(1);
+  }
+
+  if (!resolutions)
+    resolutions = "300dpi";
+  if (!sheet_back)
+    sheet_back = "normal";
+  if (!types)
+    types = "sgray_8";
+
+ /*
+  * Do transform...
+  */
+
+  if (!strcmp(content_type, "application/pdf"))
+    return (xform_pdf(filename, output_type, resolutions, types, sheet_back, num_options, options, (xform_write_cb_t)write_fd, &fd));
+  else
+    return (xform_jpeg(filename, output_type, resolutions, types, num_options, options, (xform_write_cb_t)write_fd, &fd));
 
   return (0);
 }
@@ -664,7 +741,7 @@ write_fd(int                 *fd,	/* I - File descriptor */
  * 'xform_jpeg()' - Transform a JPEG image for printing.
  */
 
-static int				/* O - 1 on success, 0 on error */
+static int				/* O - 0 on success, 1 on error */
 xform_jpeg(const char       *filename,	/* I - File to transform */
            const char       *format,	/* I - Output format (MIME media type) */
            const char       *resolutions,/* I - Supported resolutions */
@@ -674,6 +751,17 @@ xform_jpeg(const char       *filename,	/* I - File to transform */
            xform_write_cb_t cb,		/* I - Write callback */
            void             *ctx)	/* I - Write context */
 {
+  // TODO: Implement me
+  (void)filename;
+  (void)format;
+  (void)resolutions;
+  (void)types;
+  (void)num_options;
+  (void)options;
+  (void)cb;
+  (void)ctx;
+
+  return (1);
 }
 
 
@@ -681,7 +769,7 @@ xform_jpeg(const char       *filename,	/* I - File to transform */
  * 'xform_pdf()' - Transform a PDF file for printing.
  */
 
-static int				/* O - 1 on success, 0 on error */
+static int				/* O - 0 on success, 1 on error */
 xform_pdf(const char       *filename,	/* I - File to transform */
           const char       *format,	/* I - Output format (MIME media type) */
           const char       *resolutions,/* I - Supported resolutions */
@@ -692,6 +780,22 @@ xform_pdf(const char       *filename,	/* I - File to transform */
           xform_write_cb_t cb,		/* I - Write callback */
           void             *ctx)	/* I - Write context */
 {
+  xform_raster_t	ras;		/* Raster info */
+
+
+ /*
+  * Figure out the proper resolution, etc.
+  */
+
+
+
+ /*
+  * Setup the raster context...
+  */
+
+  if (xform_setup(&ras, format, xdpi, ydpi, type, pages, num_options, options))
+    return (1);
+
 }
 
 
@@ -699,7 +803,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
  * 'xform_setup()' - Setup a raster context for printing.
  */
 
-static int				/* O - 1 on success, 0 on failure */
+static int				/* O - 0 on success, -1 on failure */
 xform_setup(xform_raster_t *ras,	/* I - Raster information */
             const char     *format,	/* I - Output format (MIME media type) */
 	    unsigned       xdpi,	/* I - Horizontal resolution in DPI */
