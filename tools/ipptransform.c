@@ -20,12 +20,14 @@
 #  include <ApplicationServices/ApplicationServices.h>
 #endif /* __APPLE__ */
 
+#include "threshold64.h"
+
 
 /*
  * Local types...
  */
 
-typedef ssize_t (*xform_write_cb_t)(void *, const void *, size_t);
+typedef ssize_t (*xform_write_cb_t)(void *, const unsigned char *, size_t);
 
 typedef struct xform_raster_s xform_raster_t;
 
@@ -43,6 +45,9 @@ struct xform_raster_s
   /* Set by start_page callback */
   unsigned		left, top, right, bottom;
 					/* Image (print) box with origin at top left */
+  unsigned		out_blanks;	/* Blank lines */
+  size_t		out_length;	/* Output buffer size */
+  unsigned char		*out_buffer;	/* Output (bit) buffer */
 
   /* Callbacks */
   void			(*end_job)(xform_raster_t *, xform_write_cb_t, void *);
@@ -72,7 +77,7 @@ static void	raster_start_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx
 static void	raster_start_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	raster_write_line(xform_raster_t *ras, unsigned y, const unsigned char *line, xform_write_cb_t cb, void *ctx);
 static void	usage(int status) __attribute__((noreturn));
-static ssize_t	write_fd(int *ctx, const void *buffer, size_t bytes);
+static ssize_t	write_fd(int *fd, const unsigned char *buffer, size_t bytes);
 static int	xform_jpeg(const char *filename, const char *format, const char *resolutions, const char *types, int num_options, cups_option_t *options, xform_write_cb_t cb, void *ctx);
 static int	xform_pdf(const char *filename, const char *format, const char *resolutions, const char *types, const char *sheet_back, int num_options, cups_option_t *options, xform_write_cb_t cb, void *ctx);
 static int	xform_setup(xform_raster_t *ras, const char *format, unsigned xdpi, unsigned ydpi, const char *type, unsigned pages, int num_options, cups_option_t *options);
@@ -232,7 +237,7 @@ pcl_end_job(xform_raster_t   *ras,	/* I - Raster information */
   * Send a PCL reset sequence.
   */
 
-  (*cb)(ctx, "\033E", 2);
+  (*cb)(ctx, (const unsigned char *)"\033E", 2);
 }
 
 
@@ -250,14 +255,21 @@ pcl_end_page(xform_raster_t   *ras,	/* I - Raster information */
   * End graphics...
   */
 
-  (*cb)(ctx, "\033*r0B", 5);
+  (*cb)(ctx, (const unsigned char *)"\033*r0B", 5);
 
  /*
   * Formfeed as needed...
   */
 
   if (!(ras->header.Duplex && (page & 1)))
-    (*cb)(ctx, "\014", 1);
+    (*cb)(ctx, (const unsigned char *)"\014", 1);
+
+ /*
+  * Free the output buffer...
+  */
+
+  free(ras->out_buffer);
+  ras->out_buffer = NULL;
 }
 
 
@@ -294,7 +306,7 @@ pcl_printf(xform_write_cb_t cb,		/* I - Write callback */
   vsnprintf(buffer, sizeof(buffer), format, ap);
   va_end(ap);
 
-  (*cb)(ctx, buffer, strlen(buffer));
+  (*cb)(ctx, (const unsigned char *)buffer, strlen(buffer));
 }
 
 
@@ -313,7 +325,7 @@ pcl_start_job(xform_raster_t   *ras,	/* I - Raster information */
   * Send a PCL reset sequence.
   */
 
-  (*cb)(ctx, "\033E", 2);
+  (*cb)(ctx, (const unsigned char *)"\033E", 2);
 }
 
 
@@ -327,6 +339,25 @@ pcl_start_page(xform_raster_t   *ras,	/* I - Raster information */
                xform_write_cb_t cb,	/* I - Write callback */
                void             *ctx)	/* I - Write context */
 {
+ /*
+  * Setup margins to be 1/2" top and bottom and 1/4" (or .135" for A4) on the
+  * left and right.
+  */
+
+  ras->top    = ras->header.HWResolution[1] / 2;
+  ras->bottom = ras->header.cupsHeight - ras->header.HWResolution[1] / 2 - 1;
+
+  if (ras->header.PageSize[1] == 842)
+  {
+    ras->left  = (ras->header.cupsWidth - 8 * ras->header.HWResolution[0]) / 2;
+    ras->right = ras->left + 8 * ras->header.HWResolution[0] - 1;
+  }
+  else
+  {
+    ras->left  = ras->header.HWResolution[0] / 4;
+    ras->right = ras->header.cupsWidth - ras->header.HWResolution[0] / 4 - 1;
+  }
+
   if (!ras->header.Duplex || (page & 1))
   {
    /*
@@ -415,6 +446,14 @@ pcl_start_page(xform_raster_t   *ras,	/* I - Raster information */
   pcl_printf(cb, ctx, "\033&a0V");	/* Set top-of-page */
 
   pcl_printf(cb, ctx, "\033*r1A");	/* Start graphics */
+
+ /*
+  * Allocate the output buffer...
+  */
+
+  ras->out_blanks = 0;
+  ras->out_length = (ras->right - ras->left + 8) / 8;
+  ras->out_buffer = malloc(ras->out_length);
 }
 
 
@@ -430,227 +469,50 @@ pcl_write_line(
     xform_write_cb_t    cb,		/* I - Write callback */
     void                *ctx)		/* I - Write context */
 {
-  (void)ras;
-  (void)y;
-  (void)line;
-  (void)cb;
-  (void)ctx;
-
-#if 0
-	/*
-	 * 'CompressData()' - Compress a line of graphics.
-	 */
-
-	void
-	CompressData(unsigned char *line,	/* I - Data to compress */
-		     unsigned      length,	/* I - Number of bytes */
-		     unsigned      plane,	/* I - Color plane */
-		     unsigned      type)	/* I - Type of compression */
-	{
-	  unsigned char	*line_ptr,		/* Current byte pointer */
-			*line_end,		/* End-of-line byte pointer */
-			*comp_ptr,		/* Pointer into compression buffer */
-			*start;			/* Start of compression sequence */
-	  unsigned	count;			/* Count of bytes for output */
+  int		x;			/* Column number */
+  unsigned char	bit,			/* Current bit */
+		byte,			/* Current byte */
+		*bufptr;		/* Pointer into buffer */
 
 
-	  switch (type)
-	  {
-	    default :
-	       /*
-		* Do no compression...
-		*/
+  if (line[0] == 255 && !memcmp(line, line + 1, ras->header.cupsWidth - 1))
+  {
+   /*
+    * Blank line...
+    */
 
-		line_ptr = line;
-		line_end = line + length;
-		break;
+    ras->out_blanks ++;
+    return;
+  }
 
-	    case 1 :
-	       /*
-		* Do run-length encoding...
-		*/
+  y &= 63;
 
-		line_end = line + length;
-		for (line_ptr = line, comp_ptr = CompBuffer;
-		     line_ptr < line_end;
-		     comp_ptr += 2, line_ptr += count)
-		{
-		  for (count = 1;
-		       (line_ptr + count) < line_end &&
-			   line_ptr[0] == line_ptr[count] &&
-			   count < 256;
-		       count ++);
+  for (x = 0, bit = 128, byte = 0, bufptr = ras->out_buffer; x < ras->header.cupsWidth; x ++, line ++)
+  {
+    if (*line <= threshold[x & 63][y])
+      byte |= bit;
 
-		  comp_ptr[0] = (unsigned char)(count - 1);
-		  comp_ptr[1] = line_ptr[0];
-		}
+    if (bit == 1)
+    {
+      *bufptr++ = byte;
+      byte      = 0;
+      bit       = 128;
+    }
+    else
+      bit >>= 1;
+  }
 
-		line_ptr = CompBuffer;
-		line_end = comp_ptr;
-		break;
+  if (bit != 128)
+    *bufptr++ = byte;
 
-	    case 2 :
-	       /*
-		* Do TIFF pack-bits encoding...
-		*/
+  if (ras->out_blanks > 0)
+  {
+    pcl_printf(cb, ctx, "\033*b%dY", ras->out_blanks);
+    ras->out_blanks = 0;
+  }
 
-		line_ptr = line;
-		line_end = line + length;
-		comp_ptr = CompBuffer;
-
-		while (line_ptr < line_end)
-		{
-		  if ((line_ptr + 1) >= line_end)
-		  {
-		   /*
-		    * Single byte on the end...
-		    */
-
-		    *comp_ptr++ = 0x00;
-		    *comp_ptr++ = *line_ptr++;
-		  }
-		  else if (line_ptr[0] == line_ptr[1])
-		  {
-		   /*
-		    * Repeated sequence...
-		    */
-
-		    line_ptr ++;
-		    count = 2;
-
-		    while (line_ptr < (line_end - 1) &&
-			   line_ptr[0] == line_ptr[1] &&
-			   count < 127)
-		    {
-		      line_ptr ++;
-		      count ++;
-		    }
-
-		    *comp_ptr++ = (unsigned char)(257 - count);
-		    *comp_ptr++ = *line_ptr++;
-		  }
-		  else
-		  {
-		   /*
-		    * Non-repeated sequence...
-		    */
-
-		    start    = line_ptr;
-		    line_ptr ++;
-		    count    = 1;
-
-		    while (line_ptr < (line_end - 1) &&
-			   line_ptr[0] != line_ptr[1] &&
-			   count < 127)
-		    {
-		      line_ptr ++;
-		      count ++;
-		    }
-
-		    *comp_ptr++ = (unsigned char)(count - 1);
-
-		    memcpy(comp_ptr, start, count);
-		    comp_ptr += count;
-		  }
-		}
-
-		line_ptr = CompBuffer;
-		line_end = comp_ptr;
-		break;
-	  }
-
-	 /*
-	  * Set the length of the data and write a raster plane...
-	  */
-
-	  printf("\033*b%d%c", (int)(line_end - line_ptr), plane);
-	  fwrite(line_ptr, (size_t)(line_end - line_ptr), 1, stdout);
-	}
-
-
-	/*
-	 * 'OutputLine()' - Output a line of graphics.
-	 */
-
-	void
-	OutputLine(cups_page_header2_t *header)	/* I - Page header */
-	{
-	  unsigned	plane,			/* Current plane */
-			bytes,			/* Bytes to write */
-			count;			/* Bytes to convert */
-	  unsigned char	bit,			/* Current plane data */
-			bit0,			/* Current low bit data */
-			bit1,			/* Current high bit data */
-			*plane_ptr,		/* Pointer into Planes */
-			*bit_ptr;		/* Pointer into BitBuffer */
-
-
-	 /*
-	  * Output whitespace as needed...
-	  */
-
-	  if (Feed > 0)
-	  {
-	    printf("\033*b%dY", Feed);
-	    Feed = 0;
-	  }
-
-	 /*
-	  * Write bitmap data as needed...
-	  */
-
-	  bytes = (header->cupsWidth + 7) / 8;
-
-	  for (plane = 0; plane < NumPlanes; plane ++)
-	    if (ColorBits == 1)
-	    {
-	     /*
-	      * Send bits as-is...
-	      */
-
-	      CompressData(Planes[plane], bytes, plane < (NumPlanes - 1) ? 'V' : 'W',
-			   header->cupsCompression);
-	    }
-	    else
-	    {
-	     /*
-	      * Separate low and high bit data into separate buffers.
-	      */
-
-	      for (count = header->cupsBytesPerLine / NumPlanes,
-		       plane_ptr = Planes[plane], bit_ptr = BitBuffer;
-		   count > 0;
-		   count -= 2, plane_ptr += 2, bit_ptr ++)
-	      {
-		bit = plane_ptr[0];
-
-		bit0 = (unsigned char)(((bit & 64) << 1) | ((bit & 16) << 2) | ((bit & 4) << 3) | ((bit & 1) << 4));
-		bit1 = (unsigned char)((bit & 128) | ((bit & 32) << 1) | ((bit & 8) << 2) | ((bit & 2) << 3));
-
-		if (count > 1)
-		{
-		  bit = plane_ptr[1];
-
-		  bit0 |= (unsigned char)((bit & 1) | ((bit & 4) >> 1) | ((bit & 16) >> 2) | ((bit & 64) >> 3));
-		  bit1 |= (unsigned char)(((bit & 2) >> 1) | ((bit & 8) >> 2) | ((bit & 32) >> 3) | ((bit & 128) >> 4));
-		}
-
-		bit_ptr[0]     = bit0;
-		bit_ptr[bytes] = bit1;
-	      }
-
-	     /*
-	      * Send low and high bits...
-	      */
-
-	      CompressData(BitBuffer, bytes, 'V', header->cupsCompression);
-	      CompressData(BitBuffer + bytes, bytes, plane < (NumPlanes - 1) ? 'V' : 'W',
-			   header->cupsCompression);
-	    }
-
-	  fflush(stdout);
-	}
-#endif // 0
+  pcl_printf(cb, ctx, "\033*r%dW", (int)(bufptr - ras->out_buffer));
+  (*cb)(ctx, ras->out_buffer, (size_t)(bufptr - ras->out_buffer));
 }
 
 
@@ -680,9 +542,10 @@ raster_end_page(xform_raster_t   *ras,	/* I - Raster information */
 		xform_write_cb_t cb,	/* I - Write callback */
 		void             *ctx)	/* I - Write context */
 {
+  (void)ras;
+  (void)page;
   (void)cb;
   (void)ctx;
-
 }
 
 
@@ -710,7 +573,7 @@ raster_start_job(xform_raster_t   *ras,	/* I - Raster information */
 		 xform_write_cb_t cb,	/* I - Write callback */
 		 void             *ctx)	/* I - Write context */
 {
-  ras->ras = cupsRasterOpen(CUPS_RASTER_
+  ras->ras = cupsRasterOpenIO((cups_raster_iocb_t)cb, ctx, CUPS_RASTER_WRITE_PWG);
 }
 
 
@@ -724,9 +587,11 @@ raster_start_page(xform_raster_t   *ras,/* I - Raster information */
 		  xform_write_cb_t cb,	/* I - Write callback */
 		  void             *ctx)/* I - Write context */
 {
+  (void)page;
   (void)cb;
   (void)ctx;
 
+  cupsRasterWriteHeader2(ras->ras, &ras->header);
 }
 
 
@@ -742,9 +607,11 @@ raster_write_line(
     xform_write_cb_t    cb,		/* I - Write callback */
     void                *ctx)		/* I - Write context */
 {
+  (void)y;
   (void)cb;
   (void)ctx;
 
+  cupsRasterWritePixels(ras->ras, (unsigned char *)line, ras->header.cupsBytesPerLine);
 }
 
 
@@ -766,10 +633,30 @@ usage(int status)			/* I - Exit status */
  */
 
 static ssize_t				/* O - Number of bytes written or -1 on error */
-write_fd(int        *ctx,		/* I - File descriptor */
-         const void *buffer,		/* I - Buffer */
-         size_t     bytes)		/* I - Number of bytes to write */
+write_fd(int                 *fd,	/* I - File descriptor */
+         const unsigned char *buffer,	/* I - Buffer */
+         size_t              bytes)	/* I - Number of bytes to write */
 {
+  ssize_t	temp,			/* Temporary byte count */
+		total = 0;		/* Total bytes written */
+
+
+  while (bytes > 0)
+  {
+    if ((temp = write(*fd, buffer, bytes)) < 0)
+    {
+      if (errno == EINTR || errno == EAGAIN)
+        continue;
+      else
+        return (-1);
+    }
+
+    total  += temp;
+    bytes  -= (size_t)temp;
+    buffer += temp;
+  }
+
+  return (total);
 }
 
 
