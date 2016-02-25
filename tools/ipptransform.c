@@ -14,6 +14,7 @@
 
 #include <cups/cups.h>
 #include <cups/raster.h>
+#include <cups/array-private.h>
 #include <cups/string-private.h>
 
 #ifdef __APPLE__
@@ -80,7 +81,7 @@ static void	usage(int status) __attribute__((noreturn));
 static ssize_t	write_fd(int *fd, const unsigned char *buffer, size_t bytes);
 static int	xform_jpeg(const char *filename, const char *format, const char *resolutions, const char *types, int num_options, cups_option_t *options, xform_write_cb_t cb, void *ctx);
 static int	xform_pdf(const char *filename, const char *format, const char *resolutions, const char *types, const char *sheet_back, int num_options, cups_option_t *options, xform_write_cb_t cb, void *ctx);
-static int	xform_setup(xform_raster_t *ras, const char *format, unsigned xdpi, unsigned ydpi, const char *type, unsigned pages, int num_options, cups_option_t *options);
+static int	xform_setup(xform_raster_t *ras, const char *format, const char *resolutions, const char *types, int color, unsigned pages, int num_options, cups_option_t *options);
 
 
 /*
@@ -780,22 +781,65 @@ xform_pdf(const char       *filename,	/* I - File to transform */
           xform_write_cb_t cb,		/* I - Write callback */
           void             *ctx)	/* I - Write context */
 {
+  CFURLRef		url;		/* CFURL object for PDF filename */
+  CGPDFDocumentRef	document= NULL;	/* Input document */
   xform_raster_t	ras;		/* Raster info */
+  unsigned		pages = 1;	/* Number of pages */
+  int			color = 1;	/* Does the PDF have color? */
+  const char		*page_ranges;	/* "page-ranges" option */
 
+
+  (void)sheet_back; /* TODO: Support back side transforms */
 
  /*
-  * Figure out the proper resolution, etc.
+  * Open the PDF file...
   */
 
+  if ((url = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault, (const UInt8 *)filename, (CFIndex)strlen(filename), false)) == NULL)
+    return (1);
 
+  document = CGPDFDocumentCreateWithURL(url);
+  CFRelease(url);
+
+  if (!document)
+    return (1);
+
+  if (CGPDFDocumentIsEncrypted(document))
+  {
+   /*
+    * Only support encrypted PDFs with a blank password...
+    */
+
+    if (!CGPDFDocumentUnlockWithPassword(document, ""))
+    {
+      fputs("ERROR: Document is encrypted and cannot be unlocked.\n", stderr);
+      CGPDFDocumentRelease(document);
+      return (1);
+    }
+  }
+
+  if (!CGPDFDocumentAllowsPrinting(document))
+  {
+    fputs("ERROR: Document does not allow printing.\n", stderr);
+    CGPDFDocumentRelease(document);
+    return (1);
+  }
+
+  pages = (unsigned)CGPDFDocumentGetNumberOfPages(document);
 
  /*
   * Setup the raster context...
   */
 
-  if (xform_setup(&ras, format, xdpi, ydpi, type, pages, num_options, options))
+  if (xform_setup(&ras, format, resolutions, types, color, pages, num_options, options))
+  {
+    CGPDFDocumentRelease(document);
     return (1);
+  }
 
+
+  CGPDFDocumentRelease(document);
+  return (0);
 }
 
 
@@ -806,11 +850,216 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 static int				/* O - 0 on success, -1 on failure */
 xform_setup(xform_raster_t *ras,	/* I - Raster information */
             const char     *format,	/* I - Output format (MIME media type) */
-	    unsigned       xdpi,	/* I - Horizontal resolution in DPI */
-	    unsigned       ydpi,	/* I - Vertical resolution in DPI */
-	    const char     *type,	/* I - Color space and bit depth */
+	    const char     *resolutions,/* I - Supported resolutions */
+	    const char     *types,	/* I - Supported types */
+	    int            color,	/* I - Document contains color? */
             unsigned       pages,	/* I - Number of pages */
             int            num_options,	/* I - Number of options */
             cups_option_t  *options)	/* I - Options */
 {
+  const char	*media,			/* "media" option */
+		*media_col;		/* "media-col" option */
+  pwg_media_t	*pwg_media;		/* PWG media value */
+  int		width = -1,		/* Page width in PWG units */
+		length = -1;		/* Page length in PWG units */
+  const char	*print_quality,		/* "print-quality" option */
+		*printer_resolution;	/* "printer-resolution" option */
+  cups_array_t	*res_array,		/* Resolutions in array */
+		*type_array;		/* Types in array */
+
+
+ /*
+  * Initialize raster information...
+  */
+
+  memset(ras, 0, sizeof(xform_raster_t));
+
+  ras->num_options = num_options;
+  ras->options     = options;
+
+  if (!strcmp(format, "application/vnd.hp-pcl"))
+  {
+   /*
+    * HP PCL...
+    */
+
+    ras->end_job    = pcl_end_job;
+    ras->end_page   = pcl_end_page;
+    ras->start_job  = pcl_start_job;
+    ras->start_page = pcl_start_page;
+    ras->write_line = pcl_write_line;
+  }
+  else
+  {
+   /*
+    * PWG Raster...
+    */
+
+    ras->end_job    = raster_end_job;
+    ras->end_page   = raster_end_page;
+    ras->start_job  = raster_start_job;
+    ras->start_page = raster_start_page;
+    ras->write_line = raster_write_line;
+  }
+
+ /*
+  * Figure out the media size...
+  */
+
+  if ((media = cupsGetOption("media", num_options, options)) != NULL)
+  {
+    if ((pwg_media = pwgMediaForPWG(media)) == NULL)
+      pwg_media = pwgMediaForLegacy(media);
+
+    if (pwg_media)
+    {
+      width  = pwg_media->width;
+      length = pwg_media->length;
+    }
+    else
+    {
+      fprintf(stderr, "ERROR: Unknown \"media\" value '%s'.\n", media);
+      return (-1);
+    }
+  }
+  else if ((media_col = cupsGetOption("media-col", num_options, options)) != NULL)
+  {
+    int			num_cols;	/* Number of collection values */
+    cups_option_t	*cols;		/* Collection values */
+    const char		*media_size_name,
+			*media_size;	/* Collection attributes */
+
+    num_cols = cupsParseOptions(media_col, 0, &cols);
+    if ((media_size_name = cupsGetOption("media-size-name", num_cols, cols)) != NULL)
+    {
+      if ((pwg_media = pwgMediaForPWG(media_size_name)) != NULL)
+      {
+	width  = pwg_media->width;
+	length = pwg_media->length;
+      }
+      else
+      {
+	fprintf(stderr, "ERROR: Unknown \"media-size-name\" value '%s'.\n", media_size_name);
+	cupsFreeOptions(num_cols, cols);
+	return (-1);
+      }
+    }
+    else if ((media_size = cupsGetOption("media-size", num_cols, cols)) != NULL)
+    {
+      int		num_sizes;	/* Number of collection values */
+      cups_option_t	*sizes;		/* Collection values */
+      const char	*x_dim,		/* Collection attributes */
+			*y_dim;
+
+      num_sizes = cupsParseOptions(media_size, 0, &sizes);
+      if ((x_dim = cupsGetOption("x-dimension", num_sizes, sizes)) != NULL && (y_dim = cupsGetOption("y-dimension", num_sizes, sizes)) != NULL)
+      {
+        width  = atoi(x_dim);
+	length = atoi(y_dim);
+      }
+      else
+      {
+        fprintf(stderr, "ERROR: Bad \"media-size\" value '%s'.\n", media_size);
+	cupsFreeOptions(num_sizes, sizes);
+	cupsFreeOptions(num_cols, cols);
+	return (-1);
+      }
+
+      cupsFreeOptions(num_sizes, sizes);
+    }
+
+    cupsFreeOptions(num_cols, cols);
+  }
+
+  if (width <= 0 || length <= 0)
+  {
+   /*
+    * Use default size...
+    */
+
+    const char	*media_default = getenv("PRINTER_MEDIA_DEFAULT");
+				/* "media-default" value */
+
+    if (!media_default)
+      media_default = "na_letter_8.5x11in";
+
+    if ((pwg_media = pwgMediaForPWG(media_default)) != NULL)
+    {
+      width  = pwg_media->width;
+      length = pwg_media->length;
+    }
+    else
+    {
+      fprintf(stderr, "ERROR: Unknown \"media-default\" value '%s'.\n", media_default);
+      return (-1);
+    }
+  }
+
+ /*
+  * Figure out the proper resolution, etc.
+  */
+
+  res_array = _cupsArrayNewStrings(resolutions, ',');
+
+  if ((printer_resolution = cupsGetOption("printer-resolution", num_options, options)) != NULL && !cupsArrayFind(resolutions, printer_resolution))
+  {
+    fprintf(stderr, "INFO: Unsupported \"printer-resolution\" value '%s'.\n", printer_resolution);
+    printer_resolution = NULL;
+  }
+
+  if (!printer_resolution)
+  {
+    if ((print_quality = cupsGetOption("print-quality", num_options, options)) != NULL)
+    {
+      switch (atoi(print_quality))
+      {
+        case IPP_QUALITY_DRAFT :
+	    printer_resolution = cupsArrayIndex(res_array, 0);
+	    break;
+
+        case IPP_QUALITY_NORMAL :
+	    printer_resolution = cupsArrayIndex(res_array, cupsArrayCount(res_array) / 2);
+	    break;
+
+        case IPP_QUALITY_HIGH :
+	    printer_resolution = cupsArrayIndex(res_array, cupsArrayCount(res_array) - 1);
+	    break;
+
+	default :
+	    fprintf(stderr, "INFO: Unsupported \"print-quality\" value '%s'.\n", print_quality);
+	    break;
+    }
+  }
+
+  if (!printer_resolution)
+    printer_resolution = cupsArrayIndex(res_array, cupsArrayCount(res_array) / 2);
+
+  if (!printer_resolution)
+  {
+    fputs("ERROR: No \"printer-resolution\" or \"pwg-raster-document-resolution-supported\" value.\n", stderr);
+    return (-1);
+  }
+
+ /*
+  * Parse the "printer-resolution" value...
+  */
+
+  if (sscanf(printer_resolution, "%ux%udpi", ras->header.HWResolution + 0, ras->header.HWResolution + 1) != 2)
+  {
+    if (sscanf(printer_resolution, "%udpi", ras->header.HWResolution + 0) == 1)
+    {
+      ras->header.HWResolution[1] = ras->header.HWResolution[0];
+    }
+    else
+    {
+      fprintf(stderr, "ERROR: Bad resolution value '%s'.\n", printer_resolution);
+      return (-1);
+    }
+  }
+
+ /*
+  * Now figure out the color space to use...
+  */
+
+  return (0);
 }
