@@ -37,6 +37,7 @@ struct xform_raster_s
   int			num_options;	/* Number of job options */
   cups_option_t		*options;	/* Job options */
   cups_page_header2_t	header;		/* Page header */
+  cups_page_header2_t	back_header;	/* Page header for back side */
   unsigned char		*band_buffer;	/* Band buffer */
   unsigned		band_height;	/* Band height */
 
@@ -81,7 +82,7 @@ static void	usage(int status) __attribute__((noreturn));
 static ssize_t	write_fd(int *fd, const unsigned char *buffer, size_t bytes);
 static int	xform_jpeg(const char *filename, const char *format, const char *resolutions, const char *types, int num_options, cups_option_t *options, xform_write_cb_t cb, void *ctx);
 static int	xform_pdf(const char *filename, const char *format, const char *resolutions, const char *types, const char *sheet_back, int num_options, cups_option_t *options, xform_write_cb_t cb, void *ctx);
-static int	xform_setup(xform_raster_t *ras, const char *format, const char *resolutions, const char *types, int color, unsigned pages, int num_options, cups_option_t *options);
+static int	xform_setup(xform_raster_t *ras, const char *format, const char *resolutions, const char *types, const char *sheet_back, int color, unsigned pages, int num_options, cups_option_t *options);
 
 
 /*
@@ -786,7 +787,8 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   xform_raster_t	ras;		/* Raster info */
   unsigned		pages = 1;	/* Number of pages */
   int			color = 1;	/* Does the PDF have color? */
-  const char		*page_ranges;	/* "page-ranges" option */
+//  const char		*page_ranges;	/* "page-ranges" option */
+  unsigned		page;		/* Current page */
 
 
   (void)sheet_back; /* TODO: Support back side transforms */
@@ -826,17 +828,34 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   }
 
   pages = (unsigned)CGPDFDocumentGetNumberOfPages(document);
+  /* TODO: Support page-ranges */
 
  /*
   * Setup the raster context...
   */
 
-  if (xform_setup(&ras, format, resolutions, types, color, pages, num_options, options))
+  if (xform_setup(&ras, format, resolutions, types, sheet_back, color, pages, num_options, options))
   {
     CGPDFDocumentRelease(document);
     return (1);
   }
 
+ /*
+  * Draw all of the pages...
+  */
+
+  (*(ras.start_job))(&ras, cb, ctx);
+
+  for (page = 0; page < pages; page ++)
+  {
+    (*(ras.start_page))(&ras, page + 1, cb, ctx);
+
+//    (*(ras.write_line))(&ras, y, lineptr, cb, ctx);
+
+    (*(ras.end_page))(&ras, page + 1, cb, ctx);
+  }
+
+  (*(ras.end_job))(&ras, cb, ctx);
 
   CGPDFDocumentRelease(document);
   return (0);
@@ -852,6 +871,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
             const char     *format,	/* I - Output format (MIME media type) */
 	    const char     *resolutions,/* I - Supported resolutions */
 	    const char     *types,	/* I - Supported types */
+	    const char     *sheet_back,	/* I - Back side transform */
 	    int            color,	/* I - Document contains color? */
             unsigned       pages,	/* I - Number of pages */
             int            num_options,	/* I - Number of options */
@@ -859,11 +879,12 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
 {
   const char	*media,			/* "media" option */
 		*media_col;		/* "media-col" option */
-  pwg_media_t	*pwg_media;		/* PWG media value */
-  int		width = -1,		/* Page width in PWG units */
-		length = -1;		/* Page length in PWG units */
+  pwg_media_t	*pwg_media = NULL;	/* PWG media value */
   const char	*print_quality,		/* "print-quality" option */
-		*printer_resolution;	/* "printer-resolution" option */
+		*printer_resolution,	/* "printer-resolution" option */
+		*sides,			/* "sides" option */
+		*type;			/* Raster type to use */
+  int		xdpi, ydpi;		/* Resolution to use */
   cups_array_t	*res_array,		/* Resolutions in array */
 		*type_array;		/* Types in array */
 
@@ -911,12 +932,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     if ((pwg_media = pwgMediaForPWG(media)) == NULL)
       pwg_media = pwgMediaForLegacy(media);
 
-    if (pwg_media)
-    {
-      width  = pwg_media->width;
-      length = pwg_media->length;
-    }
-    else
+    if (!pwg_media)
     {
       fprintf(stderr, "ERROR: Unknown \"media\" value '%s'.\n", media);
       return (-1);
@@ -932,12 +948,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     num_cols = cupsParseOptions(media_col, 0, &cols);
     if ((media_size_name = cupsGetOption("media-size-name", num_cols, cols)) != NULL)
     {
-      if ((pwg_media = pwgMediaForPWG(media_size_name)) != NULL)
-      {
-	width  = pwg_media->width;
-	length = pwg_media->length;
-      }
-      else
+      if ((pwg_media = pwgMediaForPWG(media_size_name)) == NULL)
       {
 	fprintf(stderr, "ERROR: Unknown \"media-size-name\" value '%s'.\n", media_size_name);
 	cupsFreeOptions(num_cols, cols);
@@ -954,8 +965,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
       num_sizes = cupsParseOptions(media_size, 0, &sizes);
       if ((x_dim = cupsGetOption("x-dimension", num_sizes, sizes)) != NULL && (y_dim = cupsGetOption("y-dimension", num_sizes, sizes)) != NULL)
       {
-        width  = atoi(x_dim);
-	length = atoi(y_dim);
+        pwg_media = pwgMediaForSize(atoi(x_dim), atoi(y_dim));
       }
       else
       {
@@ -971,7 +981,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     cupsFreeOptions(num_cols, cols);
   }
 
-  if (width <= 0 || length <= 0)
+  if (!pwg_media)
   {
    /*
     * Use default size...
@@ -983,12 +993,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     if (!media_default)
       media_default = "na_letter_8.5x11in";
 
-    if ((pwg_media = pwgMediaForPWG(media_default)) != NULL)
-    {
-      width  = pwg_media->width;
-      length = pwg_media->length;
-    }
-    else
+    if ((pwg_media = pwgMediaForPWG(media_default)) == NULL)
     {
       fprintf(stderr, "ERROR: Unknown \"media-default\" value '%s'.\n", media_default);
       return (-1);
@@ -1001,7 +1006,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
 
   res_array = _cupsArrayNewStrings(resolutions, ',');
 
-  if ((printer_resolution = cupsGetOption("printer-resolution", num_options, options)) != NULL && !cupsArrayFind(resolutions, printer_resolution))
+  if ((printer_resolution = cupsGetOption("printer-resolution", num_options, options)) != NULL && !cupsArrayFind(res_array, (void *)printer_resolution))
   {
     fprintf(stderr, "INFO: Unsupported \"printer-resolution\" value '%s'.\n", printer_resolution);
     printer_resolution = NULL;
@@ -1028,6 +1033,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
 	default :
 	    fprintf(stderr, "INFO: Unsupported \"print-quality\" value '%s'.\n", print_quality);
 	    break;
+      }
     }
   }
 
@@ -1044,11 +1050,11 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   * Parse the "printer-resolution" value...
   */
 
-  if (sscanf(printer_resolution, "%ux%udpi", ras->header.HWResolution + 0, ras->header.HWResolution + 1) != 2)
+  if (sscanf(printer_resolution, "%ux%udpi", &xdpi, &ydpi) != 2)
   {
-    if (sscanf(printer_resolution, "%udpi", ras->header.HWResolution + 0) == 1)
+    if (sscanf(printer_resolution, "%udpi", &xdpi) == 1)
     {
-      ras->header.HWResolution[1] = ras->header.HWResolution[0];
+      ydpi = xdpi;
     }
     else
     {
@@ -1057,9 +1063,37 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     }
   }
 
+  cupsArrayDelete(res_array);
+
  /*
   * Now figure out the color space to use...
   */
+
+  type_array = _cupsArrayNewStrings(types, ',');
+
+  if (color && cupsArrayFind(type_array, "srgb_8"))
+    type = "srgb_8";
+  else
+    type = "sgray_8";
+
+ /*
+  * Initialize the raster header...
+  */
+
+  if ((sides = cupsGetOption("sides", num_options, options)) == NULL)
+  {
+    if ((sides = getenv("PRINTER_SIDES_DEFAULT")) == NULL)
+      sides = "one-sided";
+  }
+
+  if (!cupsRasterInitPWGHeader(&(ras->header), pwg_media, type, xdpi, ydpi, sides, NULL))
+    return (-1);
+
+  if (!cupsRasterInitPWGHeader(&(ras->back_header), pwg_media, type, xdpi, ydpi, sides, sheet_back))
+    return (-1);
+
+  ras->header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount]      = pages;
+  ras->back_header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount] = pages;
 
   return (0);
 }
