@@ -3,8 +3,8 @@ dnl "$Id: cups-common.m4 12852 2015-08-28 13:29:21Z msweet $"
 dnl
 dnl Common configuration stuff for CUPS.
 dnl
-dnl Copyright 2015 by the ISTO Printer Working Group.
-dnl Copyright 2007-2015 by Apple Inc.
+dnl Copyright 2015-2016 by the ISTO Printer Working Group.
+dnl Copyright 2007-2016 by Apple Inc.
 dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
 dnl
 dnl These coded instructions, statements, and computer programs are the
@@ -161,7 +161,7 @@ AC_SUBST(ARFLAGS)
 dnl Extra platform-specific libraries...
 case $uname in
         Darwin*)
-                LIBS="-framework SystemConfiguration -framework CoreFoundation -framework Security $LIBS"
+                LIBS="-framework SystemConfiguration -framework ApplicationServices -framework CoreFoundation -framework Security $LIBS"
 
 		dnl Check for framework headers...
 		AC_CHECK_HEADER(ApplicationServices/ApplicationServices.h,AC_DEFINE(HAVE_APPLICATIONSERVICES_H))

@@ -16,10 +16,12 @@ include ../Makedefs
 
 OBJS		=	\
 			ippfind.o \
-			ipptool.o
+			ipptool.o \
+			ipptransform.o
 TARGETS		=	\
 			ippfind \
-			ipptool
+			ipptool \
+			ipptransform
 
 
 #
@@ -61,6 +63,15 @@ ippfind:	ippfind.o ../cups/libcups.a
 ipptool:	ipptool.o ../cups/libcups.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ipptool.o $(LIBS)
+
+
+#
+# ipptransform
+#
+
+ipptransform:	ipptransform.o ../cups/libcups.a
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ ipptransform.o $(LIBS)
 
 
 #
