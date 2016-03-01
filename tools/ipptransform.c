@@ -774,6 +774,14 @@ static void
 usage(int status)			/* I - Exit status */
 {
   puts("Usage: ipptransform filename [options]");
+  puts("Options:");
+  puts("  -d device-uri");
+  puts("  -i input/format");
+  puts("  -m output/format");
+  puts("  -o name=value");
+  puts("  -r resolution[,resolution,...]");
+  puts("  -s {flipped|manual-tumble|normal|rotated}");
+  puts("  -t sgray_8[,srgb_8]");
 
   exit(status);
 }
@@ -870,13 +878,19 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   */
 
   if ((url = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault, (const UInt8 *)filename, (CFIndex)strlen(filename), false)) == NULL)
+  {
+    fputs("ERROR: Unable to create CFURL for file.\n", stderr);
     return (1);
+  }
 
   document = CGPDFDocumentCreateWithURL(url);
   CFRelease(url);
 
   if (!document)
+  {
+    fputs("ERROR: Unable to create CFPDFDocument for file.\n", stderr);
     return (1);
+  }
 
   if (CGPDFDocumentIsEncrypted(document))
   {
@@ -981,6 +995,8 @@ xform_pdf(const char       *filename,	/* I - File to transform */
     pdf_page  = CGPDFDocumentGetPage(document, page);
     transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox,dest, 0, true);
 
+    fprintf(stderr, "DEBUG: Printing page %d, transform=[%g %g %g %g %g %g]\n", page + 1, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
+
     (*(ras.start_page))(&ras, page + 1, cb, ctx);
 
     unsigned y, band_starty = 0, band_endy = 0;
@@ -994,6 +1010,8 @@ xform_pdf(const char       *filename,	/* I - File to transform */
         * Draw the next band of raster data...
 	*/
 
+        fprintf(stderr, "DEBUG: Drawing band from %u to %u.\n", y, y + ras.band_height - 1);
+
         CGContextSaveGState(context);
 	  if (ras.header.cupsNumColors == 1)
 	    CGContextSetGrayFillColor(context, 1., 1.);
@@ -1005,7 +1023,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 	CGContextRestoreGState(context);
 
         CGContextSaveGState(context);
-          CGContextTranslateCTM(context, 0, y);
+          CGContextTranslateCTM(context, 0, y / yscale);
 	  CGContextConcatCTM(context, transform);
 
 	  CGContextClipToRect(context, CGPDFPageGetBoxRect(pdf_page, kCGPDFCropBox));
@@ -1246,10 +1264,16 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   }
 
   if (!cupsRasterInitPWGHeader(&(ras->header), pwg_media, type, xdpi, ydpi, sides, NULL))
+  {
+    fprintf(stderr, "ERROR: Unable to initialize raster context: %s\n", cupsRasterErrorString());
     return (-1);
+  }
 
   if (!cupsRasterInitPWGHeader(&(ras->back_header), pwg_media, type, xdpi, ydpi, sides, sheet_back))
+  {
+    fprintf(stderr, "ERROR: Unable to initialize back side raster context: %s\n", cupsRasterErrorString());
     return (-1);
+  }
 
   ras->header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount]      = pages;
   ras->back_header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount] = pages;
