@@ -976,6 +976,8 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 //  const char		*page_ranges;	/* "page-ranges" option */
   unsigned		copy;		/* Current copy */
   unsigned		page;		/* Current page */
+  unsigned		media_sheets = 0,
+			impressions = 0;/* Page/sheet counters */
 
 
  /*
@@ -1071,7 +1073,9 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   xscale = ras.header.HWResolution[0] / 72.0;
   yscale = ras.header.HWResolution[1] / 72.0;
 
+  fprintf(stderr, "DEBUG: xscale=%g, yscale=%g\n", xscale, yscale);
   CGContextScaleCTM(context, xscale, yscale);
+
   fprintf(stderr, "DEBUG: Band height=%u, page height=%u, page translate 0.0,%g\n", ras.band_height, ras.header.cupsHeight, -1.0 * (ras.header.cupsHeight - ras.band_height) / yscale);
   CGContextTranslateCTM(context, 0.0, -1.0 * (ras.header.cupsHeight - ras.band_height) / yscale);
 
@@ -1176,6 +1180,14 @@ xform_pdf(const char       *filename,	/* I - File to transform */
       }
 
       (*(ras.end_page))(&ras, page, cb, ctx);
+
+      impressions ++;
+      fprintf(stderr, "ATTR: job-impressions-completed=%u\n", impressions);
+      if (!ras.header.Duplex || !(page & 1))
+      {
+        media_sheets ++;
+	fprintf(stderr, "ATTR: job-media-sheets-completed=%u\n", media_sheets);
+      }
     }
 
     if (ras.copies > 1 && (pages & 1) && ras.header.Duplex)
@@ -1196,6 +1208,14 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 	(*(ras.write_line))(&ras, y, ras.band_buffer, cb, ctx);
 
       (*(ras.end_page))(&ras, page, cb, ctx);
+
+      impressions ++;
+      fprintf(stderr, "ATTR: job-impressions-completed=%u\n", impressions);
+      if (!ras.header.Duplex || !(page & 1))
+      {
+        media_sheets ++;
+	fprintf(stderr, "ATTR: job-media-sheets-completed=%u\n", media_sheets);
+      }
     }
   }
 
