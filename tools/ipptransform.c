@@ -52,12 +52,12 @@ struct xform_raster_s
 {
   int			num_options;	/* Number of job options */
   cups_option_t		*options;	/* Job options */
+  unsigned		copies;		/* Number of copies */
   cups_page_header2_t	header;		/* Page header */
   cups_page_header2_t	back_header;	/* Page header for back side */
   unsigned char		*band_buffer;	/* Band buffer */
   unsigned		band_height;	/* Band height */
   unsigned		band_bpp;	/* Bytes per pixel in band */
-  unsigned char		*line_buffer;	/* Line buffer */
 
   /* Set by start_job callback */
   cups_raster_t		*ras;		/* Raster stream */
@@ -68,6 +68,7 @@ struct xform_raster_s
   unsigned		out_blanks;	/* Blank lines */
   size_t		out_length;	/* Output buffer size */
   unsigned char		*out_buffer;	/* Output (bit) buffer */
+  unsigned char		*comp_buffer;	/* Compression buffer */
 
   /* Callbacks */
   void			(*end_job)(xform_raster_t *, xform_write_cb_t, void *);
@@ -491,20 +492,22 @@ pcl_start_page(xform_raster_t   *ras,	/* I - Raster information */
                void             *ctx)	/* I - Write context */
 {
  /*
-  * Setup margins to be 1/2" top and bottom and 1/4" (or .135" for A4) on the
+  * Setup margins to be 1/6" top and bottom and 1/4" or .135" on the
   * left and right.
   */
 
-  ras->top    = ras->header.HWResolution[1] / 2;
-  ras->bottom = ras->header.cupsHeight - ras->header.HWResolution[1] / 2 - 1;
+  ras->top    = ras->header.HWResolution[1] / 6;
+  ras->bottom = ras->header.cupsHeight - ras->header.HWResolution[1] / 6 - 1;
 
   if (ras->header.PageSize[1] == 842)
   {
+   /* A4 gets special side margins to expose an 8" print area */
     ras->left  = (ras->header.cupsWidth - 8 * ras->header.HWResolution[0]) / 2;
     ras->right = ras->left + 8 * ras->header.HWResolution[0] - 1;
   }
   else
   {
+   /* All other sizes get 1/4" margins */
     ras->left  = ras->header.HWResolution[0] / 4;
     ras->right = ras->header.cupsWidth - ras->header.HWResolution[0] / 4 - 1;
   }
@@ -515,7 +518,8 @@ pcl_start_page(xform_raster_t   *ras,	/* I - Raster information */
     * Set the media size...
     */
 
-    pcl_printf(cb, ctx, "\033&l6D\033&k12H");/* Set 6 LPI, 10 CPI */
+    pcl_printf(cb, ctx, "\033&l12D\033&k12H");
+					/* Set 12 LPI, 10 CPI */
     pcl_printf(cb, ctx, "\033&l0O");	/* Set portrait orientation */
 
     switch (ras->header.PageSize[1])
@@ -570,18 +574,21 @@ pcl_start_page(xform_raster_t   *ras,	/* I - Raster information */
     }
 
    /*
-    * Set length and top margin, turn off perforation skip...
+    * Set top margin and turn off perforation skip...
     */
 
-    pcl_printf(cb, ctx, "\033&l%dP\033&l0E\033&l0L", ras->header.PageSize[1] / 12);
+    pcl_printf(cb, ctx, "\033&l%uE\033&l0L", 12 * ras->top / ras->header.HWResolution[1]);
 
     if (ras->header.Duplex)
     {
       int mode = ras->header.Duplex ? 1 + ras->header.Tumble != 0 : 0;
 
-      pcl_printf(cb, ctx, "\033&l%dS", mode);	/* Set duplex mode */
+      pcl_printf(cb, ctx, "\033&l%dS", mode);
+					/* Set duplex mode */
     }
   }
+  else if (ras->header.Duplex)
+    pcl_printf(cb, ctx, "\033&a2G");	/* Print on back side */
 
  /*
   * Set graphics mode...
@@ -589,22 +596,24 @@ pcl_start_page(xform_raster_t   *ras,	/* I - Raster information */
 
   pcl_printf(cb, ctx, "\033*t%uR", ras->header.HWResolution[0]);
 					/* Set resolution */
-  pcl_printf(cb, ctx, "\033*r%uS", ras->right - ras->left);
+  pcl_printf(cb, ctx, "\033*r%uS", ras->right - ras->left + 1);
 					/* Set width */
-  pcl_printf(cb, ctx, "\033*r%uT", ras->bottom - ras->top);
+  pcl_printf(cb, ctx, "\033*r%uT", ras->bottom - ras->top + 1);
 					/* Set height */
-  pcl_printf(cb, ctx, "\033&a0H");	/* Set horizontal position */
-  pcl_printf(cb, ctx, "\033&a0V");	/* Set top-of-page */
+  pcl_printf(cb, ctx, "\033&a0H\033&a%uV", 720 * ras->top / ras->header.HWResolution[1]);
+					/* Set position */
 
+  pcl_printf(cb, ctx, "\033*b2M");	/* Use PackBits compression */
   pcl_printf(cb, ctx, "\033*r1A");	/* Start graphics */
 
  /*
   * Allocate the output buffer...
   */
 
-  ras->out_blanks = 0;
-  ras->out_length = (ras->right - ras->left + 8) / 8;
-  ras->out_buffer = malloc(ras->out_length);
+  ras->out_blanks  = 0;
+  ras->out_length  = (ras->right - ras->left + 8) / 8;
+  ras->out_buffer  = malloc(ras->out_length);
+  ras->comp_buffer = malloc(2 * ras->out_length + 2);
 }
 
 
@@ -620,32 +629,40 @@ pcl_write_line(
     xform_write_cb_t    cb,		/* I - Write callback */
     void                *ctx)		/* I - Write context */
 {
-  int		x;			/* Column number */
+  unsigned	x;			/* Column number */
   unsigned char	bit,			/* Current bit */
 		byte,			/* Current byte */
-		*bufptr;		/* Pointer into buffer */
+		*outptr,		/* Pointer into output buffer */
+		*outend,		/* End of output buffer */
+		*start,			/* Start of sequence */
+		*compptr;		/* Pointer into compression buffer */
+  unsigned	count;			/* Count of bytes for output */
 
 
-  if (line[0] == 255 && !memcmp(line, line + 1, ras->header.cupsWidth - 1))
+  if (line[0] == 255 && !memcmp(line, line + 1, ras->right - ras->left))
   {
    /*
-    * Blank line...
+    * Skip blank line...
     */
 
     ras->out_blanks ++;
     return;
   }
 
+ /*
+  * Dither the line into the output buffer...
+  */
+
   y &= 63;
 
-  for (x = 0, bit = 128, byte = 0, bufptr = ras->out_buffer; x < ras->header.cupsWidth; x ++, line ++)
+  for (x = ras->left, bit = 128, byte = 0, outptr = ras->out_buffer; x <= ras->right; x ++, line ++)
   {
     if (*line <= threshold[x & 63][y])
       byte |= bit;
 
     if (bit == 1)
     {
-      *bufptr++ = byte;
+      *outptr++ = byte;
       byte      = 0;
       bit       = 128;
     }
@@ -654,16 +671,88 @@ pcl_write_line(
   }
 
   if (bit != 128)
-    *bufptr++ = byte;
+    *outptr++ = byte;
+
+ /*
+  * Apply compression...
+  */
+
+  compptr = ras->comp_buffer;
+  outend  = outptr;
+  outptr  = ras->out_buffer;
+
+  while (outptr < outend)
+  {
+    if ((outptr + 1) >= outend)
+    {
+     /*
+      * Single byte on the end...
+      */
+
+      *compptr++ = 0x00;
+      *compptr++ = *outptr++;
+    }
+    else if (outptr[0] == outptr[1])
+    {
+     /*
+      * Repeated sequence...
+      */
+
+      outptr ++;
+      count = 2;
+
+      while (outptr < (outend - 1) &&
+	     outptr[0] == outptr[1] &&
+	     count < 127)
+      {
+	outptr ++;
+	count ++;
+      }
+
+      *compptr++ = (unsigned char)(257 - count);
+      *compptr++ = *outptr++;
+    }
+    else
+    {
+     /*
+      * Non-repeated sequence...
+      */
+
+      start = outptr;
+      outptr ++;
+      count = 1;
+
+      while (outptr < (outend - 1) &&
+	     outptr[0] != outptr[1] &&
+	     count < 127)
+      {
+	outptr ++;
+	count ++;
+      }
+
+      *compptr++ = (unsigned char)(count - 1);
+
+      memcpy(compptr, start, count);
+      compptr += count;
+    }
+  }
+
+ /*
+  * Output the line...
+  */
 
   if (ras->out_blanks > 0)
   {
+   /*
+    * Skip blank lines first...
+    */
+
     pcl_printf(cb, ctx, "\033*b%dY", ras->out_blanks);
     ras->out_blanks = 0;
   }
 
-  pcl_printf(cb, ctx, "\033*r%dW", (int)(bufptr - ras->out_buffer));
-  (*cb)(ctx, ras->out_buffer, (size_t)(bufptr - ras->out_buffer));
+  pcl_printf(cb, ctx, "\033*b%dW", (int)(compptr - ras->comp_buffer));
+  (*cb)(ctx, ras->comp_buffer, (size_t)(compptr - ras->comp_buffer));
 }
 
 
@@ -868,8 +957,8 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   unsigned		pages = 1;	/* Number of pages */
   int			color = 1;	/* Does the PDF have color? */
 //  const char		*page_ranges;	/* "page-ranges" option */
+  unsigned		copy;		/* Current copy */
   unsigned		page;		/* Current page */
-
 
   (void)sheet_back; /* TODO: Support back side transforms */
 
@@ -954,8 +1043,6 @@ xform_pdf(const char       *filename,	/* I - File to transform */
     ras.band_bpp = 4;
     info         = kCGImageAlphaNoneSkipLast;
     cs           = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-
-    ras.line_buffer = malloc(ras.header.cupsBytesPerLine);
   }
 
 
@@ -991,65 +1078,68 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 
   (*(ras.start_job))(&ras, cb, ctx);
 
-  for (page = 1; page <= pages; page ++)
+  for (copy = 0; copy < ras.copies; copy ++)
   {
-    pdf_page  = CGPDFDocumentGetPage(document, page);
-    transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox,dest, 0, true);
-
-    fprintf(stderr, "DEBUG: Printing page %d, transform=[%g %g %g %g %g %g]\n", page, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
-
-    (*(ras.start_page))(&ras, page, cb, ctx);
-
-    unsigned y, band_starty = 0, band_endy = 0;
-    unsigned char *lineptr;
-
-    for (y = 0; y < ras.header.cupsHeight; y ++)
+    for (page = 1; page <= pages; page ++)
     {
-      if (y >= band_endy)
+      pdf_page  = CGPDFDocumentGetPage(document, page);
+      transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox,dest, 0, true);
+
+      fprintf(stderr, "DEBUG: Printing page %d, transform=[%g %g %g %g %g %g]\n", page, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
+
+      (*(ras.start_page))(&ras, page, cb, ctx);
+
+      unsigned y, band_starty = 0, band_endy = 0;
+      unsigned char *lineptr;
+
+      for (y = ras.top; y < ras.bottom; y ++)
       {
+	if (y >= band_endy)
+	{
+	 /*
+	  * Draw the next band of raster data...
+	  */
+
+	  band_starty = y;
+	  band_endy   = y + ras.band_height;
+	  if (band_endy > ras.bottom)
+	    band_endy = ras.bottom;
+
+	  fprintf(stderr, "DEBUG: Drawing band from %u to %u.\n", band_starty, band_endy);
+
+	  CGContextSaveGState(context);
+	    if (ras.header.cupsNumColors == 1)
+	      CGContextSetGrayFillColor(context, 1., 1.);
+	    else
+	      CGContextSetRGBFillColor(context, 1., 1., 1., 1.);
+
+	    CGContextSetCTM(context, CGAffineTransformIdentity);
+	    CGContextFillRect(context, CGRectMake(0., 0., ras.header.cupsWidth, ras.band_height));
+	  CGContextRestoreGState(context);
+
+	  CGContextSaveGState(context);
+	    fprintf(stderr, "DEBUG: Band translate 0.0,%g\n", y / yscale);
+	    CGContextTranslateCTM(context, 0.0, y / yscale);
+	    CGContextConcatCTM(context, transform);
+
+	    CGContextClipToRect(context, CGPDFPageGetBoxRect(pdf_page, kCGPDFCropBox));
+	    CGContextDrawPDFPage(context, pdf_page);
+	  CGContextRestoreGState(context);
+	}
+
        /*
-        * Draw the next band of raster data...
+	* Prepare and write a line...
 	*/
 
-        fprintf(stderr, "DEBUG: Drawing band from %u to %u.\n", y, y + ras.band_height - 1);
+	lineptr = ras.band_buffer + (y - band_starty) * band_size + ras.left * ras.band_bpp;
+	if (ras.band_bpp == 4)
+	  pack_pixels(lineptr, ras.right - ras.left + 1);
 
-        CGContextSaveGState(context);
-	  if (ras.header.cupsNumColors == 1)
-	    CGContextSetGrayFillColor(context, 1., 1.);
-	  else
-	    CGContextSetRGBFillColor(context, 1., 1., 1., 1.);
-
-	  CGContextSetCTM(context, CGAffineTransformIdentity);
-	  CGContextFillRect(context, CGRectMake(0., 0., ras.header.cupsWidth, ras.band_height));
-	CGContextRestoreGState(context);
-
-        CGContextSaveGState(context);
-	  fprintf(stderr, "DEBUG: Band translate 0.0,%g\n", y / yscale);
-          CGContextTranslateCTM(context, 0.0, y / yscale);
-	  CGContextConcatCTM(context, transform);
-
-	  CGContextClipToRect(context, CGPDFPageGetBoxRect(pdf_page, kCGPDFCropBox));
-	  CGContextDrawPDFPage(context, pdf_page);
-	CGContextRestoreGState(context);
-
-	band_starty = y;
-	band_endy   = y + ras.band_height;
-	if (band_endy > ras.header.cupsHeight)
-	  band_endy = ras.header.cupsHeight;
+	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
       }
 
-     /*
-      * Prepare and write a line...
-      */
-
-      lineptr = ras.band_buffer + (y - band_starty) * band_size;
-      if (ras.band_bpp == 4)
-        pack_pixels(lineptr, ras.header.cupsWidth);
-
-      (*(ras.write_line))(&ras, y, lineptr, cb, ctx);
+      (*(ras.end_page))(&ras, page + 1, cb, ctx);
     }
-
-    (*(ras.end_page))(&ras, page + 1, cb, ctx);
   }
 
   (*(ras.end_job))(&ras, cb, ctx);
@@ -1076,7 +1166,8 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
             int            num_options,	/* I - Number of options */
             cups_option_t  *options)	/* I - Options */
 {
-  const char	*media,			/* "media" option */
+  const char	*copies,		/* "copies" option */
+		*media,			/* "media" option */
 		*media_col;		/* "media-col" option */
   pwg_media_t	*pwg_media = NULL;	/* PWG media value */
   const char	*print_quality,		/* "print-quality" option */
@@ -1101,6 +1192,25 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     pcl_init(ras);
   else
     raster_init(ras);
+
+ /*
+  * Get the number of copies...
+  */
+
+  if ((copies = cupsGetOption("copies", num_options, options)) != NULL)
+  {
+    int temp = atoi(copies);		/* Copies value */
+
+    if (temp < 1 || temp > 9999)
+    {
+      fprintf(stderr, "ERROR: Invalid \"copies\" value '%s'.\n", copies);
+      return (-1);
+    }
+
+    ras->copies = (unsigned)temp;
+  }
+  else
+    ras->copies = 1;
 
  /*
   * Figure out the media size...
