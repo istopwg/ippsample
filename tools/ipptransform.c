@@ -978,7 +978,8 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   yscale = ras.header.HWResolution[1] / 72.0;
 
   CGContextScaleCTM(context, xscale, yscale);
-  CGContextTranslateCTM(context, 0.0, (ras.band_height - ras.header.cupsHeight) / yscale);
+  fprintf(stderr, "DEBUG: Band height=%u, page height=%u, page translate 0.0,%g\n", ras.band_height, ras.header.cupsHeight, -1.0 * (ras.header.cupsHeight - ras.band_height) / yscale);
+  CGContextTranslateCTM(context, 0.0, -1.0 * (ras.header.cupsHeight - ras.band_height) / yscale);
 
   dest.origin.x    = dest.origin.y = 0.0;
   dest.size.width  = ras.header.cupsWidth * 72.0 / ras.header.HWResolution[0];
@@ -990,14 +991,14 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 
   (*(ras.start_job))(&ras, cb, ctx);
 
-  for (page = 0; page < pages; page ++)
+  for (page = 1; page <= pages; page ++)
   {
     pdf_page  = CGPDFDocumentGetPage(document, page);
     transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox,dest, 0, true);
 
-    fprintf(stderr, "DEBUG: Printing page %d, transform=[%g %g %g %g %g %g]\n", page + 1, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
+    fprintf(stderr, "DEBUG: Printing page %d, transform=[%g %g %g %g %g %g]\n", page, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
 
-    (*(ras.start_page))(&ras, page + 1, cb, ctx);
+    (*(ras.start_page))(&ras, page, cb, ctx);
 
     unsigned y, band_starty = 0, band_endy = 0;
     unsigned char *lineptr;
@@ -1023,7 +1024,8 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 	CGContextRestoreGState(context);
 
         CGContextSaveGState(context);
-          CGContextTranslateCTM(context, 0, y / yscale);
+	  fprintf(stderr, "DEBUG: Band translate 0.0,%g\n", y / yscale);
+          CGContextTranslateCTM(context, 0.0, y / yscale);
 	  CGContextConcatCTM(context, transform);
 
 	  CGContextClipToRect(context, CGPDFPageGetBoxRect(pdf_page, kCGPDFCropBox));
