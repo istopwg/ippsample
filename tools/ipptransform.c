@@ -827,11 +827,18 @@ raster_start_page(xform_raster_t   *ras,/* I - Raster information */
 		  xform_write_cb_t cb,	/* I - Write callback */
 		  void             *ctx)/* I - Write context */
 {
-  (void)page;
   (void)cb;
   (void)ctx;
 
-  cupsRasterWriteHeader2(ras->ras, &ras->header);
+  ras->left   = 0;
+  ras->top    = 0;
+  ras->right  = ras->header.cupsWidth - 1;
+  ras->bottom = ras->header.cupsHeight - 1;
+
+  if (ras->header.Duplex && !(page & 1))
+    cupsRasterWriteHeader2(ras->ras, &ras->back_header);
+  else
+    cupsRasterWriteHeader2(ras->ras, &ras->header);
 }
 
 
@@ -953,14 +960,23 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 {
   CFURLRef		url;		/* CFURL object for PDF filename */
   CGPDFDocumentRef	document= NULL;	/* Input document */
+  CGPDFPageRef		pdf_page;	/* Page in PDF file */
   xform_raster_t	ras;		/* Raster info */
+  CGColorSpaceRef	cs;		/* Quartz color space */
+  CGContextRef		context;	/* Quartz bitmap context */
+  CGBitmapInfo		info;		/* Bitmap flags */
+  size_t		band_size;	/* Size of band line */
+  double		xscale, yscale;	/* Scaling factor */
+  CGAffineTransform 	transform;	/* Transform for page */
+  CGAffineTransform	back_transform;	/* Transform for back side */
+  CGRect		dest;		/* Destination rectangle */
+
   unsigned		pages = 1;	/* Number of pages */
   int			color = 1;	/* Does the PDF have color? */
 //  const char		*page_ranges;	/* "page-ranges" option */
   unsigned		copy;		/* Current copy */
   unsigned		page;		/* Current page */
 
-  (void)sheet_back; /* TODO: Support back side transforms */
 
  /*
   * Open the PDF file...
@@ -1015,15 +1031,6 @@ xform_pdf(const char       *filename,	/* I - File to transform */
     return (1);
   }
 
-  CGColorSpaceRef cs;			/* Quartz color space */
-  CGContextRef	context;		/* Quartz bitmap context */
-  CGBitmapInfo	info;			/* Bitmap flags */
-  size_t	band_size;		/* Size of band line */
-  double	xscale, yscale;		/* Scaling factor */
-  CGPDFPageRef	pdf_page;		/* Page in PDF file */
-  CGAffineTransform transform;		/* Transform for page */
-  CGRect	dest;			/* Destination rectangle */
-
   if (ras.header.cupsBitsPerPixel == 8)
   {
    /*
@@ -1073,6 +1080,32 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   dest.size.height = ras.header.cupsHeight * 72.0 / ras.header.HWResolution[1];
 
  /*
+  * Setup the back page transform, if any...
+  */
+
+  if (sheet_back)
+  {
+    if (!strcmp(sheet_back, "flipped"))
+    {
+      if (ras.header.Tumble)
+        back_transform = CGAffineTransformMake(-1, 0, 0, 1, ras.header.cupsPageSize[0], 0);
+      else
+        back_transform = CGAffineTransformMake(1, 0, 0, -1, 0, ras.header.cupsPageSize[1]);
+    }
+    else if (!strcmp(sheet_back, "manual-tumble") && ras.header.Tumble)
+      back_transform = CGAffineTransformMake(-1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
+    else if (!strcmp(sheet_back, "rotated") && !ras.header.Tumble)
+      back_transform = CGAffineTransformMake(-1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
+    else
+      back_transform = CGAffineTransformMake(1, 0, 0, 1, 0, 0);
+  }
+  else
+    back_transform = CGAffineTransformMake(1, 0, 0, 1, 0, 0);
+
+  fprintf(stderr, "DEBUG: cupsPageSize=[%g %g]\n", ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
+  fprintf(stderr, "DEBUG: back_transform=[%g %g %g %g %g %g]\n", back_transform.a, back_transform.b, back_transform.c, back_transform.d, back_transform.tx, back_transform.ty);
+
+ /*
   * Draw all of the pages...
   */
 
@@ -1082,17 +1115,19 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   {
     for (page = 1; page <= pages; page ++)
     {
+      unsigned		y,		/* Current line */
+			band_starty = 0,/* Start line of band */
+			band_endy = 0;	/* End line of band */
+      unsigned char	*lineptr;	/* Pointer to line */
+
       pdf_page  = CGPDFDocumentGetPage(document, page);
       transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox,dest, 0, true);
 
-      fprintf(stderr, "DEBUG: Printing page %d, transform=[%g %g %g %g %g %g]\n", page, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
+      fprintf(stderr, "DEBUG: Printing copy %d/%d, page %d/%d, transform=[%g %g %g %g %g %g]\n", copy + 1, ras.copies, page, pages, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
 
       (*(ras.start_page))(&ras, page, cb, ctx);
 
-      unsigned y, band_starty = 0, band_endy = 0;
-      unsigned char *lineptr;
-
-      for (y = ras.top; y < ras.bottom; y ++)
+      for (y = ras.top; y <= ras.bottom; y ++)
       {
 	if (y >= band_endy)
 	{
@@ -1120,6 +1155,8 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 	  CGContextSaveGState(context);
 	    fprintf(stderr, "DEBUG: Band translate 0.0,%g\n", y / yscale);
 	    CGContextTranslateCTM(context, 0.0, y / yscale);
+	    if (!(page & 1) && ras.header.Duplex)
+	      CGContextConcatCTM(context, back_transform);
 	    CGContextConcatCTM(context, transform);
 
 	    CGContextClipToRect(context, CGPDFPageGetBoxRect(pdf_page, kCGPDFCropBox));
@@ -1138,7 +1175,27 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
       }
 
-      (*(ras.end_page))(&ras, page + 1, cb, ctx);
+      (*(ras.end_page))(&ras, page, cb, ctx);
+    }
+
+    if (ras.copies > 1 && (pages & 1) && ras.header.Duplex)
+    {
+     /*
+      * Duplex printing, add a blank back side image...
+      */
+
+      unsigned		y;		/* Current line */
+
+      fprintf(stderr, "DEBUG: Printing blank page %u for duplex.\n", pages + 1);
+
+      memset(ras.band_buffer, 255, ras.header.cupsBytesPerLine);
+
+      (*(ras.start_page))(&ras, page, cb, ctx);
+
+      for (y = ras.top; y < ras.bottom; y ++)
+	(*(ras.write_line))(&ras, y, ras.band_buffer, cb, ctx);
+
+      (*(ras.end_page))(&ras, page, cb, ctx);
     }
   }
 
@@ -1369,11 +1426,16 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   * Initialize the raster header...
   */
 
-  if ((sides = cupsGetOption("sides", num_options, options)) == NULL)
+  if (pages == 1)
+    sides = "one-sided";
+  else if ((sides = cupsGetOption("sides", num_options, options)) == NULL)
   {
     if ((sides = getenv("PRINTER_SIDES_DEFAULT")) == NULL)
       sides = "one-sided";
   }
+
+  if (ras->copies > 1 && (pages & 1) && strcmp(sides, "one-sided"))
+    pages ++;
 
   if (!cupsRasterInitPWGHeader(&(ras->header), pwg_media, type, xdpi, ydpi, sides, NULL))
   {
@@ -1387,8 +1449,8 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     return (-1);
   }
 
-  ras->header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount]      = pages;
-  ras->back_header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount] = pages;
+  ras->header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount]      = ras->copies * pages;
+  ras->back_header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount] = ras->copies * pages;
 
   return (0);
 }
