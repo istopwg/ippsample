@@ -9,7 +9,9 @@ proxy/ippproxy
 server/ippserver
 tools/ippfind
 tools/ipptool
+tools/ipptransform
 xcuserdata
 *.log
 *.o
+*.ras
 *.xcworkspace
