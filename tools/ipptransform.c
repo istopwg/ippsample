@@ -21,7 +21,23 @@
 #  include <ApplicationServices/ApplicationServices.h>
 #endif /* __APPLE__ */
 
+extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
+
 #include "threshold64.h"
+
+
+/*
+ * Constants...
+ */
+
+#define XFORM_MAX_RASTER	16777216
+
+#define XFORM_RED_MASK		0x000000ff
+#define XFORM_GREEN_MASK	0x0000ff00
+#define XFORM_BLUE_MASK		0x00ff0000
+#define XFORM_RGB_MASK		(XFORM_RED_MASK | XFORM_GREEN_MASK |  XFORM_BLUE_MASK)
+#define XFORM_BG_MASK		(XFORM_BLUE_MASK | XFORM_GREEN_MASK)
+#define XFORM_RG_MASK		(XFORM_RED_MASK | XFORM_GREEN_MASK)
 
 
 /*
@@ -40,6 +56,8 @@ struct xform_raster_s
   cups_page_header2_t	back_header;	/* Page header for back side */
   unsigned char		*band_buffer;	/* Band buffer */
   unsigned		band_height;	/* Band height */
+  unsigned		band_bpp;	/* Bytes per pixel in band */
+  unsigned char		*line_buffer;	/* Line buffer */
 
   /* Set by start_job callback */
   cups_raster_t		*ras;		/* Raster stream */
@@ -65,6 +83,7 @@ struct xform_raster_s
  */
 
 static int	load_env_options(cups_option_t **options);
+static void	pack_pixels(unsigned char *row, size_t num_pixels);
 static void	pcl_end_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	pcl_end_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	pcl_init(xform_raster_t *ras);
@@ -298,6 +317,59 @@ load_env_options(
   }
 
   return (num_options);
+}
+
+
+/*
+ * 'pack_pixels()' - Pack RGBX scanlines into RGB scanlines.
+ *
+ * This routine is suitable only for 8 bit RGBX data packed into RGB bytes.
+ */
+
+static void
+pack_pixels(unsigned char *row,		/* I - Row of pixels to pack */
+	    size_t        num_pixels)	/* I - Number of pixels in row */
+{
+  size_t	num_quads = num_pixels / 4;
+					/* Number of 4 byte samples to pack */
+  size_t	leftover_pixels = num_pixels & 3;
+					/* Number of pixels remaining */
+  UInt32	*quad_row = (UInt32 *)row;
+					/* 32-bit pixel pointer */
+  UInt32	*dest = quad_row;	/* Destination pointer */
+  unsigned char *src_byte;		/* Remaining source bytes */
+  unsigned char *dest_byte;		/* Remaining destination bytes */
+
+
+ /*
+  * Copy all of the groups of 4 pixels we can...
+  */
+
+  while (num_quads > 0)
+  {
+    *dest++ = (quad_row[0] & XFORM_RGB_MASK) | (quad_row[1] << 24);
+    *dest++ = ((quad_row[1] & XFORM_BG_MASK) >> 8) |
+              ((quad_row[2] & XFORM_RG_MASK) << 16);
+    *dest++ = ((quad_row[2] & XFORM_BLUE_MASK) >> 16) | (quad_row[3] << 8);
+    quad_row += 4;
+    num_quads --;
+  }
+
+ /*
+  * Then handle the leftover pixels...
+  */
+
+  src_byte  = (unsigned char *)quad_row;
+  dest_byte = (unsigned char *)dest;
+
+  while (leftover_pixels > 0)
+  {
+    *dest_byte++ = *src_byte++;
+    *dest_byte++ = *src_byte++;
+    *dest_byte++ = *src_byte++;
+    src_byte ++;
+    leftover_pixels --;
+  }
 }
 
 
@@ -840,6 +912,64 @@ xform_pdf(const char       *filename,	/* I - File to transform */
     return (1);
   }
 
+  CGColorSpaceRef cs;			/* Quartz color space */
+  CGContextRef	context;		/* Quartz bitmap context */
+  CGBitmapInfo	info;			/* Bitmap flags */
+  size_t	band_size;		/* Size of band line */
+  double	xscale, yscale;		/* Scaling factor */
+  CGPDFPageRef	pdf_page;		/* Page in PDF file */
+  CGAffineTransform transform;		/* Transform for page */
+  CGRect	dest;			/* Destination rectangle */
+
+  if (ras.header.cupsBitsPerPixel == 8)
+  {
+   /*
+    * Grayscale output...
+    */
+
+    ras.band_bpp = 1;
+    info         = kCGImageAlphaNone;
+    cs           = CGColorSpaceCreateWithName(kCGColorSpaceGenericGrayGamma2_2);
+  }
+  else
+  {
+   /*
+    * Color (sRGB) output...
+    */
+
+    ras.band_bpp = 4;
+    info         = kCGImageAlphaNoneSkipLast;
+    cs           = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+
+    ras.line_buffer = malloc(ras.header.cupsBytesPerLine);
+  }
+
+
+  band_size = ras.header.cupsWidth * ras.band_bpp;
+  if ((ras.band_height = XFORM_MAX_RASTER / band_size) < 1)
+    ras.band_height = 1;
+  else if (ras.band_height > ras.header.cupsHeight)
+    ras.band_height = ras.header.cupsHeight;
+
+  ras.band_buffer = malloc(ras.band_height * band_size);
+  context         = CGBitmapContextCreate(ras.band_buffer, ras.header.cupsWidth, ras.band_height, 8, band_size, cs, info);
+
+  CGColorSpaceRelease(cs);
+
+  /* Don't anti-alias or interpolate when creating raster data */
+  CGContextSetAllowsAntialiasing(context, 0);
+  CGContextSetInterpolationQuality(context, kCGInterpolationNone);
+
+  xscale = ras.header.HWResolution[0] / 72.0;
+  yscale = ras.header.HWResolution[1] / 72.0;
+
+  CGContextScaleCTM(context, xscale, yscale);
+  CGContextTranslateCTM(context, 0.0, (ras.band_height - ras.header.cupsHeight) / yscale);
+
+  dest.origin.x    = dest.origin.y = 0.0;
+  dest.size.width  = ras.header.cupsWidth * 72.0 / ras.header.HWResolution[0];
+  dest.size.height = ras.header.cupsHeight * 72.0 / ras.header.HWResolution[1];
+
  /*
   * Draw all of the pages...
   */
@@ -848,9 +978,56 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 
   for (page = 0; page < pages; page ++)
   {
+    pdf_page  = CGPDFDocumentGetPage(document, page);
+    transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox,dest, 0, true);
+
     (*(ras.start_page))(&ras, page + 1, cb, ctx);
 
-//    (*(ras.write_line))(&ras, y, lineptr, cb, ctx);
+    unsigned y, band_starty = 0, band_endy = 0;
+    unsigned char *lineptr;
+
+    for (y = 0; y < ras.header.cupsHeight; y ++)
+    {
+      if (y >= band_endy)
+      {
+       /*
+        * Draw the next band of raster data...
+	*/
+
+        CGContextSaveGState(context);
+	  if (ras.header.cupsNumColors == 1)
+	    CGContextSetGrayFillColor(context, 1., 1.);
+	  else
+	    CGContextSetRGBFillColor(context, 1., 1., 1., 1.);
+
+	  CGContextSetCTM(context, CGAffineTransformIdentity);
+	  CGContextFillRect(context, CGRectMake(0., 0., ras.header.cupsWidth, ras.band_height));
+	CGContextRestoreGState(context);
+
+        CGContextSaveGState(context);
+          CGContextTranslateCTM(context, 0, y);
+	  CGContextConcatCTM(context, transform);
+
+	  CGContextClipToRect(context, CGPDFPageGetBoxRect(pdf_page, kCGPDFCropBox));
+	  CGContextDrawPDFPage(context, pdf_page);
+	CGContextRestoreGState(context);
+
+	band_starty = y;
+	band_endy   = y + ras.band_height;
+	if (band_endy > ras.header.cupsHeight)
+	  band_endy = ras.header.cupsHeight;
+      }
+
+     /*
+      * Prepare and write a line...
+      */
+
+      lineptr = ras.band_buffer + (y - band_starty) * band_size;
+      if (ras.band_bpp == 4)
+        pack_pixels(lineptr, ras.header.cupsWidth);
+
+      (*(ras.write_line))(&ras, y, lineptr, cb, ctx);
+    }
 
     (*(ras.end_page))(&ras, page + 1, cb, ctx);
   }
@@ -858,6 +1035,8 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   (*(ras.end_job))(&ras, cb, ctx);
 
   CGPDFDocumentRelease(document);
+  CGContextRelease(context);
+
   return (0);
 }
 
@@ -899,29 +1078,9 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   ras->options     = options;
 
   if (!strcmp(format, "application/vnd.hp-pcl"))
-  {
-   /*
-    * HP PCL...
-    */
-
-    ras->end_job    = pcl_end_job;
-    ras->end_page   = pcl_end_page;
-    ras->start_job  = pcl_start_job;
-    ras->start_page = pcl_start_page;
-    ras->write_line = pcl_write_line;
-  }
+    pcl_init(ras);
   else
-  {
-   /*
-    * PWG Raster...
-    */
-
-    ras->end_job    = raster_end_job;
-    ras->end_page   = raster_end_page;
-    ras->start_job  = raster_start_job;
-    ras->start_page = raster_start_page;
-    ras->write_line = raster_write_line;
-  }
+    raster_init(ras);
 
  /*
   * Figure out the media size...
