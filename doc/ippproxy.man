@@ -1,9 +1,7 @@
 .\"
-.\" "$Id$"
+.\" ippproxy man page.
 .\"
-.\" ippproxy man page for CUPS.
-.\"
-.\" Copyright 2014 by Apple Inc.
+.\" Copyright 2014-2016 by Apple Inc.
 .\"
 .\" These coded instructions, statements, and computer programs are the
 .\" property of Apple Inc. and are protected by Federal copyright
@@ -11,13 +9,13 @@
 .\" which should have been included with this file.  If this file is
 .\" file is missing or damaged, see the license at "http://www.cups.org/".
 .\"
-.TH ippproxy 1 "CUPS" "16 September 2014" "Apple Inc."
+.TH ippproxy 1 "ippsample" "2 March 2016" "Apple Inc."
 .SH NAME
 ippproxy \- a simple ipp proxy client
 .SH SYNOPSIS
 .B ippproxy
 [
-.B \-v[vvv]
+.B \-v[vv]
 ]
 .I infrastructure-printer-uri
 .I local-printer-uri
@@ -45,15 +43,12 @@ program is unique to CUPS and conforms to the IPP Shared Infrastructure Extensio
 .SH EXAMPLE
 Run
 .B ippproxy
-with an infrastructure URI of "ipps://host.example.com/ipp/print" and a local URI of "ipp://10.0.1.2/ipp/print":
+with an infrastructure URI of "ipps://host.example.com/ipp/print" and a local URI of "ipp://10.0.1.42/ipp/print":
 .nf
 
-    ippproxy ipps://host.example.com/ipp/print ipp://10.0.1.2/ipp/print
+    ippproxy ipps://host.example.com/ipp/print ipp://10.0.1.42/ipp/print
 .fi
 .SH SEE ALSO
 PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp)
 .SH COPYRIGHT
-Copyright \[co] 2007-2014 by Apple Inc.
-.\"
-.\" End of "$Id$".
-.\"
+Copyright \[co] 2007-2016 by Apple Inc.

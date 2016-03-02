@@ -1,0 +1,153 @@
+<!DOCTYPE HTML>
+<html>
+<!-- SECTION: Man Pages -->
+<head>
+	<link rel="stylesheet" type="text/css" href="../cups-printable.css">
+	<title>ipptransform(1)</title>
+</head>
+<body>
+<h1 class="title">ipptransform(1)</h1>
+<h2 class="title"><a name="NAME">Name</a></h2>
+ipptranaform - convert document data to alternate formats
+<h2 class="title"><a name="SYNOPSIS">Synopsis</a></h2>
+<b>ipptransform</b>
+[
+<b>--help</b>
+] [
+<b>-d</b>
+<i>device-uri</i>
+] [
+<b>-i</b>
+<i>input/format</i>
+] [
+<b>-m</b>
+<i>output/format</i>
+] [
+<b>-o</b>
+<i>"name=value [... name=value]"</i>
+] [
+<b>-r</b>
+<i>resolution[,...,resolution]</i>
+] [
+<b>-s</b>
+<i>{flipped|manual-tumble|normal|rotated}</i>
+] [
+<b>-t</b>
+<i>sgray_8[,srgb_8]</i>
+] [
+<b>-v</b>
+]
+<i>filename</i>
+<h2 class="title"><a name="DESCRIPTION">Description</a></h2>
+<b>ipptransform</b>
+converts the input file into the output format and optionally sends the output to a network printer.
+<b>ipptransform</b>
+is normally run by
+<a href="man-ippserver.html?TOPIC=Man+Pages"><b>ippserver</b>(1)</a>
+to convert document data for printing.
+<h2 class="title"><a name="OPTIONS">Options</a></h2>
+The following options are recognized by
+<b>ipptransform:</b>
+<dl class="man">
+<dt><b>--help</b>
+<dd style="margin-left: 5.0em">Shows program help.
+<dt><b>-d</b><i> device-uri</i>
+<dd style="margin-left: 5.0em">Specifies an output device as a URI.
+Currently only the "socket" URI scheme is supported, for example "socket://10.0.1.42" to send print data to a printer at IP address 10.0.1.42.
+<dt><b>-i</b><i> input/format</i>
+<dd style="margin-left: 5.0em">Specifies the MIME media type of the input file.
+Currently the "application/pdf" (PDF) and "image/jpeg" (JPEG) MIME media types are supported.
+<dt><b>-m</b><i> output/format</i>
+<dd style="margin-left: 5.0em">Specifies the MIME media type of the output file.
+Current the "application/vnd.hp-pcl" (HP PCL) and "image/pwg-raster" (PWG Raster) MIME media types are supported.
+<b>-o</b><i> "name=value [... name=value]"</i>
+Specifies one or more named options for the conversion.
+Currently the "copies", "media", "media-col", "page-ranges", "print-color-mode", "print-quality", "printer-resolution", and "sides" options are supported.
+See the NAMED OPTIONS section for more information.
+<b>-r</b><i> resolution[,...,resolution]</i>
+Specifies the supported resolutions.
+Resolutions are of the form "NNNdpi" or "NNNxNNNdpi", for example "300dpi" or "600x300dpi".
+HP PCL output only supports resolutions of "300dpi" and "600dpi".
+<b>-s</b> {flipped|manual-tumble|normal|rotated}
+Specifies the coordinate system for the back side of duplex sheets.
+<b>-t</b> sgray_8[,srgb_8]
+Specifies the output color spaces and bit depths, separated by commas.
+Currently only the "sgray_8" (8-bit grayscale with 2.2 gamma) and "srgb_8" (8-bit sRGB color) color spaces and bit depths are supported.
+<b>-v</b>
+Increases the verbosity for any diagnostics.
+</dl>
+<h2 class="title"><a name="NAMED_OPTIONS">Named Options</a></h2>
+The following named options are supported:
+<dl class="man">
+<dt><b>copies</b>
+<dd style="margin-left: 5.0em">Specifies the number of copies to produce.
+<dt><b>media</b>
+<dd style="margin-left: 5.0em">Specifies the media size as a PWG standardized media size name.
+For example, US Letter (8.5x11in) is "na_letter_8.5x11in" and ISO A4 is "iso_a4_210x297mm".
+<dt><b>media-col</b>
+<dd style="margin-left: 5.0em">Specifies the media size as a collection.
+Both the "media-size" and "media-size-name" members can be used to specify the size.
+For example, both "media-col={media-size={x-dimension=21000 y-dimension=29700}}" and "media-col={media-size-name=iso_a4_210x297mm}" specify ISO A4 media.
+<dt><b>page-ranges</b>
+<dd style="margin-left: 5.0em">Selects a single range of pages to print.
+For example, the value "5-12" selects pages 5 through 12.
+<dt><b>print-color-mode</b>
+<dd style="margin-left: 5.0em">Specifies the color mode as "auto" (automatic), "monochrome" (grayscale), or "color".
+<dt><b>print-quality</b>
+<dd style="margin-left: 5.0em">Specifies the print quality with value 3 (draft), 4 (normal), or 5 (high/best).
+<dt><b>printer-resolution</b>
+<dd style="margin-left: 5.0em">Specifies the print resolution using one of the supported print resolutions.
+<dt><b>sides</b>
+<dd style="margin-left: 5.0em">Specifies whether to do 1-sided printing ("one-sided") or 2-sided printing ("two-sided-long-edge" for portrait and "two-sided-short-edge" for landscape).
+</dl>
+<h2 class="title"><a name="DIAGNOSTICS">Diagnostics</a></h2>
+<b>ipptransform</b>
+sends all messages to the standard error.
+Each message is prefixed with "ERROR", "INFO", or "DEBUG" depending on the level of verbosity.
+<h2 class="title"><a name="EXIT_STATUS">Exit Status</a></h2>
+The
+<b>ipptransform</b>
+program returns 0 if the input file is converted successfully and 1 otherwise.
+<h2 class="title"><a name="ENVIRONMENT">Environment</a></h2>
+<b>ipptransform</b>
+recognizes the following environment variables:
+<dl class="man">
+<dt><b>CONTENT_TYPE</b>
+<dd style="margin-left: 5.0em">Specifies the MIME media type of the input file.
+<dt><b>DEVICE_URI</b>
+<dd style="margin-left: 5.0em">Specifies the output device as a URI.
+<dt><b>DOCUMENT_NAME</b>
+<dd style="margin-left: 5.0em">Specifies the title of the input file.
+<dt><b>IPP_xxx</b>
+<dd style="margin-left: 5.0em">Specifies the value of the "xxx" Job Template attribute, where "xxx" is converted to uppercase.
+For example, the "media" Job Template attribute is stored as the "IPP_MEDIA" environment variable.
+<dt><b>OUTPUT_TYPE</b>
+<dd style="margin-left: 5.0em">Specifies the MIME media type of the output file.
+<dt><b>PRINTER_xxx_DEFAULT</b>
+<dd style="margin-left: 5.0em">Specifies the default value of the corresponding "xxx-default" Printer Description attribute, where "xxx" is converted to uppercase.
+For example, the "media-default" Printer Description attribute is stored as the "PRINTER_MEDIA_DEFAULT" environment variable.
+<dt><b>PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED</b>
+<dd style="margin-left: 5.0em">Lists the supported output resolutions.
+<dt><b>PWG_RASTER_DOCUMENT_SHEET_BACK</b>
+<dd style="margin-left: 5.0em">Specifies the coordinate system of the back side of duplex sheets.
+<dt><b>PWG_RASTER_DOCUMENT_TYPE_SUPPORTED</b>
+<dd style="margin-left: 5.0em">Lists the supported output color spaces and bit depths.
+<dt><b>SERVER_LOGLEVEL</b>
+<dd style="margin-left: 5.0em">Specifies the log level (verbosity) as "error", "info", or "debug".
+</dl>
+<h2 class="title"><a name="EXAMPLES">Examples</a></h2>
+Print a PDF file to a PCL printer at 10.0.1.42:
+<pre class="man">
+
+    ipptransform -d socket://10.0.1.42 -m application/vnd.hp-pcl filename.pdf
+</pre>
+<p>Convert a JPEG file to sRGB PWG Raster at 600dpi:
+<pre class="man">
+
+    ipptransform -m image/pwg-raster -r 600dpi -t sgray_8,srgb_8 filename.jpg >filename.ras
+</pre>
+<h2 class="title"><a name="COPYRIGHT">Copyright</a></h2>
+Copyright &copy; 2016 by Apple Inc.
+
+</body>
+</html>

@@ -1,0 +1,170 @@
+.\"
+.\" ipptransform man page.
+.\"
+.\" Copyright 2016 by Apple Inc.
+.\"
+.\" These coded instructions, statements, and computer programs are the
+.\" property of Apple Inc. and are protected by Federal copyright
+.\" law.  Distribution and use rights are outlined in the file "LICENSE.txt"
+.\" which should have been included with this file.  If this file is
+.\" file is missing or damaged, see the license at "http://www.cups.org/".
+.\"
+.TH ipptransform 1 "ippsample" "2 March 2016" "Apple Inc."
+.SH NAME
+ipptranaform \- convert document data to alternate formats
+.SH SYNOPSIS
+.B ipptransform
+[
+.B \-\-help
+] [
+.B \-d
+.I device-uri
+] [
+.B \-i
+.I input/format
+] [
+.B \-m
+.I output/format
+] [
+.B \-o
+.I "name=value [... name=value]"
+] [
+.B \-r
+.I resolution[,...,resolution]
+] [
+.B \-s
+.I {flipped|manual-tumble|normal|rotated}
+] [
+.B \-t
+.I sgray_8[,srgb_8]
+] [
+.B \-v
+]
+.I filename
+.SH DESCRIPTION
+.B ipptransform
+converts the input file into the output format and optionally sends the output to a network printer.
+.B ipptransform
+is normally run by
+.BR ippserver (1)
+to convert document data for printing.
+.SH OPTIONS
+The following options are recognized by
+.B ipptransform:
+.TP 5
+.B \-\-help
+Shows program help.
+.TP 5
+.BI \-d \ device-uri
+Specifies an output device as a URI.
+Currently only the "socket" URI scheme is supported, for example "socket://10.0.1.42" to send print data to a printer at IP address 10.0.1.42.
+.TP 5
+.BI \-i \ input/format
+Specifies the MIME media type of the input file.
+Currently the "application/pdf" (PDF) and "image/jpeg" (JPEG) MIME media types are supported.
+.TP 5
+.BI \-m \ output/format
+Specifies the MIME media type of the output file.
+Current the "application/vnd.hp-pcl" (HP PCL) and "image/pwg-raster" (PWG Raster) MIME media types are supported.
+.BI \-o \ "name=value [... name=value]"
+Specifies one or more named options for the conversion.
+Currently the "copies", "media", "media-col", "page-ranges", "print-color-mode", "print-quality", "printer-resolution", and "sides" options are supported.
+See the NAMED OPTIONS section for more information.
+.BI \-r \ resolution[,...,resolution]
+Specifies the supported resolutions.
+Resolutions are of the form "NNNdpi" or "NNNxNNNdpi", for example "300dpi" or "600x300dpi".
+HP PCL output only supports resolutions of "300dpi" and "600dpi".
+.BR \-s \ {flipped|manual-tumble|normal|rotated}
+Specifies the coordinate system for the back side of duplex sheets.
+.BR \-t \ sgray_8[,srgb_8]
+Specifies the output color spaces and bit depths, separated by commas.
+Currently only the "sgray_8" (8-bit grayscale with 2.2 gamma) and "srgb_8" (8-bit sRGB color) color spaces and bit depths are supported.
+.B \-v
+Increases the verbosity for any diagnostics.
+.SH NAMED OPTIONS
+The following named options are supported:
+.TP 5
+.B copies
+Specifies the number of copies to produce.
+.TP 5
+.B media
+Specifies the media size as a PWG standardized media size name.
+For example, US Letter (8.5x11in) is "na_letter_8.5x11in" and ISO A4 is "iso_a4_210x297mm".
+.TP 5
+.B media-col
+Specifies the media size as a collection.
+Both the "media-size" and "media-size-name" members can be used to specify the size.
+For example, both "media-col={media-size={x-dimension=21000 y-dimension=29700}}" and "media-col={media-size-name=iso_a4_210x297mm}" specify ISO A4 media.
+.TP 5
+.B page-ranges
+Selects a single range of pages to print.
+For example, the value "5-12" selects pages 5 through 12.
+.TP 5
+.B print-color-mode
+Specifies the color mode as "auto" (automatic), "monochrome" (grayscale), or "color".
+.TP 5
+.B print-quality
+Specifies the print quality with value 3 (draft), 4 (normal), or 5 (high/best).
+.TP 5
+.B printer-resolution
+Specifies the print resolution using one of the supported print resolutions.
+.TP 5
+.B sides
+Specifies whether to do 1-sided printing ("one-sided") or 2-sided printing ("two-sided-long-edge" for portrait and "two-sided-short-edge" for landscape).
+.SH DIAGNOSTICS
+.B ipptransform
+sends all messages to the standard error.
+Each message is prefixed with "ERROR", "INFO", or "DEBUG" depending on the level of verbosity.
+.SH EXIT STATUS
+The
+.B ipptransform
+program returns 0 if the input file is converted successfully and 1 otherwise.
+.SH ENVIRONMENT
+.B ipptransform
+recognizes the following environment variables:
+.TP 5
+.B CONTENT_TYPE
+Specifies the MIME media type of the input file.
+.TP 5
+.B DEVICE_URI
+Specifies the output device as a URI.
+.TP 5
+.B DOCUMENT_NAME
+Specifies the title of the input file.
+.TP 5
+.B IPP_xxx
+Specifies the value of the "xxx" Job Template attribute, where "xxx" is converted to uppercase.
+For example, the "media" Job Template attribute is stored as the "IPP_MEDIA" environment variable.
+.TP 5
+.B OUTPUT_TYPE
+Specifies the MIME media type of the output file.
+.TP 5
+.B PRINTER_xxx_DEFAULT
+Specifies the default value of the corresponding "xxx-default" Printer Description attribute, where "xxx" is converted to uppercase.
+For example, the "media-default" Printer Description attribute is stored as the "PRINTER_MEDIA_DEFAULT" environment variable.
+.TP 5
+.B PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED
+Lists the supported output resolutions.
+.TP 5
+.B PWG_RASTER_DOCUMENT_SHEET_BACK
+Specifies the coordinate system of the back side of duplex sheets.
+.TP 5
+.B PWG_RASTER_DOCUMENT_TYPE_SUPPORTED
+Lists the supported output color spaces and bit depths.
+.TP 5
+.B SERVER_LOGLEVEL
+Specifies the log level (verbosity) as "error", "info", or "debug".
+.SH EXAMPLES
+Print a PDF file to a PCL printer at 10.0.1.42:
+.nf
+
+    ipptransform -d socket://10.0.1.42 -m application/vnd.hp-pcl filename.pdf
+.fi
+.LP
+Convert a JPEG file to sRGB PWG Raster at 600dpi:
+.nf
+
+    ipptransform -m image/pwg-raster -r 600dpi -t sgray_8,srgb_8 filename.jpg >filename.ras
+.fi
+.SH COPYRIGHT
+Copyright \[co] 2016 by Apple Inc.

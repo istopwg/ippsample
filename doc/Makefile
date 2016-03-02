@@ -22,7 +22,8 @@ HTML		=	\
 			ippproxy.html \
 			ippserver.html \
 			ipptool.html \
-			ipptoolfile.html
+			ipptoolfile.html \
+			ipptransform.html
 
 
 #

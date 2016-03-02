@@ -103,6 +103,12 @@ serverTransformJob(
   if (asprintf(myenvp + myenvc, "OUTPUT_TYPE=%s", format) > 0)
     myenvc ++;
 
+  if ((attr = ippFindAttribute(job->printer->attrs, "media-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_MEDIA_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+    myenvc ++;
+
+  if ((attr = ippFindAttribute(job->printer->attrs, "sides-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_SIDES_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+    myenvc ++;
+
   if ((attr = ippFindAttribute(job->printer->attrs, "pwg-raster-document-resolution-supported", IPP_TAG_RESOLUTION)) != NULL && ippAttributeString(attr, val, sizeof(val)) > 0 && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED=%s", val) > 0)
     myenvc ++;
 
@@ -111,6 +117,13 @@ serverTransformJob(
 
   if ((attr = ippFindAttribute(job->printer->attrs, "pwg-raster-document-type-supported", IPP_TAG_RESOLUTION)) != NULL && ippAttributeString(attr, val, sizeof(val)) > 0 && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_TYPE_SUPPORTED=%s", val) > 0)
     myenvc ++;
+
+  if (LogLevel == SERVER_LOGLEVEL_INFO)
+    myenvp[myenvc ++] = strdup("SERVER_LOGLEVEL=info");
+  else if (LogLevel == SERVER_LOGLEVEL_DEBUG)
+    myenvp[myenvc ++] = strdup("SERVER_LOGLEVEL=debug");
+  else
+    myenvp[myenvc ++] = strdup("SERVER_LOGLEVEL=error");
 
   for (attr = ippFirstAttribute(job->attrs); attr && myenvc < (int)(sizeof(myenvp) / sizeof(myenvp[0]) - 1); attr = ippNextAttribute(job->attrs))
   {

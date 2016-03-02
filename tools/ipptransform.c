@@ -80,6 +80,13 @@ struct xform_raster_s
 
 
 /*
+ * Local globals...
+ */
+
+static int	Verbosity = 0;		/* Log level */
+
+
+/*
  * Local functions...
  */
 
@@ -140,9 +147,17 @@ main(int  argc,				/* I - Number of command-line args */
   sheet_back   = getenv("PWG_RASTER_DOCUMENT_SHEET_BACK");
   types        = getenv("PWG_RASTER_DOCUMENT_TYPE_SUPPORTED");
 
+  if ((opt = getenv("SERVER_LOGLEVEL")) != NULL)
+  {
+    if (!strcmp(opt, "debug"))
+      Verbosity = 2;
+    else if (!strcmp(opt, "info"))
+      Verbosity = 1;
+  }
+
   for (i = 1; i < argc; i ++)
   {
-    if (argv[i][0] == '-')
+    if (argv[i][0] == '-' && argv[i][1] != '-')
     {
       for (opt = argv[i] + 1; *opt; opt ++)
       {
@@ -155,6 +170,7 @@ main(int  argc,				/* I - Number of command-line args */
 
 	      device_uri = argv[i];
 	      break;
+
 	  case 'i' :
 	      i ++;
 	      if (i >= argc)
@@ -162,6 +178,7 @@ main(int  argc,				/* I - Number of command-line args */
 
 	      content_type = argv[i];
 	      break;
+
 	  case 'm' :
 	      i ++;
 	      if (i >= argc)
@@ -169,6 +186,7 @@ main(int  argc,				/* I - Number of command-line args */
 
 	      output_type = argv[i];
 	      break;
+
 	  case 'o' :
 	      i ++;
 	      if (i >= argc)
@@ -176,6 +194,7 @@ main(int  argc,				/* I - Number of command-line args */
 
 	      num_options = cupsParseOptions(argv[i], num_options, &options);
 	      break;
+
 	  case 'r' : /* pwg-raster-document-resolution-supported values */
 	      i ++;
 	      if (i >= argc)
@@ -183,6 +202,7 @@ main(int  argc,				/* I - Number of command-line args */
 
 	      resolutions = argv[i];
 	      break;
+
 	  case 's' : /* pwg-raster-document-sheet-back value */
 	      i ++;
 	      if (i >= argc)
@@ -190,6 +210,7 @@ main(int  argc,				/* I - Number of command-line args */
 
 	      sheet_back = argv[i];
 	      break;
+
 	  case 't' : /* pwg-raster-document-type-supported values */
 	      i ++;
 	      if (i >= argc)
@@ -197,12 +218,24 @@ main(int  argc,				/* I - Number of command-line args */
 
 	      types = argv[i];
 	      break;
+
+	  case 'v' : /* Be verbose... */
+	      Verbosity ++;
+	      break;
+
 	  default :
-	      printf("ipptransform: Unknown option '-%c'.\n", *opt);
+	      fprintf(stderr, "ERROR: Unknown option '-%c'.\n", *opt);
 	      usage(1);
 	      break;
 	}
       }
+    }
+    else if (!strcmp(argv[i], "--help"))
+      usage(0);
+    else if (!strncmp(argv[i], "--", 2))
+    {
+      fprintf(stderr, "ERROR: Unknown option '%s'.\n", argv[i]);
+      usage(1);
     }
     else if (!filename)
       filename = argv[i];
@@ -230,23 +263,23 @@ main(int  argc,				/* I - Number of command-line args */
 
   if (!content_type)
   {
-    printf("Unknown format for \"%s\", please specify with '-i' option.\n", filename);
+    fprintf(stderr, "ERROR: Unknown format for \"%s\", please specify with '-i' option.\n", filename);
     usage(1);
   }
   else if (strcmp(content_type, "application/pdf") && strcmp(content_type, "image/jpeg"))
   {
-    printf("Unsupported format \"%s\" for \"%s\".\n", content_type, filename);
+    fprintf(stderr, "ERROR: Unsupported format \"%s\" for \"%s\".\n", content_type, filename);
     usage(1);
   }
 
   if (!output_type)
   {
-    puts("Unknown output format, please specify with '-m' option.");
+    fputs("ERROR: Unknown output format, please specify with '-m' option.\n", stderr);
     usage(1);
   }
   else if (strcmp(output_type, "application/vnd.hp-pcl") && strcmp(output_type, "image/pwg-raster"))
   {
-    printf("Unsupported output format \"%s\".\n", output_type);
+    fprintf(stderr, "ERROR: Unsupported output format \"%s\".\n", output_type);
     usage(1);
   }
 
@@ -273,26 +306,26 @@ main(int  argc,				/* I - Number of command-line args */
 
     if (httpSeparateURI(HTTP_URI_CODING_ALL, device_uri, scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, resource, sizeof(resource)) < HTTP_URI_STATUS_OK)
     {
-      printf("Invalid device URI \"%s\".\n", device_uri);
+      fprintf(stderr, "ERROR: Invalid device URI \"%s\".\n", device_uri);
       usage(1);
     }
 
     if (strcmp(scheme, "socket"))
     {
-      printf("Unsupported device URI scheme \"%s\".\n", scheme);
+      fprintf(stderr, "ERROR: Unsupported device URI scheme \"%s\".\n", scheme);
       usage(1);
     }
 
     snprintf(service, sizeof(service), "%d", port);
     if ((list = httpAddrGetList(host, AF_UNSPEC, service)) == NULL)
     {
-      printf("Unable to lookup device URI host \"%s\": %s\n", host, cupsLastErrorString());
+      fprintf(stderr, "ERROR: Unable to lookup device URI host \"%s\": %s\n", host, cupsLastErrorString());
       usage(1);
     }
 
     if (!httpAddrConnect2(list, &fd, 30000, NULL))
     {
-      printf("Unable to connect to \"%s\" on port %d: %s\n", host, port, cupsLastErrorString());
+      fprintf(stderr, "ERROR: Unable to connect to \"%s\" on port %d: %s\n", host, port, cupsLastErrorString());
       usage(1);
     }
   }
@@ -913,15 +946,17 @@ raster_write_line(
 static void
 usage(int status)			/* I - Exit status */
 {
-  puts("Usage: ipptransform filename [options]");
+  puts("Usage: ipptransform [options] filename");
   puts("Options:");
+  puts("  --help");
   puts("  -d device-uri");
   puts("  -i input/format");
   puts("  -m output/format");
-  puts("  -o name=value");
-  puts("  -r resolution[,resolution,...]");
+  puts("  -o \"name=value [... name=value]\"");
+  puts("  -r resolution[,...,resolution]");
   puts("  -s {flipped|manual-tumble|normal|rotated}");
   puts("  -t sgray_8[,srgb_8]");
+  puts("  -v");
 
   exit(status);
 }
@@ -1117,10 +1152,12 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   xscale = ras.header.HWResolution[0] / 72.0;
   yscale = ras.header.HWResolution[1] / 72.0;
 
-  fprintf(stderr, "DEBUG: xscale=%g, yscale=%g\n", xscale, yscale);
+  if (Verbosity > 1)
+    fprintf(stderr, "DEBUG: xscale=%g, yscale=%g\n", xscale, yscale);
   CGContextScaleCTM(context, xscale, yscale);
 
-  fprintf(stderr, "DEBUG: Band height=%u, page height=%u, page translate 0.0,%g\n", ras.band_height, ras.header.cupsHeight, -1.0 * (ras.header.cupsHeight - ras.band_height) / yscale);
+  if (Verbosity > 1)
+    fprintf(stderr, "DEBUG: Band height=%u, page height=%u, page translate 0.0,%g\n", ras.band_height, ras.header.cupsHeight, -1.0 * (ras.header.cupsHeight - ras.band_height) / yscale);
   CGContextTranslateCTM(context, 0.0, -1.0 * (ras.header.cupsHeight - ras.band_height) / yscale);
 
   dest.origin.x    = dest.origin.y = 0.0;
@@ -1150,8 +1187,10 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   else
     back_transform = CGAffineTransformMake(1, 0, 0, 1, 0, 0);
 
-  fprintf(stderr, "DEBUG: cupsPageSize=[%g %g]\n", ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
-  fprintf(stderr, "DEBUG: back_transform=[%g %g %g %g %g %g]\n", back_transform.a, back_transform.b, back_transform.c, back_transform.d, back_transform.tx, back_transform.ty);
+  if (Verbosity > 1)
+    fprintf(stderr, "DEBUG: cupsPageSize=[%g %g]\n", ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
+  if (Verbosity > 1)
+    fprintf(stderr, "DEBUG: back_transform=[%g %g %g %g %g %g]\n", back_transform.a, back_transform.b, back_transform.c, back_transform.d, back_transform.tx, back_transform.ty);
 
  /*
   * Draw all of the pages...
@@ -1171,7 +1210,8 @@ xform_pdf(const char       *filename,	/* I - File to transform */
       pdf_page  = CGPDFDocumentGetPage(document, page);
       transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox,dest, 0, true);
 
-      fprintf(stderr, "DEBUG: Printing copy %d/%d, page %d/%d, transform=[%g %g %g %g %g %g]\n", copy + 1, ras.copies, page, pages, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
+      if (Verbosity > 1)
+        fprintf(stderr, "DEBUG: Printing copy %d/%d, page %d/%d, transform=[%g %g %g %g %g %g]\n", copy + 1, ras.copies, page, pages, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
 
       (*(ras.start_page))(&ras, page, cb, ctx);
 
@@ -1188,7 +1228,8 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 	  if (band_endy > ras.bottom)
 	    band_endy = ras.bottom;
 
-	  fprintf(stderr, "DEBUG: Drawing band from %u to %u.\n", band_starty, band_endy);
+	  if (Verbosity > 1)
+	    fprintf(stderr, "DEBUG: Drawing band from %u to %u.\n", band_starty, band_endy);
 
 	  CGContextSaveGState(context);
 	    if (ras.header.cupsNumColors == 1)
@@ -1201,7 +1242,8 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 	  CGContextRestoreGState(context);
 
 	  CGContextSaveGState(context);
-	    fprintf(stderr, "DEBUG: Band translate 0.0,%g\n", y / yscale);
+	    if (Verbosity > 1)
+	      fprintf(stderr, "DEBUG: Band translate 0.0,%g\n", y / yscale);
 	    CGContextTranslateCTM(context, 0.0, y / yscale);
 	    if (!(page & 1) && ras.header.Duplex)
 	      CGContextConcatCTM(context, back_transform);
@@ -1242,7 +1284,8 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 
       unsigned		y;		/* Current line */
 
-      fprintf(stderr, "DEBUG: Printing blank page %u for duplex.\n", pages + 1);
+      if (Verbosity > 1)
+        fprintf(stderr, "DEBUG: Printing blank page %u for duplex.\n", pages + 1);
 
       memset(ras.band_buffer, 255, ras.header.cupsBytesPerLine);
 
@@ -1418,7 +1461,8 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
 
   if ((printer_resolution = cupsGetOption("printer-resolution", num_options, options)) != NULL && !cupsArrayFind(res_array, (void *)printer_resolution))
   {
-    fprintf(stderr, "INFO: Unsupported \"printer-resolution\" value '%s'.\n", printer_resolution);
+    if (Verbosity)
+      fprintf(stderr, "INFO: Unsupported \"printer-resolution\" value '%s'.\n", printer_resolution);
     printer_resolution = NULL;
   }
 
@@ -1441,7 +1485,8 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
 	    break;
 
 	default :
-	    fprintf(stderr, "INFO: Unsupported \"print-quality\" value '%s'.\n", print_quality);
+	    if (Verbosity)
+	      fprintf(stderr, "INFO: Unsupported \"print-quality\" value '%s'.\n", print_quality);
 	    break;
       }
     }

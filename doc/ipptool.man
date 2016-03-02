@@ -1,9 +1,7 @@
 .\"
-.\" "$Id: ipptool.man 12848 2015-08-26 18:51:57Z msweet $"
+.\" ipptool man page.
 .\"
-.\" ipptool man page for CUPS.
-.\"
-.\" Copyright 2010-2015 by Apple Inc.
+.\" Copyright 2010-2016 by Apple Inc.
 .\"
 .\" These coded instructions, statements, and computer programs are the
 .\" property of Apple Inc. and are protected by Federal copyright
@@ -11,7 +9,7 @@
 .\" which should have been included with this file.  If this file is
 .\" file is missing or damaged, see the license at "http://www.cups.org/".
 .\"
-.TH ipptool 1 "CUPS" "26 August 2015" "Apple Inc."
+.TH ipptool 1 "ippsample" "2 March 2016" "Apple Inc."
 .SH NAME
 ipptool \- perform internet printing protocol requests
 .SH SYNOPSIS
@@ -242,7 +240,4 @@ IANA IPP Registry (http://www.iana.org/assignments/ipp\-registrations),
 PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp)
 RFC 2911 (http://tools.ietf.org/html/rfc2911),
 .SH COPYRIGHT
-Copyright \[co] 2007-2015 by Apple Inc.
-.\"
-.\" End of "$Id: ipptool.man 12848 2015-08-26 18:51:57Z msweet $".
-.\"
+Copyright \[co] 2007-2016 by Apple Inc.
