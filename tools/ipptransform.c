@@ -1052,7 +1052,8 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 
   unsigned		pages = 1;	/* Number of pages */
   int			color = 1;	/* Does the PDF have color? */
-//  const char		*page_ranges;	/* "page-ranges" option */
+  const char		*page_ranges;	/* "page-ranges" option */
+  unsigned		first, last;	/* First and last page of range */
   unsigned		copy;		/* Current copy */
   unsigned		page;		/* Current page */
   unsigned		media_sheets = 0,
@@ -1099,8 +1100,37 @@ xform_pdf(const char       *filename,	/* I - File to transform */
     return (1);
   }
 
-  pages = (unsigned)CGPDFDocumentGetNumberOfPages(document);
-  /* TODO: Support page-ranges */
+ /*
+  * Check page ranges...
+  */
+
+  if ((page_ranges = cupsGetOption("page-ranges", num_options, options)) != NULL)
+  {
+    if (sscanf(page_ranges, "%u-%u", &first, &last) != 2 || first > last)
+    {
+      fprintf(stderr, "ERROR: Bad \"page-ranges\" value '%s'.\n", page_ranges);
+      CGPDFDocumentRelease(document);
+      return (1);
+    }
+
+    pages = (unsigned)CGPDFDocumentGetNumberOfPages(document);
+    if (first > pages)
+    {
+      fputs("ERROR: \"page-ranges\" value does not include any pages to print in the document.\n", stderr);
+      CGPDFDocumentRelease(document);
+      return (1);
+    }
+
+    if (last > pages)
+      last = pages;
+  }
+  else
+  {
+    first = 1;
+    last  = (unsigned)CGPDFDocumentGetNumberOfPages(document);
+  }
+
+  pages = last - first + 1;
 
  /*
   * Setup the raster context...
@@ -1207,7 +1237,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 			band_endy = 0;	/* End line of band */
       unsigned char	*lineptr;	/* Pointer to line */
 
-      pdf_page  = CGPDFDocumentGetPage(document, page);
+      pdf_page  = CGPDFDocumentGetPage(document, page + first - 1);
       transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox,dest, 0, true);
 
       if (Verbosity > 1)
