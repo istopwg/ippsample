@@ -125,6 +125,7 @@ main(int  argc,				/* I - Number of command-line args */
   int		num_options;		/* Number of options */
   cups_option_t	*options;		/* Options */
   int		fd = 1;			/* Output file/socket */
+  int		status = 0;		/* Exit status */
 
 
  /*
@@ -257,15 +258,58 @@ main(int  argc,				/* I - Number of command-line args */
     types = "sgray_8";
 
  /*
+  * If the device URI is specified, open the connection...
+  */
+
+  if (device_uri)
+  {
+    char	scheme[32],		/* URI scheme */
+		userpass[256],		/* URI user:pass */
+		host[256],		/* URI host */
+		resource[1024],		/* URI resource path */
+		service[32];		/* Service port */
+    int		port;			/* URI port number */
+    http_addrlist_t *list;		/* Address list for socket */
+
+    if (httpSeparateURI(HTTP_URI_CODING_ALL, device_uri, scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, resource, sizeof(resource)) < HTTP_URI_STATUS_OK)
+    {
+      printf("Invalid device URI \"%s\".\n", device_uri);
+      usage(1);
+    }
+
+    if (strcmp(scheme, "socket"))
+    {
+      printf("Unsupported device URI scheme \"%s\".\n", scheme);
+      usage(1);
+    }
+
+    snprintf(service, sizeof(service), "%d", port);
+    if ((list = httpAddrGetList(host, AF_UNSPEC, service)) == NULL)
+    {
+      printf("Unable to lookup device URI host \"%s\": %s\n", host, cupsLastErrorString());
+      usage(1);
+    }
+
+    if (!httpAddrConnect2(list, &fd, 30000, NULL))
+    {
+      printf("Unable to connect to \"%s\" on port %d: %s\n", host, port, cupsLastErrorString());
+      usage(1);
+    }
+  }
+
+ /*
   * Do transform...
   */
 
   if (!strcmp(content_type, "application/pdf"))
-    return (xform_pdf(filename, output_type, resolutions, types, sheet_back, num_options, options, (xform_write_cb_t)write_fd, &fd));
+    status = xform_pdf(filename, output_type, resolutions, types, sheet_back, num_options, options, (xform_write_cb_t)write_fd, &fd);
   else
-    return (xform_jpeg(filename, output_type, resolutions, types, num_options, options, (xform_write_cb_t)write_fd, &fd));
+    status = xform_jpeg(filename, output_type, resolutions, types, num_options, options, (xform_write_cb_t)write_fd, &fd);
 
-  return (0);
+  if (fd != 1)
+    close(fd);
+
+  return (status);
 }
 
 
