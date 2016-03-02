@@ -55,6 +55,7 @@ struct xform_raster_s
   unsigned		copies;		/* Number of copies */
   cups_page_header2_t	header;		/* Page header */
   cups_page_header2_t	back_header;	/* Page header for back side */
+  int			borderless;	/* Borderless media? */
   unsigned char		*band_buffer;	/* Band buffer */
   unsigned		band_height;	/* Band height */
   unsigned		band_bpp;	/* Bytes per pixel in band */
@@ -1008,17 +1009,288 @@ xform_jpeg(const char       *filename,	/* I - File to transform */
            xform_write_cb_t cb,		/* I - Write callback */
            void             *ctx)	/* I - Write context */
 {
-  // TODO: Implement me
-  (void)filename;
-  (void)format;
-  (void)resolutions;
-  (void)types;
-  (void)num_options;
-  (void)options;
-  (void)cb;
-  (void)ctx;
+  CFURLRef		url;		/* CFURL object for PDF filename */
+  CGImageSourceRef	src;		/* Image reader */
+  CGImageRef		image = NULL;	/* Image */
+  xform_raster_t	ras;		/* Raster info */
+  CGColorSpaceRef	cs;		/* Quartz color space */
+  CGContextRef		context;	/* Quartz bitmap context */
+  CGBitmapInfo		info;		/* Bitmap flags */
+  size_t		band_size;	/* Size of band line */
+  double		xscale, yscale;	/* Scaling factor */
+  CGAffineTransform 	transform;	/* Transform for page */
+  CGRect		dest;		/* Destination rectangle */
+  int			color = 1;	/* Does the image have color? */
+  const char		*print_scaling;	/* print-scaling option */
+  size_t		image_width,	/* Image width */
+			image_height;	/* Image height */
+  int			image_rotation;	/* Image rotation */
+  double		image_xscale,	/* Image scaling */
+			image_yscale;
+  unsigned		copy;		/* Current copy */
+  unsigned		media_sheets = 0,
+			impressions = 0;/* Page/sheet counters */
 
-  return (1);
+
+ /*
+  * Open the image file...
+  */
+
+  if ((url = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault, (const UInt8 *)filename, (CFIndex)strlen(filename), false)) == NULL)
+  {
+    fputs("ERROR: Unable to create CFURL for file.\n", stderr);
+    return (1);
+  }
+
+  if ((src = CGImageSourceCreateWithURL(url, NULL)) == NULL)
+  {
+    CFRelease(url);
+    fputs("ERROR: Unable to create CFImageSourceRef for file.\n", stderr);
+    return (1);
+  }
+
+  if ((image = CGImageSourceCreateImageAtIndex(src, 0, NULL)) == NULL)
+  {
+    CFRelease(src);
+    CFRelease(url);
+
+    fputs("ERROR: Unable to create CFImageRef for file.\n", stderr);
+    return (1);
+  }
+
+  CFRelease(src);
+  CFRelease(url);
+
+ /*
+  * Setup the raster context...
+  */
+
+  if (xform_setup(&ras, format, resolutions, types, NULL, color, 1, num_options, options))
+  {
+    CFRelease(image);
+    return (1);
+  }
+
+  if (ras.header.cupsBitsPerPixel == 8)
+  {
+   /*
+    * Grayscale output...
+    */
+
+    ras.band_bpp = 1;
+    info         = kCGImageAlphaNone;
+    cs           = CGColorSpaceCreateWithName(kCGColorSpaceGenericGrayGamma2_2);
+  }
+  else
+  {
+   /*
+    * Color (sRGB) output...
+    */
+
+    ras.band_bpp = 4;
+    info         = kCGImageAlphaNoneSkipLast;
+    cs           = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+  }
+
+  band_size = ras.header.cupsWidth * ras.band_bpp;
+  if ((ras.band_height = XFORM_MAX_RASTER / band_size) < 1)
+    ras.band_height = 1;
+  else if (ras.band_height > ras.header.cupsHeight)
+    ras.band_height = ras.header.cupsHeight;
+
+  ras.band_buffer = malloc(ras.band_height * band_size);
+  context         = CGBitmapContextCreate(ras.band_buffer, ras.header.cupsWidth, ras.band_height, 8, band_size, cs, info);
+
+  CGColorSpaceRelease(cs);
+
+  /* Don't anti-alias or interpolate when creating raster data */
+  CGContextSetAllowsAntialiasing(context, 0);
+  CGContextSetInterpolationQuality(context, kCGInterpolationNone);
+
+  xscale = ras.header.HWResolution[0] / 72.0;
+  yscale = ras.header.HWResolution[1] / 72.0;
+
+  if (Verbosity > 1)
+    fprintf(stderr, "DEBUG: xscale=%g, yscale=%g\n", xscale, yscale);
+  CGContextScaleCTM(context, xscale, yscale);
+
+  if (Verbosity > 1)
+    fprintf(stderr, "DEBUG: Band height=%u, page height=%u, page translate 0.0,%g\n", ras.band_height, ras.header.cupsHeight, -1.0 * (ras.header.cupsHeight - ras.band_height) / yscale);
+  CGContextTranslateCTM(context, 0.0, -1.0 * (ras.header.cupsHeight - ras.band_height) / yscale);
+
+  dest.origin.x    = dest.origin.y = 0.0;
+  dest.size.width  = ras.header.cupsWidth * 72.0 / ras.header.HWResolution[0];
+  dest.size.height = ras.header.cupsHeight * 72.0 / ras.header.HWResolution[1];
+
+ /*
+  * Calculate the transform for the image...
+  */
+
+  if ((print_scaling = cupsGetOption("print-scaling", num_options, options)) == NULL)
+    if ((print_scaling = getenv("PRINTER_PRINT_SCALING_DEFAULT")) == NULL)
+      print_scaling = "auto";
+
+  image_width  = CGImageGetWidth(image);
+  image_height = CGImageGetHeight(image);
+
+  if ((image_height < image_width && ras.header.cupsWidth < ras.header.cupsHeight) ||
+       (image_width < image_height && ras.header.cupsHeight < ras.header.cupsWidth))
+  {
+   /*
+    * Rotate image 90 degrees...
+    */
+
+    image_rotation = 90;
+  }
+  else
+  {
+   /*
+    * Leave image as-is...
+    */
+
+    image_rotation = 0;
+  }
+
+  if (Verbosity > 1)
+    fprintf(stderr, "DEBUG: image_width=%u, image_height=%u, image_rotation=%d\n", (unsigned)image_width, (unsigned)image_height, image_rotation);
+
+  if ((!strcmp(print_scaling, "auto") && ras.borderless) || !strcmp(print_scaling, "fill"))
+  {
+   /*
+    * Scale to fill...
+    */
+
+    if (image_rotation)
+    {
+      image_xscale = ras.header.cupsPageSize[0] / (double)image_height;
+      image_yscale = ras.header.cupsPageSize[1] / (double)image_width;
+    }
+    else
+    {
+      image_xscale = ras.header.cupsPageSize[0] / (double)image_width;
+      image_yscale = ras.header.cupsPageSize[1] / (double)image_height;
+    }
+
+    if (image_xscale < image_yscale)
+      image_xscale = image_yscale;
+    else
+      image_yscale = image_xscale;
+
+  }
+  else
+  {
+   /*
+    * Scale to fit with 1/4" margins...
+    */
+
+    if (image_rotation)
+    {
+      image_xscale = (ras.header.cupsPageSize[0] - 36.0) / (double)image_height;
+      image_yscale = (ras.header.cupsPageSize[1] - 36.0) / (double)image_width;
+    }
+    else
+    {
+      image_xscale = (ras.header.cupsPageSize[0] - 36.0) / (double)image_width;
+      image_yscale = (ras.header.cupsPageSize[1] - 36.0) / (double)image_height;
+    }
+
+    if (image_xscale > image_yscale)
+      image_xscale = image_yscale;
+    else
+      image_yscale = image_xscale;
+  }
+
+  if (image_rotation)
+  {
+    transform = CGAffineTransformMake(image_xscale, 0, 0, image_yscale, 0.5 * (ras.header.cupsPageSize[0] - image_xscale * image_height), 0.5 * (ras.header.cupsPageSize[1] - image_yscale * image_width));
+  }
+  else
+  {
+    transform = CGAffineTransformMake(image_xscale, 0, 0, image_yscale, 0.5 * (ras.header.cupsPageSize[0] - image_xscale * image_width), 0.5 * (ras.header.cupsPageSize[1] - image_yscale * image_height));
+  }
+
+ /*
+  * Draw all of the copies...
+  */
+
+  (*(ras.start_job))(&ras, cb, ctx);
+
+  for (copy = 0; copy < ras.copies; copy ++)
+  {
+    unsigned		y,		/* Current line */
+			band_starty = 0,/* Start line of band */
+			band_endy = 0;	/* End line of band */
+    unsigned char	*lineptr;	/* Pointer to line */
+
+    if (Verbosity > 1)
+      fprintf(stderr, "DEBUG: Printing copy %d/%d, transform=[%g %g %g %g %g %g]\n", copy + 1, ras.copies, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
+
+    (*(ras.start_page))(&ras, 1, cb, ctx);
+
+    for (y = ras.top; y <= ras.bottom; y ++)
+    {
+      if (y >= band_endy)
+      {
+       /*
+	* Draw the next band of raster data...
+	*/
+
+	band_starty = y;
+	band_endy   = y + ras.band_height;
+	if (band_endy > ras.bottom)
+	  band_endy = ras.bottom;
+
+	if (Verbosity > 1)
+	  fprintf(stderr, "DEBUG: Drawing band from %u to %u.\n", band_starty, band_endy);
+
+	CGContextSaveGState(context);
+	  if (ras.header.cupsNumColors == 1)
+	    CGContextSetGrayFillColor(context, 1., 1.);
+	  else
+	    CGContextSetRGBFillColor(context, 1., 1., 1., 1.);
+
+	  CGContextSetCTM(context, CGAffineTransformIdentity);
+	  CGContextFillRect(context, CGRectMake(0., 0., ras.header.cupsWidth, ras.band_height));
+	CGContextRestoreGState(context);
+
+	CGContextSaveGState(context);
+	  if (Verbosity > 1)
+	    fprintf(stderr, "DEBUG: Band translate 0.0,%g\n", y / yscale);
+	  CGContextTranslateCTM(context, 0.0, y / yscale);
+	  CGContextConcatCTM(context, transform);
+
+          if (image_rotation)
+	    CGContextConcatCTM(context, CGAffineTransformMake(0, -1, 1, 0, 0, image_width));
+
+	  CGContextDrawImage(context, CGRectMake(0, 0, image_width, image_height), image);
+	CGContextRestoreGState(context);
+      }
+
+     /*
+      * Prepare and write a line...
+      */
+
+      lineptr = ras.band_buffer + (y - band_starty) * band_size + ras.left * ras.band_bpp;
+      if (ras.band_bpp == 4)
+	pack_pixels(lineptr, ras.right - ras.left + 1);
+
+      (*(ras.write_line))(&ras, y, lineptr, cb, ctx);
+    }
+
+    (*(ras.end_page))(&ras, 1, cb, ctx);
+
+    impressions ++;
+    fprintf(stderr, "ATTR: job-impressions-completed=%u\n", impressions);
+    media_sheets ++;
+    fprintf(stderr, "ATTR: job-media-sheets-completed=%u\n", media_sheets);
+  }
+
+  (*(ras.end_job))(&ras, cb, ctx);
+
+  CFRelease(image);
+  CGContextRelease(context);
+
+  return (0);
 }
 
 
@@ -1162,7 +1434,6 @@ xform_pdf(const char       *filename,	/* I - File to transform */
     info         = kCGImageAlphaNoneSkipLast;
     cs           = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
   }
-
 
   band_size = ras.header.cupsWidth * ras.band_bpp;
   if ((ras.band_height = XFORM_MAX_RASTER / band_size) < 1)
@@ -1426,7 +1697,11 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     int			num_cols;	/* Number of collection values */
     cups_option_t	*cols;		/* Collection values */
     const char		*media_size_name,
-			*media_size;	/* Collection attributes */
+			*media_size,	/* Collection attributes */
+			*media_bottom_margin,
+			*media_left_margin,
+			*media_right_margin,
+			*media_top_margin;
 
     num_cols = cupsParseOptions(media_col, 0, &cols);
     if ((media_size_name = cupsGetOption("media-size-name", num_cols, cols)) != NULL)
@@ -1461,6 +1736,16 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
       cupsFreeOptions(num_sizes, sizes);
     }
 
+   /*
+    * Check whether the media-col is for a borderless size...
+    */
+
+    if ((media_bottom_margin = cupsGetOption("media-bottom-margin", num_cols, cols)) != NULL && !strcmp(media_bottom_margin, "0") &&
+        (media_left_margin = cupsGetOption("media-left-margin", num_cols, cols)) != NULL && !strcmp(media_left_margin, "0") &&
+        (media_right_margin = cupsGetOption("media-right-margin", num_cols, cols)) != NULL && !strcmp(media_right_margin, "0") &&
+        (media_top_margin = cupsGetOption("media-top-margin", num_cols, cols)) != NULL && !strcmp(media_top_margin, "0"))
+      ras->borderless = 1;
+
     cupsFreeOptions(num_cols, cols);
   }
 
@@ -1482,6 +1767,13 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
       return (-1);
     }
   }
+
+ /*
+  * Map certain photo sizes (4x6, 5x7, 8x10) to borderless...
+  */
+
+  if ((pwg_media->width == 10160 && pwg_media->length == 15240) ||(pwg_media->width == 12700 && pwg_media->length == 17780) ||(pwg_media->width == 20320 && pwg_media->length == 25400))
+    ras->borderless = 1;
 
  /*
   * Figure out the proper resolution, etc.

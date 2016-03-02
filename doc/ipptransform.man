@@ -106,6 +106,10 @@ Specifies the color mode as "auto" (automatic), "monochrome" (grayscale), or "co
 .B print-quality
 Specifies the print quality with value 3 (draft), 4 (normal), or 5 (high/best).
 .TP 5
+.B print-scaling
+Specifies the scaling to use when converting image files.
+The values "auto", "fit", and "fill" are supported.
+.TP 5
 .B printer-resolution
 Specifies the print resolution using one of the supported print resolutions.
 .TP 5
