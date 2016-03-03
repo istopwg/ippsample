@@ -1011,7 +1011,7 @@ raster_write_line(
 static void
 usage(int status)			/* I - Exit status */
 {
-  puts("Usage: ipptransform [options] filename");
+  puts("Usage: ipptransform [options] filename\n");
   puts("Options:");
   puts("  --help");
   puts("  -d device-uri");
@@ -1021,7 +1021,13 @@ usage(int status)			/* I - Exit status */
   puts("  -r resolution[,...,resolution]");
   puts("  -s {flipped|manual-tumble|normal|rotated}");
   puts("  -t type[,...,type]");
-  puts("  -v");
+  puts("  -v\n");
+  puts("Device URIs: socket://address-or-hostname[:port]");
+  puts("Input Formats: application/pdf, image/jpeg");
+  puts("Output Formats: application/vnd.hp-pcl, image/pwg-raster");
+  puts("Options: copies, media, media-col, page-ranges, print-color-mode, print-quality, print-scaling, printer-resolution, sides");
+  puts("Resolutions: NNNdpi or NNNxNNNdpi");
+  puts("Types: black_1, sgray_1, sgray_8, srgb_8");
 
   exit(status);
 }
