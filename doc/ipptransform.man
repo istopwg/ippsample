@@ -36,7 +36,7 @@ ipptranaform \- convert document data to alternate formats
 .I {flipped|manual-tumble|normal|rotated}
 ] [
 .B \-t
-.I sgray_8[,srgb_8]
+.I type[,...,type]
 ] [
 .B \-v
 ]
@@ -76,9 +76,9 @@ Resolutions are of the form "NNNdpi" or "NNNxNNNdpi", for example "300dpi" or "6
 HP PCL output only supports resolutions of "300dpi" and "600dpi".
 .BR \-s \ {flipped|manual-tumble|normal|rotated}
 Specifies the coordinate system for the back side of duplex sheets.
-.BR \-t \ sgray_8[,srgb_8]
+.BR \-t \ type[,...,type]
 Specifies the output color spaces and bit depths, separated by commas.
-Currently only the "sgray_8" (8-bit grayscale with 2.2 gamma) and "srgb_8" (8-bit sRGB color) color spaces and bit depths are supported.
+Currently only the "sgray_8" (8-bit grayscale with 2.2 gamma), "sgray_1" (1-bit grayscale), "black_1" (1-bit black), and "srgb_8" (8-bit sRGB color) color spaces and bit depths are supported.
 .B \-v
 Increases the verbosity for any diagnostics.
 .SH NAMED OPTIONS

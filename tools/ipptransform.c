@@ -23,7 +23,7 @@
 
 extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
 
-#include "threshold64.h"
+#include "dither.h"
 
 
 /*
@@ -860,10 +860,15 @@ raster_end_page(xform_raster_t   *ras,	/* I - Raster information */
 		xform_write_cb_t cb,	/* I - Write callback */
 		void             *ctx)	/* I - Write context */
 {
-  (void)ras;
   (void)page;
   (void)cb;
   (void)ctx;
+
+  if (ras->header.cupsBitsPerPixel == 1)
+  {
+    free(ras->out_buffer);
+    ras->out_buffer = NULL;
+  }
 }
 
 
@@ -917,6 +922,12 @@ raster_start_page(xform_raster_t   *ras,/* I - Raster information */
     cupsRasterWriteHeader2(ras->ras, &ras->back_header);
   else
     cupsRasterWriteHeader2(ras->ras, &ras->header);
+
+  if (ras->header.cupsBitsPerPixel == 1)
+  {
+    ras->out_length = ras->header.cupsBytesPerLine;
+    ras->out_buffer = malloc(ras->header.cupsBytesPerLine);
+  }
 }
 
 
@@ -932,11 +943,64 @@ raster_write_line(
     xform_write_cb_t    cb,		/* I - Write callback */
     void                *ctx)		/* I - Write context */
 {
-  (void)y;
   (void)cb;
   (void)ctx;
 
-  cupsRasterWritePixels(ras->ras, (unsigned char *)line, ras->header.cupsBytesPerLine);
+  if (ras->header.cupsBitsPerPixel == 1)
+  {
+   /*
+    * Dither the line into the output buffer...
+    */
+
+    unsigned		x;		/* Column number */
+    unsigned char	bit,		/* Current bit */
+			byte,		/* Current byte */
+			*outptr;	/* Pointer into output buffer */
+
+    y &= 63;
+
+    if (ras->header.cupsColorSpace == CUPS_CSPACE_SW)
+    {
+      for (x = ras->left, bit = 128, byte = 0, outptr = ras->out_buffer; x <= ras->right; x ++, line ++)
+      {
+	if (*line > threshold[x % 25][y])
+	  byte |= bit;
+
+	if (bit == 1)
+	{
+	  *outptr++ = byte;
+	  byte      = 0;
+	  bit       = 128;
+	}
+	else
+	  bit >>= 1;
+      }
+    }
+    else
+    {
+      for (x = ras->left, bit = 128, byte = 0, outptr = ras->out_buffer; x <= ras->right; x ++, line ++)
+      {
+	if (*line <= threshold[x & 63][y])
+	  byte |= bit;
+
+	if (bit == 1)
+	{
+	  *outptr++ = byte;
+	  byte      = 0;
+	  bit       = 128;
+	}
+	else
+	  bit >>= 1;
+      }
+    }
+
+    if (bit != 128)
+      *outptr++ = byte;
+
+    cupsRasterWritePixels(ras->ras, ras->out_buffer, ras->header.cupsBytesPerLine);
+  }
+  else
+    cupsRasterWritePixels(ras->ras, (unsigned char *)line, ras->header.cupsBytesPerLine);
 }
 
 
@@ -956,7 +1020,7 @@ usage(int status)			/* I - Exit status */
   puts("  -o \"name=value [... name=value]\"");
   puts("  -r resolution[,...,resolution]");
   puts("  -s {flipped|manual-tumble|normal|rotated}");
-  puts("  -t sgray_8[,srgb_8]");
+  puts("  -t type[,...,type]");
   puts("  -v");
 
   exit(status);
@@ -1071,7 +1135,7 @@ xform_jpeg(const char       *filename,	/* I - File to transform */
     return (1);
   }
 
-  if (ras.header.cupsBitsPerPixel == 8)
+  if (ras.header.cupsBitsPerPixel != 24)
   {
    /*
     * Grayscale output...
@@ -1414,7 +1478,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
     return (1);
   }
 
-  if (ras.header.cupsBitsPerPixel == 8)
+  if (ras.header.cupsBitsPerPixel != 24)
   {
    /*
     * Grayscale output...
@@ -1639,7 +1703,8 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
 		*printer_resolution,	/* "printer-resolution" option */
 		*sides,			/* "sides" option */
 		*type;			/* Raster type to use */
-  int		xdpi, ydpi;		/* Resolution to use */
+  int		draft = 0,		/* Draft quality? */
+		xdpi, ydpi;		/* Resolution to use */
   cups_array_t	*res_array,		/* Resolutions in array */
 		*type_array;		/* Types in array */
 
@@ -1795,6 +1860,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
       switch (atoi(print_quality))
       {
         case IPP_QUALITY_DRAFT :
+	    draft              = 1;
 	    printer_resolution = cupsArrayIndex(res_array, 0);
 	    break;
 
@@ -1850,6 +1916,10 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
 
   if (color && cupsArrayFind(type_array, "srgb_8"))
     type = "srgb_8";
+  else if (draft && cupsArrayFind(type_array, "black_1"))
+    type = "black_1";
+  else if (draft && cupsArrayFind(type_array, "sgray_1"))
+    type = "sgray_1";
   else
     type = "sgray_8";
 
