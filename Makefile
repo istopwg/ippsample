@@ -65,6 +65,17 @@ depend:
 
 
 #
+# Install everything...
+#
+
+install:
+	for dir in $(DIRS) doc; do \
+		echo Installing in $$dir...; \
+		(cd $$dir; $(MAKE) $(MFLAGS) install); \
+	done
+
+
+#
 # Run the Clang static code analysis tool on the sources, available here:
 #
 #    http://clang-analyzer.llvm.org

@@ -54,6 +54,15 @@ depend:
 
 
 #
+# Install the proxy.
+#
+
+install:	all
+	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(sbindir)
+	$(INSTALL_BIN) ippproxy $(BUILDROOT)$(sbindir)
+
+
+#
 # ippproxy
 #
 

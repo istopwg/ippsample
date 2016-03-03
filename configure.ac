@@ -1,8 +1,6 @@
 dnl
-dnl Configuration script for the IPP Everywhere Printer Self-Certification
-dnl tools.
+dnl Configuration script for the IPP sample code.
 dnl
-dnl Copyright 2015-2016 by the ISTO Printer Working Group.
 dnl Copyright 2007-2016 by Apple Inc.
 dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
 dnl
@@ -17,7 +15,7 @@ dnl We need at least autoconf 2.60...
 AC_PREREQ(2.60)
 
 dnl Package name and version...
-AC_INIT([IPPSAMPLE], [20160229], [https://github.com/istopwg/ippsample/issues], [ippsample], [http://www.pwg.org/ipp/])
+AC_INIT([IPPSAMPLE], [20160303], [https://github.com/istopwg/ippsample/issues], [ippsample], [http://www.pwg.org/ipp/])
 
 dnl Include common configuration scripts...
 sinclude(config-scripts/cups-opsys.m4)

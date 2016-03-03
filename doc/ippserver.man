@@ -9,7 +9,7 @@
 .\" which should have been included with this file.  If this file is
 .\" file is missing or damaged, see the license at "http://www.cups.org/".
 .\"
-.TH ippserver 1 "ippsample" "2 March 2016" "Apple Inc."
+.TH ippserver 8 "ippsample" "2 March 2016" "Apple Inc."
 .SH NAME
 ippserver \- a simple ipp server
 .SH SYNOPSIS

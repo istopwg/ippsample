@@ -1,7 +1,5 @@
 dnl
-dnl "$Id: cups-compiler.m4 12742 2015-06-23 14:48:53Z msweet $"
-dnl
-dnl Compiler stuff for CUPS.
+dnl Compiler stuff for the IPP sample code.
 dnl
 dnl Copyright 2007-2016 by Apple Inc.
 dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
@@ -102,11 +100,6 @@ if test -n "$GCC"; then
 		fi
 	fi
 
-	# Generate position-independent code as needed...
-	if test $PICFLAG = 1; then
-    		OPTIM="-fPIC $OPTIM"
-	fi
-
 	# The -fstack-protector option is available with some versions of
 	# GCC and adds "stack canaries" which detect when the return address
 	# has been overwritten, preventing many types of exploit attacks.
@@ -114,43 +107,34 @@ if test -n "$GCC"; then
 	OLDCFLAGS="$CFLAGS"
 	CFLAGS="$CFLAGS -fstack-protector"
 	AC_TRY_LINK(,,
-		if test "x$LSB_BUILD" = xy; then
-			# Can't use stack-protector with LSB binaries...
-			OPTIM="$OPTIM -fno-stack-protector"
-		else
-			OPTIM="$OPTIM -fstack-protector"
-		fi
+		OPTIM="$OPTIM -fstack-protector"
 		AC_MSG_RESULT(yes),
 		AC_MSG_RESULT(no))
 	CFLAGS="$OLDCFLAGS"
 
-	if test "x$LSB_BUILD" != xy; then
-		# The -fPIE option is available with some versions of GCC and
-		# adds randomization of addresses, which avoids another class of
-		# exploits that depend on a fixed address for common functions.
-		#
-		# Not available to LSB binaries...
-		AC_MSG_CHECKING(whether compiler supports -fPIE)
-		OLDCFLAGS="$CFLAGS"
-		case "$uname" in
-			Darwin*)
-				CFLAGS="$CFLAGS -fPIE -Wl,-pie"
-				AC_TRY_COMPILE(,,[
-					PIEFLAGS="-fPIE -Wl,-pie"
-					AC_MSG_RESULT(yes)],
-					AC_MSG_RESULT(no))
-				;;
+	# The -fPIE option is available with some versions of GCC and
+	# adds randomization of addresses, which avoids another class of
+	# exploits that depend on a fixed address for common functions.
+	AC_MSG_CHECKING(whether compiler supports -fPIE)
+	OLDCFLAGS="$CFLAGS"
+	case "$uname" in
+		Darwin*)
+			CFLAGS="$CFLAGS -fPIE -Wl,-pie"
+			AC_TRY_COMPILE(,,[
+				PIEFLAGS="-fPIE -Wl,-pie"
+				AC_MSG_RESULT(yes)],
+				AC_MSG_RESULT(no))
+			;;
 
-			*)
-				CFLAGS="$CFLAGS -fPIE -pie"
-				AC_TRY_COMPILE(,,[
-					PIEFLAGS="-fPIE -pie"
-					AC_MSG_RESULT(yes)],
-					AC_MSG_RESULT(no))
-				;;
-		esac
-		CFLAGS="$OLDCFLAGS"
-	fi
+		*)
+			CFLAGS="$CFLAGS -fPIE -pie"
+			AC_TRY_COMPILE(,,[
+				PIEFLAGS="-fPIE -pie"
+				AC_MSG_RESULT(yes)],
+				AC_MSG_RESULT(no))
+			;;
+	esac
+	CFLAGS="$OLDCFLAGS"
 
 	if test "x$with_optim" = x; then
 		# Add useful warning options for tracking down problems...
@@ -183,10 +167,8 @@ if test -n "$GCC"; then
 			AC_MSG_RESULT(no))
 		CFLAGS="$OLDCFLAGS"
 
-		# Additional warning options for development testing...
-		if test -d .svn; then
-			OPTIM="-Werror $OPTIM"
-		fi
+		# Error out on any warnings...
+		OPTIM="-Werror $OPTIM"
 	fi
 
 	case "$uname" in
@@ -219,19 +201,11 @@ else
 					OPTIM="$with_optim $OPTIM"
 				fi
 			fi
-
-			if test $PICFLAG = 1; then
-				OPTIM="-KPIC $OPTIM"
-			fi
 			;;
 		*)
-			# Running some other operating system; inform the user they
-			# should contribute the necessary options to
-			# cups-support@cups.org...
-			echo "Building CUPS with default compiler optimizations; contact"
-			echo "cups-devel@cups.org with uname and compiler options needed"
-			echo "for your platform, or set the CFLAGS and LDFLAGS environment"
-			echo "variables before running configure."
+			# Running some other operating system...
+			echo "Building with default compiler optimizations; use the"
+			echo "--with-optim option to override these."
 			;;
 	esac
 fi
@@ -244,7 +218,3 @@ case $uname in
 		OPTIM="$OPTIM -D_GNU_SOURCE"
 		;;
 esac
-
-dnl
-dnl End of "$Id: cups-compiler.m4 12742 2015-06-23 14:48:53Z msweet $".
-dnl

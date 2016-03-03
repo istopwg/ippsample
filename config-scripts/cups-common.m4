@@ -51,6 +51,11 @@ if test "x$CC" = x; then
 	AC_MSG_ERROR([Unable to find required C compiler command.])
 fi
 
+AC_MSG_CHECKING(for install-sh script)
+INSTALL="`pwd`/install-sh"
+AC_SUBST(INSTALL)
+AC_MSG_RESULT(using $INSTALL)
+
 dnl Check for pkg-config, which is used for some other tests later on...
 AC_PATH_TOOL(PKGCONFIG, pkg-config)
 
@@ -137,13 +142,18 @@ AC_TRY_COMPILE([#include <sys/stat.h>],[struct stat t;
 	AC_MSG_RESULT(no))
 
 dnl ZLIB
+INSTALL_GZIP=""
 LIBZ=""
 AC_CHECK_HEADER(zlib.h,
     AC_CHECK_LIB(z, gzgets,
 	AC_DEFINE(HAVE_LIBZ)
 	LIBZ="-lz"
 	LIBS="$LIBS -lz"
-	AC_CHECK_LIB(z, inflateCopy, AC_DEFINE(HAVE_INFLATECOPY))))
+	AC_CHECK_LIB(z, inflateCopy, AC_DEFINE(HAVE_INFLATECOPY))
+	if test "x$GZIP" != z; then
+		INSTALL_GZIP="-z"
+	fi))
+AC_SUBST(INSTALL_GZIP)
 AC_SUBST(LIBZ)
 
 dnl Flags for "ar" command...

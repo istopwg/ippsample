@@ -1,7 +1,7 @@
 #
 # IPP documentation makefile.
 #
-# Copyright 2015 by Apple Inc.
+# Copyright 2015-2016 by Apple Inc.
 #
 # These coded instructions, statements, and computer programs are the
 # property of Apple Inc. and are protected by Federal copyright
@@ -17,6 +17,16 @@ OBJS		=	\
 			mantohtml.o
 TARGETS		=	\
 			mantohtml
+MAN1		=	\
+			ippfind.man \
+			ipptool.man \
+			ipptransform.man
+MAN5		=	\
+			ipptoolfile.man
+
+MAN8		=	\
+			ippproxy.man \
+			ippserver.man
 HTML		=	\
 			ippfind.html \
 			ippproxy.html \
@@ -57,6 +67,28 @@ clean:
 
 depend:
 	$(CC) -MM $(ALL_CFLAGS) $(OBJS:.o=.c) >Dependencies
+
+
+#
+# Install man pages...
+#
+
+install:
+	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(mandir)/man1
+	for file in $(MAN1); do \
+		man="`basename $$file .man`.1"; \
+		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man1/$$man; \
+	done
+	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(mandir)/man5
+	for file in $(MAN5); do \
+		man="`basename $$file .man`.5"; \
+		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man5/$$man; \
+	done
+	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(mandir)/man8
+	for file in $(MAN8); do \
+		man="`basename $$file .man`.8"; \
+		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man8/$$man; \
+	done
 
 
 #

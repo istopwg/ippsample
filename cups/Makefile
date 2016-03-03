@@ -99,6 +99,20 @@ depend:
 
 
 #
+# Install the client library...
+#
+
+install:	all
+	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(libdir)
+	$(INSTALL_LIB) -m 755 libcups.a $(BUILDROOT)$(libdir)
+	$(RANLIB) $(BUILDROOT)$(libdir)/libcups.a
+	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(includedir)/cups
+	for file in $(PUBLIC_HEADERS); do \
+		$(INSTALL_DATA) $$file $(BUILDROOT)$(includedir)/cups; \
+	done
+
+
+#
 # libcups.a
 #
 

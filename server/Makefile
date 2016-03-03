@@ -1,7 +1,7 @@
 #
 # Makefile for sample IPP server implementation.
 #
-# Copyright 2015 by Apple Inc.
+# Copyright 2015-2016 by Apple Inc.
 #
 # These coded instructions, statements, and computer programs are the
 # property of Apple Inc. and are protected by Federal copyright
@@ -30,7 +30,7 @@ OBJS =	\
 		printer.o \
 		subscription.o \
 		transform.o
-		
+
 
 #
 # Targets in this directory...
@@ -60,6 +60,15 @@ clean:
 
 depend:
 	$(CC) -MM $(ALL_CFLAGS) $(OBJS:.o=.c) >Dependencies
+
+
+#
+# Install the server.
+#
+
+install:	all
+	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(sbindir)
+	$(INSTALL_BIN) ippserver $(BUILDROOT)$(sbindir)
 
 
 #
