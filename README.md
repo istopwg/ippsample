@@ -30,6 +30,10 @@ The ippserver program implements a generic IPP Printer interface that allows you
 to host shared printers using the IPP Shared Infrastructure Extensions as well
 as support local printing or document processing.
 
+## ipptransform
+
+The ipptransform program is a generic file conversion utility that is used primarily with ippserver to support rasterization of JPEG and PDF documents for IPP Everywhere and HP PCL printers.
+
 # Legal Stuff
 
 This code is Copyright 2014-2016 by The Printer Working Group and Copyright
