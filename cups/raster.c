@@ -682,7 +682,7 @@ cupsRasterReadPixels(cups_raster_t *r,	/* I - Raster stream */
 	  }
 
 	  temp  += count;
-	  bytes -= count;
+	  bytes -= (ssize_t)count;
 	}
 	else
 	{
@@ -697,7 +697,7 @@ cupsRasterReadPixels(cups_raster_t *r,	/* I - Raster stream */
           if (count < r->bpp)
 	    break;
 
-	  bytes -= count;
+	  bytes -= (ssize_t)count;
 
           if (!cups_raster_read(r, temp, r->bpp))
 	  {

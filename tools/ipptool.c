@@ -862,7 +862,7 @@ do_tests(FILE         *outfile,		/* I - Output file */
   * Loop on tests...
   */
 
-  CUPS_SRAND(time(NULL));
+  CUPS_SRAND((unsigned)time(NULL));
 
   errors     = cupsArrayNew3(NULL, NULL, NULL, 0, (cups_acopy_func_t)strdup,
                              (cups_afree_func_t)free);
