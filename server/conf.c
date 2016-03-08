@@ -30,6 +30,9 @@ static _cups_mutex_t	printer_mutex = _CUPS_MUTEX_INITIALIZER;
  */
 
 static int		compare_printers(server_printer_t *a, server_printer_t *b);
+#ifdef HAVE_AVAHI
+static void		dnssd_client_cb(AvahiClient *c, AvahiClientState state, void *userdata);
+#endif /* HAVE_AVAHI */
 static ipp_t		*get_collection(cups_file_t *fp, const char *filename, int *linenum);
 static char		*get_token(cups_file_t *fp, char *buf, int buflen, int *linenum);
 static int		load_system(const char *conf);
@@ -163,7 +166,7 @@ serverFinalizeConfiguration(void)
     */
 
     if (!DefaultPort)
-      DefaultPort = 8000 + (getuid() % 1000);
+      DefaultPort = 8000 + ((int)getuid() % 1000);
 #endif /* WIN32 */
 
     serverLog(SERVER_LOGLEVEL_INFO, "Using default listeners for %s:%d.", ServerName, DefaultPort);
@@ -688,6 +691,42 @@ compare_printers(server_printer_t *a,	/* I - First printer */
 }
 
 
+#ifdef HAVE_AVAHI
+/*
+ * 'dnssd_client_cb()' - Client callback for Avahi.
+ *
+ * Called whenever the client or server state changes...
+ */
+
+static void
+dnssd_client_cb(
+    AvahiClient      *c,		/* I - Client */
+    AvahiClientState state,		/* I - Current state */
+    void             *userdata)		/* I - User data (unused) */
+{
+  (void)userdata;
+
+  if (!c)
+    return;
+
+  switch (state)
+  {
+    default :
+        fprintf(stderr, "Ignore Avahi state %d.\n", state);
+	break;
+
+    case AVAHI_CLIENT_FAILURE:
+	if (avahi_client_errno(c) == AVAHI_ERR_DISCONNECTED)
+	{
+	  fputs("Avahi server crashed, exiting.\n", stderr);
+	  exit(1);
+	}
+	break;
+  }
+}
+#endif /* HAVE_AVAHI */
+
+
 /*
  * 'get_collection()' - Get a collection value from a file.
  */
@@ -1104,7 +1143,7 @@ load_system(const char *conf)		/* I - Configuration file */
         port   = atoi(ptr);
       }
       else
-        port = 8000 + (getuid() % 1000);
+        port = 8000 + ((int)getuid() % 1000);
 
       if (!serverCreateListeners(value, port))
       {

@@ -1366,7 +1366,7 @@ ipp_get_printer_attributes(
 
   if (!ra || cupsArrayFind(ra, "printer-state"))
     ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_ENUM,
-                  "printer-state", printer->state > printer->dev_state ? printer->state : printer->dev_state);
+                  "printer-state", printer->state > printer->dev_state ? (int)printer->state : (int)printer->dev_state);
 
   if (!ra || cupsArrayFind(ra, "printer-state-change-date-time"))
     ippAddDate(client->response, IPP_TAG_PRINTER, "printer-state-change-date-time", ippTimeToDate(printer->state_time));

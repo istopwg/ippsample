@@ -381,7 +381,7 @@ serverGetJobStateReasonsBits(
     {
       if (!strcmp(keyword, server_jreasons[j]))
       {
-        jreasons |= 1 << j;
+        jreasons |= (server_jreason_t)(1 << j);
 	break;
       }
     }

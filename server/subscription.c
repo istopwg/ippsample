@@ -260,7 +260,7 @@ serverGetNotifyEventsBits(
     {
       if (!strcmp(keyword, server_jreasons[j]))
       {
-        events |= 1 << j;
+        events |= (server_event_t)(1 << j);
 	break;
       }
     }

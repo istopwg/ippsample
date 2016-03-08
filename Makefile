@@ -29,7 +29,7 @@ DIRS	=	\
 all:
 	for dir in $(DIRS); do \
 		echo Making all in $$dir...; \
-		(cd $$dir; $(MAKE) $(MFLAGS) all); \
+		(cd $$dir; $(MAKE) $(MFLAGS) all) || exit 1; \
 	done
 
 
@@ -40,7 +40,7 @@ all:
 clean:
 	for dir in $(DIRS); do \
 		echo Cleaning all in $$dir...; \
-		(cd $$dir; $(MAKE) $(MFLAGS) clean); \
+		(cd $$dir; $(MAKE) $(MFLAGS) clean) || exit 1; \
 	done
 
 
@@ -60,7 +60,7 @@ distclean:	clean
 depend:
 	for dir in $(DIRS); do \
 		echo Updating dependencies in $$dir...; \
-		(cd $$dir; $(MAKE) $(MFLAGS) depend); \
+		(cd $$dir; $(MAKE) $(MFLAGS) depend) || exit 1; \
 	done
 
 
@@ -71,7 +71,7 @@ depend:
 install:
 	for dir in $(DIRS) doc; do \
 		echo Installing in $$dir...; \
-		(cd $$dir; $(MAKE) $(MFLAGS) install); \
+		(cd $$dir; $(MAKE) $(MFLAGS) install) || exit 1; \
 	done
 
 

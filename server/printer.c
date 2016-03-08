@@ -33,7 +33,6 @@ static void DNSSD_API	dnssd_callback(DNSServiceRef sdRef,
 				       server_printer_t *printer);
 #elif defined(HAVE_AVAHI)
 static void		dnssd_callback(AvahiEntryGroup *p, AvahiEntryGroupState state, void *context);
-static void		dnssd_client_cb(AvahiClient *c, AvahiClientState state, void *userdata);
 #endif /* HAVE_DNSSD */
 static int		register_printer(server_printer_t *printer, const char *location, const char *make, const char *model, const char *formats, const char *adminurl, const char *uuid, int color, int duplex, const char *regtype);
 
@@ -377,7 +376,7 @@ serverCreatePrinter(
 
   serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-more-info=\"%s\"", adminurl);
   serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-supply-info-uri=\"%s\"", supplyurl);
-  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-uri=\"%s\"", cupsArrayFirst(uris));
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-uri=\"%s\"", (char *)cupsArrayFirst(uris));
 
   snprintf(make_model, sizeof(make_model), "%s %s", make, model);
 
@@ -1070,7 +1069,7 @@ serverGetPrinterStateReasonsBits(
     {
       if (!strcmp(keyword, server_preasons[j]))
       {
-        preasons |= 1 << j;
+        preasons |= (server_preason_t)(1 << j);
 	break;
       }
     }
@@ -1190,40 +1189,6 @@ dnssd_callback(
   (void)srv;
   (void)state;
   (void)context;
-}
-
-
-/*
- * 'dnssd_client_cb()' - Client callback for Avahi.
- *
- * Called whenever the client or server state changes...
- */
-
-static void
-dnssd_client_cb(
-    AvahiClient      *c,		/* I - Client */
-    AvahiClientState state,		/* I - Current state */
-    void             *userdata)		/* I - User data (unused) */
-{
-  (void)userdata;
-
-  if (!c)
-    return;
-
-  switch (state)
-  {
-    default :
-        fprintf(stderr, "Ignore Avahi state %d.\n", state);
-	break;
-
-    case AVAHI_CLIENT_FAILURE:
-	if (avahi_client_errno(c) == AVAHI_ERR_DISCONNECTED)
-	{
-	  fputs("Avahi server crashed, exiting.\n", stderr);
-	  exit(1);
-	}
-	break;
-  }
 }
 #endif /* HAVE_DNSSD */
 
@@ -1358,6 +1323,8 @@ register_printer(
   TXTRecordDeallocate(&ipp_txt);
 
 #elif defined(HAVE_AVAHI)
+  server_listener_t	*lis = cupsArrayFirst(Listeners);
+					/* Listen socket */
   char		temp[256];		/* Subtype service string */
 
  /*

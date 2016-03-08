@@ -19,9 +19,9 @@
 
 #ifdef __APPLE__
 #  include <ApplicationServices/ApplicationServices.h>
-#endif /* __APPLE__ */
 
 extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
+#endif /* __APPLE__ */
 
 #include "dither.h"
 
@@ -32,12 +32,14 @@ extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
 
 #define XFORM_MAX_RASTER	16777216
 
-#define XFORM_RED_MASK		0x000000ff
-#define XFORM_GREEN_MASK	0x0000ff00
-#define XFORM_BLUE_MASK		0x00ff0000
-#define XFORM_RGB_MASK		(XFORM_RED_MASK | XFORM_GREEN_MASK |  XFORM_BLUE_MASK)
-#define XFORM_BG_MASK		(XFORM_BLUE_MASK | XFORM_GREEN_MASK)
-#define XFORM_RG_MASK		(XFORM_RED_MASK | XFORM_GREEN_MASK)
+#ifdef __APPLE__
+#  define XFORM_RED_MASK		0x000000ff
+#  define XFORM_GREEN_MASK	0x0000ff00
+#  define XFORM_BLUE_MASK		0x00ff0000
+#  define XFORM_RGB_MASK		(XFORM_RED_MASK | XFORM_GREEN_MASK |  XFORM_BLUE_MASK)
+#  define XFORM_BG_MASK		(XFORM_BLUE_MASK | XFORM_GREEN_MASK)
+#  define XFORM_RG_MASK		(XFORM_RED_MASK | XFORM_GREEN_MASK)
+#endif /* __APPLE__ */
 
 
 /*
@@ -92,7 +94,9 @@ static int	Verbosity = 0;		/* Log level */
  */
 
 static int	load_env_options(cups_option_t **options);
+#ifdef __APPLE__
 static void	pack_pixels(unsigned char *row, size_t num_pixels);
+#endif /* __APPLE__ */
 static void	pcl_end_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	pcl_end_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	pcl_init(xform_raster_t *ras);
@@ -399,6 +403,7 @@ load_env_options(
 }
 
 
+#ifdef __APPLE__
 /*
  * 'pack_pixels()' - Pack RGBX scanlines into RGB scanlines.
  *
@@ -450,6 +455,7 @@ pack_pixels(unsigned char *row,		/* I - Row of pixels to pack */
     leftover_pixels --;
   }
 }
+#endif /* __APPLE__ */
 
 
 /*
@@ -1065,6 +1071,7 @@ write_fd(int                 *fd,	/* I - File descriptor */
 }
 
 
+#ifdef __APPLE__
 /*
  * 'xform_jpeg()' - Transform a JPEG image for printing.
  */
@@ -1684,6 +1691,71 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 
   return (0);
 }
+
+
+#else
+/*
+ * 'xform_jpeg()' - Transform a JPEG image for printing.
+ */
+
+static int				/* O - 0 on success, 1 on error */
+xform_jpeg(const char       *filename,	/* I - File to transform */
+           const char       *format,	/* I - Output format (MIME media type) */
+           const char       *resolutions,/* I - Supported resolutions */
+	   const char       *types,	/* I - Supported types */
+           int              num_options,/* I - Number of options */
+           cups_option_t    *options,	/* I - Options */
+           xform_write_cb_t cb,		/* I - Write callback */
+           void             *ctx)	/* I - Write context */
+{
+  xform_raster_t	ras;		/* Raster info */
+  int			color = 1;	/* Color image? */
+
+
+  (void)filename;
+  (void)cb;
+  (void)ctx;
+ 
+   if (xform_setup(&ras, format, resolutions, types, NULL, color, 1, num_options, options))
+  {
+    return (1);
+  }
+
+  return (1);
+}
+
+
+/*
+ * 'xform_pdf()' - Transform a PDF file for printing.
+ */
+
+static int				/* O - 0 on success, 1 on error */
+xform_pdf(const char       *filename,	/* I - File to transform */
+          const char       *format,	/* I - Output format (MIME media type) */
+          const char       *resolutions,/* I - Supported resolutions */
+	  const char       *types,	/* I - Supported types */
+	  const char       *sheet_back,	/* I - Back side transform */
+          int              num_options,	/* I - Number of options */
+          cups_option_t    *options,	/* I - Options */
+          xform_write_cb_t cb,		/* I - Write callback */
+          void             *ctx)	/* I - Write context */
+{
+  xform_raster_t	ras;		/* Raster info */
+  int			color = 1;	/* Color PDF? */
+
+
+  (void)filename;
+  (void)cb;
+  (void)ctx;
+ 
+   if (xform_setup(&ras, format, resolutions, types, sheet_back, color, 1, num_options, options))
+  {
+    return (1);
+  }
+
+  return (1);
+}
+#endif /* __APPLE__ */
 
 
 /*
