@@ -37,7 +37,7 @@ int					/* O - 0 on success, non-zero on error */
 serverTransformJob(
     server_client_t    *client,		/* I - Client connection (if any) */
     server_job_t       *job,		/* I - Job to transform */
-    const char         *command,	/* I - Command to run */
+    const char         *command,		/* I - Command to run */
     const char         *format,		/* I - Destination MIME media type */
     server_transform_t mode)		/* I - Transform mode */
 {
@@ -48,9 +48,9 @@ serverTransformJob(
   char		*myargv[3],		/* Command-line arguments */
 		*myenvp[200];		/* Environment variables */
   int		myenvc;			/* Number of environment variables */
-  ipp_attribute_t *attr;		/* Job attribute */
+  ipp_attribute_t *attr;			/* Job attribute */
   char		val[1280],		/* IPP_NAME=value */
-                *valptr;		/* Pointer into string */
+                *valptr;			/* Pointer into string */
 #ifndef WIN32
   int		mystdout[2] = {-1, -1},	/* Pipe for stdout */
 		mystderr[2] = {-1, -1};	/* Pipe for stderr */
@@ -59,7 +59,7 @@ serverTransformJob(
   char		data[32768],		/* Data from stdout */
 		line[2048],		/* Line from stderr */
                 *ptr,			/* Pointer into line */
-                *endptr;		/* End of line */
+                *endptr;			/* End of line */
   ssize_t	bytes;			/* Bytes read */
 #endif /* !WIN32 */
 

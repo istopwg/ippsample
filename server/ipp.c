@@ -942,12 +942,11 @@ ipp_fetch_document(
     int	i,				/* Looping var */
 	count = ippGetCount(attr);	/* Number of values */
 
-
     for (i = 0; i < count; i ++)
     {
       format = ippGetString(attr, i, NULL);
 
-      serverCreateJobFilename(client->printer, job, NULL, filename, sizeof(filename));
+      serverCreateJobFilename(client->printer, job, format, filename, sizeof(filename));
 
       if (!access(filename, R_OK))
         break;
@@ -955,12 +954,73 @@ ipp_fetch_document(
 
     if (i >= count)
     {
+      if (ippContainsString(attr, "image/pwg-raster"))
+      {
+       /*
+        * Transform and stream document as PWG Raster...
+	*/
+
+	serverRespondIPP(client, IPP_STATUS_OK, NULL);
+	ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, "image/pwg-raster");
+	ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression", NULL, compression ? "gzip" : "none");
+
+        if (httpGetState(client->http) != HTTP_STATE_POST_SEND)
+          httpFlush(client->http);	/* Flush trailing (junk) data */
+
+	serverLogAttributes(client, "Response:", client->response, 2);
+
+	serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s", httpStatus(HTTP_STATUS_OK));
+
+	httpClearFields(client->http);
+	httpSetField(client->http, HTTP_FIELD_CONTENT_TYPE, "application/ipp");
+
+        if (compression)
+	  httpSetField(client->http, HTTP_FIELD_CONTENT_ENCODING, "gzip");
+
+        httpSetLength(client->http, 0);
+	if (httpWriteResponse(client->http, HTTP_STATUS_OK) < 0)
+	  return;
+
+	serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sending %d bytes of IPP response.", (int)ippLength(client->response));
+
+	ippSetState(client->response, IPP_STATE_IDLE);
+
+	if (ippWrite(client->http, client->response) != IPP_STATE_DATA)
+	{
+	  serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Unable to write IPP response.");
+	  return;
+	}
+
+	serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sent IPP response.");
+
+        serverTransformJob(client, job, "ipptransform", "image/pwg-raster", SERVER_TRANSFORM_TO_CLIENT);
+
+	serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sending 0-length chunk.");
+	httpWrite2(client->http, "", 0);
+
+	serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Flushing write buffer.");
+	httpFlushWrite(client->http);
+	return;
+      }
+      else
+      {
+	serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FETCHABLE, "Document not available in requested format.");
+	return;
+      }
+    }
+  }
+  else if ((attr = ippFindAttribute(job->attrs, "document-format", IPP_TAG_MIMETYPE)) != NULL)
+  {
+    format = ippGetString(attr, 0, NULL);
+
+    serverCreateJobFilename(client->printer, job, format, filename, sizeof(filename));
+
+    if (access(filename, R_OK))
+    {
       serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FETCHABLE, "Document not available in requested format.");
       return;
     }
   }
-  else if ((attr = ippFindAttribute(job->attrs, "document-format", IPP_TAG_MIMETYPE)) != NULL)
-    format = ippGetString(attr, 0, NULL);
   else
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FETCHABLE, "Document format unknown.");
@@ -3251,13 +3311,18 @@ serverProcessIPP(
   * Send the HTTP header and return...
   */
 
-  if (httpGetState(client->http) != HTTP_STATE_POST_SEND)
-    httpFlush(client->http);		/* Flush trailing (junk) data */
+  if (httpGetState(client->http) != HTTP_STATE_WAITING)
+  {
+    if (httpGetState(client->http) != HTTP_STATE_POST_SEND)
+      httpFlush(client->http);		/* Flush trailing (junk) data */
 
-  serverLogAttributes(client, "Response:", client->response, 2);
+    serverLogAttributes(client, "Response:", client->response, 2);
 
-  return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "application/ipp",
-                       client->fetch_file >= 0 ? 0 : ippLength(client->response)));
+    return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "application/ipp",
+			 client->fetch_file >= 0 ? 0 : ippLength(client->response)));
+  }
+  else
+    return (1);
 }
 
 
