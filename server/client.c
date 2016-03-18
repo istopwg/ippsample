@@ -102,8 +102,13 @@ serverCreateListeners(const char *host,	/* I - Hostname, IP address, or "*" for 
 
   for (addr = addrlist; addr; addr = addr->next)
   {
-    if ((sock = httpAddrListen(&(addrlist->addr), port)) < 0)
+    if ((sock = httpAddrListen(&(addr->addr), port)) < 0)
+    {
+      char temp[256];			/* Numeric address */
+
+      serverLog(SERVER_LOGLEVEL_ERROR, "Unable to listen on address \"%s\": %s", httpAddrString(&(addr->addr), temp, sizeof(temp)), cupsLastErrorString());
       continue;
+    }
 
     lis = calloc(1, sizeof(server_listener_t));
     lis->fd = sock;

@@ -277,7 +277,7 @@ void serverCreateJobFilename(
   * Create a filename with the job-id, job-name, and document-format (extension)...
   */
 
-  snprintf(fname, fnamesize, "%s/%s/%d-%s.%s", DataDirectory, printer->name, job->id, name, ext);
+  snprintf(fname, fnamesize, "%s/%s/%d-%s.%s", SpoolDirectory, printer->name, job->id, name, ext);
 }
 
 

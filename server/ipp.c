@@ -29,7 +29,7 @@ static void		ipp_cancel_job(server_client_t *client);
 static void		ipp_cancel_my_jobs(server_client_t *client);
 static void		ipp_cancel_subscription(server_client_t *client);
 static void		ipp_close_job(server_client_t *client);
-static void		ipp_serverCreateJob(server_client_t *client);
+static void		ipp_create_job(server_client_t *client);
 static void		ipp_create_xxx_subscriptions(server_client_t *client);
 static void		ipp_deregister_output_device(server_client_t *client);
 static void		ipp_fetch_document(server_client_t *client);
@@ -569,11 +569,11 @@ ipp_close_job(server_client_t *client)	/* I - Client */
 
 
 /*
- * 'ipp_serverCreateJob()' - Create a job object.
+ * 'ipp_create_job()' - Create a job object.
  */
 
 static void
-ipp_serverCreateJob(server_client_t *client)	/* I - Client */
+ipp_create_job(server_client_t *client)	/* I - Client */
 {
   server_job_t		*job;		/* New job */
   cups_array_t		*ra;		/* Attributes to send in response */
@@ -3173,7 +3173,7 @@ serverProcessIPP(
 		break;
 
 	    case IPP_OP_CREATE_JOB :
-		ipp_serverCreateJob(client);
+		ipp_create_job(client);
 		break;
 
 	    case IPP_OP_SEND_DOCUMENT :
@@ -3714,11 +3714,10 @@ valid_job_attributes(
 	  serverRespondUnsupported(client, attr);
 	  valid = 0;
 	}
-	else
+	else if ((supported = ippFindAttribute(client->printer->attrs, "media-size-supported", IPP_TAG_BEGIN_COLLECTION)) != NULL)
 	{
 	  x_value   = ippGetInteger(x_dim, 0);
 	  y_value   = ippGetInteger(y_dim, 0);
-	  supported = ippFindAttribute(client->printer->attrs, "media-size-supported", IPP_TAG_BEGIN_COLLECTION);
 	  count     = ippGetCount(supported);
 
 	  for (i = 0; i < count ; i ++)

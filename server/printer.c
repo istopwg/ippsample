@@ -23,6 +23,8 @@ static int		compare_active_jobs(server_job_t *a, server_job_t *b);
 static int		compare_completed_jobs(server_job_t *a, server_job_t *b);
 static int		compare_devices(server_device_t *a, server_device_t *b);
 static int		compare_jobs(server_job_t *a, server_job_t *b);
+static ipp_t		*create_media_col(const char *media, const char *source, const char *type, int width, int length, int margins);
+static ipp_t		*create_media_size(int width, int length);
 #ifdef HAVE_DNSSD
 static void DNSSD_API	dnssd_callback(DNSServiceRef sdRef,
 				       DNSServiceFlags flags,
@@ -101,20 +103,26 @@ serverCreatePrinter(
   server_listener_t	*lis;		/* Current listener */
   cups_array_t		*uris;		/* Array of URIs */
   char			uri[1024],	/* Printer URI */
-			*uriptr,	/* Current URI */
+			*uriptr,		/* Current URI */
 			**uriptrs,	/* All URIs */
 			icons[1024],	/* printer-icons URI */
 			adminurl[1024],	/* printer-more-info URI */
 			supplyurl[1024],/* printer-supply-info-uri URI */
 			device_id[1024],/* printer-device-id */
 			make_model[128],/* printer-make-and-model */
-			uuid[128];	/* printer-uuid */
+			uuid[128],	/* printer-uuid */
+			spooldir[1024];	/* Per-printer spool directory */
   int			num_formats = 0;/* Number of document-format-supported values */
   char			*defformat = NULL,
 					/* document-format-default value */
 			*formats[100],	/* document-format-supported values */
 			*ptr;		/* Pointer into string */
   const char		*prefix;	/* Prefix string */
+  ipp_attribute_t	*media_col_database,
+					/* media-col-database value */
+			*media_size_supported;
+					/* media-size-supported value */
+  ipp_t			*media_col;	/* media-col-default value */
   int			k_supported;	/* Maximum file size supported */
 #ifdef HAVE_STATVFS
   struct statvfs	spoolinfo;	/* FS info for spool directory */
@@ -216,6 +224,12 @@ serverCreatePrinter(
     "print-quality",
     "sides"
   };
+  static const int media_col_sizes[][2] =
+  {					/* Default media-col sizes */
+    { 21590, 27940 },			/* Letter */
+    { 21590, 35560 },			/* Legal */
+    { 21000, 29700 }			/* A4 */
+  };
   static const char * const media_col_supported[] =
   {					/* media-col-supported values */
     "media-bottom-margin",
@@ -225,6 +239,16 @@ serverCreatePrinter(
     "media-source",
     "media-top-margin",
     "media-type"
+  };
+  static const char * const media_supported[] =
+  {					/* Default media-supported values */
+    "na_letter_8.5x11in"	,		/* Letter */
+    "na_legal_8.5x14in",			/* Legal */
+    "iso_a4_210x297mm"			/* A4 */
+  };
+  static const int media_xxx_margin_supported[] =
+  {					/* Default media-xxx-margin-supported values */
+    635
   };
   static const char * const multiple_document_handling[] =
   {					/* multiple-document-handling-supported values */
@@ -423,13 +447,21 @@ serverCreatePrinter(
   }
 
  /*
+  * Create the printer's spool directory...
+  */
+
+  snprintf(spooldir, sizeof(spooldir), "%s/%s", SpoolDirectory, printer->name);
+  if (mkdir(spooldir, 0755) && errno != EEXIST)
+    serverLog(SERVER_LOGLEVEL_ERROR, "Unable to create spool directory \"%s\": %s", spooldir, strerror(errno));
+
+ /*
   * Get the maximum spool size based on the size of the filesystem used for
   * the spool directory.  If the host OS doesn't support the statfs call
   * or the filesystem is larger than 2TiB, always report INT_MAX.
   */
 
 #ifdef HAVE_STATVFS
-  if (statvfs(SpoolDirectory, &spoolinfo))
+  if (statvfs(spooldir, &spoolinfo))
     k_supported = INT_MAX;
   else if ((spoolsize = (double)spoolinfo.f_frsize *
                         spoolinfo.f_blocks / 1024) > INT_MAX)
@@ -438,7 +470,7 @@ serverCreatePrinter(
     k_supported = (int)spoolsize;
 
 #elif defined(HAVE_STATFS)
-  if (statfs(SpoolDirectory, &spoolinfo))
+  if (statfs(spooldir, &spoolinfo))
     k_supported = INT_MAX;
   else if ((spoolsize = (double)spoolinfo.f_bsize *
                         spoolinfo.f_blocks / 1024) > INT_MAX)
@@ -571,7 +603,6 @@ serverCreatePrinter(
   if (!ippFindAttribute(printer->attrs, "job-sheets-supported", IPP_TAG_ZERO))
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_NAME), "job-sheets-supported", NULL, "none");
 
-#if 0
   /* media-bottom-margin-supported */
   if (!ippFindAttribute(printer->attrs, "media-bottom-margin-supported", IPP_TAG_ZERO))
     ippAddIntegers(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "media-bottom-margin-supported", (int)(sizeof(media_xxx_margin_supported) / sizeof(media_xxx_margin_supported[0])), media_xxx_margin_supported);
@@ -579,75 +610,33 @@ serverCreatePrinter(
   /* media-col-database */
   if (!ippFindAttribute(printer->attrs, "media-col-database", IPP_TAG_ZERO))
   {
-    for (num_database = 0, i = 0;
-	 i < (int)(sizeof(media_col_sizes) / sizeof(media_col_sizes[0]));
-	 i ++)
+    media_col_database = ippAddCollections(printer->attrs, IPP_TAG_PRINTER, "media-col-database", (int)(sizeof(media_col_sizes) / sizeof(media_col_sizes[0])), NULL);
+    for (i = 0; i < (int)(sizeof(media_col_sizes) / sizeof(media_col_sizes[0])); i ++)
     {
-      if (media_col_sizes[i][2] == _IPP_ENV_ONLY)
-	num_database += 3;		/* auto + manual + envelope */
-      else if (media_col_sizes[i][2] == _IPP_PHOTO_ONLY)
-	num_database += 6 * 3;		/* auto + photographic-* from auto, manual, and photo */
-      else
-	num_database += 2;		/* Regular + borderless */
-    }
+      media_col = create_media_col(media_supported[i], NULL, NULL, media_col_sizes[i][0], media_col_sizes[i][1], media_xxx_margin_supported[0]);
 
-    media_col_database = ippAddCollections(printer->attrs, IPP_TAG_PRINTER, "media-col-database", num_database, NULL);
-    for (media_col_index = 0, i = 0;
-	 i < (int)(sizeof(media_col_sizes) / sizeof(media_col_sizes[0]));
-	 i ++)
-    {
-      switch (media_col_sizes[i][2])
-      {
-	case _IPP_GENERAL :
-	   /*
-	    * Regular + borderless for the general class; no source/type
-	    * selectors...
-	    */
+      ippSetCollection(printer->attrs, &media_col_database, i, media_col);
 
-	    ippSetCollection(printer->attrs, &media_col_database, media_col_index ++, create_media_col(media_supported[i], NULL, NULL, media_col_sizes[i][0], media_col_sizes[i][1], media_xxx_margin_supported[1]));
-	    ippSetCollection(printer->attrs, &media_col_database, media_col_index ++, create_media_col(media_supported[i], NULL, NULL, media_col_sizes[i][0], media_col_sizes[i][1], media_xxx_margin_supported[0]));
-	    break;
-
-	case _IPP_ENV_ONLY :
-	   /*
-	    * Regular margins for "auto", "manual", and "envelope" sources.
-	    */
-
-	    ippSetCollection(printer->attrs, &media_col_database, media_col_index ++, create_media_col(media_supported[i], "auto", "envelope", media_col_sizes[i][0], media_col_sizes[i][1], media_xxx_margin_supported[1]));
-	    ippSetCollection(printer->attrs, &media_col_database, media_col_index ++, create_media_col(media_supported[i], "manual", "envelope", media_col_sizes[i][0], media_col_sizes[i][1], media_xxx_margin_supported[1]));
-	    ippSetCollection(printer->attrs, &media_col_database, media_col_index ++, create_media_col(media_supported[i], "envelope", "envelope", media_col_sizes[i][0], media_col_sizes[i][1], media_xxx_margin_supported[1]));
-	    break;
-	case _IPP_PHOTO_ONLY :
-	   /*
-	    * Photos have specific media types and can only be printed via
-	    * the auto, manual, and photo sources...
-	    */
-
-	    for (j = 0;
-		 j < (int)(sizeof(media_type_supported) /
-			   sizeof(media_type_supported[0]));
-		 j ++)
-	    {
-	      if (strcmp(media_type_supported[j], "auto") && strncmp(media_type_supported[j], "photographic-", 13))
-		continue;
-
-	      ippSetCollection(printer->attrs, &media_col_database, media_col_index ++, create_media_col(media_supported[i], "auto", media_type_supported[j], media_col_sizes[i][0], media_col_sizes[i][1], media_xxx_margin_supported[0]));
-	      ippSetCollection(printer->attrs, &media_col_database, media_col_index ++, create_media_col(media_supported[i], "manual", media_type_supported[j], media_col_sizes[i][0], media_col_sizes[i][1], media_xxx_margin_supported[0]));
-	      ippSetCollection(printer->attrs, &media_col_database, media_col_index ++, create_media_col(media_supported[i], "photo", media_type_supported[j], media_col_sizes[i][0], media_col_sizes[i][1], media_xxx_margin_supported[0]));
-	    }
-	    break;
-      }
+      ippDelete(media_col);
     }
   }
 
   /* media-col-default */
   if (!ippFindAttribute(printer->attrs, "media-col-default", IPP_TAG_ZERO))
   {
-    media_col_default = create_media_col(media_supported[0], media_source_supported[0], media_type_supported[0], media_col_sizes[0][0], media_col_sizes[0][1],media_xxx_margin_supported[1]);
+    media_col = create_media_col(media_supported[0], NULL, NULL, media_col_sizes[0][0], media_col_sizes[0][1], media_xxx_margin_supported[0]);
 
-    ippAddCollection(printer->attrs, IPP_TAG_PRINTER, "media-col-default",
-		     media_col_default);
-    ippDelete(media_col_default);
+    ippAddCollection(printer->attrs, IPP_TAG_PRINTER, "media-col-default", media_col);
+    ippDelete(media_col);
+  }
+
+  /* media-col-ready */
+  if (!ippFindAttribute(printer->attrs, "media-col-ready", IPP_TAG_ZERO))
+  {
+    media_col = create_media_col(media_supported[0], NULL, NULL, media_col_sizes[0][0], media_col_sizes[0][1], media_xxx_margin_supported[0]);
+
+    ippAddCollection(printer->attrs, IPP_TAG_PRINTER, "media-col-ready", media_col);
+    ippDelete(media_col);
   }
 
   /* media-default */
@@ -657,6 +646,10 @@ serverCreatePrinter(
   /* media-left-margin-supported */
   if (!ippFindAttribute(printer->attrs, "media-left-margin-supported", IPP_TAG_ZERO))
     ippAddIntegers(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "media-left-margin-supported", (int)(sizeof(media_xxx_margin_supported) / sizeof(media_xxx_margin_supported[0])), media_xxx_margin_supported);
+
+  /* media-ready */
+  if (!ippFindAttribute(printer->attrs, "media-ready", IPP_TAG_ZERO))
+    ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "media-ready", NULL, media_supported[0]);
 
   /* media-right-margin-supported */
   if (!ippFindAttribute(printer->attrs, "media-right-margin-supported", IPP_TAG_ZERO))
@@ -684,7 +677,7 @@ serverCreatePrinter(
 
   /* media-source-supported */
   if (!ippFindAttribute(printer->attrs, "media-source-supported", IPP_TAG_ZERO))
-    ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "media-source-supported", (int)(sizeof(media_source_supported) / sizeof(media_source_supported[0])), NULL, media_source_supported);
+    ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "media-source-supported", NULL, "face-down");
 
   /* media-top-margin-supported */
   if (!ippFindAttribute(printer->attrs, "media-top-margin-supported", IPP_TAG_ZERO))
@@ -692,8 +685,7 @@ serverCreatePrinter(
 
   /* media-type-supported */
   if (!ippFindAttribute(printer->attrs, "media-type-supported", IPP_TAG_ZERO))
-    ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "media-type-supported", (int)(sizeof(media_type_supported) / sizeof(media_type_supported[0])), NULL, media_type_supported);
-#endif // 0
+    ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "media-type-supported", NULL, "auto");
 
   /* media-col-supported */
   if (!ippFindAttribute(printer->attrs, "media-col-supported", IPP_TAG_ZERO))
@@ -1136,6 +1128,76 @@ compare_jobs(server_job_t *a,		/* I - First job */
              server_job_t *b)		/* I - Second job */
 {
   return (b->id - a->id);
+}
+
+
+/*
+ * 'create_media_col()' - Create a media-col value.
+ */
+
+static ipp_t *				/* O - media-col collection */
+create_media_col(const char *media,	/* I - Media name */
+		 const char *source,	/* I - Media source */
+		 const char *type,	/* I - Media type */
+		 int        width,	/* I - x-dimension in 2540ths */
+		 int        length,	/* I - y-dimension in 2540ths */
+		 int        margins)	/* I - Value for margins */
+{
+  ipp_t	*media_col = ippNew(),		/* media-col value */
+	*media_size = create_media_size(width, length);
+					/* media-size value */
+  char	media_key[256];			/* media-key value */
+
+
+  if (type && source)
+    snprintf(media_key, sizeof(media_key), "%s_%s_%s%s", media, source, type, margins == 0 ? "_borderless" : "");
+  else if (type)
+    snprintf(media_key, sizeof(media_key), "%s__%s%s", media, type, margins == 0 ? "_borderless" : "");
+  else if (source)
+    snprintf(media_key, sizeof(media_key), "%s_%s%s", media, source, margins == 0 ? "_borderless" : "");
+  else
+    snprintf(media_key, sizeof(media_key), "%s%s", media, margins == 0 ? "_borderless" : "");
+
+  ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-key", NULL,
+               media_key);
+  ippAddCollection(media_col, IPP_TAG_PRINTER, "media-size", media_size);
+  ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-size-name", NULL, media);
+  ippAddInteger(media_col, IPP_TAG_PRINTER, IPP_TAG_INTEGER,
+                "media-bottom-margin", margins);
+  ippAddInteger(media_col, IPP_TAG_PRINTER, IPP_TAG_INTEGER,
+                "media-left-margin", margins);
+  ippAddInteger(media_col, IPP_TAG_PRINTER, IPP_TAG_INTEGER,
+                "media-right-margin", margins);
+  ippAddInteger(media_col, IPP_TAG_PRINTER, IPP_TAG_INTEGER,
+                "media-top-margin", margins);
+  if (source)
+    ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-source", NULL, source);
+  if (type)
+    ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-type", NULL, type);
+
+  ippDelete(media_size);
+
+  return (media_col);
+}
+
+
+/*
+ * 'create_media_size()' - Create a media-size value.
+ */
+
+static ipp_t *				/* O - media-col collection */
+create_media_size(int width,		/* I - x-dimension in 2540ths */
+		  int length)		/* I - y-dimension in 2540ths */
+{
+  ipp_t	*media_size = ippNew();		/* media-size value */
+
+
+  ippAddInteger(media_size, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "x-dimension",
+                width);
+  ippAddInteger(media_size, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "y-dimension",
+                length);
+
+  return (media_size);
 }
 
 
