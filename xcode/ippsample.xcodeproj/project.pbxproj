@@ -32,6 +32,8 @@
 		275C6BA61C878A8E000D2DE7 /* ipptool.man in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E006091C5C0BA8006CF057 /* ipptool.man */; };
 		275C6BA81C878AAE000D2DE7 /* ipptoolfile.man in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E0060A1C5C0BA8006CF057 /* ipptoolfile.man */; };
 		275C6BA91C878AF5000D2DE7 /* ipptransform.man in CopyFiles */ = {isa = PBXBuildFile; fileRef = 275C6BA31C878A65000D2DE7 /* ipptransform.man */; };
+		27E2CC681C99C69400D203EC /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
+		27E2CC691C99C6A000D203EC /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EB1C0CE81900139783 /* SystemConfiguration.framework */; };
 		725C87B61C7664DE00FB3AD5 /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
 		725C87B71C7664DE00FB3AD5 /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
 		725C87B81C7664DE00FB3AD5 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
@@ -469,6 +471,8 @@
 				72E005FB1C5C0B10006CF057 /* libcups.a in Frameworks */,
 				72E005FC1C5C0B10006CF057 /* ApplicationServices.framework in Frameworks */,
 				72E005FD1C5C0B10006CF057 /* CoreFoundation.framework in Frameworks */,
+				27E2CC681C99C69400D203EC /* Security.framework in Frameworks */,
+				27E2CC691C99C6A000D203EC /* SystemConfiguration.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
