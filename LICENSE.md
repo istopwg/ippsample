@@ -1,13 +1,15 @@
-                          CUPS License Agreement
+# CUPS License Agreement
 
-		      Copyright 2007-2013 by Apple Inc.
-			     1 Infinite Loop
-			  Cupertino, CA 95014 USA
+```
+Copyright 2007-2013 by Apple Inc.
+1 Infinite Loop
+Cupertino, CA 95014 USA
 
-                         WWW: http://www.cups.org/
+WWW: http://www.cups.org/
+```
 
 
-INTRODUCTION
+## Introduction
 
 CUPS(tm) is provided under the GNU General Public License ("GPL")
 and GNU Library General Public License ("LGPL"), Version 2, with an
@@ -22,11 +24,10 @@ GNU GPL applies to the remainder of the CUPS distribution.
 For those not familiar with the GNU GPL, the license basically
 allows you to:
 
-   - Use the CUPS software at no charge.
-   - Distribute verbatim copies of the software in source or
-     binary form.
-   - Sell verbatim copies of the software for a media fee, or
-     sell support for the software.
+- Use the CUPS software at no charge.
+- Distribute verbatim copies of the software in source or binary form.
+- Sell verbatim copies of the software for a media fee, or sell support for the
+  software.
 
 What this license *does not* allow you to do is make changes or
 add features to CUPS and then sell a binary distribution without
@@ -42,55 +43,55 @@ under other licenses and/or conditions as appropriate for your
 application, driver, or filter.
 
 
-LICENSE EXCEPTIONS
+## License Exception
 
 In addition, as the copyright holder of CUPS, Apple Inc. grants
 the following special exception:
 
-     1. Apple Operating System Development License Exception;
+1. Apple Operating System Development License Exception;
 
-	a. Software that is developed by any person or entity
-	   for an Apple Operating System ("Apple OS-Developed
-	   Software"), including but not limited to Apple and
-	   third party printer drivers, filters, and backends
-	   for an Apple Operating System, that is linked to the
-	   CUPS imaging library or based on any sample filters
-	   or backends provided with CUPS shall not be
-	   considered to be a derivative work or collective work
-	   based on the CUPS program and is exempt from the
-	   mandatory source code release clauses of the GNU GPL.
-	   You may therefore distribute linked combinations of
-	   the CUPS imaging library with Apple OS-Developed
-	   Software without releasing the source code of the
-	   Apple OS-Developed Software. You may also use sample
-	   filters and backends provided with CUPS to develop
-	   Apple OS-Developed Software without releasing the
-	   source code of the Apple OS-Developed Software.
+   a. Software that is developed by any person or entity
+      for an Apple Operating System ("Apple OS-Developed
+      Software"), including but not limited to Apple and
+      third party printer drivers, filters, and backends
+      for an Apple Operating System, that is linked to the
+      CUPS imaging library or based on any sample filters
+      or backends provided with CUPS shall not be
+      considered to be a derivative work or collective work
+      based on the CUPS program and is exempt from the
+      mandatory source code release clauses of the GNU GPL.
+      You may therefore distribute linked combinations of
+      the CUPS imaging library with Apple OS-Developed
+      Software without releasing the source code of the
+      Apple OS-Developed Software. You may also use sample
+      filters and backends provided with CUPS to develop
+      Apple OS-Developed Software without releasing the
+      source code of the Apple OS-Developed Software.
 
-	b. An Apple Operating System means any operating system
-	   software developed and/or marketed by Apple Inc.,
-	   including but not limited to all existing releases and
-	   versions of Apple's Darwin, OS X, and OS X Server
-	   products and all follow-on releases and future
-	   versions thereof.
+   b. An Apple Operating System means any operating system
+      software developed and/or marketed by Apple Inc.,
+      including but not limited to all existing releases and
+      versions of Apple's Darwin, OS X, and OS X Server
+      products and all follow-on releases and future
+      versions thereof.
 
-	c. This exception is only available for Apple
-	   OS-Developed Software and does not apply to software
-	   that is distributed for use on other operating
-	   systems.
+   c. This exception is only available for Apple
+      OS-Developed Software and does not apply to software
+      that is distributed for use on other operating
+      systems.
 
-	d. All CUPS software that falls under this license
-	   exception have the following text at the top of each
-	   source file:
+   d. All CUPS software that falls under this license
+      exception have the following text at the top of each
+      source file:
 
-	     This file is subject to the Apple OS-Developed
-	     Software exception.
+      > This file is subject to the Apple OS-Developed
+      > Software exception.
 
 No developer is required to provide this exception in a derived
 work.
 
 
-KERBEROS SUPPORT CODE
+## Kerberos Support Code
 
 The Kerberos support code ("KSC") is copyright 2006 by Jelmer
 Vernooij and is provided 'as-is', without any express or implied
@@ -100,8 +101,8 @@ liable for any damages arising from the use of the KSC.
 Sources files containing KSC have the following text at the top
 of each source file:
 
-     This file contains Kerberos support code, copyright 2006 by
-     Jelmer Vernooij.
+> This file contains Kerberos support code, copyright 2006 by
+> Jelmer Vernooij.
 
 The KSC copyright and license apply only to Kerberos-related
 feature code in CUPS.  Such code is typically conditionally
@@ -112,21 +113,21 @@ Permission is granted to anyone to use the KSC for any purpose,
 including commercial applications, and to alter it and
 redistribute it freely, subject to the following restrictions:
 
-     1. The origin of the KSC must not be misrepresented; you
-	must not claim that you wrote the original software. If
-	you use the KSC in a product, an acknowledgment in the
-	product documentation would be appreciated but is not
-	required.
+1. The origin of the KSC must not be misrepresented; you
+   must not claim that you wrote the original software. If
+   you use the KSC in a product, an acknowledgment in the
+   product documentation would be appreciated but is not
+   required.
 
-     2. Altered source versions must be plainly marked as such,
-	and must not be misrepresented as being the original
-	software.
+2. Altered source versions must be plainly marked as such,
+   and must not be misrepresented as being the original
+   software.
 
-     3. This notice may not be removed or altered from any source
-	distribution.
+3. This notice may not be removed or altered from any source
+   distribution.
 
 
-TRADEMARKS
+## Trademarks
 
 CUPS and the CUPS logo (the "CUPS Marks") are trademarks of Apple
 Inc. Apple grants you a non-exclusive and non-transferable right
@@ -141,15 +142,16 @@ benefit of Apple.  This license does not apply to use of the CUPS
 Marks in a derivative products, which requires prior written
 permission from Apple Inc.
 
-		    GNU GENERAL PUBLIC LICENSE
-		       Version 2, June 1991
+```
+                    GNU GENERAL PUBLIC LICENSE
+                       Version 2, June 1991
 
  Copyright (C) 1989, 1991 Free Software Foundation, Inc.
                        59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  Everyone is permitted to copy and distribute verbatim copies
  of this license document, but changing it is not allowed.
 
-			    Preamble
+                            Preamble
 
   The licenses for most software are designed to take away your
 freedom to share and change it.  By contrast, the GNU General Public
@@ -199,7 +201,7 @@ patent must be licensed for everyone's free use or not licensed at all.
   The precise terms and conditions for copying, distribution and
 modification follow.
 
-		    GNU GENERAL PUBLIC LICENSE
+                    GNU GENERAL PUBLIC LICENSE
    TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 
   0. This License applies to any program or other work which contains
@@ -398,7 +400,7 @@ make exceptions for this.  Our decision will be guided by the two goals
 of preserving the free status of all derivatives of our free software and
 of promoting the sharing and reuse of software generally.
 
-			    NO WARRANTY
+                            NO WARRANTY
 
   11. BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
 FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.  EXCEPT WHEN
@@ -420,9 +422,9 @@ YOU OR THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER
 PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGES.
 
-		     END OF TERMS AND CONDITIONS
+                     END OF TERMS AND CONDITIONS
 
-	Appendix: How to Apply These Terms to Your New Programs
+        Appendix: How to Apply These Terms to Your New Programs
 
   If you develop a new program, and you want it to be of the greatest
 possible use to the public, the best way to achieve this is to make it
@@ -481,10 +483,10 @@ consider it more useful to permit linking proprietary applications with the
 library.  If this is what you want to do, use the GNU Library General
 Public License instead of this License.
 
-		  GNU LIBRARY GENERAL PUBLIC LICENSE
-			 Version 2, June 1991
+                  GNU LIBRARY GENERAL PUBLIC LICENSE
+                         Version 2, June 1991
 
-	  Copyright (C) 1991 Free Software Foundation, Inc.
+          Copyright (C) 1991 Free Software Foundation, Inc.
        59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
      Everyone is permitted to copy and distribute verbatim copies
@@ -493,7 +495,7 @@ Public License instead of this License.
     [This is the first released version of the library GPL.  It is
    numbered 2 because it goes with version 2 of the ordinary GPL.]
 
-			       Preamble
+                               Preamble
 
   The licenses for most software are designed to take away your
 freedom to share and change it.  By contrast, the GNU General Public
@@ -583,7 +585,7 @@ works together with the library.
   Note that it is possible for a library to be covered by the ordinary
 General Public License rather than by this special one.
 
-		  GNU LIBRARY GENERAL PUBLIC LICENSE
+                  GNU LIBRARY GENERAL PUBLIC LICENSE
    TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 
   0. This License Agreement applies to any software library which
@@ -895,7 +897,7 @@ decision will be guided by the two goals of preserving the free status
 of all derivatives of our free software and of promoting the sharing
 and reuse of software generally.
 
-			    NO WARRANTY
+                            NO WARRANTY
 
   15. BECAUSE THE LIBRARY IS LICENSED FREE OF CHARGE, THERE IS NO
 WARRANTY FOR THE LIBRARY, TO THE EXTENT PERMITTED BY APPLICABLE LAW.
@@ -918,7 +920,7 @@ FAILURE OF THE LIBRARY TO OPERATE WITH ANY OTHER SOFTWARE), EVEN IF
 SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGES.
 
-		     END OF TERMS AND CONDITIONS
+                     END OF TERMS AND CONDITIONS
 
      Appendix: How to Apply These Terms to Your New Libraries
 
@@ -963,3 +965,4 @@ necessary.  Here is a sample; alter the names:
   Ty Coon, President of Vice
 
 That's all there is to it!
+```
