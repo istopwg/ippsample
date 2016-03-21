@@ -15,6 +15,40 @@
  * Local globals...
  */
 
+static const char * const printer_attrs[] =
+		{			/* Printer attributes we care about */
+		  "copies-supported",
+		  "document-format-supported",
+		  "jpeg-k-octets-supported",
+		  "media-bottom-margin-supported",
+		  "media-col-database",
+		  "media-col-default",
+		  "media-col-ready",
+		  "media-col-supported",
+		  "media-default",
+		  "media-left-margin-supported",
+		  "media-ready",
+		  "media-right-margin-supported",
+		  "media-size-supported",
+		  "media-source-supported",
+		  "media-supported",
+		  "media-top-margin-supported",
+		  "media-type-supported",
+		  "pdf-k-octets-supported",
+		  "print-color-mode-default",
+		  "print-color-mode-supported",
+		  "print-quality-default",
+		  "print-quality-supported",
+		  "printer-state",
+		  "printer-state-message",
+		  "printer-state-reasons",
+		  "pwg-raster-document-resolution-supported",
+		  "pwg-raster-document-sheet-back",
+		  "pwg-raster-document-type-supported",
+		  "sides-default",
+		  "sides-supported",
+		  "urf-supported"
+		};
 static int	stop_running = 0;
 
 
@@ -22,12 +56,15 @@ static int	stop_running = 0;
  * Local functions...
  */
 
+static int	attrs_are_equal(ipp_attribute_t *a, ipp_attribute_t *b);
 static void	deregister_printer(http_t *http, const char *printer_uri, const char *resource, int subscription_id, const char *device_uuid);
+static ipp_t	*get_device_attrs(const char *device_uri);
 static void	make_uuid(const char *device_uri, char *uuid, size_t uuidsize);
 static const char *password_cb(const char *prompt, http_t *http, const char *method, const char *resource, void *user_data);
 static int	register_printer(http_t *http, const char *printer_uri, const char *resource, const char *device_uri, const char *device_uuid);
 static void	run_printer(http_t *http, const char *printer_uri, const char *resource, int subscription_id, const char *device_uri, const char *device_uuid, const char *command);
 static void	sighandler(int sig);
+static int	update_device_attrs(http_t *http, const char *printer_uri, const char *resource, const char *device_uuid, ipp_t *old_attrs, ipp_t *new_attrs);
 static void	usage(int status) __attribute__((noreturn));
 
 
@@ -181,7 +218,78 @@ main(int  argc,				/* I - Number of command-line arguments */
 
 
 /*
- * 'deregister_pritner()' - Unregister the output device and cancel the printer subscription.
+ * 'attrs_are_equal()' - Compare two attributes for equality.
+ */
+
+static int				/* O - 1 if equal, 0 otherwise */
+attrs_are_equal(ipp_attribute_t *a,	/* I - First attribute */
+                ipp_attribute_t *b)	/* I - Second attribute */
+{
+  int		i,			/* Looping var */
+		count;			/* Number of values */
+  ipp_tag_t	tag;			/* Type of value */
+
+
+ /*
+  * Check that both 'a' and 'b' point to something first...
+  */
+
+  if ((a != NULL) != (b != NULL))
+    return (0);
+
+  if (a == NULL && b == NULL)
+    return (1);
+
+ /*
+  * Check that 'a' and 'b' are of the same type with the same number
+  * of values...
+  */
+
+  if ((tag = ippGetValueTag(a)) != ippGetValueTag(b))
+    return (0);
+
+  if ((count = ippGetCount(a)) != ippGetCount(b))
+    return (0);
+
+ /*
+  * Compare values...
+  */
+
+  switch (tag)
+  {
+    case IPP_TAG_INTEGER :
+    case IPP_TAG_ENUM :
+        for (i = 0; i < count; i ++)
+	  if (ippGetInteger(a, i) != ippGetInteger(b, i))
+	    return (0);
+	break;
+
+    case IPP_TAG_BOOLEAN :
+        for (i = 0; i < count; i ++)
+	  if (ippGetBoolean(a, i) != ippGetBoolean(b, i))
+	    return (0);
+	break;
+
+    case IPP_TAG_KEYWORD :
+        for (i = 0; i < count; i ++)
+	  if (strcmp(ippGetString(a, i, NULL), ippGetString(b, i, NULL)))
+	    return (0);
+	break;
+
+    default :
+        return (0);
+  }
+
+ /*
+  * If we get this far we must be the same...
+  */
+
+  return (1);
+}
+
+
+/*
+ * 'deregister_printer()' - Unregister the output device and cancel the printer subscription.
  */
 
 static void
@@ -195,7 +303,20 @@ deregister_printer(
   ipp_t	*request;			/* IPP request */
 
 
-  (void)device_uuid;
+ /*
+  * Deregister the output device...
+  */
+
+  request = ippNewRequest(IPP_OP_DEREGISTER_OUTPUT_DEVICE);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, printer_uri);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, device_uuid);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+
+  ippDelete(cupsDoRequest(http, request, resource));
+
+ /*
+  * Then cancel the subscription we are using...
+  */
 
   request = ippNewRequest(IPP_OP_CANCEL_SUBSCRIPTION);
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, printer_uri);
@@ -203,6 +324,34 @@ deregister_printer(
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
 
   ippDelete(cupsDoRequest(http, request, resource));
+}
+
+
+/*
+ * 'get_device_attrs()' - Get current attributes for a device.
+ */
+
+static ipp_t *				/* O - IPP attributes */
+get_device_attrs(const char *device_uri)/* I - Device URI */
+{
+  ipp_t	*response = NULL;		/* IPP attributes */
+
+
+  if (!strncmp(device_uri, "ipp://", 6) || !strncmp(device_uri, "ipps://", 7))
+  {
+   /*
+    * Query the IPP printer...
+    */
+  }
+  else
+  {
+   /*
+    * Must be a socket-based HP PCL laser printer, report just
+    * standard size information...
+    */
+  }
+
+  return (response);
 }
 
 
@@ -279,13 +428,55 @@ register_printer(
     const char *device_uri,		/* I - Device URI, if any */
     const char *device_uuid)		/* I - Device UUID */
 {
-  (void)http;
-  (void)printer_uri;
-  (void)resource;
+  ipp_t		*request,		/* IPP request */
+		*response;		/* IPP response */
+  ipp_attribute_t *attr;			/* Attribute in response */
+  int		subscription_id = 0;	/* Subscription ID */
+  static const char * const events[] =	/* Events to monitor */
+  {
+    "document-config-change",
+    "document-state-change",
+    "job-config-change",
+    "job-state-change",
+    "printer-config-change",
+    "printer-state-change"
+  };
+
+
   (void)device_uri;
   (void)device_uuid;
 
-  return (0);
+ /*
+  * Create a printer subscription to monitor for events...
+  */
+
+  request = ippNewRequest(IPP_OP_CREATE_PRINTER_SUBSCRIPTION);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, printer_uri);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+
+  ippAddString(request, IPP_TAG_SUBSCRIPTION, IPP_TAG_KEYWORD, "notify-pull-method", NULL, "ippget");
+  ippAddStrings(request, IPP_TAG_SUBSCRIPTION, IPP_TAG_KEYWORD, "notify-events", (int)(sizeof(events) / sizeof(events[0])), NULL, events);
+
+  response = cupsDoRequest(http, request, resource);
+
+  if (cupsLastError() != IPP_STATUS_OK)
+  {
+    fprintf(stderr, "ippproxy: Unable to monitor events on '%s': %s\n", printer_uri, cupsLastErrorString());
+    return (0);
+  }
+
+  if ((attr = ippFindAttribute(response, "notify-subscription-id", IPP_TAG_INTEGER)) != NULL)
+  {
+    subscription_id = ippGetInteger(attr, 0);
+  }
+  else
+  {
+    fprintf(stderr, "ippproxy: Unable to monitor events on '%s': No notify-subscription-id returned.\n", printer_uri);
+  }
+
+  ippDelete(response);
+
+  return (subscription_id);
 }
 
 
@@ -303,16 +494,28 @@ run_printer(
     const char *device_uuid,		/* I - Device UUID */
     const char *command)			/* I - Command, if any */
 {
-  ipp_t			*request,	/* IPP request */
+  ipp_t			*device_attrs,	/* Device attributes */
+			*request,	/* IPP request */
 			*response;	/* IPP response */
   ipp_attribute_t	*attr;		/* IPP attribute */
   int			seq_number = 1;	/* Current event sequence number */
   int			get_interval;	/* How long to sleep */
 
 
-  (void)device_uri;
-  (void)device_uuid;
   (void)command;
+
+ /*
+  * Query the printer...
+  */
+
+  device_attrs = get_device_attrs(device_uri);
+
+ /*
+  * Register the output device...
+  */
+
+  if (!update_device_attrs(http, printer_uri, resource, device_uuid, NULL, device_attrs))
+    return;
 
   while (!stop_running)
   {
@@ -358,6 +561,69 @@ sighandler(int sig)			/* I - Signal */
   (void)sig;
 
   stop_running = 1;
+}
+
+
+/*
+ * 'update_device_attrs()' - Update device attributes on the server.
+ */
+
+static int				/* O - 1 on success, 0 on failure */
+update_device_attrs(
+    http_t     *http,			/* I - Connection to server */
+    const char *printer_uri,		/* I - Printer URI */
+    const char *resource,		/* I - Resource path */
+    const char *device_uuid,		/* I - Device UUID */
+    ipp_t      *old_attrs,		/* I - Old attributes */
+    ipp_t      *new_attrs)		/* I - New attributes */
+{
+  int			i,		/* Looping var */
+			result;		/* Result of comparison */
+  ipp_t			*request;	/* IPP request */
+  ipp_attribute_t	*attr;		/* New attribute */
+  const char		*name;		/* New attribute name */
+
+ /*
+  * Update the configuration of the output device...
+  */
+
+  request = ippNewRequest(IPP_OP_UPDATE_OUTPUT_DEVICE_ATTRIBUTES);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, printer_uri);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, device_uuid);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+
+  for (attr = ippFirstAttribute(new_attrs); attr; attr = ippNextAttribute(new_attrs))
+  {
+   /*
+    * Add any attributes that have changed...
+    */
+
+    if (ippGetGroupTag(attr) != IPP_TAG_PRINTER || (name = ippGetName(attr)) == NULL)
+      continue;
+
+    for (i = 0, result = 1; i < (int)(sizeof(printer_attrs) / sizeof(printer_attrs[0])) && result > 0; i ++)
+    {
+      if ((result = strcmp(name, printer_attrs[i])) == 0)
+      {
+       /*
+        * This is an attribute we care about...
+	*/
+
+        if (!attrs_are_equal(ippFindAttribute(old_attrs, name, ippGetValueTag(attr)), attr))
+	  ippCopyAttribute(request, attr, 1);
+      }
+    }
+  }
+
+  ippDelete(cupsDoRequest(http, request, resource));
+
+  if (cupsLastError() != IPP_STATUS_OK)
+  {
+    fprintf(stderr, "ippproxy: Unable to update the output device with '%s': %s\n", printer_uri, cupsLastErrorString());
+    return (0);
+  }
+
+  return (1);
 }
 
 
