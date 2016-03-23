@@ -236,6 +236,7 @@ serverCreatePrinter(
     "media-left-margin",
     "media-right-margin",
     "media-size",
+    "media-size-name",
     "media-source",
     "media-top-margin",
     "media-type"
@@ -330,7 +331,7 @@ serverCreatePrinter(
     "processing-stopped"
   };
 
-  serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreatePrinter(resource=\"%s\", name=\"%s\", location=\"%s\", make=\"%s\", model=\"%s\", icon=\"%s\", docformats=\"%s\", ppm=%d, ppm_color=%d, duplex=%d, pin=%d, attrs=%p, command=\"%s\", device_uri=\"%s\", proxy_user=\"%s\")", resource, name, location, make, model, icon, docformats, ppm, ppm_color, duplex, pin, attrs, command, device_uri, proxy_user);
+  serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreatePrinter(resource=\"%s\", name=\"%s\", location=\"%s\", make=\"%s\", model=\"%s\", icon=\"%s\", docformats=\"%s\", ppm=%d, ppm_color=%d, duplex=%d, pin=%d, attrs=%p, command=\"%s\", device_uri=\"%s\", proxy_user=\"%s\")", resource, name, location, make, model, icon, docformats, ppm, ppm_color, duplex, pin, (void *)attrs, command, device_uri, proxy_user);
 
  /*
   * Allocate memory for the printer...

@@ -39,6 +39,8 @@ static const char * const printer_attrs[] =
 		  "print-color-mode-supported",
 		  "print-quality-default",
 		  "print-quality-supported",
+		  "printer-resolution-default",
+		  "printer-resolution-supported",
 		  "printer-state",
 		  "printer-state-message",
 		  "printer-state-reasons",
@@ -57,6 +59,8 @@ static int	stop_running = 0;
  */
 
 static int	attrs_are_equal(ipp_attribute_t *a, ipp_attribute_t *b);
+static ipp_t	*create_media_col(const char *media, const char *source, const char *type, int width, int length, int margins);
+static ipp_t	*create_media_size(int width, int length);
 static void	deregister_printer(http_t *http, const char *printer_uri, const char *resource, int subscription_id, const char *device_uuid);
 static ipp_t	*get_device_attrs(const char *device_uri);
 static void	make_uuid(const char *device_uri, char *uuid, size_t uuidsize);
@@ -289,6 +293,76 @@ attrs_are_equal(ipp_attribute_t *a,	/* I - First attribute */
 
 
 /*
+ * 'create_media_col()' - Create a media-col value.
+ */
+
+static ipp_t *				/* O - media-col collection */
+create_media_col(const char *media,	/* I - Media name */
+		 const char *source,	/* I - Media source */
+		 const char *type,	/* I - Media type */
+		 int        width,	/* I - x-dimension in 2540ths */
+		 int        length,	/* I - y-dimension in 2540ths */
+		 int        margins)	/* I - Value for margins */
+{
+  ipp_t	*media_col = ippNew(),		/* media-col value */
+	*media_size = create_media_size(width, length);
+					/* media-size value */
+  char	media_key[256];			/* media-key value */
+
+
+  if (type && source)
+    snprintf(media_key, sizeof(media_key), "%s_%s_%s%s", media, source, type, margins == 0 ? "_borderless" : "");
+  else if (type)
+    snprintf(media_key, sizeof(media_key), "%s__%s%s", media, type, margins == 0 ? "_borderless" : "");
+  else if (source)
+    snprintf(media_key, sizeof(media_key), "%s_%s%s", media, source, margins == 0 ? "_borderless" : "");
+  else
+    snprintf(media_key, sizeof(media_key), "%s%s", media, margins == 0 ? "_borderless" : "");
+
+  ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-key", NULL,
+               media_key);
+  ippAddCollection(media_col, IPP_TAG_PRINTER, "media-size", media_size);
+  ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-size-name", NULL, media);
+  ippAddInteger(media_col, IPP_TAG_PRINTER, IPP_TAG_INTEGER,
+                "media-bottom-margin", margins);
+  ippAddInteger(media_col, IPP_TAG_PRINTER, IPP_TAG_INTEGER,
+                "media-left-margin", margins);
+  ippAddInteger(media_col, IPP_TAG_PRINTER, IPP_TAG_INTEGER,
+                "media-right-margin", margins);
+  ippAddInteger(media_col, IPP_TAG_PRINTER, IPP_TAG_INTEGER,
+                "media-top-margin", margins);
+  if (source)
+    ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-source", NULL, source);
+  if (type)
+    ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-type", NULL, type);
+
+  ippDelete(media_size);
+
+  return (media_col);
+}
+
+
+/*
+ * 'create_media_size()' - Create a media-size value.
+ */
+
+static ipp_t *				/* O - media-col collection */
+create_media_size(int width,		/* I - x-dimension in 2540ths */
+		  int length)		/* I - y-dimension in 2540ths */
+{
+  ipp_t	*media_size = ippNew();		/* media-size value */
+
+
+  ippAddInteger(media_size, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "x-dimension",
+                width);
+  ippAddInteger(media_size, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "y-dimension",
+                length);
+
+  return (media_size);
+}
+
+
+/*
  * 'deregister_printer()' - Unregister the output device and cancel the printer subscription.
  */
 
@@ -342,6 +416,45 @@ get_device_attrs(const char *device_uri)/* I - Device URI */
    /*
     * Query the IPP printer...
     */
+
+    cups_dest_t	*dest;			/* Destination for printer URI */
+    http_t	*http;			/* Connection to printer */
+    char	resource[1024];		/* Resource path */
+    ipp_t	*request;		/* Get-Printer-Attributes request */
+
+   /*
+    * Connect to the printer...
+    */
+
+    dest = cupsGetDestWithURI("device", device_uri);
+
+    while ((http = cupsConnectDest(dest, CUPS_DEST_FLAGS_NONE, 30000, NULL, resource, sizeof(resource), NULL, NULL)) == NULL)
+    {
+      fprintf(stderr, "ippproxy: Device at '%s' is not responding, retrying in 30 seconds...\n", device_uri);
+      sleep(30);
+    }
+
+    cupsFreeDests(1, dest);
+
+   /*
+    * Get the attributes...
+    */
+
+    request = ippNewRequest(IPP_OP_GET_PRINTER_ATTRIBUTES);
+    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
+    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+    ippAddStrings(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", (int)(sizeof(printer_attrs) / sizeof(printer_attrs[0])), NULL, printer_attrs);
+
+    response = cupsDoRequest(http, request, resource);
+
+    if (cupsLastError() >= IPP_STATUS_ERROR_BAD_REQUEST)
+    {
+      fprintf(stderr, "ippproxy: Device at '%s' returned error: %s\n", device_uri, cupsLastErrorString());
+      ippDelete(response);
+      response = NULL;
+    }
+
+    httpClose(http);
   }
   else
   {
@@ -349,6 +462,105 @@ get_device_attrs(const char *device_uri)/* I - Device URI */
     * Must be a socket-based HP PCL laser printer, report just
     * standard size information...
     */
+
+    int			i;		/* Looping var */
+    ipp_attribute_t	*media_col_database,
+					/* media-col-database value */
+			*media_size_supported;
+					/* media-size-supported value */
+    ipp_t		*media_col;	/* media-col-default value */
+    static const int media_col_sizes[][2] =
+    {					/* Default media-col sizes */
+      { 21590, 27940 },			/* Letter */
+      { 21590, 35560 },			/* Legal */
+      { 21000, 29700 }			/* A4 */
+    };
+    static const char * const media_col_supported[] =
+    {					/* media-col-supported values */
+      "media-bottom-margin",
+      "media-left-margin",
+      "media-right-margin",
+      "media-size",
+      "media-size-name",
+      "media-top-margin"
+    };
+    static const char * const media_supported[] =
+    {					/* Default media sizes */
+      "na_letter_8.5x11in",		/* Letter */
+      "na_legal_8.5x14in",		/* Legal */
+      "iso_a4_210x297mm"			/* A4 */
+    };
+    static const int quality_supported[] =
+    {					/* print-quality-supported values */
+      IPP_QUALITY_DRAFT,
+      IPP_QUALITY_NORMAL,
+      IPP_QUALITY_HIGH
+    };
+    static const int resolution_supported[] =
+    {					/* printer-resolution-supported values */
+      300,
+      600
+    };
+    static const char * const sides_supported[] =
+    {					/* sides-supported values */
+      "one-sided",
+      "two-sided-long-edge",
+      "two-sided-short-edge"
+    };
+
+    response = ippNew();
+
+    ippAddRange(response, IPP_TAG_PRINTER, "copies-supported", 1, 999);
+    ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_MIMETYPE, "document-format-supported", NULL, "application/vnd.hp-pcl");
+    ippAddInteger(response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "media-bottom-margin-supported", 635);
+
+    media_col_database = ippAddCollections(response, IPP_TAG_PRINTER, "media-col-database", (int)(sizeof(media_col_sizes) / sizeof(media_col_sizes[0])), NULL);
+    for (i = 0; i < (int)(sizeof(media_col_sizes) / sizeof(media_col_sizes[0])); i ++)
+    {
+      media_col = create_media_col(media_supported[i], NULL, NULL, media_col_sizes[i][0], media_col_sizes[i][1], 635);
+
+      ippSetCollection(response, &media_col_database, i, media_col);
+
+      ippDelete(media_col);
+    }
+
+    media_col = create_media_col(media_supported[0], NULL, NULL, media_col_sizes[0][0], media_col_sizes[0][1], 635);
+    ippAddCollection(response, IPP_TAG_PRINTER, "media-col-default", media_col);
+    ippDelete(media_col);
+
+    media_col = create_media_col(media_supported[0], NULL, NULL, media_col_sizes[0][0], media_col_sizes[0][1], 635);
+    ippAddCollection(response, IPP_TAG_PRINTER, "media-col-ready", media_col);
+    ippDelete(media_col);
+
+    ippAddStrings(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-col-supported", (int)(sizeof(media_col_supported) / sizeof(media_col_supported[0])), NULL, media_col_supported);
+    ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-default", NULL, media_supported[0]);
+    ippAddInteger(response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "media-left-margin-supported", 635);
+    ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-ready", NULL, media_supported[0]);
+    ippAddInteger(response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "media-right-margin-supported", 635);
+
+    media_size_supported = ippAddCollections(response, IPP_TAG_PRINTER, "media-size-supported", (int)(sizeof(media_col_sizes) / sizeof(media_col_sizes[0])), NULL);
+    for (i = 0;
+	 i < (int)(sizeof(media_col_sizes) / sizeof(media_col_sizes[0]));
+	 i ++)
+    {
+      ipp_t *size = create_media_size(media_col_sizes[i][0], media_col_sizes[i][1]);
+
+      ippSetCollection(response, &media_size_supported, i, size);
+      ippDelete(size);
+    }
+
+    ippAddStrings(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-supported", (int)(sizeof(media_supported) / sizeof(media_supported[0])), NULL, media_supported);
+    ippAddInteger(response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "media-top-margin-supported", 635);
+    ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "print-color-mode-default", NULL, "monochrome");
+    ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "print-color-mode-supported", NULL, "monochrome");
+    ippAddInteger(response, IPP_TAG_PRINTER, IPP_TAG_ENUM, "print-quality-default", IPP_QUALITY_NORMAL);
+    ippAddIntegers(response, IPP_TAG_PRINTER, IPP_TAG_ENUM, "print-quality-supported", (int)(sizeof(quality_supported) / sizeof(quality_supported[0])), quality_supported);
+    ippAddResolution(response, IPP_TAG_PRINTER, "printer-resolution-default", IPP_RES_PER_INCH, 300, 300);
+    ippAddResolutions(response, IPP_TAG_PRINTER, "printer-resolution-supported", (int)(sizeof(resolution_supported) / sizeof(resolution_supported[0])), IPP_RES_PER_INCH, resolution_supported, resolution_supported);
+    ippAddInteger(response, IPP_TAG_PRINTER, IPP_TAG_ENUM, "printer-state", IPP_PSTATE_IDLE);
+    ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "printer-state-reasons", NULL, "none");
+    ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "sides-default", NULL, "two-sided-long-edge");
+    ippAddStrings(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "sides-supported", (int)(sizeof(sides_supported) / sizeof(sides_supported[0])), NULL, sides_supported);
   }
 
   return (response);

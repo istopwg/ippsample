@@ -5803,7 +5803,7 @@ with_value(FILE            *outfile,	/* I - Output file */
     case IPP_TAG_BOOLEAN :
 	for (i = 0; i < attr->num_values; i ++)
 	{
-          if (!strcmp(value, "true") == attr->values[i].boolean)
+          if ((!strcmp(value, "true")) == attr->values[i].boolean)
           {
             if (!matchbuf[0])
 	      strlcpy(matchbuf, value, matchlen);
