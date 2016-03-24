@@ -62,6 +62,7 @@ static int	attrs_are_equal(ipp_attribute_t *a, ipp_attribute_t *b);
 static ipp_t	*create_media_col(const char *media, const char *source, const char *type, int width, int length, int margins);
 static ipp_t	*create_media_size(int width, int length);
 static void	deregister_printer(http_t *http, const char *printer_uri, const char *resource, int subscription_id, const char *device_uuid);
+static int	fetch_job(http_t *http, const char *printer_uri, const char *resource, int job_id, const char *device_uri, const char *device_uuid, ipp_t *device_attrs);
 static ipp_t	*get_device_attrs(const char *device_uri);
 static void	make_uuid(const char *device_uri, char *uuid, size_t uuidsize);
 static const char *password_cb(const char *prompt, http_t *http, const char *method, const char *resource, void *user_data);
@@ -390,6 +391,31 @@ deregister_printer(
 
 
 /*
+ * 'fetch_job()' - Fetch and print a job.
+ */
+
+static int				/* O - 1 on success, 0 on failure */
+fetch_job(http_t     *http,		/* I - Connection to printer */
+          const char *printer_uri,	/* I - Printer URI */
+	  const char *resource,		/* I - Resource path */
+	  int        job_id,		/* I - Job ID */
+	  const char *device_uri,	/* I - Device URI */
+	  const char *device_uuid,	/* I - Device UUID */
+	  ipp_t      *device_attrs)	/* I - Device attributes */
+{
+  (void)http;
+  (void)printer_uri;
+  (void)resource;
+  (void)job_id;
+  (void)device_uri;
+  (void)device_uuid;
+  (void)device_attrs;
+
+  return (0);
+}
+
+
+/*
  * 'get_device_attrs()' - Get current attributes for a device.
  */
 
@@ -697,6 +723,10 @@ run_printer(
 			*request,	/* IPP request */
 			*response;	/* IPP response */
   ipp_attribute_t	*attr;		/* IPP attribute */
+  const char		*name,		/* Attribute name */
+			*event;		/* Current event */
+  int			job_id;		/* Job ID, if any */
+  ipp_jstate_t		job_state;	/* Job state, if any */
   int			seq_number = 1;	/* Current event sequence number */
   int			get_interval;	/* How long to sleep */
 
@@ -734,7 +764,51 @@ run_printer(
     else
       get_interval = 30;
 
-    /* do work */
+    for (attr = ippFirstAttribute(response); attr; attr = ippNextAttribute(response))
+    {
+      if (ippGetGroupTag(attr) != IPP_TAG_EVENT_NOTIFICATION || !ippGetName(attr))
+        continue;
+
+      event     = NULL;
+      job_id    = 0;
+      job_state = IPP_JSTATE_PENDING;
+
+      while (ippGetGroupTag(attr) == IPP_TAG_EVENT_NOTIFICATION && (name = ippGetName(attr)) != NULL)
+      {
+	if (!strcmp(name, "notify-subscribed-event") && ippGetValueTag(attr) == IPP_TAG_KEYWORD)
+	  event = ippGetString(attr, 0, NULL);
+	else if (!strcmp(name, "notify-job-id") && ippGetValueTag(attr) == IPP_TAG_INTEGER)
+	  job_id = ippGetInteger(attr, 0);
+	else if (!strcmp(name, "job-state") && ippGetValueTag(attr) == IPP_TAG_ENUM)
+	  job_state = (ipp_jstate_t)ippGetInteger(attr, 0);
+	else if (!strcmp(name, "notify-sequence-number") && ippGetValueTag(attr) == IPP_TAG_INTEGER)
+	{
+	  int new_seq = ippGetInteger(attr, 0);
+
+	  if (new_seq > seq_number)
+	    seq_number = new_seq;
+	}
+
+        attr = ippNextAttribute(response);
+      }
+
+      if (event)
+      {
+        if (!strcmp(event, "job-fetchable") && job_id)
+	{
+	  /* TODO: queue up fetches */
+	  fetch_job(http, printer_uri, resource, job_id, device_uri, device_uuid, device_attrs);
+	}
+	else if (!strcmp(event, "job-state-changed") && job_id)
+	{
+	  /* TODO: Support cancellation */
+	  if (job_state == IPP_JSTATE_CANCELED || job_state == IPP_JSTATE_ABORTED)
+	  {
+	    /* Cancel job locally if it is printing... */
+	  }
+	}
+      }
+    }
 
    /*
     * Pause before our next poll of the Infrastructure Printer...
