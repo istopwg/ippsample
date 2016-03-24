@@ -66,7 +66,7 @@ static ipp_t	*get_device_attrs(const char *device_uri);
 static void	make_uuid(const char *device_uri, char *uuid, size_t uuidsize);
 static const char *password_cb(const char *prompt, http_t *http, const char *method, const char *resource, void *user_data);
 static int	register_printer(http_t *http, const char *printer_uri, const char *resource, const char *device_uri, const char *device_uuid);
-static void	run_printer(http_t *http, const char *printer_uri, const char *resource, int subscription_id, const char *device_uri, const char *device_uuid, const char *command);
+static void	run_printer(http_t *http, const char *printer_uri, const char *resource, int subscription_id, const char *device_uri, const char *device_uuid);
 static void	sighandler(int sig);
 static int	update_device_attrs(http_t *http, const char *printer_uri, const char *resource, const char *device_uuid, ipp_t *old_attrs, ipp_t *new_attrs);
 static void	usage(int status) __attribute__((noreturn));
@@ -82,7 +82,6 @@ main(int  argc,				/* I - Number of command-line arguments */
 {
   int		i;			/* Looping var */
   char		*opt,			/* Current option */
-		*command = NULL,		/* Command */
 		*device_uri = NULL,	/* Device URI */
 		*password = NULL,	/* Password, if any */
 		*printer_uri = NULL;	/* Infrastructure printer URI */
@@ -105,17 +104,6 @@ main(int  argc,				/* I - Number of command-line arguments */
       {
         switch (*opt)
 	{
-	  case 'c' : /* -c command */
-	      i ++;
-	      if (i >= argc)
-	      {
-	        fputs("ippproxy: Missing command after '-c' option.\n", stderr);
-		usage(1);
-	      }
-
-	      command = argv[i];
-	      break;
-
 	  case 'd' : /* -d device-uri */
 	      i ++;
 	      if (i >= argc)
@@ -170,9 +158,9 @@ main(int  argc,				/* I - Number of command-line arguments */
   if (!printer_uri)
     usage(1);
 
-  if (!device_uri && !command)
+  if (!device_uri)
   {
-    fputs("ippproxy: Must specify '-c' and/or '-d'.\n", stderr);
+    fputs("ippproxy: Must specify '-d device-uri'.\n", stderr);
     usage(1);
   }
 
@@ -212,7 +200,7 @@ main(int  argc,				/* I - Number of command-line arguments */
     return (1);
   }
 
-  run_printer(http, printer_uri, resource, subscription_id, device_uri, device_uuid, command);
+  run_printer(http, printer_uri, resource, subscription_id, device_uri, device_uuid);
 
   deregister_printer(http, printer_uri, resource, subscription_id, device_uuid);
   httpClose(http);
@@ -510,7 +498,7 @@ get_device_attrs(const char *device_uri)/* I - Device URI */
 
     response = ippNew();
 
-    ippAddRange(response, IPP_TAG_PRINTER, "copies-supported", 1, 999);
+    ippAddRange(response, IPP_TAG_PRINTER, "copies-supported", 1, 1);
     ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_MIMETYPE, "document-format-supported", NULL, "application/vnd.hp-pcl");
     ippAddInteger(response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "media-bottom-margin-supported", 635);
 
@@ -703,8 +691,7 @@ run_printer(
     const char *resource,		/* I - Resource path */
     int        subscription_id,		/* I - Subscription ID */
     const char *device_uri,		/* I - Device URI, if any */
-    const char *device_uuid,		/* I - Device UUID */
-    const char *command)			/* I - Command, if any */
+    const char *device_uuid)		/* I - Device UUID */
 {
   ipp_t			*device_attrs,	/* Device attributes */
 			*request,	/* IPP request */
@@ -713,8 +700,6 @@ run_printer(
   int			seq_number = 1;	/* Current event sequence number */
   int			get_interval;	/* How long to sleep */
 
-
-  (void)command;
 
  /*
   * Query the printer...
@@ -848,7 +833,6 @@ usage(int status)			/* O - Exit status */
 {
   puts("Usage: ippproxy [options] printer-uri");
   puts("Options:");
-  puts("  -c command      Specify a command to run for each job.");
   puts("  -d device-uri   Specify local printer device URI.");
   puts("  -p password     Password for authentication.");
   puts("                  (Also IPPPROXY_PASSWORD environment variable)");
