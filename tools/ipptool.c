@@ -1,6 +1,4 @@
 /*
- * "$Id: ipptool.c 12951 2015-10-28 17:21:45Z msweet $"
- *
  * ipptool command for CUPS.
  *
  * Copyright 2007-2016 by Apple Inc.
@@ -786,7 +784,7 @@ do_tests(FILE         *outfile,		/* I - Output file */
 		token[1024],		/* Token from file */
 		*tokenptr,		/* Pointer into token */
 		temp[1024],		/* Temporary string */
-		buffer[8192],		/* Copy buffer */
+		buffer[131072],		/* Copy buffer */
 		compression[16];	/* COMPRESSION value */
   ipp_t		*request = NULL,	/* IPP request */
 		*response = NULL;	/* IPP response */
@@ -4400,10 +4398,11 @@ print_attr(FILE            *outfile,	/* I  - Output file */
       case IPP_TAG_TEXT :
       case IPP_TAG_NAME :
       case IPP_TAG_KEYWORD :
-      case IPP_TAG_CHARSET :
       case IPP_TAG_URI :
-      case IPP_TAG_MIMETYPE :
+      case IPP_TAG_URISCHEME :
+      case IPP_TAG_CHARSET :
       case IPP_TAG_LANGUAGE :
+      case IPP_TAG_MIMETYPE :
 	  for (i = 0; i < attr->num_values; i ++)
 	    print_xml_string(outfile, "string", attr->values[i].string.text);
 	  break;
@@ -4442,7 +4441,7 @@ print_attr(FILE            *outfile,	/* I  - Output file */
   }
   else
   {
-    char	buffer[8192];		/* Value buffer */
+    char	buffer[131072];		/* Value buffer */
 
     if (format == _CUPS_OUTPUT_TEST)
     {
@@ -6198,8 +6197,3 @@ with_value_from(
 
   return (0);
 }
-
-
-/*
- * End of "$Id: ipptool.c 12951 2015-10-28 17:21:45Z msweet $".
- */
