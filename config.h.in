@@ -316,6 +316,13 @@
 
 
 /*
+ * Do we have the MuPDF library?
+ */
+
+#undef HAVE_MUPDF
+
+
+/*
  * Select/poll interfaces...
  */
 

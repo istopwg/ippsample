@@ -21,6 +21,12 @@
 #  include <ApplicationServices/ApplicationServices.h>
 
 extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
+#elif defined(HAVE_MUPDF)
+#  include <mupdf/fitz.h>
+inline fz_matrix fz_make_matrix(float a, float b, float c, float d, float e, float f) {
+  fz_matrix ret = { a, b, c, d, e, f };
+  return (ret);
+}
 #endif /* __APPLE__ */
 
 #include "dither.h"
@@ -1778,7 +1784,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 
   fz_register_document_handlers(context);
 
-  fz_try(context) doc = fz_open_document(context, filename);
+  fz_try(context) document = fz_open_document(context, filename);
   fz_catch(context)
   {
     fprintf(stderr, "ERROR: Unable to open '%s': %s\n", filename, fz_caught_message(context));
@@ -1786,10 +1792,10 @@ xform_pdf(const char       *filename,	/* I - File to transform */
     return (1);
   }
 
-  if (fz_needs_password(doc))
+  if (fz_needs_password(context, document))
   {
     fputs("ERROR: Document is encrypted and cannot be unlocked.\n", stderr);
-    fz_drop_document(context, doc);
+    fz_drop_document(context, document);
     fz_drop_context(context);
     return (1);
   }
@@ -1804,18 +1810,18 @@ xform_pdf(const char       *filename,	/* I - File to transform */
     {
       fprintf(stderr, "ERROR: Bad \"page-ranges\" value '%s'.\n", page_ranges);
 
-      fz_drop_document(context, doc);
+      fz_drop_document(context, document);
       fz_drop_context(context);
 
       return (1);
     }
 
-    pages = (unsigned)fz_count_pages(context, doc);
+    pages = (unsigned)fz_count_pages(context, document);
     if (first > pages)
     {
       fputs("ERROR: \"page-ranges\" value does not include any pages to print in the document.\n", stderr);
 
-      fz_drop_document(context, doc);
+      fz_drop_document(context, document);
       fz_drop_context(context);
 
       return (1);
@@ -1827,7 +1833,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   else
   {
     first = 1;
-    last  = (unsigned)fz_count_pages(context, doc);
+    last  = (unsigned)fz_count_pages(context, document);
   }
 
   pages = last - first + 1;
@@ -1838,7 +1844,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 
   if (xform_setup(&ras, format, resolutions, types, sheet_back, color, 1, num_options, options))
   {
-    fz_drop_document(context, doc);
+    fz_drop_document(context, document);
     fz_drop_context(context);
 
     return (1);
@@ -1869,13 +1875,13 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   else if (ras.band_height > ras.header.cupsHeight)
     ras.band_height = ras.header.cupsHeight;
 
-  pixmap = fz_new_pixmap(context, cs, ras.header.cupsWidth, ras.band_height);
+  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth, (int)ras.band_height);
   device = fz_new_draw_device(context, pixmap);
 
   /* Don't anti-alias or interpolate when creating raster data */
   pixmap->interpolate = 0;
-  pixmap->xres        = ras.header.HWResolution[0];
-  pixmap->yres        = ras.header.HWResolution[1];
+  pixmap->xres        = (int)ras.header.HWResolution[0];
+  pixmap->yres        = (int)ras.header.HWResolution[1];
 
   xscale = ras.header.HWResolution[0] / 72.0;
   yscale = ras.header.HWResolution[1] / 72.0;
@@ -1897,19 +1903,19 @@ xform_pdf(const char       *filename,	/* I - File to transform */
     if (!strcmp(sheet_back, "flipped"))
     {
       if (ras.header.Tumble)
-        back_transform = { -1, 0, 0, 1, ras.header.cupsPageSize[0], 0};
+        back_transform = fz_make_matrix(-1, 0, 0, 1, ras.header.cupsPageSize[0], 0);
       else
-        back_transform = { 1, 0, 0, -1, 0, ras.header.cupsPageSize[1]};
+        back_transform = fz_make_matrix(1, 0, 0, -1, 0, ras.header.cupsPageSize[1]);
     }
     else if (!strcmp(sheet_back, "manual-tumble") && ras.header.Tumble)
-      back_transform = { -1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1] };
+      back_transform = fz_make_matrix(-1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
     else if (!strcmp(sheet_back, "rotated") && !ras.header.Tumble)
-      back_transform = { -1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1] };
+      back_transform = fz_make_matrix(-1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
     else
-      back_transform = { 1, 0, 0, 1, 0, 0 };
+      back_transform = fz_make_matrix(1, 0, 0, 1, 0, 0);
   }
   else
-    back_transform = { 1, 0, 0, 1, 0, 0 };
+    back_transform = fz_make_matrix(1, 0, 0, 1, 0, 0);
 
   if (Verbosity > 1)
     fprintf(stderr, "DEBUG: cupsPageSize=[%g %g]\n", ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
@@ -1931,7 +1937,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 			band_endy = 0;	/* End line of band */
       unsigned char	*lineptr;	/* Pointer to line */
 
-      pdf_page  = fz_load_page(document, page + first - 1);
+      pdf_page  = fz_load_page(context, document, (int)(page + first - 1));
       // TODO: Call fz_bound_page to determine page transform
 //      transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox,dest, 0, true);
 
@@ -1963,7 +1969,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 	  if (!(page & 1) && ras.header.Duplex)
 	    fz_concat(&transform, &transform, &back_transform);
 
-          fz_run_page(document, pdf_page, device, &transform, NULL);
+          fz_run_page(context, pdf_page, device, &transform, NULL);
 	}
 
        /*
@@ -2024,7 +2030,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 
   fz_drop_device(context, device);
   fz_drop_pixmap(context, pixmap);
-  fz_drop_document(context, doc);
+  fz_drop_document(context, document);
   fz_drop_context(context);
 
   return (1);

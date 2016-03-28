@@ -1,9 +1,6 @@
 dnl
-dnl "$Id: cups-common.m4 12852 2015-08-28 13:29:21Z msweet $"
-dnl
 dnl Common configuration stuff for CUPS.
 dnl
-dnl Copyright 2015-2016 by the ISTO Printer Working Group.
 dnl Copyright 2007-2016 by Apple Inc.
 dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
 dnl
@@ -178,4 +175,16 @@ case $uname in
 		AC_CHECK_HEADER(CoreFoundation/CoreFoundation.h,AC_DEFINE(HAVE_COREFOUNDATION_H))
 		AC_CHECK_HEADER(CoreFoundation/CFPriv.h,AC_DEFINE(HAVE_CFPRIV_H))
 		AC_CHECK_HEADER(CoreFoundation/CFBundlePriv.h,AC_DEFINE(HAVE_CFBUNDLEPRIV_H))
+		;;
+
+	*)
+		AC_CHECK_LIB(mupdfthird, FT_Init_FreeType,[
+			LIBS="-lmupdfthird $LIBS"
+		])
+		AC_CHECK_LIB(mupdf, fz_open_document,[
+			AC_DEFINE(HAVE_MUPDF)
+			LIBS="-lmupdf $LIBS"
+		])
+		;;
 esac
+
