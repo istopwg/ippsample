@@ -1395,10 +1395,9 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   CGBitmapInfo		info;		/* Bitmap flags */
   size_t		band_size;	/* Size of band line */
   double		xscale, yscale;	/* Scaling factor */
-  CGAffineTransform 	transform;	/* Transform for page */
-  CGAffineTransform	back_transform;	/* Transform for back side */
+  CGAffineTransform 	transform,	/* Transform for page */
+			back_transform;	/* Transform for back side */
   CGRect		dest;		/* Destination rectangle */
-
   unsigned		pages = 1;	/* Number of pages */
   int			color = 1;	/* Does the PDF have color? */
   const char		*page_ranges;	/* "page-ranges" option */
@@ -1546,7 +1545,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   * Setup the back page transform, if any...
   */
 
-  if (sheet_back)
+  if (sheet_back && ras.header.Duplex)
   {
     if (!strcmp(sheet_back, "flipped"))
     {
@@ -1686,6 +1685,10 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 
   (*(ras.end_job))(&ras, cb, ctx);
 
+ /*
+  * Clean up...
+  */
+
   CGPDFDocumentRelease(document);
   CGContextRelease(context);
 
@@ -1715,8 +1718,8 @@ xform_jpeg(const char       *filename,	/* I - File to transform */
   (void)filename;
   (void)cb;
   (void)ctx;
- 
-   if (xform_setup(&ras, format, resolutions, types, NULL, color, 1, num_options, options))
+
+  if (xform_setup(&ras, format, resolutions, types, NULL, color, 1, num_options, options))
   {
     return (1);
   }
@@ -1740,18 +1743,289 @@ xform_pdf(const char       *filename,	/* I - File to transform */
           xform_write_cb_t cb,		/* I - Write callback */
           void             *ctx)	/* I - Write context */
 {
+  fz_context		*context;	/* MuPDF context */
+  fz_document		*document;	/* Document to print */
+  fz_page		*pdf_page;	/* Page in PDF file */
+  fz_pixmap		*pixmap;	/* Pixmap for band */
+  fz_device		*device;	/* Device for rendering */
+  fz_colorspace		*cs;		/* Quartz color space */
   xform_raster_t	ras;		/* Raster info */
+  unsigned		pages = 1;	/* Number of pages */
   int			color = 1;	/* Color PDF? */
+  const char		*page_ranges;	/* "page-ranges" option */
+  unsigned		first, last;	/* First and last page of range */
+  unsigned		copy;		/* Current copy */
+  unsigned		page;		/* Current page */
+  unsigned		media_sheets = 0,
+			impressions = 0;/* Page/sheet counters */
+  size_t		band_size;	/* Size of band line */
+  double		xscale, yscale;	/* Scaling factor */
+  fz_matrix	 	base_transform,	/* Base transform */
+			transform,	/* Transform for page */
+			back_transform;	/* Transform for back side */
+//  CGRect		dest;		/* Destination rectangle */
 
 
-  (void)filename;
-  (void)cb;
-  (void)ctx;
- 
-   if (xform_setup(&ras, format, resolutions, types, sheet_back, color, 1, num_options, options))
+ /*
+  * Open the PDF file...
+  */
+
+  if ((context = fz_new_context(NULL, NULL, FZ_STORE_UNLIMITED)) == NULL)
   {
+    fputs("ERROR: Unable to create context.\n", stderr);
     return (1);
   }
+
+  fz_register_document_handlers(context);
+
+  fz_try(context) doc = fz_open_document(context, filename);
+  fz_catch(context)
+  {
+    fprintf(stderr, "ERROR: Unable to open '%s': %s\n", filename, fz_caught_message(context));
+    fz_drop_context(context);
+    return (1);
+  }
+
+  if (fz_needs_password(doc))
+  {
+    fputs("ERROR: Document is encrypted and cannot be unlocked.\n", stderr);
+    fz_drop_document(context, doc);
+    fz_drop_context(context);
+    return (1);
+  }
+
+ /*
+  * Check page ranges...
+  */
+
+  if ((page_ranges = cupsGetOption("page-ranges", num_options, options)) != NULL)
+  {
+    if (sscanf(page_ranges, "%u-%u", &first, &last) != 2 || first > last)
+    {
+      fprintf(stderr, "ERROR: Bad \"page-ranges\" value '%s'.\n", page_ranges);
+
+      fz_drop_document(context, doc);
+      fz_drop_context(context);
+
+      return (1);
+    }
+
+    pages = (unsigned)fz_count_pages(context, doc);
+    if (first > pages)
+    {
+      fputs("ERROR: \"page-ranges\" value does not include any pages to print in the document.\n", stderr);
+
+      fz_drop_document(context, doc);
+      fz_drop_context(context);
+
+      return (1);
+    }
+
+    if (last > pages)
+      last = pages;
+  }
+  else
+  {
+    first = 1;
+    last  = (unsigned)fz_count_pages(context, doc);
+  }
+
+  pages = last - first + 1;
+
+ /*
+  * Setup the raster context...
+  */
+
+  if (xform_setup(&ras, format, resolutions, types, sheet_back, color, 1, num_options, options))
+  {
+    fz_drop_document(context, doc);
+    fz_drop_context(context);
+
+    return (1);
+  }
+
+  if (ras.header.cupsBitsPerPixel != 24)
+  {
+   /*
+    * Grayscale output...
+    */
+
+    ras.band_bpp = 1;
+    cs           = fz_device_gray(context);
+  }
+  else
+  {
+   /*
+    * Color (sRGB) output...
+    */
+
+    ras.band_bpp = 3;
+    cs           = fz_device_rgb(context);
+  }
+
+  band_size = ras.header.cupsWidth * ras.band_bpp;
+  if ((ras.band_height = XFORM_MAX_RASTER / band_size) < 1)
+    ras.band_height = 1;
+  else if (ras.band_height > ras.header.cupsHeight)
+    ras.band_height = ras.header.cupsHeight;
+
+  pixmap = fz_new_pixmap(context, cs, ras.header.cupsWidth, ras.band_height);
+  device = fz_new_draw_device(context, pixmap);
+
+  /* Don't anti-alias or interpolate when creating raster data */
+  pixmap->interpolate = 0;
+  pixmap->xres        = ras.header.HWResolution[0];
+  pixmap->yres        = ras.header.HWResolution[1];
+
+  xscale = ras.header.HWResolution[0] / 72.0;
+  yscale = ras.header.HWResolution[1] / 72.0;
+
+  if (Verbosity > 1)
+    fprintf(stderr, "DEBUG: xscale=%g, yscale=%g\n", xscale, yscale);
+  fz_scale(&base_transform, xscale, yscale);
+
+  if (Verbosity > 1)
+    fprintf(stderr, "DEBUG: Band height=%u, page height=%u, page translate 0.0,%g\n", ras.band_height, ras.header.cupsHeight, -1.0 * (ras.header.cupsHeight - ras.band_height) / yscale);
+  fz_pre_translate(&base_transform, 0.0, -1.0 * (ras.header.cupsHeight - ras.band_height) / yscale);
+
+ /*
+  * Setup the back page transform, if any...
+  */
+
+  if (sheet_back && ras.header.Duplex)
+  {
+    if (!strcmp(sheet_back, "flipped"))
+    {
+      if (ras.header.Tumble)
+        back_transform = { -1, 0, 0, 1, ras.header.cupsPageSize[0], 0};
+      else
+        back_transform = { 1, 0, 0, -1, 0, ras.header.cupsPageSize[1]};
+    }
+    else if (!strcmp(sheet_back, "manual-tumble") && ras.header.Tumble)
+      back_transform = { -1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1] };
+    else if (!strcmp(sheet_back, "rotated") && !ras.header.Tumble)
+      back_transform = { -1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1] };
+    else
+      back_transform = { 1, 0, 0, 1, 0, 0 };
+  }
+  else
+    back_transform = { 1, 0, 0, 1, 0, 0 };
+
+  if (Verbosity > 1)
+    fprintf(stderr, "DEBUG: cupsPageSize=[%g %g]\n", ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
+  if (Verbosity > 1)
+    fprintf(stderr, "DEBUG: back_transform=[%g %g %g %g %g %g]\n", back_transform.a, back_transform.b, back_transform.c, back_transform.d, back_transform.e, back_transform.f);
+
+ /*
+  * Draw all of the pages...
+  */
+
+  (*(ras.start_job))(&ras, cb, ctx);
+
+  for (copy = 0; copy < ras.copies; copy ++)
+  {
+    for (page = 1; page <= pages; page ++)
+    {
+      unsigned		y,		/* Current line */
+			band_starty = 0,/* Start line of band */
+			band_endy = 0;	/* End line of band */
+      unsigned char	*lineptr;	/* Pointer to line */
+
+      pdf_page  = fz_load_page(document, page + first - 1);
+      // TODO: Call fz_bound_page to determine page transform
+//      transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox,dest, 0, true);
+
+      if (Verbosity > 1)
+        fprintf(stderr, "DEBUG: Printing copy %d/%d, page %d/%d, base_transform=[%g %g %g %g %g %g]\n", copy + 1, ras.copies, page, pages, base_transform.a, base_transform.b, base_transform.c, base_transform.d, base_transform.e, base_transform.f);
+
+      (*(ras.start_page))(&ras, page, cb, ctx);
+
+      for (y = ras.top; y <= ras.bottom; y ++)
+      {
+	if (y >= band_endy)
+	{
+	 /*
+	  * Draw the next band of raster data...
+	  */
+
+	  band_starty = y;
+	  band_endy   = y + ras.band_height;
+	  if (band_endy > ras.bottom)
+	    band_endy = ras.bottom;
+
+	  if (Verbosity > 1)
+	    fprintf(stderr, "DEBUG: Drawing band from %u to %u.\n", band_starty, band_endy);
+
+          memset(pixmap->samples, 0xff, band_size);
+
+          transform = base_transform;
+	  fz_pre_translate(&transform, 0.0, y / yscale);
+	  if (!(page & 1) && ras.header.Duplex)
+	    fz_concat(&transform, &transform, &back_transform);
+
+          fz_run_page(document, pdf_page, device, &transform, NULL);
+	}
+
+       /*
+	* Prepare and write a line...
+	*/
+
+	lineptr = ras.band_buffer + (y - band_starty) * band_size + ras.left * ras.band_bpp;
+
+	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
+      }
+
+      (*(ras.end_page))(&ras, page, cb, ctx);
+
+      impressions ++;
+      fprintf(stderr, "ATTR: job-impressions-completed=%u\n", impressions);
+      if (!ras.header.Duplex || !(page & 1))
+      {
+        media_sheets ++;
+	fprintf(stderr, "ATTR: job-media-sheets-completed=%u\n", media_sheets);
+      }
+    }
+
+    if (ras.copies > 1 && (pages & 1) && ras.header.Duplex)
+    {
+     /*
+      * Duplex printing, add a blank back side image...
+      */
+
+      unsigned		y;		/* Current line */
+
+      if (Verbosity > 1)
+        fprintf(stderr, "DEBUG: Printing blank page %u for duplex.\n", pages + 1);
+
+      memset(pixmap->samples, 255, ras.header.cupsBytesPerLine);
+
+      (*(ras.start_page))(&ras, page, cb, ctx);
+
+      for (y = ras.top; y < ras.bottom; y ++)
+	(*(ras.write_line))(&ras, y, pixmap->samples, cb, ctx);
+
+      (*(ras.end_page))(&ras, page, cb, ctx);
+
+      impressions ++;
+      fprintf(stderr, "ATTR: job-impressions-completed=%u\n", impressions);
+      if (!ras.header.Duplex || !(page & 1))
+      {
+        media_sheets ++;
+	fprintf(stderr, "ATTR: job-media-sheets-completed=%u\n", media_sheets);
+      }
+    }
+  }
+
+  (*(ras.end_job))(&ras, cb, ctx);
+
+ /*
+  * Clean up...
+  */
+
+  fz_drop_device(context, device);
+  fz_drop_pixmap(context, pixmap);
+  fz_drop_document(context, doc);
+  fz_drop_context(context);
 
   return (1);
 }
