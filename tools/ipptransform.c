@@ -1937,7 +1937,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 			band_endy = 0;	/* End line of band */
       unsigned char	*lineptr;	/* Pointer to line */
 
-      pdf_page  = fz_load_page(context, document, (int)(page + first - 1));
+      pdf_page  = fz_load_page(context, document, (int)(page + first - 2));
       // TODO: Call fz_bound_page to determine page transform
 //      transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox,dest, 0, true);
 
@@ -1976,7 +1976,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 	* Prepare and write a line...
 	*/
 
-	lineptr = ras.band_buffer + (y - band_starty) * band_size + ras.left * ras.band_bpp;
+	lineptr = pixmap->samples + (y - band_starty) * band_size + ras.left * ras.band_bpp;
 
 	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
       }
