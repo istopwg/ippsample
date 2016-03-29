@@ -38,14 +38,12 @@ inline fz_matrix fz_make_matrix(float a, float b, float c, float d, float e, flo
 
 #define XFORM_MAX_RASTER	16777216
 
-#ifdef __APPLE__
-#  define XFORM_RED_MASK		0x000000ff
-#  define XFORM_GREEN_MASK	0x0000ff00
-#  define XFORM_BLUE_MASK		0x00ff0000
-#  define XFORM_RGB_MASK		(XFORM_RED_MASK | XFORM_GREEN_MASK |  XFORM_BLUE_MASK)
-#  define XFORM_BG_MASK		(XFORM_BLUE_MASK | XFORM_GREEN_MASK)
-#  define XFORM_RG_MASK		(XFORM_RED_MASK | XFORM_GREEN_MASK)
-#endif /* __APPLE__ */
+#define XFORM_RED_MASK		0x000000ff
+#define XFORM_GREEN_MASK	0x0000ff00
+#define XFORM_BLUE_MASK		0x00ff0000
+#define XFORM_RGB_MASK		(XFORM_RED_MASK | XFORM_GREEN_MASK |  XFORM_BLUE_MASK)
+#define XFORM_BG_MASK		(XFORM_BLUE_MASK | XFORM_GREEN_MASK)
+#define XFORM_RG_MASK		(XFORM_RED_MASK | XFORM_GREEN_MASK)
 
 
 /*
@@ -100,9 +98,10 @@ static int	Verbosity = 0;		/* Log level */
  */
 
 static int	load_env_options(cups_option_t **options);
-#ifdef __APPLE__
-static void	pack_pixels(unsigned char *row, size_t num_pixels);
-#endif /* __APPLE__ */
+#ifdef HAVE_MUPDF
+static void	pack_graya(unsigned char *row, size_t num_pixels);
+#endif /* HAVE_MUPDF */
+static void	pack_rgba(unsigned char *row, size_t num_pixels);
 static void	pcl_end_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	pcl_end_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	pcl_init(xform_raster_t *ras);
@@ -409,24 +408,44 @@ load_env_options(
 }
 
 
-#ifdef __APPLE__
+#ifdef HAVE_MUPDF
 /*
- * 'pack_pixels()' - Pack RGBX scanlines into RGB scanlines.
+ * 'pack_graya()' - Pack GRAYX scanlines into GRAY scanlines.
+ *
+ * This routine is suitable only for 8 bit GRAYX data packed into GRAY bytes.
+ */
+
+static void
+pack_graya(unsigned char *row,		/* I - Row of pixels to pack */
+	   size_t        num_pixels)	/* I - Number of pixels in row */
+{
+  unsigned char *src_byte;		/* Remaining source bytes */
+  unsigned char *dest_byte;		/* Remaining destination bytes */
+
+
+  for (src_byte = row + 2, dest_byte = row + 1, num_pixels --; num_pixels > 0; num_pixels --, src_byte += 2)
+    *dest_byte++ = *src_byte;
+}
+#endif /* HAVE_MUPDF */
+
+
+/*
+ * 'pack_rgba()' - Pack RGBX scanlines into RGB scanlines.
  *
  * This routine is suitable only for 8 bit RGBX data packed into RGB bytes.
  */
 
 static void
-pack_pixels(unsigned char *row,		/* I - Row of pixels to pack */
-	    size_t        num_pixels)	/* I - Number of pixels in row */
+pack_rgba(unsigned char *row,		/* I - Row of pixels to pack */
+	  size_t        num_pixels)	/* I - Number of pixels in row */
 {
   size_t	num_quads = num_pixels / 4;
 					/* Number of 4 byte samples to pack */
   size_t	leftover_pixels = num_pixels & 3;
 					/* Number of pixels remaining */
-  UInt32	*quad_row = (UInt32 *)row;
+  unsigned	*quad_row = (unsigned *)row;
 					/* 32-bit pixel pointer */
-  UInt32	*dest = quad_row;	/* Destination pointer */
+  unsigned	*dest = quad_row;	/* Destination pointer */
   unsigned char *src_byte;		/* Remaining source bytes */
   unsigned char *dest_byte;		/* Remaining destination bytes */
 
@@ -461,7 +480,6 @@ pack_pixels(unsigned char *row,		/* I - Row of pixels to pack */
     leftover_pixels --;
   }
 }
-#endif /* __APPLE__ */
 
 
 /*
@@ -1355,7 +1373,7 @@ xform_jpeg(const char       *filename,	/* I - File to transform */
 
       lineptr = ras.band_buffer + (y - band_starty) * band_size + ras.left * ras.band_bpp;
       if (ras.band_bpp == 4)
-	pack_pixels(lineptr, ras.right - ras.left + 1);
+	pack_rgba(lineptr, ras.right - ras.left + 1);
 
       (*(ras.write_line))(&ras, y, lineptr, cb, ctx);
     }
@@ -1643,7 +1661,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 
 	lineptr = ras.band_buffer + (y - band_starty) * band_size + ras.left * ras.band_bpp;
 	if (ras.band_bpp == 4)
-	  pack_pixels(lineptr, ras.right - ras.left + 1);
+	  pack_rgba(lineptr, ras.right - ras.left + 1);
 
 	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
       }
@@ -1769,7 +1787,6 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   fz_matrix	 	base_transform,	/* Base transform */
 			transform,	/* Transform for page */
 			back_transform;	/* Transform for back side */
-//  CGRect		dest;		/* Destination rectangle */
 
 
  /*
@@ -1856,7 +1873,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
     * Grayscale output...
     */
 
-    ras.band_bpp = 1;
+    ras.band_bpp = 2;
     cs           = fz_device_gray(context);
   }
   else
@@ -1865,7 +1882,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
     * Color (sRGB) output...
     */
 
-    ras.band_bpp = 3;
+    ras.band_bpp = 4;
     cs           = fz_device_rgb(context);
   }
 
@@ -1956,13 +1973,13 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 
 	  band_starty = y;
 	  band_endy   = y + ras.band_height;
-	  if (band_endy > ras.bottom)
-	    band_endy = ras.bottom;
+	  if (band_endy > (ras.bottom + 1))
+	    band_endy = ras.bottom + 1;
 
 	  if (Verbosity > 1)
 	    fprintf(stderr, "DEBUG: Drawing band from %u to %u.\n", band_starty, band_endy);
 
-          memset(pixmap->samples, 0xff, band_size);
+          fz_clear_pixmap_with_value(context, pixmap, 0xff);
 
           transform = base_transform;
 	  fz_pre_translate(&transform, 0.0, y / yscale);
@@ -1977,6 +1994,10 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 	*/
 
 	lineptr = pixmap->samples + (y - band_starty) * band_size + ras.left * ras.band_bpp;
+        if (ras.band_bpp == 4)
+          pack_rgba(lineptr, ras.right - ras.left + 1);
+        else
+          pack_graya(lineptr, ras.right - ras.left + 1);
 
 	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
       }
