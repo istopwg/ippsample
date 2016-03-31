@@ -1535,8 +1535,13 @@ xform_pdf(const char       *filename,	/* I - File to transform */
     cs           = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
   }
 
+  size_t max_raster = XFORM_MAX_RASTER;
+  const char *max_raster_env = getenv("IPPTRANSFORM_MAX_RASTER");
+  if (max_raster_env)
+    max_raster = (size_t)strtol(max_raster_env, NULL, 10);
+
   band_size = ras.header.cupsWidth * ras.band_bpp;
-  if ((ras.band_height = XFORM_MAX_RASTER / band_size) < 1)
+  if ((ras.band_height = max_raster / band_size) < 1)
     ras.band_height = 1;
   else if (ras.band_height > ras.header.cupsHeight)
     ras.band_height = ras.header.cupsHeight;
@@ -1886,8 +1891,13 @@ xform_pdf(const char       *filename,	/* I - File to transform */
     cs           = fz_device_rgb(context);
   }
 
+  size_t max_raster = XFORM_MAX_RASTER;
+  const char *max_raster_env = getenv("IPPTRANSFORM_MAX_RASTER");
+  if (max_raster_env)
+    max_raster = (size_t)strtol(max_raster_env, NULL, 10);
+
   band_size = ras.header.cupsWidth * ras.band_bpp;
-  if ((ras.band_height = XFORM_MAX_RASTER / band_size) < 1)
+  if ((ras.band_height = max_raster / band_size) < 1)
     ras.band_height = 1;
   else if (ras.band_height > ras.header.cupsHeight)
     ras.band_height = ras.header.cupsHeight;
@@ -1908,8 +1918,7 @@ xform_pdf(const char       *filename,	/* I - File to transform */
   fz_scale(&base_transform, xscale, yscale);
 
   if (Verbosity > 1)
-    fprintf(stderr, "DEBUG: Band height=%u, page height=%u, page translate 0.0,%g\n", ras.band_height, ras.header.cupsHeight, -1.0 * (ras.header.cupsHeight - ras.band_height) / yscale);
-  fz_pre_translate(&base_transform, 0.0, -1.0 * (ras.header.cupsHeight - ras.band_height) / yscale);
+    fprintf(stderr, "DEBUG: Band height=%u, page height=%u\n", ras.band_height, ras.header.cupsHeight);
 
  /*
   * Setup the back page transform, if any...
@@ -1965,16 +1974,16 @@ xform_pdf(const char       *filename,	/* I - File to transform */
 
       for (y = ras.top; y <= ras.bottom; y ++)
       {
-	if (y >= band_endy)
+	if (y > band_endy)
 	{
 	 /*
 	  * Draw the next band of raster data...
 	  */
 
 	  band_starty = y;
-	  band_endy   = y + ras.band_height;
-	  if (band_endy > (ras.bottom + 1))
-	    band_endy = ras.bottom + 1;
+	  band_endy   = y + ras.band_height - 1;
+	  if (band_endy > ras.bottom)
+	    band_endy = ras.bottom;
 
 	  if (Verbosity > 1)
 	    fprintf(stderr, "DEBUG: Drawing band from %u to %u.\n", band_starty, band_endy);
@@ -1982,9 +1991,11 @@ xform_pdf(const char       *filename,	/* I - File to transform */
           fz_clear_pixmap_with_value(context, pixmap, 0xff);
 
           transform = base_transform;
-	  fz_pre_translate(&transform, 0.0, y / yscale);
+	  fz_pre_translate(&transform, 0.0, -1.0 * y / yscale);
 	  if (!(page & 1) && ras.header.Duplex)
 	    fz_concat(&transform, &transform, &back_transform);
+
+          fprintf(stderr, "DEBUG: page transform=[%g %g %g %g %g %g]\n", transform.a, transform.b, transform.c, transform.d, transform.e, transform.f);
 
           fz_run_page(context, pdf_page, device, &transform, NULL);
 	}
