@@ -1740,20 +1740,7 @@ xform_jpeg(const char       *filename,	/* I - File to transform */
            xform_write_cb_t cb,		/* I - Write callback */
            void             *ctx)	/* I - Write context */
 {
-  xform_raster_t	ras;		/* Raster info */
-  int			color = 1;	/* Color image? */
-
-
-  (void)filename;
-  (void)cb;
-  (void)ctx;
-
-  if (xform_setup(&ras, format, resolutions, types, NULL, color, 1, num_options, options))
-  {
-    return (1);
-  }
-
-  return (1);
+  return (xform_pdf(filename, format, resolutions, types, NULL, num_options, options, cb, ctx));
 }
 
 
