@@ -1692,7 +1692,9 @@ xform_document(
 			impressions = 0;/* Page/sheet counters */
   size_t		band_size;	/* Size of band line */
   double		xscale, yscale;	/* Scaling factor */
+  fz_rect		image_box;	/* Bounding box of content */
   fz_matrix	 	base_transform,	/* Base transform */
+			image_transform,/* Transform for content ("page image") */
 			transform,	/* Transform for page */
 			back_transform;	/* Transform for back side */
 
@@ -1806,12 +1808,15 @@ xform_document(
     ras.band_height = ras.header.cupsHeight;
 
   pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth, (int)ras.band_height);
-  device = fz_new_draw_device(context, pixmap);
-
-  /* Don't anti-alias or interpolate when creating raster data */
   pixmap->interpolate = 0;
   pixmap->xres        = (int)ras.header.HWResolution[0];
   pixmap->yres        = (int)ras.header.HWResolution[1];
+
+  device = fz_new_draw_device(context, pixmap);
+
+  /* Don't anti-alias or interpolate when creating raster data */
+  fz_set_aa_level(context, 0);
+  fz_enable_device_hints(device, FZ_DONT_INTERPOLATE_IMAGES);
 
   xscale = ras.header.HWResolution[0] / 72.0;
   yscale = ras.header.HWResolution[1] / 72.0;
@@ -1867,11 +1872,88 @@ xform_document(
       unsigned char	*lineptr;	/* Pointer to line */
 
       pdf_page  = fz_load_page(context, document, (int)(page + first - 2));
-      // TODO: Call fz_bound_page to determine page transform
-//      transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox,dest, 0, true);
+      image_box = fz_bound_page(context, pdf_page, &image_box);
+
+      float image_width = image_box.x1 - image_box.x0;
+      float image_height = image_box.y1 - image_box.y0;
+      int image_rotation = 0;
+      int is_image = strcmp(informat, "application/pdf") != 0;
+
+      if ((image_height < image_width && ras.header.cupsWidth < ras.header.cupsHeight) ||
+	   (image_width < image_height && ras.header.cupsHeight < ras.header.cupsWidth))
+      {
+       /*
+	* Rotate image/page 90 degrees...
+	*/
+
+	image_rotation = 90;
+      }
+
+      if ((!strcmp(print_scaling, "auto") && ras.borderless && is_image) || !strcmp(print_scaling, "fill"))
+      {
+       /*
+	* Scale to fill...
+	*/
+
+	if (image_rotation)
+	{
+	  image_xscale = ras.header.cupsPageSize[0] / (double)image_height;
+	  image_yscale = ras.header.cupsPageSize[1] / (double)image_width;
+	}
+	else
+	{
+	  image_xscale = ras.header.cupsPageSize[0] / (double)image_width;
+	  image_yscale = ras.header.cupsPageSize[1] / (double)image_height;
+	}
+
+	if (image_xscale < image_yscale)
+	  image_xscale = image_yscale;
+	else
+	  image_yscale = image_xscale;
+
+      }
+      else if ((!strcmp(print_scaling, "auto") && ((image_rotation == 0 && (image_width > ras.header.cupsPageSize[0] || image_height > ras.header.cupsPageSize[1])) || (image_rotation == 90 && (image_height > ras.header.cupsPageSize[1] || image_width > ras.header.cupsPageSize[1])))) || !strcmp(print_scaling, "fit"))
+      {
+       /*
+	* Scale to fit with 1/4" margins...
+	*/
+
+	if (image_rotation)
+	{
+	  image_xscale = (ras.header.cupsPageSize[0] - 36.0) / (double)image_height;
+	  image_yscale = (ras.header.cupsPageSize[1] - 36.0) / (double)image_width;
+	}
+	else
+	{
+	  image_xscale = (ras.header.cupsPageSize[0] - 36.0) / (double)image_width;
+	  image_yscale = (ras.header.cupsPageSize[1] - 36.0) / (double)image_height;
+	}
+
+	if (image_xscale > image_yscale)
+	  image_xscale = image_yscale;
+	else
+	  image_yscale = image_xscale;
+      }
+      else
+      {
+       /*
+        * Do not scale...
+	*/
+
+        image_xscale = image_yscale = 1.0;
+      }
+
+      if (image_rotation)
+      {
+	image_transform = fz_make_matrix(image_xscale, 0, 0, image_yscale, 0.5 * (ras.header.cupsPageSize[0] - image_xscale * image_height), 0.5 * (ras.header.cupsPageSize[1] - image_yscale * image_width));
+      }
+      else
+      {
+	image_transform = fz_make_matrix(image_xscale, 0, 0, image_yscale, 0.5 * (ras.header.cupsPageSize[0] - image_xscale * image_width), 0.5 * (ras.header.cupsPageSize[1] - image_yscale * image_height));
+      }
 
       if (Verbosity > 1)
-        fprintf(stderr, "DEBUG: Printing copy %d/%d, page %d/%d, base_transform=[%g %g %g %g %g %g]\n", copy + 1, ras.copies, page, pages, base_transform.a, base_transform.b, base_transform.c, base_transform.d, base_transform.e, base_transform.f);
+        fprintf(stderr, "DEBUG: Printing copy %d/%d, page %d/%d, image_transform=[%g %g %g %g %g %g]\n", copy + 1, ras.copies, page, pages, image_transform.a, image_transform.b, image_transform.c, image_transform.d, image_transform.e, image_transform.f);
 
       (*(ras.start_page))(&ras, page, cb, ctx);
 
@@ -1897,6 +1979,8 @@ xform_document(
 	  fz_pre_translate(&transform, 0.0, -1.0 * y / yscale);
 	  if (!(page & 1) && ras.header.Duplex)
 	    fz_concat(&transform, &transform, &back_transform);
+
+	  fz_concat(&transform, &transform, &image_transform);
 
           fprintf(stderr, "DEBUG: page transform=[%g %g %g %g %g %g]\n", transform.a, transform.b, transform.c, transform.d, transform.e, transform.f);
 
