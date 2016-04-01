@@ -1816,7 +1816,7 @@ xform_document(
 
   /* Don't anti-alias or interpolate when creating raster data */
   fz_set_aa_level(context, 0);
-  fz_enable_device_hints(device, FZ_DONT_INTERPOLATE_IMAGES);
+  fz_enable_device_hints(context, device, FZ_DONT_INTERPOLATE_IMAGES);
 
   xscale = ras.header.HWResolution[0] / 72.0;
   yscale = ras.header.HWResolution[1] / 72.0;
@@ -1857,6 +1857,14 @@ xform_document(
     fprintf(stderr, "DEBUG: back_transform=[%g %g %g %g %g %g]\n", back_transform.a, back_transform.b, back_transform.c, back_transform.d, back_transform.e, back_transform.f);
 
  /*
+  * Get print-scaling value...
+  */
+
+  if ((print_scaling = cupsGetOption("print-scaling", num_options, options)) == NULL)
+    if ((print_scaling = getenv("PRINTER_PRINT_SCALING_DEFAULT")) == NULL)
+      print_scaling = "auto";
+
+ /*
   * Draw all of the pages...
   */
 
@@ -1871,13 +1879,17 @@ xform_document(
 			band_endy = 0;	/* End line of band */
       unsigned char	*lineptr;	/* Pointer to line */
 
-      pdf_page  = fz_load_page(context, document, (int)(page + first - 2));
-      image_box = fz_bound_page(context, pdf_page, &image_box);
+      pdf_page = fz_load_page(context, document, (int)(page + first - 2));
+
+      fz_bound_page(context, pdf_page, &image_box);
+
+      fprintf(stderr, "DEBUG: image_box=[%g %g %g %g]\n", image_box.x0, image_box.y0, image_box.x1, image_box.y1);
 
       float image_width = image_box.x1 - image_box.x0;
       float image_height = image_box.y1 - image_box.y0;
       int image_rotation = 0;
       int is_image = strcmp(informat, "application/pdf") != 0;
+      float image_xscale, image_yscale;
 
       if ((image_height < image_width && ras.header.cupsWidth < ras.header.cupsHeight) ||
 	   (image_width < image_height && ras.header.cupsHeight < ras.header.cupsWidth))
@@ -1912,21 +1924,21 @@ xform_document(
 	  image_yscale = image_xscale;
 
       }
-      else if ((!strcmp(print_scaling, "auto") && ((image_rotation == 0 && (image_width > ras.header.cupsPageSize[0] || image_height > ras.header.cupsPageSize[1])) || (image_rotation == 90 && (image_height > ras.header.cupsPageSize[1] || image_width > ras.header.cupsPageSize[1])))) || !strcmp(print_scaling, "fit"))
+      else if ((!strcmp(print_scaling, "auto") && (is_image || (image_rotation == 0 && (image_width > ras.header.cupsPageSize[0] || image_height > ras.header.cupsPageSize[1])) || (image_rotation == 90 && (image_height > ras.header.cupsPageSize[1] || image_width > ras.header.cupsPageSize[1])))) || !strcmp(print_scaling, "fit"))
       {
        /*
-	* Scale to fit with 1/4" margins...
+	* Scale to fit...
 	*/
 
 	if (image_rotation)
 	{
-	  image_xscale = (ras.header.cupsPageSize[0] - 36.0) / (double)image_height;
-	  image_yscale = (ras.header.cupsPageSize[1] - 36.0) / (double)image_width;
+	  image_xscale = ras.header.cupsPageSize[0] / (double)image_height;
+	  image_yscale = ras.header.cupsPageSize[1] / (double)image_width;
 	}
 	else
 	{
-	  image_xscale = (ras.header.cupsPageSize[0] - 36.0) / (double)image_width;
-	  image_yscale = (ras.header.cupsPageSize[1] - 36.0) / (double)image_height;
+	  image_xscale = ras.header.cupsPageSize[0] / (double)image_width;
+	  image_yscale = ras.header.cupsPageSize[1] / (double)image_height;
 	}
 
 	if (image_xscale > image_yscale)
