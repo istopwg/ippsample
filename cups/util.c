@@ -1,6 +1,4 @@
 /*
- * "$Id: util.c 13007 2015-12-09 16:56:00Z msweet $"
- *
  * Printing utilities for CUPS.
  *
  * Copyright 2007-2015 by Apple Inc.
@@ -953,8 +951,3 @@ cupsStartDocument(
 
   return (status);
 }
-
-
-/*
- * End of "$Id: util.c 13007 2015-12-09 16:56:00Z msweet $".
- */

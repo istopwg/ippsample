@@ -1,6 +1,4 @@
 /*
- * "$Id: array.c 12031 2014-07-15 19:57:59Z msweet $"
- *
  * Sorted array routines for CUPS.
  *
  * Copyright 2007-2014 by Apple Inc.
@@ -1325,8 +1323,3 @@ cups_array_find(cups_array_t *a,	/* I - Array */
 
   return (current);
 }
-
-
-/*
- * End of "$Id: array.c 12031 2014-07-15 19:57:59Z msweet $".
- */

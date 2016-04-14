@@ -1,6 +1,4 @@
 /*
- * "$Id: auth.c 12619 2015-05-06 21:00:19Z msweet $"
- *
  * Authentication functions for CUPS.
  *
  * Copyright 2007-2014 by Apple Inc.
@@ -871,8 +869,3 @@ cups_local_auth(http_t *http)		/* I - HTTP connection to server */
   return (1);
 #endif /* WIN32 || __EMX__ */
 }
-
-
-/*
- * End of "$Id: auth.c 12619 2015-05-06 21:00:19Z msweet $".
- */

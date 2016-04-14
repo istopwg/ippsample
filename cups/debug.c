@@ -1,6 +1,4 @@
 /*
- * "$Id: debug.c 12925 2015-10-23 21:17:33Z msweet $"
- *
  * Debugging functions for CUPS.
  *
  * Copyright 2008-2015 by Apple Inc.
@@ -642,8 +640,3 @@ _cups_safe_vsnprintf(
 
   return (bytes);
 }
-
-
-/*
- * End of "$Id: debug.c 12925 2015-10-23 21:17:33Z msweet $".
- */

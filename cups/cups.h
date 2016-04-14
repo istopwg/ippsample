@@ -1,6 +1,4 @@
 /*
- * "$Id: cups.h 13088 2016-02-15 23:39:23Z msweet $"
- *
  * API definitions for CUPS.
  *
  * Copyright 2007-2016 by Apple Inc.
@@ -621,7 +619,3 @@ extern ssize_t		cupsHashData(const char *algorithm, const void *data, size_t dat
 #  endif /* __cplusplus */
 
 #endif /* !_CUPS_CUPS_H_ */
-
-/*
- * End of "$Id: cups.h 13007 2015-12-09 16:56:00Z msweet $".
- */

@@ -1,6 +1,4 @@
 /*
- * "$Id: tempfile.c 12073 2014-07-31 00:58:00Z msweet $"
- *
  * Temp file utilities for CUPS.
  *
  * Copyright 2007-2014 by Apple Inc.
@@ -71,11 +69,11 @@ cupsTempFd(char *filename,		/* I - Pointer to buffer */
   */
 
   if ((tmpdir = getenv("TMPDIR")) == NULL)
-#  ifdef __APPLE__
+#  if defined(__APPLE__) && !TARGET_OS_IOS
     tmpdir = "/private/tmp";		/* /tmp is a symlink to /private/tmp */
 #  else
     tmpdir = "/tmp";
-#  endif /* __APPLE__ */
+#  endif /* __APPLE__  && !TARGET_OS_IOS */
 #endif /* WIN32 */
 
  /*
@@ -192,8 +190,3 @@ cupsTempFile2(char *filename,		/* I - Pointer to buffer */
   else
     return (file);
 }
-
-
-/*
- * End of "$Id: tempfile.c 12073 2014-07-31 00:58:00Z msweet $".
- */

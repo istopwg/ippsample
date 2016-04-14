@@ -1,6 +1,4 @@
 /*
- * "$Id: tls-gnutls.c 12670 2015-05-27 19:48:05Z msweet $"
- *
  * TLS support code for CUPS using GNU TLS.
  *
  * Copyright 2007-2015 by Apple Inc.
@@ -659,7 +657,7 @@ httpLoadCredentials(
         alloc_data += 1024;
       }
 
-      decoded = (int)(alloc_data - num_data);
+      decoded = alloc_data - num_data;
       httpDecode64_2((char *)data + num_data, &decoded, line);
       num_data += (size_t)decoded;
     }
@@ -1338,8 +1336,3 @@ _httpTLSWrite(http_t     *http,		/* I - Connection to server */
 
   return ((int)result);
 }
-
-
-/*
- * End of "$Id: tls-gnutls.c 12670 2015-05-27 19:48:05Z msweet $".
- */

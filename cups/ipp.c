@@ -1,6 +1,4 @@
 /*
- * "$Id: ipp.c 12468 2015-02-01 04:50:43Z msweet $"
- *
  * Internet Printing Protocol functions for CUPS.
  *
  * Copyright 2007-2015 by Apple Inc.
@@ -7015,8 +7013,3 @@ ipp_write_file(int         *fd,		/* I - File descriptor */
   return (write(*fd, buffer, length));
 #endif /* WIN32 */
 }
-
-
-/*
- * End of "$Id: ipp.c 12468 2015-02-01 04:50:43Z msweet $".
- */

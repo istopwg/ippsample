@@ -1,6 +1,4 @@
 /*
- * "$Id: request.c 11866 2014-05-09 20:20:16Z msweet $"
- *
  * IPP utilities for CUPS.
  *
  * Copyright 2007-2014 by Apple Inc.
@@ -1172,8 +1170,3 @@ _cupsSetHTTPError(http_status_t status)	/* I - HTTP status code */
 	break;
   }
 }
-
-
-/*
- * End of "$Id: request.c 11866 2014-05-09 20:20:16Z msweet $".
- */

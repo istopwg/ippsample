@@ -1,6 +1,4 @@
 /*
- * "$Id: tls-sspi.c 12647 2015-05-20 18:37:52Z msweet $"
- *
  * TLS support for CUPS on Windows using the Security Support Provider
  * Interface (SSPI).
  *
@@ -2424,8 +2422,3 @@ http_sspi_verify(
 
   return (status);
 }
-
-
-/*
- * End of "$Id: tls-sspi.c 12647 2015-05-20 18:37:52Z msweet $".
- */

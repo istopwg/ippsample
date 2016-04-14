@@ -1,6 +1,4 @@
 /*
- * "$Id: options.c 11558 2014-02-06 18:33:34Z msweet $"
- *
  * Option routines for CUPS.
  *
  * Copyright 2007-2014 by Apple Inc.
@@ -684,8 +682,3 @@ cups_find_option(
 
   return (current);
 }
-
-
-/*
- * End of "$Id: options.c 11558 2014-02-06 18:33:34Z msweet $".
- */

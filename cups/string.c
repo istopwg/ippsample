@@ -1,6 +1,4 @@
 /*
- * "$Id: string.c 11889 2014-05-22 13:54:15Z msweet $"
- *
  * String functions for CUPS.
  *
  * Copyright 2007-2014 by Apple Inc.
@@ -769,8 +767,3 @@ compare_sp_items(_cups_sp_item_t *a,	/* I - First item */
 {
   return (strcmp(a->str, b->str));
 }
-
-
-/*
- * End of "$Id: string.c 11889 2014-05-22 13:54:15Z msweet $".
- */

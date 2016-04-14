@@ -1,6 +1,4 @@
 /*
- * "$Id: tls.c 12136 2014-08-29 15:19:40Z msweet $"
- *
  * TLS routines for CUPS.
  *
  * Copyright 2007-2014 by Apple Inc.
@@ -105,8 +103,3 @@ httpSaveCredentials(const char *path, cups_array_t *credentials, const char *com
   return (-1);
 }
 #endif /* HAVE_SSL */
-
-
-/*
- * End of "$Id: tls.c 12136 2014-08-29 15:19:40Z msweet $".
- */

@@ -1,6 +1,4 @@
 /*
- * "$Id: dest-localization.c 12094 2014-08-19 12:15:11Z msweet $"
- *
  * Destination localization support for CUPS.
  *
  * Copyright 2012-2014 by Apple Inc.
@@ -531,9 +529,3 @@ cups_scan_strings(char *buffer)		/* I - Start of string */
 
   return (bufptr);
 }
-
-
-
-/*
- * End of "$Id: dest-localization.c 12094 2014-08-19 12:15:11Z msweet $".
- */
