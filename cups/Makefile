@@ -39,7 +39,6 @@ OBJS	=	\
 		encode.o \
 		error.o \
 		file.o \
-		getdevices.o \
 		getputfile.o \
 		globals.o \
 		hash.o \
