@@ -88,7 +88,8 @@ serverFinalizeConfiguration(void)
 
   if (!ServerName && httpGetHostname(NULL, local, sizeof(local)))
     ServerName = strdup(local);
-  else
+
+  if (!ServerName)
     ServerName = strdup("localhost");
 
 #ifdef HAVE_SSL

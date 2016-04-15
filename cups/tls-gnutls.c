@@ -657,7 +657,7 @@ httpLoadCredentials(
         alloc_data += 1024;
       }
 
-      decoded = alloc_data - num_data;
+      decoded = (int)(alloc_data - num_data);
       httpDecode64_2((char *)data + num_data, &decoded, line);
       num_data += (size_t)decoded;
     }
