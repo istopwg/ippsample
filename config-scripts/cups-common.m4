@@ -183,7 +183,7 @@ case $uname in
 		;;
 
 	*)
-		AC_SEARCH_LIBS(mupdfthird freetype, FT_Init_FreeType)
+		AC_SEARCH_LIBS(FT_Init_FreeType, mupdfthird freetype)
 		AC_CHECK_LIB(mupdf, fz_open_document,[
 			AC_DEFINE(HAVE_MUPDF)
 			LIBS="-lmupdf $LIBS"

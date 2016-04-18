@@ -4384,9 +4384,9 @@ fi
 		;;
 
 	*)
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing mupdfthird freetype" >&5
-$as_echo_n "checking for library containing mupdfthird freetype... " >&6; }
-if ${ac_cv_search_mupdfthird_freetype+:} false; then :
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing FT_Init_FreeType" >&5
+$as_echo_n "checking for library containing FT_Init_FreeType... " >&6; }
+if ${ac_cv_search_FT_Init_FreeType+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_func_search_save_LIBS=$LIBS
@@ -4399,16 +4399,16 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char mupdfthird freetype ();
+char FT_Init_FreeType ();
 int
 main ()
 {
-return mupdfthird freetype ();
+return FT_Init_FreeType ();
   ;
   return 0;
 }
 _ACEOF
-for ac_lib in '' FT_Init_FreeType; do
+for ac_lib in '' mupdfthird freetype; do
   if test -z "$ac_lib"; then
     ac_res="none required"
   else
@@ -4416,25 +4416,25 @@ for ac_lib in '' FT_Init_FreeType; do
     LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
   fi
   if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_search_mupdfthird_freetype=$ac_res
+  ac_cv_search_FT_Init_FreeType=$ac_res
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext
-  if ${ac_cv_search_mupdfthird_freetype+:} false; then :
+  if ${ac_cv_search_FT_Init_FreeType+:} false; then :
   break
 fi
 done
-if ${ac_cv_search_mupdfthird_freetype+:} false; then :
+if ${ac_cv_search_FT_Init_FreeType+:} false; then :
 
 else
-  ac_cv_search_mupdfthird_freetype=no
+  ac_cv_search_FT_Init_FreeType=no
 fi
 rm conftest.$ac_ext
 LIBS=$ac_func_search_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_mupdfthird_freetype" >&5
-$as_echo "$ac_cv_search_mupdfthird_freetype" >&6; }
-ac_res=$ac_cv_search_mupdfthird_freetype
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_FT_Init_FreeType" >&5
+$as_echo "$ac_cv_search_FT_Init_FreeType" >&6; }
+ac_res=$ac_cv_search_FT_Init_FreeType
 if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
 
