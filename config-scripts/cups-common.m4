@@ -166,6 +166,9 @@ esac
 AC_SUBST(ARFLAGS)
 
 dnl Extra platform-specific libraries...
+IPPTRANSFORM=""
+AC_SUBST(IPPTRANSFORM)
+
 case $uname in
         Darwin*)
                 LIBS="-framework SystemConfiguration -framework ApplicationServices -framework CoreFoundation -framework Security $LIBS"
@@ -175,15 +178,16 @@ case $uname in
 		AC_CHECK_HEADER(CoreFoundation/CoreFoundation.h,AC_DEFINE(HAVE_COREFOUNDATION_H))
 		AC_CHECK_HEADER(CoreFoundation/CFPriv.h,AC_DEFINE(HAVE_CFPRIV_H))
 		AC_CHECK_HEADER(CoreFoundation/CFBundlePriv.h,AC_DEFINE(HAVE_CFBUNDLEPRIV_H))
+
+		IPPTRANSFORM="ipptransform"
 		;;
 
 	*)
-		AC_CHECK_LIB(mupdfthird, FT_Init_FreeType,[
-			LIBS="-lmupdfthird $LIBS"
-		])
+		AC_SEARCH_LIBS(mupdfthird freetype, FT_Init_FreeType)
 		AC_CHECK_LIB(mupdf, fz_open_document,[
 			AC_DEFINE(HAVE_MUPDF)
 			LIBS="-lmupdf $LIBS"
+			IPPTRANSFORM="ipptransform"
 		])
 		;;
 esac

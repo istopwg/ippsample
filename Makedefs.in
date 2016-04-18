@@ -19,6 +19,13 @@ IPPSAMPLE_VERSION =	@CUPS_VERSION@
 
 
 #
+# Components that get built...
+#
+
+IPPTRANSFORM	=	@IPPTRANSFORM@
+
+
+#
 # Programs...
 #
 
