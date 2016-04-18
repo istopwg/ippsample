@@ -185,7 +185,7 @@ case $uname in
 	*)
 		AC_SEARCH_LIBS(FT_Init_FreeType, mupdfthird freetype)
 		AC_SEARCH_LIBS(jpeg_destroy_decompress, mupdfthird jpeg)
-		AC_CHECK_LIB(mupdf, fz_open_document,[
+		AC_CHECK_LIB(mupdf, fz_drop_document,[
 			AC_DEFINE(HAVE_MUPDF)
 			LIBS="-lmupdf $LIBS"
 			IPPTRANSFORM="ipptransform"

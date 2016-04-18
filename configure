@@ -4496,9 +4496,9 @@ if test "$ac_res" != no; then :
 
 fi
 
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for fz_open_document in -lmupdf" >&5
-$as_echo_n "checking for fz_open_document in -lmupdf... " >&6; }
-if ${ac_cv_lib_mupdf_fz_open_document+:} false; then :
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for fz_drop_document in -lmupdf" >&5
+$as_echo_n "checking for fz_drop_document in -lmupdf... " >&6; }
+if ${ac_cv_lib_mupdf_fz_drop_document+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -4512,27 +4512,27 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char fz_open_document ();
+char fz_drop_document ();
 int
 main ()
 {
-return fz_open_document ();
+return fz_drop_document ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_mupdf_fz_open_document=yes
+  ac_cv_lib_mupdf_fz_drop_document=yes
 else
-  ac_cv_lib_mupdf_fz_open_document=no
+  ac_cv_lib_mupdf_fz_drop_document=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_mupdf_fz_open_document" >&5
-$as_echo "$ac_cv_lib_mupdf_fz_open_document" >&6; }
-if test "x$ac_cv_lib_mupdf_fz_open_document" = xyes; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_mupdf_fz_drop_document" >&5
+$as_echo "$ac_cv_lib_mupdf_fz_drop_document" >&6; }
+if test "x$ac_cv_lib_mupdf_fz_drop_document" = xyes; then :
 
 			$as_echo "#define HAVE_MUPDF 1" >>confdefs.h
 
