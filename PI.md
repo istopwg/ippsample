@@ -7,7 +7,8 @@ Run the following command to install the software you'll need to build and use t
 ippsample code:
 
     sudo apt-get install libnss-mdns avahi-daemon avahi-utils \
-        libavahi-client-dev libgnutls28-dev libjpeg-dev libmupdf-dev zlib1g-dev
+        libavahi-client-dev libgnutls28-dev libfreetype6-dev libjpeg-dev \
+        libmupdf-dev zlib1g-dev
 
 If you haven't already done so, you can download the sources with Git using:
 
