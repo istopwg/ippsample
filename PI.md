@@ -17,7 +17,7 @@ If you haven't already done so, you can download the IPP sample sources with Git
 
     git clone https://github.com/istopwg/ippsample.git ippsample
 
-Then from the ippsample source directory, run the following commands to build and install everything:
+Then, from the ippsample source directory, run the following commands to build and install everything:
 
     ./configure
     make
