@@ -23,7 +23,7 @@
 extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
 #elif defined(HAVE_MUPDF)
 #  include <mupdf/fitz.h>
-inline fz_matrix fz_make_matrix(float a, float b, float c, float d, float e, float f) {
+static inline fz_matrix fz_make_matrix(float a, float b, float c, float d, float e, float f) {
   fz_matrix ret = { a, b, c, d, e, f };
   return (ret);
 }
