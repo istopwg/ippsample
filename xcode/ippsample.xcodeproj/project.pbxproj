@@ -45,7 +45,6 @@
 		72737CF71C24BA4F007CBEF6 /* dest-localization.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF01C24BA4F007CBEF6 /* dest-localization.c */; };
 		72737CF81C24BA4F007CBEF6 /* dest-options.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF11C24BA4F007CBEF6 /* dest-options.c */; };
 		72737CF91C24BA4F007CBEF6 /* dest.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF21C24BA4F007CBEF6 /* dest.c */; };
-		72737CFA1C24BA4F007CBEF6 /* getdevices.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF31C24BA4F007CBEF6 /* getdevices.c */; };
 		72737CFB1C24BA4F007CBEF6 /* notify.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF41C24BA4F007CBEF6 /* notify.c */; };
 		72737CFC1C24BA4F007CBEF6 /* util.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF51C24BA4F007CBEF6 /* util.c */; };
 		72B402681C0CE27900139783 /* array-private.h in Headers */ = {isa = PBXBuildFile; fileRef = 72B4022F1C0CE27800139783 /* array-private.h */; };
@@ -299,7 +298,6 @@
 		72737CF01C24BA4F007CBEF6 /* dest-localization.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "dest-localization.c"; path = "../cups/dest-localization.c"; sourceTree = "<group>"; };
 		72737CF11C24BA4F007CBEF6 /* dest-options.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "dest-options.c"; path = "../cups/dest-options.c"; sourceTree = "<group>"; };
 		72737CF21C24BA4F007CBEF6 /* dest.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = dest.c; path = ../cups/dest.c; sourceTree = "<group>"; };
-		72737CF31C24BA4F007CBEF6 /* getdevices.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = getdevices.c; path = ../cups/getdevices.c; sourceTree = "<group>"; };
 		72737CF41C24BA4F007CBEF6 /* notify.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = notify.c; path = ../cups/notify.c; sourceTree = "<group>"; };
 		72737CF51C24BA4F007CBEF6 /* util.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = util.c; path = ../cups/util.c; sourceTree = "<group>"; };
 		72B402181C0CDFB400139783 /* ippserver */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ippserver; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -528,7 +526,6 @@
 				72B4023B1C0CE27800139783 /* file-private.h */,
 				72B4023C1C0CE27800139783 /* file.c */,
 				72B4023D1C0CE27800139783 /* file.h */,
-				72737CF31C24BA4F007CBEF6 /* getdevices.c */,
 				72B4023E1C0CE27800139783 /* getputfile.c */,
 				72B4023F1C0CE27800139783 /* globals.c */,
 				72B402401C0CE27800139783 /* hash.c */,
@@ -908,7 +905,6 @@
 				72B4028C1C0CE27900139783 /* pwg-media.c in Sources */,
 				72B402981C0CE27900139783 /* thread.c in Sources */,
 				72B4026B1C0CE27900139783 /* auth.c in Sources */,
-				72737CFA1C24BA4F007CBEF6 /* getdevices.c in Sources */,
 				72B4029F1C0CE27900139783 /* usersys.c in Sources */,
 				72737CF81C24BA4F007CBEF6 /* dest-options.c in Sources */,
 				72B402821C0CE27900139783 /* ipp.c in Sources */,

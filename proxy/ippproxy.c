@@ -9,11 +9,38 @@
 #include <signal.h>
 #include <unistd.h>
 #include <cups/cups.h>
+#include <cups/thread-private.h>
+
+
+/*
+ * Local types...
+ */
+
+typedef struct proxy_info_s
+{
+  const char	*printer_uri,
+		*device_uri,
+		*device_uuid;
+} proxy_info_t;
+
+typedef struct proxy_job_s
+{
+  ipp_jstate_t	local_job_state;	/* Local job-state value */
+  int		local_job_id,		/* Local job-id value */
+		remote_job_id,		/* Remote job-id value */
+		remote_job_state;	/* Remote job-state value */
+} proxy_job_t;
 
 
 /*
  * Local globals...
  */
+
+static cups_array_t	*jobs;		/* Local jobs */
+static _cups_cond_t	jobs_cond = _CUPS_COND_INITIALIZER;
+					/* Condition for jobs array */
+static _cups_mutex_t	jobs_mutex = _CUPS_MUTEX_INITIALIZER;
+					/* Mutex for jobs array */
 
 static const char * const printer_attrs[] =
 		{			/* Printer attributes we care about */
@@ -59,6 +86,8 @@ static int	stop_running = 0;
  */
 
 static int	attrs_are_equal(ipp_attribute_t *a, ipp_attribute_t *b);
+static int	compare_jobs(proxy_job_t *a, proxy_job_t *b);
+static proxy_job_t *copy_job(proxy_job_t *src);
 static ipp_t	*create_media_col(const char *media, const char *source, const char *type, int width, int length, int margins);
 static ipp_t	*create_media_size(int width, int length);
 static void	deregister_printer(http_t *http, const char *printer_uri, const char *resource, int subscription_id, const char *device_uuid);
@@ -66,6 +95,7 @@ static int	fetch_job(http_t *http, const char *printer_uri, const char *resource
 static ipp_t	*get_device_attrs(const char *device_uri);
 static void	make_uuid(const char *device_uri, char *uuid, size_t uuidsize);
 static const char *password_cb(const char *prompt, http_t *http, const char *method, const char *resource, void *user_data);
+static void	*proxy_jobs(proxy_info_t *info);
 static int	register_printer(http_t *http, const char *printer_uri, const char *resource, const char *device_uri, const char *device_uuid);
 static void	run_printer(http_t *http, const char *printer_uri, const char *resource, int subscription_id, const char *device_uri, const char *device_uuid);
 static void	sighandler(int sig);
@@ -278,6 +308,35 @@ attrs_are_equal(ipp_attribute_t *a,	/* I - First attribute */
   */
 
   return (1);
+}
+
+
+/*
+ * 'compare_jobs()' - Compare two jobs.
+ */
+
+static int
+compare_jobs(proxy_job_t *a,		/* I - First job */
+             proxy_job_t *b)		/* I - Second job */
+{
+  return (a->remote_job_id - b->remote_job_id);
+}
+
+
+/*
+ * 'copy_job()' - Create a job of a job.
+ */
+
+static proxy_job_t *			/* O - New job */
+copy_job(proxy_job_t *src)		/* I - Original job */
+{
+  proxy_job_t *dst;			/* New job */
+
+
+  if ((dst = malloc(sizeof(proxy_job_t))) != NULL)
+    memcpy(dst, src, sizeof(proxy_job_t));
+
+  return (dst);
 }
 
 
@@ -605,6 +664,7 @@ make_uuid(const char *device_uri,	/* I - Device URI or NULL */
     char	host[1024];		/* Hostname */
 
 
+    httpGetHostname(NULL, host, sizeof(host));
     httpAssembleURI(HTTP_URI_CODING_ALL, nulluri, sizeof(nulluri), "file", NULL, host, 0, "/dev/null");
     device_uri = nulluri;
   }
@@ -643,6 +703,25 @@ password_cb(const char *prompt,		/* I - Prompt (unused) */
 
 
 /*
+ * 'proxy_jobs()' - Relay jobs to the local printer.
+ */
+
+static void *				/* O - Thread exit status */
+proxy_jobs(proxy_info_t *info)	/* I - Printer and device info */
+{
+  (void)info;
+
+  for (;;)
+  {
+    _cupsMutexLock(&jobs_mutex);
+    _cupsCondWait(&jobs_cond, &jobs_mutex, 0.0);
+
+    _cupsMutexUnlock(&jobs_mutex);
+  }
+}
+
+
+/*
  * 'register_printer()' - Register the printer (output device) with the Infrastructure Printer.
  */
 
@@ -656,7 +735,7 @@ register_printer(
 {
   ipp_t		*request,		/* IPP request */
 		*response;		/* IPP response */
-  ipp_attribute_t *attr;			/* Attribute in response */
+  ipp_attribute_t *attr;		/* Attribute in response */
   int		subscription_id = 0;	/* Subscription ID */
   static const char * const events[] =	/* Events to monitor */
   {
@@ -682,6 +761,7 @@ register_printer(
 
   ippAddString(request, IPP_TAG_SUBSCRIPTION, IPP_TAG_KEYWORD, "notify-pull-method", NULL, "ippget");
   ippAddStrings(request, IPP_TAG_SUBSCRIPTION, IPP_TAG_KEYWORD, "notify-events", (int)(sizeof(events) / sizeof(events[0])), NULL, events);
+  ippAddInteger(request, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-lease-duration", 0);
 
   response = cupsDoRequest(http, request, resource);
 
@@ -729,7 +809,21 @@ run_printer(
   ipp_jstate_t		job_state;	/* Job state, if any */
   int			seq_number = 1;	/* Current event sequence number */
   int			get_interval;	/* How long to sleep */
+  proxy_info_t		info;		/* Information for proxy thread */
+  _cups_thread_t	jobs_thread;	/* Job proxy processing thread */
 
+
+ /*
+  * Initialize the local jobs array...
+  */
+
+  jobs = cupsArrayNew3((cups_array_func_t)compare_jobs, NULL, NULL, 0, (cups_acopy_func_t)copy_job, (cups_afree_func_t)free);
+
+  info.printer_uri = printer_uri;
+  info.device_uri  = device_uri;
+  info.device_uuid = device_uuid;
+
+  jobs_thread = _cupsThreadCreate((_cups_thread_func_t)proxy_jobs, &info);
 
  /*
   * Query the printer...
@@ -819,6 +913,13 @@ run_printer(
     else
       sleep(30);
   }
+
+ /*
+  * Stop the job proxy thread...
+  */
+
+  _cupsThreadCancel(jobs_thread);
+  _cupsThreadWait(jobs_thread);
 }
 
 
