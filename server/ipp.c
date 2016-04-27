@@ -841,7 +841,7 @@ ipp_create_xxx_subscriptions(
     }
   }
 
-  if (ok_subs == 0)
+  if (ok_subs == 0 && num_subs != 0)
     ippSetStatusCode(client->response, IPP_STATUS_ERROR_IGNORED_ALL_SUBSCRIPTIONS);
   else if (ok_subs != num_subs)
     ippSetStatusCode(client->response, IPP_STATUS_OK_IGNORED_SUBSCRIPTIONS);

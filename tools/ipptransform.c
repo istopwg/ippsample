@@ -141,6 +141,11 @@ main(int  argc,				/* I - Number of command-line args */
   int		num_options;		/* Number of options */
   cups_option_t	*options;		/* Options */
   int		fd = 1;			/* Output file/socket */
+  http_t	*http = NULL;		/* Output HTTP connection */
+  void		*write_ptr = &fd;	/* Pointer to file/socket/HTTP connection */
+  char		resource[1024];		/* URI resource path */
+  xform_write_cb_t write_cb = (xform_write_cb_t)write_fd;
+					/* Write callback */
   int		status = 0;		/* Exit status */
 
 
@@ -308,7 +313,6 @@ main(int  argc,				/* I - Number of command-line args */
     char	scheme[32],		/* URI scheme */
 		userpass[256],		/* URI user:pass */
 		host[256],		/* URI host */
-		resource[1024],		/* URI resource path */
 		service[32];		/* Service port */
     int		port;			/* URI port number */
     http_addrlist_t *list;		/* Address list for socket */
@@ -319,7 +323,7 @@ main(int  argc,				/* I - Number of command-line args */
       usage(1);
     }
 
-    if (strcmp(scheme, "socket"))
+    if (strcmp(scheme, "socket") && strcmp(scheme, "ipp") && strcmp(scheme, "ipps"))
     {
       fprintf(stderr, "ERROR: Unsupported device URI scheme \"%s\".\n", scheme);
       usage(1);
@@ -329,23 +333,157 @@ main(int  argc,				/* I - Number of command-line args */
     if ((list = httpAddrGetList(host, AF_UNSPEC, service)) == NULL)
     {
       fprintf(stderr, "ERROR: Unable to lookup device URI host \"%s\": %s\n", host, cupsLastErrorString());
-      usage(1);
+      return (1);
     }
 
-    if (!httpAddrConnect2(list, &fd, 30000, NULL))
+    if (!strcmp(scheme, "socket"))
     {
-      fprintf(stderr, "ERROR: Unable to connect to \"%s\" on port %d: %s\n", host, port, cupsLastErrorString());
-      usage(1);
+     /*
+      * AppSocket connection...
+      */
+
+      if (!httpAddrConnect2(list, &fd, 30000, NULL))
+      {
+	fprintf(stderr, "ERROR: Unable to connect to \"%s\" on port %d: %s\n", host, port, cupsLastErrorString());
+	return (1);
+      }
     }
+    else
+    {
+      http_encryption_t encryption;	/* Encryption mode */
+      ipp_t		*request,	/* IPP request */
+			*response;	/* IPP response */
+      ipp_attribute_t	*attr;		/* operations-supported */
+      int		create_job = 0;	/* Support for Create-Job/Send-Document? */
+      const char	*job_name;	/* Title of job */
+
+     /*
+      * Connect to the IPP/IPPS printer...
+      */
+
+      if (port == 443 || !strcmp(scheme, "ipps"))
+        encryption = HTTP_ENCRYPTION_ALWAYS;
+      else
+        encryption = HTTP_ENCRYPTION_IF_REQUESTED;
+
+      if ((http = httpConnect2(host, port, list, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
+      {
+	fprintf(stderr, "ERROR: Unable to connect to \"%s\" on port %d: %s\n", host, port, cupsLastErrorString());
+	return (1);
+      }
+
+     /*
+      * See if it supports Create-Job + Send-Document...
+      */
+
+      request = ippNewRequest(IPP_OP_GET_PRINTER_ATTRIBUTES);
+      ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
+      ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+      ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", NULL, "operations-supported");
+
+      response = cupsDoRequest(http, request, resource);
+      if (cupsLastError() > IPP_STATUS_OK_EVENTS_COMPLETE)
+      {
+        fprintf(stderr, "ERROR: Unable to get printer capabilities: %s\n", cupsLastErrorString());
+	return (1);
+      }
+
+      if ((attr = ippFindAttribute(response, "operations-supported", IPP_TAG_ENUM)) == NULL)
+      {
+        fputs("ERROR: Unable to get list of supported operations from printer.\n", stderr);
+	return (1);
+      }
+
+      create_job = ippContainsInteger(attr, IPP_OP_CREATE_JOB) && ippContainsInteger(attr, IPP_OP_SEND_DOCUMENT);
+
+      ippDelete(response);
+
+     /*
+      * Create the job and start printing...
+      */
+
+      if ((job_name = getenv("IPP_JOB_NAME")) == NULL)
+      {
+	if ((job_name = strrchr(filename, '/')) != NULL)
+	  job_name ++;
+	else
+	  job_name = filename;
+      }
+
+      if (create_job)
+      {
+        int		job_id = 0;	/* Job ID */
+
+        request = ippNewRequest(IPP_OP_CREATE_JOB);
+	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
+	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "job-name", NULL, job_name);
+
+        response = cupsDoRequest(http, request, resource);
+        if ((attr = ippFindAttribute(response, "job-id", IPP_TAG_INTEGER)) != NULL)
+	  job_id = ippGetInteger(attr, 0);
+        ippDelete(response);
+
+	if (cupsLastError() > IPP_STATUS_OK_EVENTS_COMPLETE)
+	{
+	  fprintf(stderr, "ERROR: Unable to create print job: %s\n", cupsLastErrorString());
+	  return (1);
+	}
+	else if (job_id <= 0)
+	{
+          fputs("ERROR: No job-id for created print job.\n", stderr);
+	  return (1);
+	}
+
+        request = ippNewRequest(IPP_OP_SEND_DOCUMENT);
+	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
+	ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "job-id", job_id);
+	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, output_type);
+        ippAddBoolean(request, IPP_TAG_OPERATION, "last-document", 1);
+      }
+      else
+      {
+        request = ippNewRequest(IPP_OP_PRINT_JOB);
+	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
+	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, output_type);
+      }
+
+      if (cupsSendRequest(http, request, resource, 0) != HTTP_STATUS_CONTINUE)
+      {
+        fprintf(stderr, "ERROR: Unable to send print data: %s\n", cupsLastErrorString());
+	return (1);
+      }
+
+      ippDelete(request);
+
+      write_cb  = (xform_write_cb_t)httpWrite2;
+      write_ptr = http;
+    }
+
+    httpAddrFreeList(list);
   }
 
  /*
   * Do transform...
   */
 
-  status = xform_document(filename, content_type, output_type, resolutions, sheet_back, types, num_options, options, (xform_write_cb_t)write_fd, &fd);
+  status = xform_document(filename, content_type, output_type, resolutions, sheet_back, types, num_options, options, write_cb, write_ptr);
 
-  if (fd != 1)
+  if (http)
+  {
+    ippDelete(cupsGetResponse(http, resource));
+
+    if (cupsLastError() > IPP_STATUS_OK_EVENTS_COMPLETE)
+    {
+      fprintf(stderr, "ERROR: Unable to send print data: %s\n", cupsLastErrorString());
+      status = 1;
+    }
+
+    httpClose(http);
+  }
+  else if (fd != 1)
     close(fd);
 
   return (status);
