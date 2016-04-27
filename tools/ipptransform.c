@@ -16,6 +16,7 @@
 #include <cups/raster.h>
 #include <cups/array-private.h>
 #include <cups/string-private.h>
+#include <cups/thread-private.h>
 
 #ifdef __APPLE__
 #  include <ApplicationServices/ApplicationServices.h>
@@ -98,6 +99,7 @@ static int	Verbosity = 0;		/* Log level */
  */
 
 static int	load_env_options(cups_option_t **options);
+static void	*monitor_ipp(const char *device_uri);
 #ifdef HAVE_MUPDF
 static void	pack_graya(unsigned char *row, size_t num_pixels);
 #endif /* HAVE_MUPDF */
@@ -147,6 +149,7 @@ main(int  argc,				/* I - Number of command-line args */
   xform_write_cb_t write_cb = (xform_write_cb_t)write_fd;
 					/* Write callback */
   int		status = 0;		/* Exit status */
+  _cups_thread_t monitor = 0;		/* Monitoring thread ID */
 
 
  /*
@@ -460,6 +463,8 @@ main(int  argc,				/* I - Number of command-line args */
 
       write_cb  = (xform_write_cb_t)httpWrite2;
       write_ptr = http;
+
+      monitor = _cupsThreadCreate((_cups_thread_func_t)monitor_ipp, (void *)device_uri);
     }
 
     httpAddrFreeList(list);
@@ -485,6 +490,9 @@ main(int  argc,				/* I - Number of command-line args */
   }
   else if (fd != 1)
     close(fd);
+
+  if (monitor)
+    _cupsThreadCancel(monitor);
 
   return (status);
 }
@@ -539,6 +547,123 @@ load_env_options(
   }
 
   return (num_options);
+}
+
+
+/*
+ * 'monitor_ipp()' - Monitor IPP printer status.
+ */
+
+static void *				/* O - Thread exit status */
+monitor_ipp(const char *device_uri)	/* I - Device URI */
+{
+  int		i;			/* Looping var */
+  http_t	*http;			/* HTTP connection */
+  ipp_t		*request,		/* IPP request */
+		*response;		/* IPP response */
+  ipp_attribute_t *attr;		/* IPP response attribute */
+  char		scheme[32],		/* URI scheme */
+		userpass[256],		/* URI user:pass */
+		host[256],		/* URI host */
+		resource[1024];		/* URI resource */
+  int		port;			/* URI port number */
+  http_encryption_t encryption;		/* Encryption to use */
+  int		delay = 1,		/* Current delay */
+		next_delay,		/* Next delay */
+		prev_delay = 0;		/* Previous delay */
+  char		pvalues[10][1024];	/* Current printer attribute values */
+  static const char * const pattrs[10] =/* Printer attributes we need */
+  {
+    "marker-colors",
+    "marker-levels",
+    "marker-low-levels",
+    "marker-high-levels",
+    "marker-names",
+    "marker-types",
+    "printer-state-reasons",
+    "printer-alert",
+    "printer-supply",
+    "printer-supply-description"
+  };
+
+
+  httpSeparateURI(HTTP_URI_CODING_ALL, device_uri, scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, resource, sizeof(resource));
+
+  if (port == 443 || !strcmp(scheme, "ipps"))
+    encryption = HTTP_ENCRYPTION_ALWAYS;
+  else
+    encryption = HTTP_ENCRYPTION_IF_REQUESTED;
+
+  while ((http = httpConnect2(host, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
+  {
+    fprintf(stderr, "ERROR: Unable to connect to \"%s\" on port %d: %s\n", host, port, cupsLastErrorString());
+    sleep(30);
+  }
+
+ /*
+  * Report printer state changes until we are canceled...
+  */
+
+  for (;;)
+  {
+   /*
+    * Poll for the current state...
+    */
+
+    request = ippNewRequest(IPP_OP_GET_PRINTER_ATTRIBUTES);
+    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
+    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+    ippAddStrings(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", (int)(sizeof(pattrs) / sizeof(pattrs[0])), NULL, pattrs);
+
+    response = cupsDoRequest(http, request, resource);
+
+   /*
+    * Report any differences...
+    */
+
+    for (attr = ippFirstAttribute(response); attr; attr = ippNextAttribute(response))
+    {
+      const char *name = ippGetName(attr);
+      char	value[1024];		/* Name and value */
+
+
+      if (!name)
+        continue;
+
+      for (i = 0; i < (int)(sizeof(pattrs) / sizeof(pattrs[0])); i ++)
+        if (!strcmp(name, pattrs[i]))
+	  break;
+
+      if (i >= (int)(sizeof(pattrs) / sizeof(pattrs[0])))
+        continue;
+
+      ippAttributeString(attr, value, sizeof(value));
+
+      if (strcmp(value, pvalues[i]))
+      {
+        if (!strcmp(name, "printer-state-reasons"))
+	  fprintf(stderr, "STATE: %s\n", value);
+	else
+	  fprintf(stderr, "ATTR: %s=%s\n", name, value);
+
+        strlcpy(pvalues[i], value, sizeof(pvalues[i]));
+      }
+    }
+
+    ippDelete(response);
+
+   /*
+    * Sleep until the next update...
+    */
+
+    sleep((unsigned)delay);
+
+    next_delay = (delay + prev_delay) % 12;
+    prev_delay = next_delay < delay ? 0 : delay;
+    delay      = next_delay;
+  }
+
+  return (NULL);
 }
 
 
