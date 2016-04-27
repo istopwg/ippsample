@@ -1186,7 +1186,7 @@ usage(int status)			/* I - Exit status */
   puts("  -s {flipped|manual-tumble|normal|rotated}");
   puts("  -t type[,...,type]");
   puts("  -v\n");
-  puts("Device URIs: socket://address-or-hostname[:port]");
+  puts("Device URIs: socket://address[:port], ipp://address[:port]/resource, ipps://address[:port]/resource");
   puts("Input Formats: application/pdf, image/jpeg");
   puts("Output Formats: application/vnd.hp-pcl, image/pwg-raster");
   puts("Options: copies, media, media-col, page-ranges, print-color-mode, print-quality, print-scaling, printer-resolution, sides");
