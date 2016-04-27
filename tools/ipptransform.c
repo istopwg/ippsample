@@ -359,6 +359,8 @@ main(int  argc,				/* I - Number of command-line args */
       ipp_attribute_t	*attr;		/* operations-supported */
       int		create_job = 0;	/* Support for Create-Job/Send-Document? */
       const char	*job_name;	/* Title of job */
+      const char	*media;		/* Value of "media" option */
+      const char	*sides;		/* Value of "sides" option */
 
      /*
       * Connect to the IPP/IPPS printer...
@@ -452,6 +454,12 @@ main(int  argc,				/* I - Number of command-line args */
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, output_type);
       }
+
+      if ((media = cupsGetOption("media", num_options, options)) != NULL)
+        ippAddString(request, IPP_TAG_JOB, IPP_TAG_KEYWORD, "media", NULL, sides);
+
+      if ((sides = cupsGetOption("sides", num_options, options)) != NULL)
+        ippAddString(request, IPP_TAG_JOB, IPP_TAG_KEYWORD, "sides", NULL, sides);
 
       if (cupsSendRequest(http, request, resource, 0) != HTTP_STATUS_CONTINUE)
       {
