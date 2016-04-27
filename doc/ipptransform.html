@@ -53,7 +53,7 @@ The following options are recognized by
 <dd style="margin-left: 5.0em">Shows program help.
 <dt><b>-d</b><i> device-uri</i>
 <dd style="margin-left: 5.0em">Specifies an output device as a URI.
-Currently only the "socket" URI scheme is supported, for example "socket://10.0.1.42" to send print data to a printer at IP address 10.0.1.42.
+Currently only the "ipp", "ipps", and "socket" URI schemes are supported, for example "socket://10.0.1.42" to send print data to an AppSocket printer at IP address 10.0.1.42.
 <dt><b>-i</b><i> input/format</i>
 <dd style="margin-left: 5.0em">Specifies the MIME media type of the input file.
 Currently the "application/pdf" (PDF) and "image/jpeg" (JPEG) MIME media types are supported.
@@ -143,6 +143,11 @@ Print a PDF file to a PCL printer at 10.0.1.42:
 <pre class="man">
 
     ipptransform -d socket://10.0.1.42 -m application/vnd.hp-pcl filename.pdf
+</pre>
+<p>Print a PDF file to an IPP Everywhere printer at 10.0.1.42:
+<pre class="man">
+
+    ipptransform -d ipp://10.0.1.42/ipp/print -m image/pwg-raster filename.pdf
 </pre>
 <p>Convert a JPEG file to sRGB PWG Raster at 600dpi:
 <pre class="man">

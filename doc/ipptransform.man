@@ -9,7 +9,7 @@
 .\" which should have been included with this file.  If this file is
 .\" file is missing or damaged, see the license at "http://www.cups.org/".
 .\"
-.TH ipptransform 1 "ippsample" "2 March 2016" "Apple Inc."
+.TH ipptransform 1 "ippsample" "26 April 2016" "Apple Inc."
 .SH NAME
 ipptranaform \- convert document data to alternate formats
 .SH SYNOPSIS
@@ -57,7 +57,7 @@ Shows program help.
 .TP 5
 .BI \-d \ device-uri
 Specifies an output device as a URI.
-Currently only the "socket" URI scheme is supported, for example "socket://10.0.1.42" to send print data to a printer at IP address 10.0.1.42.
+Currently only the "ipp", "ipps", and "socket" URI schemes are supported, for example "socket://10.0.1.42" to send print data to an AppSocket printer at IP address 10.0.1.42.
 .TP 5
 .BI \-i \ input/format
 Specifies the MIME media type of the input file.
@@ -163,6 +163,12 @@ Print a PDF file to a PCL printer at 10.0.1.42:
 .nf
 
     ipptransform -d socket://10.0.1.42 -m application/vnd.hp-pcl filename.pdf
+.fi
+.LP
+Print a PDF file to an IPP Everywhere printer at 10.0.1.42:
+.nf
+
+    ipptransform -d ipp://10.0.1.42/ipp/print -m image/pwg-raster filename.pdf
 .fi
 .LP
 Convert a JPEG file to sRGB PWG Raster at 600dpi:
