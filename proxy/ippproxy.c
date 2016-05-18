@@ -718,6 +718,8 @@ proxy_jobs(proxy_info_t *info)	/* I - Printer and device info */
 
     _cupsMutexUnlock(&jobs_mutex);
   }
+
+  return (NULL);
 }
 
 

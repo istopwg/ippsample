@@ -456,7 +456,7 @@ main(int  argc,				/* I - Number of command-line args */
       }
 
       if ((media = cupsGetOption("media", num_options, options)) != NULL)
-        ippAddString(request, IPP_TAG_JOB, IPP_TAG_KEYWORD, "media", NULL, sides);
+        ippAddString(request, IPP_TAG_JOB, IPP_TAG_KEYWORD, "media", NULL, media);
 
       if ((sides = cupsGetOption("sides", num_options, options)) != NULL)
         ippAddString(request, IPP_TAG_JOB, IPP_TAG_KEYWORD, "sides", NULL, sides);
