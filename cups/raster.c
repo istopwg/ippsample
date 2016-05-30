@@ -1,9 +1,7 @@
 /*
- * "$Id: raster.c 13024 2015-12-18 20:34:33Z msweet $"
- *
  * Raster file routines for CUPS.
  *
- * Copyright 2007-2015 by Apple Inc.
+ * Copyright 2007-2016 by Apple Inc.
  * Copyright 1997-2006 by Easy Software Products.
  *
  * This file is part of the CUPS Imaging library.
@@ -1799,8 +1797,3 @@ cups_write_fd(void          *ctx,	/* I - File descriptor pointer */
 
   return (count);
 }
-
-
-/*
- * End of "$Id: raster.c 13024 2015-12-18 20:34:33Z msweet $".
- */

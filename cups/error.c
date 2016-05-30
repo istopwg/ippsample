@@ -1,6 +1,4 @@
 /*
- * "$Id: error.c 12747 2015-06-24 15:55:05Z msweet $"
- *
  * Raster error handling for CUPS.
  *
  * Copyright 2007-2015 by Apple Inc.
@@ -272,8 +270,3 @@ get_error_buffer(void)
   return (&buf);
 }
 #endif /* HAVE_PTHREAD_H */
-
-
-/*
- * End of "$Id: error.c 12747 2015-06-24 15:55:05Z msweet $".
- */
