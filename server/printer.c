@@ -36,6 +36,7 @@ static void DNSSD_API	dnssd_callback(DNSServiceRef sdRef,
 #elif defined(HAVE_AVAHI)
 static void		dnssd_callback(AvahiEntryGroup *p, AvahiEntryGroupState state, void *context);
 #endif /* HAVE_DNSSD */
+static void		register_geo(server_printer_t *printer);
 static int		register_printer(server_printer_t *printer, const char *location, const char *make, const char *model, const char *formats, const char *adminurl, const char *uuid, int color, int duplex, const char *regtype);
 
 
@@ -822,7 +823,7 @@ serverCreatePrinter(
 
   /* printer-geo-location */
   if (!ippFindAttribute(printer->attrs, "printer-geo-location", IPP_TAG_ZERO))
-    ippAddInteger(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_UNKNOWN, "printer-geo-location", 0);
+    ippAddOutOfBand(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_UNKNOWN, "printer-geo-location");
 
   /* printer-icons */
   if (icon)
@@ -1257,6 +1258,126 @@ dnssd_callback(
 
 
 /*
+ * 'register_geo()' - Register (or update) a printer's geo-location via Bonjour.
+ */
+
+static void
+register_geo(server_printer_t *printer)	/* I - Printer */
+{
+  ipp_attribute_t *printer_geo_location;/* printer-geo-location attribute */
+  double	lat_degrees = 0.0,	/* Latitude in degrees */
+		lon_degrees = 0.0,	/* Longitude in degrees */
+		alt_meters = 0.0,	/* Altitude in meters */
+		uncertainty = 10.0;	/* Accuracy in meters */
+  unsigned	lat_1000ths,		/* Latitude in thousandths of arc seconds */
+		lon_1000ths,		/* Longitude in thousandths of arc seconds */
+		alt_cmbase;		/* Altitude in centimeters */
+  unsigned char	pre;			/* Precision as MSD + power */
+  unsigned char	loc[16];		/* LOC record data */
+
+
+ /*
+  * Parse out any geo-location information...
+  */
+
+  if ((printer_geo_location = ippFindAttribute(printer->attrs, "printer-geo-location", IPP_TAG_URI)))
+  {
+    char	scheme[32],		/* URI scheme */
+		userpass[256],		/* URI username:password */
+		host[256],		/* URI hostname */
+		resource[1024];		/* URI resource path */
+    int		port;			/* URI port */
+
+    if (httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(printer_geo_location, 0, NULL), scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, resource, sizeof(resource)) >= HTTP_URI_STATUS_OK && !strcmp(scheme, "geo"))
+    {
+     /*
+      * Parse "geo:" URI...
+      */
+
+      char	*ptr;			/* Pointer into resource */
+
+      lat_degrees = strtod(resource, &ptr);
+
+      if (ptr && *ptr == ',')
+      {
+        lon_degrees = strtod(ptr, &ptr);
+
+	if (ptr && *ptr == ',')
+	  alt_meters = strtod(ptr, &ptr);
+
+        if (ptr && !strncmp(ptr, "?u=", 3))
+	  uncertainty = strtod(ptr + 3, NULL);
+      }
+      else
+        lat_degrees = 0.0;
+    }
+  }
+
+ /*
+  * Convert to a DNS LOC record...
+  */
+
+  uncertainty *= 100.0;
+  pre         = 0;
+  while (uncertainty >= 10.0 && pre < 15)
+  {
+    uncertainty /= 10.0;
+    pre ++;
+  }
+
+  if (uncertainty >= 10.0)
+    pre = 0x9f;
+  else
+    pre |= (unsigned)uncertainty << 4;
+
+  lat_1000ths = (unsigned)(lat_degrees * 3600000.0) + 2147483648U;
+  lon_1000ths = (unsigned)(lon_degrees * 3600000.0) + 2147483648U;
+  alt_cmbase  = (unsigned)(alt_meters * 100.0 + 10000000.0);
+
+  loc[0]  = 0;				/* VERSION */
+  loc[1]  = 0x51;			/* SIZE = 50cm */
+  loc[2]  = pre;			/* HORIZ PRE */
+  loc[3]  = pre;			/* VERT PRE */
+  loc[4]  = (unsigned char)(lat_1000ths >> 24);
+  					/* LATITUDE */
+  loc[5]  = (unsigned char)(lat_1000ths >> 16);
+  loc[6]  = (unsigned char)(lat_1000ths >> 8);
+  loc[7]  = (unsigned char)lat_1000ths;
+  loc[8]  = (unsigned char)(lon_1000ths >> 24);
+  					/* LONGITUDE */
+  loc[9]  = (unsigned char)(lon_1000ths >> 16);
+  loc[10] = (unsigned char)(lon_1000ths >> 8);
+  loc[11] = (unsigned char)lon_1000ths;
+  loc[12] = (unsigned char)(alt_cmbase >> 24);
+  					/* ALTITUDE */
+  loc[13] = (unsigned char)(alt_cmbase >> 16);
+  loc[14] = (unsigned char)(alt_cmbase >> 8);
+  loc[15] = (unsigned char)alt_cmbase;
+
+ /*
+  * Register the geo-location...
+  */
+
+  if (printer->geo_ref)
+  {
+#ifdef HAVE_DNSSD
+    DNSServiceUpdateRecord(printer->ipp_ref, printer->geo_ref, 0, sizeof(loc), loc, 0);
+
+#elif defined(HAVE_AVAHI)
+#endif /* HAVE_DNSSD */
+  }
+  else
+  {
+#ifdef HAVE_DNSSD
+    DNSServiceAddRecord(printer->ipp_ref, &printer->geo_ref, 0, kDNSServiceType_LOC, sizeof(loc), loc, 0);
+
+#elif defined(HAVE_AVAHI)
+#endif /* HAVE_DNSSD */
+  }
+}
+
+
+/*
  * 'register_printer()' - Register a printer object via Bonjour.
  */
 
@@ -1452,6 +1573,8 @@ register_printer(
 
   avahi_string_list_free(ipp_txt);
 #endif /* HAVE_DNSSD */
+
+  register_geo(printer);
 
   return (1);
 }

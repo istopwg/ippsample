@@ -1,8 +1,7 @@
 /*
  * Configuration file for the IPP samples on Windows.
  *
- * Copyright 2015 by the ISTO Printer Working Group.
- * Copyright 2007-2014 by Apple Inc.
+ * Copyright 2007-2016 by Apple Inc.
  * Copyright 1997-2007 by Easy Software Products.
  *
  * These coded instructions, statements, and computer programs are the
@@ -95,8 +94,8 @@ typedef unsigned long useconds_t;
  * Version of software...
  */
 
-#define CUPS_SVERSION "IPPEVESELFCERT v20151009"
-#define CUPS_MINIMAL "IPPEVESELFCERT/20151009"
+#define CUPS_SVERSION "IPPSAMPLE v20160531"
+#define CUPS_MINIMAL "IPPSAMPLE/20160531"
 
 
 /*
@@ -285,6 +284,13 @@ typedef unsigned long useconds_t;
 
 
 /*
+ * Do we have (a working) SSLSetEnabledCiphers function?
+ */
+
+#define HAVE_SSLSETENABLEDCIPHERS 1
+
+
+/*
  * Do we have mDNSResponder for DNS Service Discovery (aka Bonjour)?
  */
 
@@ -382,6 +388,13 @@ typedef unsigned long useconds_t;
  */
 
 /* #undef HAVE_APPLICATIONSERVICES_H */
+
+
+/*
+ * Do we have the MuPDF library?
+ */
+
+/* #undef HAVE_MUPDF */
 
 
 /*

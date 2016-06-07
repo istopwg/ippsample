@@ -337,14 +337,17 @@ typedef enum server_transform_e		/* Transform modes for server */
 #  ifdef HAVE_DNSSD
 typedef DNSServiceRef server_srv_t;	/* Service reference */
 typedef TXTRecordRef server_txt_t;	/* TXT record */
+typedef DNSRecordRef server_loc_t;	/* LOC record */
 
 #  elif defined(HAVE_AVAHI)
 typedef AvahiEntryGroup *server_srv_t;	/* Service reference */
 typedef AvahiStringList *server_txt_t;	/* TXT record */
+typedef void *server_loc_t;		/* LOC record */
 
 #  else
 typedef void *server_srv_t;		/* Service reference */
 typedef void *server_txt_t;		/* TXT record */
+typedef void *server_loc_t;		/* LOC record */
 #  endif /* HAVE_DNSSD */
 
 
@@ -376,6 +379,7 @@ typedef struct server_printer_s		/**** Printer data ****/
   server_srv_t		ipp_ref,	/* Bonjour IPP(S) service */
 			http_ref,	/* Bonjour HTTP(S) service */
 			printer_ref;	/* Bonjour LPD service */
+  server_loc_t		geo_ref;	/* Bonjour geo-location */
   char			*default_uri,	/* Default/first URI */
 			*resource,	/* Resource path */
                         *dnssd_name,	/* printer-dnssd-name */

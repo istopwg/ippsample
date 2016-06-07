@@ -1,8 +1,7 @@
 /*
  * Configuration file for the IPP samples.
  *
- * Copyright 2015 by the ISTO Printer Working Group.
- * Copyright 2007-2015 by Apple Inc.
+ * Copyright 2007-2016 by Apple Inc.
  * Copyright 1997-2007 by Easy Software Products.
  *
  * These coded instructions, statements, and computer programs are the
@@ -19,8 +18,8 @@
  * Version of software...
  */
 
-#define CUPS_SVERSION "IPPSAMPLE v20151130"
-#define CUPS_MINIMAL "IPPSAMPLE/20151130"
+#define CUPS_SVERSION "IPPSAMPLE v20160531"
+#define CUPS_MINIMAL "IPPSAMPLE/20160531"
 
 
 /*
@@ -47,8 +46,8 @@
 #define CUPS_CACHEDIR	"/var/cache/cups"
 #define CUPS_DATADIR    "/usr/share/cups"
 #define CUPS_LOCALEDIR	"/usr/share/locale"
-#define CUPS_SERVERROOT	"/etc/cups"
 #define CUPS_SERVERBIN	""
+#define CUPS_SERVERROOT	"/etc/cups"
 #define CUPS_STATEDIR	"/var/run/cups"
 
 
@@ -314,6 +313,13 @@
  */
 
 #define HAVE_APPLICATIONSERVICES_H 1
+
+
+/*
+ * Do we have the MuPDF library?
+ */
+
+/* #undef HAVE_MUPDF */
 
 
 /*
