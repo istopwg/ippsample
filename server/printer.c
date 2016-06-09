@@ -989,12 +989,15 @@ serverDeletePrinter(server_printer_t *printer)	/* I - Printer */
   _cupsRWLockWrite(&printer->rwlock);
 
 #if HAVE_DNSSD
+  if (printer->geo_ref)
+    DNSServiceRemoveRecord(printer->printer_ref, printer->geo_ref, 0);
   if (printer->printer_ref)
     DNSServiceRefDeallocate(printer->printer_ref);
   if (printer->ipp_ref)
     DNSServiceRefDeallocate(printer->ipp_ref);
   if (printer->http_ref)
     DNSServiceRefDeallocate(printer->http_ref);
+
 #elif defined(HAVE_AVAHI)
   avahi_threaded_poll_lock(DNSSDMaster);
 
@@ -1364,6 +1367,7 @@ register_geo(server_printer_t *printer)	/* I - Printer */
     DNSServiceUpdateRecord(printer->ipp_ref, printer->geo_ref, 0, sizeof(loc), loc, 0);
 
 #elif defined(HAVE_AVAHI)
+    /* Avahi doesn't support updating */
 #endif /* HAVE_DNSSD */
   }
   else
@@ -1372,6 +1376,7 @@ register_geo(server_printer_t *printer)	/* I - Printer */
     DNSServiceAddRecord(printer->ipp_ref, &printer->geo_ref, 0, kDNSServiceType_LOC, sizeof(loc), loc, 0);
 
 #elif defined(HAVE_AVAHI)
+    avahi_entry_group_add_record(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, clazz, AVAHI_TYPE_LOC, 0, loc, sizeof(loc));
 #endif /* HAVE_DNSSD */
   }
 }
@@ -1484,6 +1489,8 @@ register_printer(
     return (0);
   }
 
+  register_geo(printer);
+
  /*
   * Similarly, register the _http._tcp,_printer (HTTP) service type with the
   * real port number to advertise our IPP printer...
@@ -1557,6 +1564,8 @@ register_printer(
     avahi_entry_group_add_service_subtype(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPP_TYPE, NULL, temp);
   }
 
+  register_geo(printer);
+
  /*
   * Finally _http.tcp (HTTP) for the web interface...
   */
@@ -1573,8 +1582,6 @@ register_printer(
 
   avahi_string_list_free(ipp_txt);
 #endif /* HAVE_DNSSD */
-
-  register_geo(printer);
 
   return (1);
 }
