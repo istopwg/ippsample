@@ -1376,7 +1376,7 @@ register_geo(server_printer_t *printer)	/* I - Printer */
     DNSServiceAddRecord(printer->ipp_ref, &printer->geo_ref, 0, kDNSServiceType_LOC, sizeof(loc), loc, 0);
 
 #elif defined(HAVE_AVAHI)
-    avahi_entry_group_add_record(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, clazz, AVAHI_TYPE_LOC, 0, loc, sizeof(loc));
+    avahi_entry_group_add_record(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, AVAHI_DNS_CLASS_IN, 29, 0, loc, sizeof(loc));
 #endif /* HAVE_DNSSD */
   }
 }
