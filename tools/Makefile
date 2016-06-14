@@ -53,9 +53,9 @@ depend:
 
 install:	all
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(bindir)
-	$(INSTALL_BIN) ippfind $(BUILDROOT)$(bindir)
-	$(INSTALL_BIN) ipptool $(BUILDROOT)$(bindir)
-	$(INSTALL_BIN) ipptransform $(BUILDROOT)$(bindir)
+	for file in $(TARGETS); do \
+		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir); \
+	done
 
 
 #
