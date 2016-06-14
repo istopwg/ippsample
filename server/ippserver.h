@@ -76,21 +76,11 @@ extern char **environ;
 #endif /* HAVE_SYS_VFS_H */
 
 #ifdef HAVE_PTHREAD_H
-typedef pthread_cond_t _cups_cond_t;
-#  define _CUPS_COND_INITIALIZER PTHREAD_COND_INITIALIZER
-#  define _cupsCondBroadcast(c) pthread_cond_broadcast(c)
 #  define _cupsCondDeinit(c)	pthread_cond_destroy(c)
-#  define _cupsCondInit(c)	pthread_cond_init((c), NULL)
-#  define _cupsCondWait(c,m)	pthread_cond_wait((c),(m))
 #  define _cupsMutexDeinit(m)	pthread_mutex_destroy(m)
 #  define _cupsRWDeinit(rw)	pthread_rwlock_destroy(rw)
 #else
-typedef char _cups_cond_t;
-#  define _CUPS_COND_INITIALIZER 0
-#  define _cupsCondBroadcast(c)
 #  define _cupsCondDeinit(c)
-#  define _cupsCondInit(c)	*(c)=0
-#  define _cupsCondWait(c,m)	0
 #  define _cupsMutexDeinit(m)
 #  define _cupsRWDeinit(rw)
 #endif /* HAVE_PTHREAD_H */
