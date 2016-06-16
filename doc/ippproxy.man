@@ -9,7 +9,7 @@
 .\" which should have been included with this file.  If this file is
 .\" file is missing or damaged, see the license at "http://www.cups.org/".
 .\"
-.TH ippproxy 8 "ippsample" "2 March 2016" "Apple Inc."
+.TH ippproxy 8 "ippsample" "16 June 2016" "Apple Inc."
 .SH NAME
 ippproxy \- a simple ipp proxy client
 .SH SYNOPSIS
@@ -22,7 +22,7 @@ ippproxy \- a simple ipp proxy client
 .SH DESCRIPTION
 .B ippproxy
 is a simple IPP proxy client conforming to the IPP Shared Infrastructure Extensions (INFRA) specification. It can be used to proxy access to a local IPP printer through an Infrastructure Printer such as
-.BR ippinfra (1).
+.BR ippserver (1).
 .SH OPTIONS
 The following options are recognized by
 .B ippproxy:
