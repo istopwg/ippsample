@@ -9,9 +9,9 @@
 .\" which should have been included with this file.  If this file is
 .\" file is missing or damaged, see the license at "http://www.cups.org/".
 .\"
-.TH ipptransform 1 "ippsample" "26 April 2016" "Apple Inc."
+.TH ipptransform 1 "ippsample" "16 June 2016" "Apple Inc."
 .SH NAME
-ipptranaform \- convert document data to alternate formats
+ipptransform \- convert document data to alternate formats
 .SH SYNOPSIS
 .B ipptransform
 [
@@ -66,19 +66,24 @@ Currently the "application/pdf" (PDF) and "image/jpeg" (JPEG) MIME media types a
 .BI \-m \ output/format
 Specifies the MIME media type of the output file.
 Current the "application/vnd.hp-pcl" (HP PCL) and "image/pwg-raster" (PWG Raster) MIME media types are supported.
+.TP 5
 .BI \-o \ "name=value [... name=value]"
 Specifies one or more named options for the conversion.
 Currently the "copies", "media", "media-col", "page-ranges", "print-color-mode", "print-quality", "printer-resolution", and "sides" options are supported.
 See the NAMED OPTIONS section for more information.
+.TP 5
 .BI \-r \ resolution[,...,resolution]
 Specifies the supported resolutions.
 Resolutions are of the form "NNNdpi" or "NNNxNNNdpi", for example "300dpi" or "600x300dpi".
 HP PCL output only supports resolutions of "300dpi" and "600dpi".
+.TP 5
 .BR \-s \ {flipped|manual-tumble|normal|rotated}
 Specifies the coordinate system for the back side of duplex sheets.
+.TP 5
 .BR \-t \ type[,...,type]
 Specifies the output color spaces and bit depths, separated by commas.
 Currently only the "sgray_8" (8-bit grayscale with 2.2 gamma), "sgray_1" (1-bit grayscale), "black_1" (1-bit black), and "srgb_8" (8-bit sRGB color) color spaces and bit depths are supported.
+.TP 5
 .B \-v
 Increases the verbosity for any diagnostics.
 .SH NAMED OPTIONS
@@ -162,19 +167,22 @@ Specifies the log level (verbosity) as "error", "info", or "debug".
 Print a PDF file to a PCL printer at 10.0.1.42:
 .nf
 
-    ipptransform -d socket://10.0.1.42 -m application/vnd.hp-pcl filename.pdf
+    ipptransform -d socket://10.0.1.42 -m application/vnd.hp-pcl \\
+        filename.pdf
 .fi
 .LP
 Print a PDF file to an IPP Everywhere printer at 10.0.1.42:
 .nf
 
-    ipptransform -d ipp://10.0.1.42/ipp/print -m image/pwg-raster filename.pdf
+    ipptransform -d ipp://10.0.1.42/ipp/print -m image/pwg-raster \\
+        filename.pdf
 .fi
 .LP
 Convert a JPEG file to sRGB PWG Raster at 600dpi:
 .nf
 
-    ipptransform -m image/pwg-raster -r 600dpi -t sgray_8,srgb_8 filename.jpg >filename.ras
+    ipptransform -m image/pwg-raster -r 600dpi -t sgray_8,srgb_8 \\
+        filename.jpg >filename.ras
 .fi
 .SH COPYRIGHT
 Copyright \[co] 2016 by Apple Inc.

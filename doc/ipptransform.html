@@ -8,7 +8,7 @@
 <body>
 <h1 class="title">ipptransform(1)</h1>
 <h2 class="title"><a name="NAME">Name</a></h2>
-ipptranaform - convert document data to alternate formats
+ipptransform - convert document data to alternate formats
 <h2 class="title"><a name="SYNOPSIS">Synopsis</a></h2>
 <b>ipptransform</b>
 [
@@ -60,21 +60,21 @@ Currently the "application/pdf" (PDF) and "image/jpeg" (JPEG) MIME media types a
 <dt><b>-m</b><i> output/format</i>
 <dd style="margin-left: 5.0em">Specifies the MIME media type of the output file.
 Current the "application/vnd.hp-pcl" (HP PCL) and "image/pwg-raster" (PWG Raster) MIME media types are supported.
-<b>-o</b><i> "name=value [... name=value]"</i>
-Specifies one or more named options for the conversion.
+<dt><b>-o</b><i> "name=value [... name=value]"</i>
+<dd style="margin-left: 5.0em">Specifies one or more named options for the conversion.
 Currently the "copies", "media", "media-col", "page-ranges", "print-color-mode", "print-quality", "printer-resolution", and "sides" options are supported.
 See the NAMED OPTIONS section for more information.
-<b>-r</b><i> resolution[,...,resolution]</i>
-Specifies the supported resolutions.
+<dt><b>-r</b><i> resolution[,...,resolution]</i>
+<dd style="margin-left: 5.0em">Specifies the supported resolutions.
 Resolutions are of the form "NNNdpi" or "NNNxNNNdpi", for example "300dpi" or "600x300dpi".
 HP PCL output only supports resolutions of "300dpi" and "600dpi".
-<b>-s</b> {flipped|manual-tumble|normal|rotated}
-Specifies the coordinate system for the back side of duplex sheets.
-<b>-t</b> type[,...,type]
-Specifies the output color spaces and bit depths, separated by commas.
+<dt><b>-s</b> {flipped|manual-tumble|normal|rotated}
+<dd style="margin-left: 5.0em">Specifies the coordinate system for the back side of duplex sheets.
+<dt><b>-t</b> type[,...,type]
+<dd style="margin-left: 5.0em">Specifies the output color spaces and bit depths, separated by commas.
 Currently only the "sgray_8" (8-bit grayscale with 2.2 gamma), "sgray_1" (1-bit grayscale), "black_1" (1-bit black), and "srgb_8" (8-bit sRGB color) color spaces and bit depths are supported.
-<b>-v</b>
-Increases the verbosity for any diagnostics.
+<dt><b>-v</b>
+<dd style="margin-left: 5.0em">Increases the verbosity for any diagnostics.
 </dl>
 <h2 class="title"><a name="NAMED_OPTIONS">Named Options</a></h2>
 The following named options are supported:
@@ -142,17 +142,20 @@ For example, the "media-default" Printer Description attribute is stored as the 
 Print a PDF file to a PCL printer at 10.0.1.42:
 <pre class="man">
 
-    ipptransform -d socket://10.0.1.42 -m application/vnd.hp-pcl filename.pdf
+    ipptransform -d socket://10.0.1.42 -m application/vnd.hp-pcl \
+        filename.pdf
 </pre>
 <p>Print a PDF file to an IPP Everywhere printer at 10.0.1.42:
 <pre class="man">
 
-    ipptransform -d ipp://10.0.1.42/ipp/print -m image/pwg-raster filename.pdf
+    ipptransform -d ipp://10.0.1.42/ipp/print -m image/pwg-raster \
+        filename.pdf
 </pre>
 <p>Convert a JPEG file to sRGB PWG Raster at 600dpi:
 <pre class="man">
 
-    ipptransform -m image/pwg-raster -r 600dpi -t sgray_8,srgb_8 filename.jpg >filename.ras
+    ipptransform -m image/pwg-raster -r 600dpi -t sgray_8,srgb_8 \
+        filename.jpg >filename.ras
 </pre>
 <h2 class="title"><a name="COPYRIGHT">Copyright</a></h2>
 Copyright &copy; 2016 by Apple Inc.
