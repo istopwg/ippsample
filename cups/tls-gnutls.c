@@ -1254,6 +1254,7 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
     */
 
     char	crtfile[1024],		/* Certificate file */
+		chainfile[1024],	/* Certificate chain file */
 		keyfile[1024];		/* Private key file */
     int		have_creds = 0;		/* Have credentials? */
 
@@ -1295,16 +1296,18 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
     if (hostname[0])
     {
       http_gnutls_make_path(crtfile, sizeof(crtfile), tls_keypath, hostname, "crt");
+      http_gnutls_make_path(chainfile, sizeof(chainfile), tls_keypath, hostname, "chain");
       http_gnutls_make_path(keyfile, sizeof(keyfile), tls_keypath, hostname, "key");
 
-      have_creds = !access(crtfile, 0) && !access(keyfile, 0);
+      have_creds = !access(crtfile, R_OK) && !access(keyfile, R_OK);
     }
     else if (tls_common_name)
     {
       http_gnutls_make_path(crtfile, sizeof(crtfile), tls_keypath, tls_common_name, "crt");
+      http_gnutls_make_path(chainfile, sizeof(chainfile), tls_keypath, tls_common_name, "chain");
       http_gnutls_make_path(keyfile, sizeof(keyfile), tls_keypath, tls_common_name, "key");
 
-      have_creds = !access(crtfile, 0) && !access(keyfile, 0);
+      have_creds = !access(crtfile, R_OK) && !access(keyfile, R_OK);
     }
 
     if (!have_creds && tls_auto_create && (hostname[0] || tls_common_name))
@@ -1324,7 +1327,11 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
 
     DEBUG_printf(("4_httpTLSStart: Using certificate \"%s\" and private key \"%s\".", crtfile, keyfile));
 
-    status = gnutls_certificate_set_x509_key_file(*credentials, crtfile, keyfile, GNUTLS_X509_FMT_PEM);
+    if (!status && !access(chainfile, R_OK))
+      status = gnutls_certificate_set_x509_trust_file(*credentials, chainfile, GNUTLS_X509_FMT_PEM);
+
+    if (!status)
+      status = gnutls_certificate_set_x509_key_file(*credentials, crtfile, keyfile, GNUTLS_X509_FMT_PEM);
   }
 
   if (!status)
