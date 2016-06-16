@@ -1296,7 +1296,7 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
     if (hostname[0])
     {
       http_gnutls_make_path(crtfile, sizeof(crtfile), tls_keypath, hostname, "crt");
-      http_gnutls_make_path(chainfile, sizeof(chainfile), tls_keypath, hostname, "chain");
+      http_gnutls_make_path(chainfile, sizeof(chainfile), tls_keypath, hostname, "chain.crt");
       http_gnutls_make_path(keyfile, sizeof(keyfile), tls_keypath, hostname, "key");
 
       have_creds = !access(crtfile, R_OK) && !access(keyfile, R_OK);
@@ -1304,7 +1304,7 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
     else if (tls_common_name)
     {
       http_gnutls_make_path(crtfile, sizeof(crtfile), tls_keypath, tls_common_name, "crt");
-      http_gnutls_make_path(chainfile, sizeof(chainfile), tls_keypath, tls_common_name, "chain");
+      http_gnutls_make_path(chainfile, sizeof(chainfile), tls_keypath, tls_common_name, "chain.crt");
       http_gnutls_make_path(keyfile, sizeof(keyfile), tls_keypath, tls_common_name, "key");
 
       have_creds = !access(crtfile, R_OK) && !access(keyfile, R_OK);
