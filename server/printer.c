@@ -1526,19 +1526,22 @@ register_printer(
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "rp=%s", printer->resource);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "ty=%s %s", make, model);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "adminurl=%s", adminurl);
-  if (*location)
+  if (location && *location)
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "note=%s", location);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "product=(%s)", model);
-  ipp_txt = avahi_string_list_add_printf(ipp_txt, "pdl=%s", formats);
+  if (formats)
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "pdl=%s", formats);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "Color=%s", color ? "T" : "F");
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "Duplex=%s", duplex ? "T" : "F");
-  ipp_txt = avahi_string_list_add_printf(ipp_txt, "usb_MFG=%s", make);
-  ipp_txt = avahi_string_list_add_printf(ipp_txt, "usb_MDL=%s", model);
+  if (make)
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "usb_MFG=%s", make);
+  if (model)
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "usb_MDL=%s", model);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "UUID=%s", uuid);
 #  ifdef HAVE_SSL
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "TLS=1.2");
 #  endif /* HAVE_SSL */
-  if (strstr(formats, "image/urf"))
+  if (formats && strstr(formats, "image/urf"))
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "URF=CP1,IS1-5-7,MT1-2-3-4-5-6-8-9-10-11-12-13,RS300,SRGB24,V1.4,W8,DM1");
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "txtvers=1");
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "qtotal=1");
