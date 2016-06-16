@@ -136,16 +136,16 @@ main(int  argc,				/* I - Number of command-line args */
           case 'h' : /* -h (show help) */
 	      usage(0);
 
-	  case 'k' : /* -k (keep files) */
-	      KeepFiles = 1;
-	      break;
-
 	  case 'i' : /* -i icon.png */
 	      i ++;
 	      if (i >= argc)
 	        usage(1);
 
 	      icon = argv[i];
+	      break;
+
+	  case 'k' : /* -k (keep files) */
+	      KeepFiles = 1;
 	      break;
 
 	  case 'l' : /* -l location */
@@ -276,15 +276,18 @@ usage(int status)			/* O - Exit status */
 {
   if (!status)
   {
-    puts(CUPS_SVERSION " - Copyright 2010-2015 by Apple Inc. All rights reserved.");
+    puts(CUPS_SVERSION " - Copyright 2010-2016 by Apple Inc. All rights reserved.");
     puts("");
   }
 
   puts("Usage: ippserver [options] \"name\"");
   puts("");
   puts("Options:");
-//  puts("-2                      Supports 2-sided printing (default=1-sided)");
+  puts("-2                      Supports 2-sided printing (default=1-sided)");
   puts("-C config-directory     Load settings and printers from the specified directory.");
+#ifdef HAVE_SSL
+  puts("-K keypath              Specifies the location of certificates and keys");
+#endif /* HAVE_SSL */
   puts("-M manufacturer         Manufacturer name (default=Test)");
   puts("-P                      PIN printing mode");
   puts("-a attributes-file      Load printer attributes from file");
@@ -302,6 +305,7 @@ usage(int status)			/* O - Exit status */
   puts("-p port                 Port number (default=auto)");
   puts("-r subtype              Bonjour service subtype (default=_print)");
   puts("-s speed[,color-speed]  Speed in pages per minute (default=10,0)");
+  puts("-u username:password    Specifies a username and password to require.");
   puts("-v[v]                   Be (very) verbose");
 
   exit(status);

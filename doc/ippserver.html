@@ -12,12 +12,43 @@ ippserver - a simple ipp server
 <h2 class="title"><a name="SYNOPSIS">Synopsis</a></h2>
 <b>ippserver</b>
 [
+<b>-2</b>
+] [
+<b>-C</b>
+<i>config-directory</i>
+] [
+<b>-K</b>
+<i>keypath</i>
+] [
+<b>-M</b>
+<i>manufacturer</i>
+] [
+<b>-P</b>
+] [
+<b>-a</b>
+<i>attributes-file</i>
+] [
+<b>-c</b>
+<i>command</i>
+] [
 <b>-d</b>
 <i>spool-directory</i>
 ] [
+<b>-f</b>
+<i>type/subtype[,...]</i>
+] [
 <b>-h</b>
 ] [
+<b>-i</b>
+<i>iconfile.png</i>
+] [
 <b>-k</b>
+] [
+<b>-l</b>
+<i>location</i>
+] [
+<b>-m</b>
+<i>model</i>
 ] [
 <b>-n</b>
 <i>hostname</i>
@@ -25,26 +56,55 @@ ippserver - a simple ipp server
 <b>-p</b>
 <i>port</i>
 ] [
+<b>-r</b>
+<i>subtype</i>
+] [
+<b>-s</b>
+<i>speed[,color-speed]</i>
+] [
 <b>-u</b>
 <i>username:password</i>
 ] [
 <b>-v[vvv]</b>
 ]
-<i>service-name</i>
+<i>"service name"</i>
 <h2 class="title"><a name="DESCRIPTION">Description</a></h2>
 <b>ippserver</b>
-is a simple Internet Printing Protocol (IPP) infrastructure server conforming to the IPP Shared Infrastructure Extensions (INFRA) specification. It can be used as a very basic infrastructure server between standard IPP clients and IPP proxies conforming to the INFRA specification.
+is a simple Internet Printing Protocol (IPP) server conforming to the IPP Everywhere and IPP Shared Infrastructure Extensions (INFRA) specifications. It can be used as a standalone print server and/or a very basic infrastructure server between standard IPP clients and IPP proxies conforming to the INFRA specification.
 <h2 class="title"><a name="OPTIONS">Options</a></h2>
 The following options are recognized by
 <b>ippserver:</b>
 <dl class="man">
+<dt><b>-2</b>
+<dd style="margin-left: 5.0em">Specifies that the printer supports two-sided printing.
+<dt><b>-C </b><i>config-directory</i>
+<dd style="margin-left: 5.0em">Specifies the location of a directory containing files that define the configuration of the server and the service instances that are available.
+See the section titled "CONFIGURATION DIRECTORIES" below.
+<dt><b>-K </b><i>keypath</i>
+<dd style="margin-left: 5.0em">Specifies the location of TLS certificates and private keys.
+<dt><b>-M </b><i>manufacturer</i>
+<dd style="margin-left: 5.0em">Specifies the manufacturer for the printer.
+<dt><b>-P</b>
+<dd style="margin-left: 5.0em">Specifies that the printer will require a PIN ("job-password") for submitted print jobs.
+<dt><b>-a </b><i>attributes-file</i>
+<dd style="margin-left: 5.0em">Specifies a file containing attribute definitions for the printer.
+<b>-c </b><i>command</i>
+Specifies a command that is used to process job files.
 <dt><b>-d </b><i>spool-directory</i>
 <dd style="margin-left: 5.0em">Specifies the directory that will hold the print files.
 The default is a directory under the user's current temporary directory.
+<b>-f </b><i>type/subtype,[...]</i>
+Specifies the list of supported MIME media types.
 <dt><b>-h</b>
 <dd style="margin-left: 5.0em">Shows program help.
+<dt><b>-i </b><i>iconfile.png</i>
+<dd style="margin-left: 5.0em">Specifies a PNG file for the printer icon.
 <dt><b>-k</b>
 <dd style="margin-left: 5.0em">Keeps the print documents in the spool directory rather than deleting them.
+<dt><b>-l </b><i>location</i>
+<dd style="margin-left: 5.0em">Specifies the "printer-location" string for the printer.
+<dt><b>-m </b><i>model</i>
+<dd style="margin-left: 5.0em">Specifies the model name of the printer.
 <dt><b>-n </b><i>hostname</i>
 <dd style="margin-left: 5.0em">Specifies the hostname that is reported by the server.
 The default is the name returned by the
@@ -53,9 +113,13 @@ command.
 <dt><b>-p </b><i>port</i>
 <dd style="margin-left: 5.0em">Specifies the port number to listen on.
 The default is a user-specific number from 8000 to 8999.
+<dt><b>-r </b><i>subtype</i>
+<dd style="margin-left: 5.0em">Specifies the Bonjour subtype to advertise for the printer.
+The default subtype is "_print".
+<dt><b>-s </b><i>speed[,color-speed]</i>
+<dd style="margin-left: 5.0em">Specifies the printer speed in pages-per-minute.
 <dt><b>-u </b><i>username:password</i>
 <dd style="margin-left: 5.0em">Specifies the username and password for the IPP proxy.
-The default is "test:test123".
 <dt><b>-v[vvv]</b>
 <dd style="margin-left: 5.0em">Be (very) verbose when logging activity to the standard output.
 </dl>
@@ -66,10 +130,6 @@ program returns 1 if it is unable to process the command-line arguments.
 Otherwise
 <b>ippserver</b>
 will run continuously until terminated.
-<h2 class="title"><a name="CONFORMING_TO">Conforming To</a></h2>
-The
-<b>ippserver</b>
-program is unique to CUPS and conforms to the IPP Shared Infrastructure Extensions (INFRA) specification as an Infrastructure Printer.
 <h2 class="title"><a name="EXAMPLES">Examples</a></h2>
 Run
 <b>ippserver</b>
@@ -83,8 +143,74 @@ with a service name of My Cool Printer:
 
     ippserver -u foo:bar "My Cool Printer"
 </pre>
+<h2 class="title"><a name="CONFIGURATION_DIRECTORIES">Configuration Directories</a></h2>
+When the <b>-C</b> option is specified, <b>ippserver</b> reads a series of configuration files from the specified directory to configure the server and services supported by the server.
+<h3><a name="SERVER_CONF_CONFIGURATION_FILE">Server.conf Configuration File</a></h3>
+The <i>server.conf</i> configuration file specifies settings that apply to all services.
+Each line consists of a directive followed by its value(s).
+Comments start with the # character and continue to the end of the line.
+The following directives are supported:
+<dl class="man">
+<dt><b>DataDirectory </b><i>directory</i>
+<dd style="margin-left: 5.0em">Specifies the location of server data files.
+<dt><b>DefaultPrinter </b><i>name</i>
+<dd style="margin-left: 5.0em">Specifies the default print service name.
+<dt><b>Encryption </b><i>{Always|IfRequested|Never|Required}</i>
+<dd style="margin-left: 5.0em">Specifies when to use TLS encryption for client connections.
+"Always" means that all connections are encrypted when established (HTTPS).
+"IfRequested" means that connections are encrypted when an upgrade is requested by the client.
+"Never" means that encryption is not allowed or supported.
+"Required" means that all connections are encrypted, either when established (HTTPS) or immediately thereafter using HTTP Upgrade.
+<dt><b>KeepFiles </b><i>{No|Yes}</i>
+<dd style="margin-left: 5.0em">Specifies whether job data files are retained after processing.
+<dt><b>Listen </b><i>address[:port]</i>
+<dd style="margin-left: 5.0em">Listens for client connections on the specified address and port.
+If the address is "*" the server will listen for connections on all network interfaces.
+If the port is omitted, a port between 8000 and 8999 will be used.
+<dt><b>LogFile </b><i>path</i>
+<dd style="margin-left: 5.0em">Specifies a log file to use.
+The path "stderr" causes all log messages to be directed to the standard error file descriptor.
+<dt><b>LogLevel </b><i>{Debug|Info|Error}</i>
+<dd style="margin-left: 5.0em">Specifies the verbosity of logged messages.
+"Debug" is the most verbose level, logging all messages.
+"Info" provides basic progress and status messages.
+"Error" provides only error messages.
+<dt><b>MaxJobs </b><i>number</i>
+<dd style="margin-left: 5.0em">Specifies the maximum number of pending and active jobs that can be queued at any given time.
+The value 0 specifies there is no limit.
+<dt><b>SpoolDirectory </b><i>path</i>
+<dd style="margin-left: 5.0em">Specifies the location of print job spool files.
+</dl>
+<h3><a name="PRINT_SERVICE_CONFIGURATION_FILES">Print Service Configuration Files</a></h3>
+Each print service is configured by a <i>print/name.conf</i> configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print/name".
+Each line consists of a directive followed by its value(s).
+Comments start with the # character and continue to the end of the line.
+The following directives are supported:
+<dl class="man">
+<dt><b>Attr </b><i>value-tag name value(s)</i>
+<dd style="margin-left: 5.0em">Specifies a Printer Description attribute.
+The format is further defined in
+<a href="man-ipptoolfile.html?TOPIC=Man+Pages"><b>ipptoolfile</b>(7).</a>
+<dt><b>AuthType </b><i>{None|Basic}</i>
+<dd style="margin-left: 5.0em">Specifies the type of authentication to require.
+"None" specifies that no authentication is required.
+"Basic" specifies that HTTP Basic authentication (username + password) is required.
+<dt><b>Command </b><i>command</i>
+<dd style="margin-left: 5.0em">Specifies the command to run when processing jobs.
+The
+<a href="man-ipptransform.html?TOPIC=Man+Pages"><b>ipptransform</b>(1)</a>
+command can be used for many printers.
+<dt><b>DeviceURI </b><i>uri</i>
+<dd style="margin-left: 5.0em">Specifies the printer's device URI.
+<dt><b>Make </b><i>manufacturer</i>
+<dd style="margin-left: 5.0em">Specifies the manufacturer name for the printer.
+<dt><b>Model </b><i>model</i>
+<dd style="margin-left: 5.0em">Specifies the model for the printer.
+<dt><b>ProxyUser </b><i>user</i>
+<dd style="margin-left: 5.0em">Specifies the name of the proxy user for the printer.
+</dl>
 <h2 class="title"><a name="SEE_ALSO">See Also</a></h2>
-PWG Internet Printing Protocol Workgroup (<a href="http://www.pwg.org/ipp">http://www.pwg.org/ipp</a>)
+ISTO PWG Internet Printing Protocol Workgroup (<a href="http://www.pwg.org/ipp">http://www.pwg.org/ipp</a>)
 <h2 class="title"><a name="COPYRIGHT">Copyright</a></h2>
 Copyright &copy; 2007-2016 by Apple Inc.
 
