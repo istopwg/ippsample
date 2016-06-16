@@ -1295,17 +1295,47 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
 
     if (hostname[0])
     {
-      http_gnutls_make_path(crtfile, sizeof(crtfile), tls_keypath, hostname, "crt");
-      http_gnutls_make_path(chainfile, sizeof(chainfile), tls_keypath, hostname, "chain.crt");
-      http_gnutls_make_path(keyfile, sizeof(keyfile), tls_keypath, hostname, "key");
+     /*
+      * First look for CA certs...
+      */
+
+      snprintf(crtfile, sizeof(crtfile), "/etc/letsencrypt/live/%s/cert.pem", hostname);
+      snprintf(chainfile, sizeof(chainfile), "/etc/letsencrypt/live/%s/chain.pem", hostname);
+      snprintf(keyfile, sizeof(keyfile), "/etc/letsencrypt/live/%s/privkey.pem", hostname);
+
+      if (access(crtfile, R_OK) || access(keyfile, R_OK))
+      {
+       /*
+        * Then look in the CUPS keystore...
+	*/
+
+	http_gnutls_make_path(crtfile, sizeof(crtfile), tls_keypath, hostname, "crt");
+	http_gnutls_make_path(chainfile, sizeof(chainfile), tls_keypath, hostname, "chain.crt");
+	http_gnutls_make_path(keyfile, sizeof(keyfile), tls_keypath, hostname, "key");
+      }
 
       have_creds = !access(crtfile, R_OK) && !access(keyfile, R_OK);
     }
     else if (tls_common_name)
     {
-      http_gnutls_make_path(crtfile, sizeof(crtfile), tls_keypath, tls_common_name, "crt");
-      http_gnutls_make_path(chainfile, sizeof(chainfile), tls_keypath, tls_common_name, "chain.crt");
-      http_gnutls_make_path(keyfile, sizeof(keyfile), tls_keypath, tls_common_name, "key");
+     /*
+      * First look for CA certs...
+      */
+
+      snprintf(crtfile, sizeof(crtfile), "/etc/letsencrypt/live/%s/cert.pem", tls_common_name);
+      snprintf(chainfile, sizeof(chainfile), "/etc/letsencrypt/live/%s/chain.pem", tls_common_name);
+      snprintf(keyfile, sizeof(keyfile), "/etc/letsencrypt/live/%s/privkey.pem", tls_common_name);
+
+      if (access(crtfile, R_OK) || access(keyfile, R_OK))
+      {
+       /*
+        * Then look in the CUPS keystore...
+	*/
+
+	http_gnutls_make_path(crtfile, sizeof(crtfile), tls_keypath, tls_common_name, "crt");
+	http_gnutls_make_path(chainfile, sizeof(chainfile), tls_keypath, tls_common_name, "chain.crt");
+	http_gnutls_make_path(keyfile, sizeof(keyfile), tls_keypath, tls_common_name, "key");
+      }
 
       have_creds = !access(crtfile, R_OK) && !access(keyfile, R_OK);
     }
