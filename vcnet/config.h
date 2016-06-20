@@ -470,7 +470,7 @@ typedef unsigned long useconds_t;
 
 
 /*
- * Location of OS X localization bundle, if any.
+ * Location of macOS localization bundle, if any.
  */
 
 /* #undef CUPS_BUNDLEDIR */
