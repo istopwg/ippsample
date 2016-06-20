@@ -624,8 +624,8 @@ ac_includes_default="\
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
 IPPFIND_MAN
+IPPFIND_HTML
 IPPFIND_BIN
-DNSSD_BACKEND
 DNSSDLIBS
 LARGEFILE
 EXPORT_SSLLIBS
@@ -646,7 +646,9 @@ ARCHFLAGS
 UNITTESTS
 OPTIM
 INSTALL_STRIP
-IPPTRANSFORM
+IPPTRANSFORM_MAN
+IPPTRANSFORM_HTML
+IPPTRANSFORM_BIN
 ARFLAGS
 LIBZ
 INSTALL_GZIP
@@ -4361,7 +4363,11 @@ esac
 
 
 
-IPPTRANSFORM=""
+IPPTRANSFORM_BIN=""
+IPPTRANSFORM_HTML=""
+IPPTRANSFORM_MAN=""
+
+
 
 
 case $uname in
@@ -4397,7 +4403,9 @@ fi
 
 
 
-		IPPTRANSFORM="ipptransform"
+		IPPTRANSFORM_BIN="ipptransform"
+		IPPTRANSFORM_HTML="ipptransform.html"
+		IPPTRANSFORM_MAN="ipptransform.man"
 		;;
 
 	*)
@@ -4554,7 +4562,9 @@ if test "x$ac_cv_lib_mupdf_fz_drop_document" = xyes; then :
 			$as_echo "#define HAVE_MUPDF 1" >>confdefs.h
 
 			LIBS="-lmupdf $LIBS"
-			IPPTRANSFORM="ipptransform"
+			IPPTRANSFORM_BIN="ipptransform"
+			IPPTRANSFORM_HTML="ipptransform.html"
+			IPPTRANSFORM_MAN="ipptransform.man"
 
 fi
 
@@ -6280,8 +6290,8 @@ fi
 
 
 DNSSDLIBS=""
-DNSSD_BACKEND=""
 IPPFIND_BIN=""
+IPPFIND_HTML=""
 IPPFIND_MAN=""
 
 if test "x$PKGCONFIG" != x -a x$enable_avahi != xno -a x$uname != xDarwin; then
@@ -6292,9 +6302,9 @@ $as_echo_n "checking for Avahi... " >&6; }
 $as_echo "yes" >&6; }
 		CFLAGS="$CFLAGS `$PKGCONFIG --cflags avahi-client`"
 		DNSSDLIBS="`$PKGCONFIG --libs avahi-client`"
-		DNSSD_BACKEND="dnssd"
 		IPPFIND_BIN="ippfind"
-		IPPFIND_MAN="ippfind.\$(MAN1EXT)"
+		IPPFIND_HTML="ippfind.html"
+		IPPFIND_MAN="ippfind.man"
 		$as_echo "#define HAVE_AVAHI 1" >>confdefs.h
 
 	else
@@ -6313,9 +6323,9 @@ if test "x$ac_cv_header_dns_sd_h" = xyes; then :
 				$as_echo "#define HAVE_DNSSD 1" >>confdefs.h
 
 				DNSSDLIBS="-framework CoreFoundation -framework SystemConfiguration"
-				DNSSD_BACKEND="dnssd"
 				IPPFIND_BIN="ippfind"
-				IPPFIND_MAN="ippfind.\$(MAN1EXT)"
+				IPPFIND_HTML="ippfind.html"
+				IPPFIND_MAN="ippfind.man"
 				;;
 			*)
 				# All others...
@@ -6344,10 +6354,9 @@ $as_echo "yes" >&6; }
 					$as_echo "#define HAVE_DNSSD 1" >>confdefs.h
 
 					DNSSDLIBS="-ldns_sd"
-					DNSSD_BACKEND="dnssd"
-else
-  IPPFIND_BIN="ippfind"
-					IPPFIND_MAN="ippfind.\$(MAN1EXT)"
+					IPPFIND_BIN="ippfind"
+					IPPFIND_HTML="ippfind.html"
+					IPPFIND_MAN="ippfind.man"
 					{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 fi
@@ -6360,7 +6369,6 @@ fi
 
 
 fi
-
 
 
 

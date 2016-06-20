@@ -18,9 +18,9 @@ OBJS		=	\
 TARGETS		=	\
 			mantohtml
 MAN1		=	\
-			ippfind.man \
+			$(IPPFIND_MAN) \
 			ipptool.man \
-			ipptransform.man
+			$(IPPTRANSFORM_MAN)
 MAN5		=	\
 			ipptoolfile.man
 
@@ -28,12 +28,12 @@ MAN8		=	\
 			ippproxy.man \
 			ippserver.man
 HTML		=	\
-			ippfind.html \
+			$(IPPFIND_HTML) \
 			ippproxy.html \
 			ippserver.html \
 			ipptool.html \
 			ipptoolfile.html \
-			ipptransform.html
+			$(IPPTRANSFORM_HTML)
 
 
 #

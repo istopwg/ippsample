@@ -19,9 +19,9 @@ OBJS		=	\
 			ipptool.o \
 			ipptransform.o
 TARGETS		=	\
-			ippfind \
+			$(IPPFIND_BIN) \
 			ipptool \
-			$(IPPTRANSFORM)
+			$(IPPTRANSFORM_BIN)
 
 
 #

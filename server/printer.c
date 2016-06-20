@@ -36,7 +36,9 @@ static void DNSSD_API	dnssd_callback(DNSServiceRef sdRef,
 #elif defined(HAVE_AVAHI)
 static void		dnssd_callback(AvahiEntryGroup *p, AvahiEntryGroupState state, void *context);
 #endif /* HAVE_DNSSD */
+#if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
 static void		register_geo(server_printer_t *printer);
+#endif /* HAVE_DNSSD || HAVE_AVAHI */
 static int		register_printer(server_printer_t *printer, const char *location, const char *make, const char *model, const char *formats, const char *adminurl, const char *uuid, int color, int duplex, const char *regtype);
 
 
@@ -1260,6 +1262,7 @@ dnssd_callback(
 #endif /* HAVE_DNSSD */
 
 
+#if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
 /*
  * 'register_geo()' - Register (or update) a printer's geo-location via Bonjour.
  */
@@ -1380,6 +1383,7 @@ register_geo(server_printer_t *printer)	/* I - Printer */
 #endif /* HAVE_DNSSD */
   }
 }
+#endif /* HAVE_DNSSD || HAVE_AVAHI */
 
 
 /*
