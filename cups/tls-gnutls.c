@@ -1254,7 +1254,6 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
     */
 
     char	crtfile[1024],		/* Certificate file */
-		chainfile[1024],	/* Certificate chain file */
 		keyfile[1024];		/* Private key file */
     int		have_creds = 0;		/* Have credentials? */
 
@@ -1299,8 +1298,7 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
       * First look for CA certs...
       */
 
-      snprintf(crtfile, sizeof(crtfile), "/etc/letsencrypt/live/%s/cert.pem", hostname);
-      snprintf(chainfile, sizeof(chainfile), "/etc/letsencrypt/live/%s/chain.pem", hostname);
+      snprintf(crtfile, sizeof(crtfile), "/etc/letsencrypt/live/%s/fullchain.pem", hostname);
       snprintf(keyfile, sizeof(keyfile), "/etc/letsencrypt/live/%s/privkey.pem", hostname);
 
       if ((access(crtfile, R_OK) || access(keyfile, R_OK)) && (hostptr = strchr(hostname, '.')) != NULL)
@@ -1312,8 +1310,7 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
         hostptr ++;
 	if (strchr(hostptr, '.'))
 	{
-	  snprintf(crtfile, sizeof(crtfile), "/etc/letsencrypt/live/%s/cert.pem", hostptr);
-	  snprintf(chainfile, sizeof(chainfile), "/etc/letsencrypt/live/%s/chain.pem", hostptr);
+	  snprintf(crtfile, sizeof(crtfile), "/etc/letsencrypt/live/%s/fullchain.pem", hostptr);
 	  snprintf(keyfile, sizeof(keyfile), "/etc/letsencrypt/live/%s/privkey.pem", hostptr);
 	}
       }
@@ -1325,7 +1322,6 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
 	*/
 
 	http_gnutls_make_path(crtfile, sizeof(crtfile), tls_keypath, hostname, "crt");
-	http_gnutls_make_path(chainfile, sizeof(chainfile), tls_keypath, hostname, "chain.crt");
 	http_gnutls_make_path(keyfile, sizeof(keyfile), tls_keypath, hostname, "key");
       }
 
@@ -1337,8 +1333,7 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
       * First look for CA certs...
       */
 
-      snprintf(crtfile, sizeof(crtfile), "/etc/letsencrypt/live/%s/cert.pem", tls_common_name);
-      snprintf(chainfile, sizeof(chainfile), "/etc/letsencrypt/live/%s/chain.pem", tls_common_name);
+      snprintf(crtfile, sizeof(crtfile), "/etc/letsencrypt/live/%s/fullchain.pem", tls_common_name);
       snprintf(keyfile, sizeof(keyfile), "/etc/letsencrypt/live/%s/privkey.pem", tls_common_name);
 
       if ((access(crtfile, R_OK) || access(keyfile, R_OK)) && (hostptr = strchr(tls_common_name, '.')) != NULL)
@@ -1350,8 +1345,7 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
         hostptr ++;
 	if (strchr(hostptr, '.'))
 	{
-	  snprintf(crtfile, sizeof(crtfile), "/etc/letsencrypt/live/%s/cert.pem", hostptr);
-	  snprintf(chainfile, sizeof(chainfile), "/etc/letsencrypt/live/%s/chain.pem", hostptr);
+	  snprintf(crtfile, sizeof(crtfile), "/etc/letsencrypt/live/%s/fullchain.pem", hostptr);
 	  snprintf(keyfile, sizeof(keyfile), "/etc/letsencrypt/live/%s/privkey.pem", hostptr);
 	}
       }
@@ -1363,7 +1357,6 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
 	*/
 
 	http_gnutls_make_path(crtfile, sizeof(crtfile), tls_keypath, tls_common_name, "crt");
-	http_gnutls_make_path(chainfile, sizeof(chainfile), tls_keypath, tls_common_name, "chain.crt");
 	http_gnutls_make_path(keyfile, sizeof(keyfile), tls_keypath, tls_common_name, "key");
       }
 
@@ -1386,9 +1379,6 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
     }
 
     DEBUG_printf(("4_httpTLSStart: Using certificate \"%s\" and private key \"%s\".", crtfile, keyfile));
-
-    if (!status && !access(chainfile, R_OK))
-      status = gnutls_certificate_set_x509_trust_file(*credentials, chainfile, GNUTLS_X509_FMT_PEM);
 
     if (!status)
       status = gnutls_certificate_set_x509_key_file(*credentials, crtfile, keyfile, GNUTLS_X509_FMT_PEM);
