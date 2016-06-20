@@ -25,6 +25,14 @@ extern char **environ;
 
 
 /*
+ * Constants, very secure stuff...
+ */
+
+#define _CUPS_CDSA_PASSWORD	"42"	/* CUPS keychain password */
+#define _CUPS_CDSA_PASSLEN	2	/* Length of keychain password */
+
+
+/*
  * Local globals...
  */
 
@@ -362,7 +370,17 @@ cupsSetServerCredentials(
   if (!path)
     path = http_cdsa_default_path(filename, sizeof(filename));
 
-  if ((status = SecKeychainOpen(path, &keychain)) != noErr)
+  if (access(filename, R_OK))
+    status = SecKeychainCreate(path, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, FALSE, NULL, &keychain);
+  else
+  {
+    status = SecKeychainOpen(path, &keychain);
+
+    if (status == noErr)
+      status = SecKeychainUnlock(keychain, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, TRUE);
+  }
+
+  if (status != noErr)
   {
     /* TODO: Set cups last error string */
     DEBUG_printf(("1cupsSetServerCredentials: Unable to open keychain (%d), returning 0.", (int)status));
@@ -811,7 +829,17 @@ httpLoadCredentials(
   if (!path)
     path = http_cdsa_default_path(filename, sizeof(filename));
 
-  if ((err = SecKeychainOpen(path, &keychain)) != noErr)
+  if (access(filename, R_OK))
+    err = SecKeychainCreate(path, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, FALSE, NULL, &keychain);
+  else
+  {
+    err = SecKeychainOpen(path, &keychain);
+
+    if (err == noErr)
+      err = SecKeychainUnlock(keychain, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, TRUE);
+  }
+
+  if (err != noErr)
     goto cleanup;
 
 #else
@@ -922,7 +950,17 @@ httpSaveCredentials(
   if (!path)
     path = http_cdsa_default_path(filename, sizeof(filename));
 
-  if ((err = SecKeychainOpen(path, &keychain)) != noErr)
+  if (access(filename, R_OK))
+    err = SecKeychainCreate(path, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, FALSE, NULL, &keychain);
+  else
+  {
+    err = SecKeychainOpen(path, &keychain);
+
+    if (err == noErr)
+      err = SecKeychainUnlock(keychain, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, TRUE);
+  }
+
+  if (err != noErr)
   {
     DEBUG_printf(("1httpSaveCredentials: SecKeychainOpen returned %d.", (int)err));
     goto cleanup;
@@ -1768,10 +1806,16 @@ http_cdsa_default_path(char   *buffer,	/* I - Path buffer */
   const char *home = getenv("HOME");	/* HOME environment variable */
 
 
+ /*
+  * Determine the default keychain path.  Note that the login and system
+  * keychains are no longer accessible to user applications starting in macOS
+  * 10.11.4 (!), so we need to create our own keychain just for CUPS.
+  */
+
   if (getuid() && home)
-    snprintf(buffer, bufsize, "%s/Library/Keychains/login.keychain", home);
+    snprintf(buffer, bufsize, "%s/.cups/ssl.keychain", home);
   else
-    strlcpy(buffer, "/Library/Keychains/System.keychain", bufsize);
+    strlcpy(buffer, "/etc/cups/ssl.keychain", bufsize);
 
   DEBUG_printf(("1http_cdsa_default_path: Using default path \"%s\".", buffer));
 
