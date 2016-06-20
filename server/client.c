@@ -174,7 +174,7 @@ serverProcessClient(
   while (httpWait(client->http, 30000))
   {
 #ifdef HAVE_SSL
-    if (first_time)
+    if (first_time && Encryption != HTTP_ENCRYPTION_NEVER)
     {
      /*
       * See if we need to negotiate a TLS connection...
@@ -182,7 +182,8 @@ serverProcessClient(
 
       char buf[1];			/* First byte from client */
 
-      if (recv(httpGetFd(client->http), buf, 1, MSG_PEEK) == 1 && (!buf[0] || !strchr("DGHOPT", buf[0])))
+      if (Encryption == HTTP_ENCRYPTION_ALWAYS ||
+          (recv(httpGetFd(client->http), buf, 1, MSG_PEEK) == 1 && (!buf[0] || !strchr("DGHOPT", buf[0]))))
       {
         serverLogClient(SERVER_LOGLEVEL_INFO, client, "Starting HTTPS session.");
 
@@ -357,7 +358,7 @@ serverProcessHTTP(
                         "Upgrade"))
   {
 #ifdef HAVE_SSL
-    if (strstr(httpGetField(client->http, HTTP_FIELD_UPGRADE), "TLS/") != NULL && !httpIsEncrypted(client->http))
+    if (strstr(httpGetField(client->http, HTTP_FIELD_UPGRADE), "TLS/") != NULL && !httpIsEncrypted(client->http) && Encryption != HTTP_ENCRYPTION_NEVER)
     {
       if (!serverRespondHTTP(client, HTTP_STATUS_SWITCHING_PROTOCOLS, NULL, NULL, 0))
         return (0);
@@ -379,6 +380,15 @@ serverProcessHTTP(
     if (!serverRespondHTTP(client, HTTP_STATUS_NOT_IMPLEMENTED, NULL, NULL, 0))
       return (0);
   }
+
+#ifdef HAVE_SSL
+  if (Encryption == HTTP_ENCRYPTION_REQUIRED && !httpIsEncrypted(client->http))
+  {
+    serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Forcing encryption of connection.");
+    serverRespondHTTP(client, HTTP_STATUS_UPGRADE_REQUIRED, NULL, NULL, 0);
+    return (0);
+  }
+#endif /* HAVE_SSL */
 
  /*
   * Handle HTTP Expect...
