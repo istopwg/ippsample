@@ -1303,6 +1303,21 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
       snprintf(chainfile, sizeof(chainfile), "/etc/letsencrypt/live/%s/chain.pem", hostname);
       snprintf(keyfile, sizeof(keyfile), "/etc/letsencrypt/live/%s/privkey.pem", hostname);
 
+      if ((access(crtfile, R_OK) || access(keyfile, R_OK)) && (hostptr = strchr(hostname, '.')) != NULL)
+      {
+       /*
+        * Try just domain name...
+	*/
+
+        hostptr ++;
+	if (strchr(hostptr, '.'))
+	{
+	  snprintf(crtfile, sizeof(crtfile), "/etc/letsencrypt/live/%s/cert.pem", hostptr);
+	  snprintf(chainfile, sizeof(chainfile), "/etc/letsencrypt/live/%s/chain.pem", hostptr);
+	  snprintf(keyfile, sizeof(keyfile), "/etc/letsencrypt/live/%s/privkey.pem", hostptr);
+	}
+      }
+
       if (access(crtfile, R_OK) || access(keyfile, R_OK))
       {
        /*
@@ -1325,6 +1340,21 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
       snprintf(crtfile, sizeof(crtfile), "/etc/letsencrypt/live/%s/cert.pem", tls_common_name);
       snprintf(chainfile, sizeof(chainfile), "/etc/letsencrypt/live/%s/chain.pem", tls_common_name);
       snprintf(keyfile, sizeof(keyfile), "/etc/letsencrypt/live/%s/privkey.pem", tls_common_name);
+
+      if ((access(crtfile, R_OK) || access(keyfile, R_OK)) && (hostptr = strchr(tls_common_name, '.')) != NULL)
+      {
+       /*
+        * Try just domain name...
+	*/
+
+        hostptr ++;
+	if (strchr(hostptr, '.'))
+	{
+	  snprintf(crtfile, sizeof(crtfile), "/etc/letsencrypt/live/%s/cert.pem", hostptr);
+	  snprintf(chainfile, sizeof(chainfile), "/etc/letsencrypt/live/%s/chain.pem", hostptr);
+	  snprintf(keyfile, sizeof(keyfile), "/etc/letsencrypt/live/%s/privkey.pem", hostptr);
+	}
+      }
 
       if (access(crtfile, R_OK) || access(keyfile, R_OK))
       {
