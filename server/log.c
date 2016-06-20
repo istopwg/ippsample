@@ -120,6 +120,11 @@ serverLogClient(
   va_start(ap, format);
   if (client)
   {
+#ifdef HAVE_SSL
+    if (httpIsEncrypted(client->http))
+      snprintf(temp, sizeof(temp), "[Client %dE] %s", client->number, format);
+    else
+#endif /* HAVE_SSL */
     snprintf(temp, sizeof(temp), "[Client %d] %s", client->number, format);
     server_log_to_file(temp, ap);
   }
