@@ -9,7 +9,7 @@
 .\" which should have been included with this file.  If this file is
 .\" file is missing or damaged, see the license at "http://www.cups.org/".
 .\"
-.TH ippproxy 8 "ippsample" "16 June 2016" "Apple Inc."
+.TH ippproxy 8 "ippsample" "22 June 2016" "Apple Inc."
 .SH NAME
 ippproxy \- a simple ipp proxy client
 .SH SYNOPSIS
@@ -39,7 +39,7 @@ will run continuously until terminated.
 .SH CONFORMING TO
 The
 .B ippproxy
-program is unique to CUPS and conforms to the IPP Shared Infrastructure Extensions (INFRA) specification.
+program conforms to PWG Candidate Standard 5100.18: IPP Shared Infrastructure Extensions (INFRA).
 .SH EXAMPLE
 Run
 .B ippproxy

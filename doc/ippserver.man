@@ -9,7 +9,7 @@
 .\" which should have been included with this file.  If this file is
 .\" file is missing or damaged, see the license at "http://www.cups.org/".
 .\"
-.TH ippserver 8 "ippsample" "15 June 2016" "Apple Inc."
+.TH ippserver 8 "ippsample" "22 June 2016" "Apple Inc."
 .SH NAME
 ippserver \- a simple ipp server
 .SH SYNOPSIS
@@ -96,12 +96,14 @@ Specifies that the printer will require a PIN ("job-password") for submitted pri
 .TP 5
 \fB\-a \fIattributes-file\fR
 Specifies a file containing attribute definitions for the printer.
+.TP 5
 \fB\-c \fIcommand\fR
 Specifies a command that is used to process job files.
 .TP 5
 \fB\-d \fIspool-directory\fR
 Specifies the directory that will hold the print files.
 The default is a directory under the user's current temporary directory.
+.TP 5
 \fB\-f \fItype/subtype,[...]\fR
 Specifies the list of supported MIME media types.
 .TP 5
