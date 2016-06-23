@@ -77,7 +77,7 @@ serverCreateClient(int sock)		/* I - Listen socket */
  */
 
 int					/* O - 1 on success, 0 on error */
-serverCreateListeners(const char *host,	/* I - Hostname, IP address, or "*" for any address */
+serverCreateListeners(const char *host,	/* I - Hostname, IP address, or NULL for any address */
                       int        port)	/* I - Port number */
 {
   int			sock;		/* Listener socket */
@@ -95,7 +95,7 @@ serverCreateListeners(const char *host,	/* I - Hostname, IP address, or "*" for 
     return (0);
   }
 
-  if (!strcmp(host, "*"))
+  if (!host)
   {
     httpGetHostname(NULL, local, sizeof(local));
     host = local;
