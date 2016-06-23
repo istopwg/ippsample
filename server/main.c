@@ -42,8 +42,7 @@ main(int  argc,				/* I - Number of command-line args */
 		*make = (char *)"Test",	/* Manufacturer */
 		*model = (char *)"Printer",
 					/* Model */
-		*icon = (char *)"printer.png",
-					/* Icon file */
+		*icon = NULL,		/* Icon file */
 		*formats = (char *)"application/pdf,image/jpeg,image/pwg-raster";
 	      				/* Supported formats */
   int		duplex = 0,		/* Duplex mode */
