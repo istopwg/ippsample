@@ -279,7 +279,7 @@ serverProcessHTTP(
 
   if (http_state == HTTP_STATE_ERROR)
   {
-    if (httpError(client->http) == EPIPE)
+    if (httpError(client->http) == EPIPE || httpError(client->http) == 0)
       serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Client closed connection.");
     else
       serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Bad request line (%s).", strerror(httpError(client->http)));
