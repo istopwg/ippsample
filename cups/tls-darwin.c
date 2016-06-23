@@ -62,6 +62,7 @@ static CFArrayRef	http_cdsa_copy_server(const char *common_name);
 static SecCertificateRef http_cdsa_create_credential(http_credential_t *credential);
 #ifdef HAVE_SECKEYCHAINOPEN
 static const char	*http_cdsa_default_path(char *buffer, size_t bufsize);
+static SecKeychainRef	http_cdsa_open_keychain(const char *path, char *filename, size_t filesize);
 #endif /* HAVE_SECKEYCHAINOPEN */
 static OSStatus		http_cdsa_read(SSLConnectionRef connection, void *data, size_t *dataLength);
 static int		http_cdsa_set_credentials(http_t *http);
@@ -362,28 +363,12 @@ cupsSetServerCredentials(
   DEBUG_printf(("cupsSetServerCredentials(path=\"%s\", common_name=\"%s\", auto_create=%d)", path, common_name, auto_create));
 
 #ifdef HAVE_SECKEYCHAINOPEN
-  char			filename[1024];	/* Filename for keychain */
-  SecKeychainRef	keychain = NULL;/* Temporary keychain */
-  OSStatus		status;		/* Status code */
+  char		filename[1024];		/* Keychain filename */
+  SecKeychainRef keychain = http_cdsa_open_keychain(path, filename, sizeof(filename));
 
-
-  if (!path)
-    path = http_cdsa_default_path(filename, sizeof(filename));
-
-  if (access(filename, R_OK))
-    status = SecKeychainCreate(path, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, FALSE, NULL, &keychain);
-  else
+  if (!keychain)
   {
-    status = SecKeychainOpen(path, &keychain);
-
-    if (status == noErr)
-      status = SecKeychainUnlock(keychain, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, TRUE);
-  }
-
-  if (status != noErr)
-  {
-    /* TODO: Set cups last error string */
-    DEBUG_printf(("1cupsSetServerCredentials: Unable to open keychain (%d), returning 0.", (int)status));
+    DEBUG_puts("1cupsSetServerCredentials: Unable to open keychain.");
     return (0);
   }
 
@@ -407,7 +392,7 @@ cupsSetServerCredentials(
   */
 
   tls_keychain    = keychain;
-  tls_keypath     = _cupsStrAlloc(path);
+  tls_keypath     = _cupsStrAlloc(filename);
   tls_auto_create = auto_create;
   tls_common_name = _cupsStrAlloc(common_name);
 
@@ -826,20 +811,9 @@ httpLoadCredentials(
   *credentials = NULL;
 
 #ifdef HAVE_SECKEYCHAINOPEN
-  if (!path)
-    path = http_cdsa_default_path(filename, sizeof(filename));
+  keychain = http_cdsa_open_keychain(path, filename, sizeof(filename));
 
-  if (access(filename, R_OK))
-    err = SecKeychainCreate(path, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, FALSE, NULL, &keychain);
-  else
-  {
-    err = SecKeychainOpen(path, &keychain);
-
-    if (err == noErr)
-      err = SecKeychainUnlock(keychain, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, TRUE);
-  }
-
-  if (err != noErr)
+  if (!keychain)
     goto cleanup;
 
 #else
@@ -947,24 +921,10 @@ httpSaveCredentials(
   }
 
 #ifdef HAVE_SECKEYCHAINOPEN
-  if (!path)
-    path = http_cdsa_default_path(filename, sizeof(filename));
+  keychain = http_cdsa_open_keychain(path, filename, sizeof(filename));
 
-  if (access(filename, R_OK))
-    err = SecKeychainCreate(path, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, FALSE, NULL, &keychain);
-  else
-  {
-    err = SecKeychainOpen(path, &keychain);
-
-    if (err == noErr)
-      err = SecKeychainUnlock(keychain, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, TRUE);
-  }
-
-  if (err != noErr)
-  {
-    DEBUG_printf(("1httpSaveCredentials: SecKeychainOpen returned %d.", (int)err));
+  if (!keychain)
     goto cleanup;
-  }
 
 #else
   if (path)
@@ -1820,6 +1780,91 @@ http_cdsa_default_path(char   *buffer,	/* I - Path buffer */
   DEBUG_printf(("1http_cdsa_default_path: Using default path \"%s\".", buffer));
 
   return (buffer);
+}
+
+
+/*
+ * 'http_cdsa_open_keychain()' - Open (or create) a keychain.
+ */
+
+static SecKeychainRef			/* O - Keychain or NULL */
+http_cdsa_open_keychain(
+    const char *path,			/* I - Path to keychain */
+    char       *filename,		/* I - Keychain filename */
+    size_t     filesize)		/* I - Size of filename buffer */
+{
+  SecKeychainRef	keychain = NULL;/* Temporary keychain */
+  OSStatus		err;		/* Error code */
+  Boolean		interaction;	/* Interaction allowed? */
+  SecKeychainStatus	status = 0;	/* Keychain status */
+
+
+ /*
+  * Get the keychain filename...
+  */
+
+  if (!path)
+    path = http_cdsa_default_path(filename, filesize);
+  else
+    strlcpy(filename, path, filesize);
+
+ /*
+  * Save the interaction setting and disable while we open the keychain...
+  */
+
+  SecKeychainGetUserInteractionAllowed(&interaction);
+  SecKeychainSetUserInteractionAllowed(FALSE);
+
+  if (access(path, R_OK))
+  {
+   /*
+    * Create a new keychain at the given path...
+    */
+
+    err = SecKeychainCreate(path, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, FALSE, NULL, &keychain);
+  }
+  else
+  {
+   /*
+    * Open the existing keychain and unlock as needed...
+    */
+
+    err = SecKeychainOpen(path, &keychain);
+
+    if (err == noErr)
+      err = SecKeychainGetStatus(keychain, &status);
+
+    if (err == noErr && !(status & kSecUnlockStateStatus))
+      err = SecKeychainUnlock(keychain, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, TRUE);
+  }
+
+ /*
+  * Restore interaction setting...
+  */
+
+  SecKeychainSetUserInteractionAllowed(interaction);
+
+ /*
+  * Release the keychain if we had any errors...
+  */
+
+  if (err != noErr)
+  {
+    /* TODO: Set cups last error string */
+    DEBUG_printf(("4http_cdsa_open_keychain: Unable to open keychain (%d), returning NULL.", (int)err));
+
+    if (keychain)
+    {
+      CFRelease(keychain);
+      keychain = NULL;
+    }
+  }
+
+ /*
+  * Return the keychain or NULL...
+  */
+
+  return (keychain);
 }
 #endif /* HAVE_SECKEYCHAINOPEN */
 
