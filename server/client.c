@@ -13,6 +13,7 @@
  */
 
 #include "ippserver.h"
+#include "printer-png.h"
 
 
 /*
@@ -76,7 +77,7 @@ serverCreateClient(int sock)		/* I - Listen socket */
  */
 
 int					/* O - 1 on success, 0 on error */
-serverCreateListeners(const char *host,	/* I - Hostname, IP address, or "*" for any address */
+serverCreateListeners(const char *host,	/* I - Hostname, IP address, or NULL for any address */
                       int        port)	/* I - Port number */
 {
   int			sock;		/* Listener socket */
@@ -94,7 +95,7 @@ serverCreateListeners(const char *host,	/* I - Hostname, IP address, or "*" for 
     return (0);
   }
 
-  if (!strcmp(host, "*"))
+  if (!host)
   {
     httpGetHostname(NULL, local, sizeof(local));
     host = local;
@@ -279,7 +280,7 @@ serverProcessHTTP(
 
   if (http_state == HTTP_STATE_ERROR)
   {
-    if (httpError(client->http) == EPIPE)
+    if (httpError(client->http) == EPIPE || httpError(client->http) == 0)
       serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Client closed connection.");
     else
       serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Bad request line (%s).", strerror(httpError(client->http)));
@@ -442,7 +443,7 @@ serverProcessHTTP(
           if ((printer = serverFindPrinter(client->uri)) == NULL)
             printer = (server_printer_t *)cupsArrayFirst(Printers);
 
-          if (printer && printer->icon)
+          if (printer)
             return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", 0));
         }
 	else if (!strcmp(client->uri, "/") || !strcmp(client->uri, "/media") || !strcmp(client->uri, "/supplies"))
@@ -492,6 +493,18 @@ serverProcessHTTP(
               return (1);
             }
           }
+          else if (printer)
+          {
+            serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Icon file is internal.");
+
+	    if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", sizeof(printer_png)))
+	      return (0);
+
+	    httpWrite2(client->http, (void *)printer_png, sizeof(printer_png));
+	    httpFlushWrite(client->http);
+
+	    return (1);
+          }
 	}
 	else if (!strcmp(client->uri, "/"))
 	{
@@ -531,14 +544,9 @@ serverProcessHTTP(
 
           for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
           {
-            if (printer->icon)
-              html_printf(client,
-                          "<h2><img align=\"right\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s</h2>\n"
-                          "<p>%s, %d job(s).", printer->resource, printer->name, printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
-            else
-              html_printf(client,
-                          "<h2>%s</h2>\n"
-                          "<p>%s, %d job(s).", printer->name, printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
+	    html_printf(client,
+			"<h2><img align=\"right\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s</h2>\n"
+			"<p>%s, %d job(s).", printer->resource, printer->name, printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
             for (i = 0, reason = 1; i < (int)(sizeof(reasons) / sizeof(reasons[0])); i ++, reason <<= 1)
               if (printer->state_reasons & reason)
                 html_printf(client, "\n<br>&nbsp;&nbsp;&nbsp;&nbsp;%s", reasons[i]);

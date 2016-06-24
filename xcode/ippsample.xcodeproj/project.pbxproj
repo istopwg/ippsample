@@ -226,7 +226,7 @@
 		275C6BA71C878A98000D2DE7 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 8;
-			dstPath = /usr/share/man/man5;
+			dstPath = /usr/local/share/man/man5;
 			dstSubfolderSpec = 0;
 			files = (
 				275C6BA81C878AAE000D2DE7 /* ipptoolfile.man in CopyFiles */,
@@ -236,7 +236,7 @@
 		725C87BC1C7664DE00FB3AD5 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
+			dstPath = /usr/local/share/man/man1;
 			dstSubfolderSpec = 0;
 			files = (
 				275C6BA91C878AF5000D2DE7 /* ipptransform.man in CopyFiles */,
@@ -246,7 +246,7 @@
 		72B402161C0CDFB400139783 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
+			dstPath = /usr/local/share/man/man1;
 			dstSubfolderSpec = 0;
 			files = (
 				275C6BA51C878A83000D2DE7 /* ippserver.man in CopyFiles */,
@@ -256,7 +256,7 @@
 		72B402C71C0CE5EC00139783 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
+			dstPath = /usr/local/share/man/man1;
 			dstSubfolderSpec = 0;
 			files = (
 				275C6BA61C878A8E000D2DE7 /* ipptool.man in CopyFiles */,
@@ -266,7 +266,7 @@
 		72B402D71C0CE61D00139783 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
+			dstPath = /usr/local/share/man/man1;
 			dstSubfolderSpec = 0;
 			files = (
 				275C6BA11C8789E9000D2DE7 /* ippfind.man in CopyFiles */,
@@ -276,7 +276,7 @@
 		72E005FE1C5C0B10006CF057 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
+			dstPath = /usr/local/share/man/man1;
 			dstSubfolderSpec = 0;
 			files = (
 				275C6BA41C878A74000D2DE7 /* ippproxy.man in CopyFiles */,
@@ -390,6 +390,7 @@
 		72B402FB1C0CE8CE00139783 /* libiconv.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libiconv.dylib; path = usr/lib/libiconv.dylib; sourceTree = SDKROOT; };
 		72B402FC1C0CE8CE00139783 /* libresolv.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libresolv.dylib; path = usr/lib/libresolv.dylib; sourceTree = SDKROOT; };
 		72B403061C0DE7FC00139783 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		72B589F51D1C6628007117DA /* printer-png.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "printer-png.h"; path = "../server/printer-png.h"; sourceTree = "<group>"; };
 		72E006021C5C0B10006CF057 /* ippproxy */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ippproxy; sourceTree = BUILT_PRODUCTS_DIR; };
 		72E006031C5C0B49006CF057 /* ippproxy.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ippproxy.c; path = ../proxy/ippproxy.c; sourceTree = "<group>"; };
 		72E006081C5C0BA8006CF057 /* ippfind.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ippfind.man; path = ../doc/ippfind.man; sourceTree = "<group>"; };
@@ -589,6 +590,7 @@
 				72B402AB1C0CE43D00139783 /* main.c */,
 				72B402AC1C0CE43D00139783 /* printer.c */,
 				72B402AD1C0CE43D00139783 /* printer.png */,
+				72B589F51D1C6628007117DA /* printer-png.h */,
 				72B402AE1C0CE43D00139783 /* subscription.c */,
 				72B402AF1C0CE43D00139783 /* transform.c */,
 			);
@@ -1041,7 +1043,9 @@
 				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1.0;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -1074,6 +1078,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
+				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
 		};
@@ -1100,7 +1105,9 @@
 				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1.0;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -1126,6 +1133,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
+				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
 		};

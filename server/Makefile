@@ -81,6 +81,18 @@ ippserver:	$(OBJS) ../cups/libcups.a
 
 
 #
+# printer-png.h
+#
+
+printer-png.h:	printer.png
+	echo "Generating printer-png.h from printer.png..."
+	echo "static const unsigned char printer_png[] =" >printer-png.h
+	echo "{" >>printer-png.h
+	od -t x1 printer.png | cut -b12- | awk '{printf("  "); for (i = 1; i <= NF; i ++) printf("0x%s,", $$i); print "";}' >>printer-png.h
+	echo "};" >>printer-png.h
+
+
+#
 # Dependencies...
 #
 

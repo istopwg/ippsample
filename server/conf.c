@@ -172,7 +172,7 @@ serverFinalizeConfiguration(void)
 
     serverLog(SERVER_LOGLEVEL_INFO, "Using default listeners for %s:%d.", ServerName, DefaultPort);
 
-    if (!serverCreateListeners(ServerName, DefaultPort))
+    if (!serverCreateListeners(strcmp(ServerName, "localhost") ? NULL : "localhost", DefaultPort))
       return (0);
   }
 
