@@ -289,6 +289,8 @@
 		275C6BA21C878A65000D2DE7 /* ipptransform.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = ipptransform.html; path = ../doc/ipptransform.html; sourceTree = "<group>"; };
 		275C6BA31C878A65000D2DE7 /* ipptransform.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ipptransform.man; path = ../doc/ipptransform.man; sourceTree = "<group>"; };
 		275C6BAA1C87D907000D2DE7 /* dither.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dither.h; path = ../tools/dither.h; sourceTree = "<group>"; };
+		279C01D61D1B0F9700F06A84 /* LICENSE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = LICENSE.md; path = ../LICENSE.md; sourceTree = "<group>"; };
+		279C01D71D1B0F9700F06A84 /* PI.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = PI.md; path = ../PI.md; sourceTree = "<group>"; };
 		723D66D41C723CB70078B537 /* CONTRIBUTING.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = CONTRIBUTING.md; path = ../CONTRIBUTING.md; sourceTree = "<group>"; };
 		723D66D51C723CB70078B537 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
 		723D66D81C723CC20078B537 /* DESIGN.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = DESIGN.md; path = ../server/DESIGN.md; sourceTree = "<group>"; };
@@ -611,6 +613,8 @@
 			children = (
 				723D66D41C723CB70078B537 /* CONTRIBUTING.md */,
 				723D66D81C723CC20078B537 /* DESIGN.md */,
+				279C01D61D1B0F9700F06A84 /* LICENSE.md */,
+				279C01D71D1B0F9700F06A84 /* PI.md */,
 				723D66D51C723CB70078B537 /* README.md */,
 				72B402E21C0CE66200139783 /* ippfind.html */,
 				72E006081C5C0BA8006CF057 /* ippfind.man */,

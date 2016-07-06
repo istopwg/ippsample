@@ -79,6 +79,9 @@ The environment is inherited from ippserver with the following additional variab
 - "JOB_PASSWORD_ENCRYPTION": The named hash to use when submitting the job, if any. For printer commands only.
 - "OUTPUT_ORDER": The order of output pages, either "first-to-last" or "last-to-first".
 - "OUTPUT_TYPE": The destination MIME media type, for example "image/pwg-raster".
+- "PRINTER_MEDIA_DEFAULT": The default media size.
+- "PRINTER_SIDES_DEFAULT": The default duplex setting.
 - "PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED": The list of comma-delimited resolutions that are supported by the output device.
 - "PWG_RASTER_DOCUMENT_SHEET_BACK": The transform to apply to the back size image when producing duplex output.
 - "PWG_RASTER_DOCUMENT_TYPE_SUPPORTED": The color spaces and bit depths that are supported by the output device.
+- "SERVER_LOGLEVEL": The configured log level of the server.
