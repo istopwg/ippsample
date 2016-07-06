@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+VisualStudioVersion = 12.0.40629.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libcups2", "libcups2.vcxproj", "{CB4AA6F2-3E84-45BE-B505-95CD375E8BE3}"
 EndProject
@@ -14,8 +14,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ippserver", "ippserver.vcxp
 	ProjectSection(ProjectDependencies) = postProject
 		{18950A1B-D37A-40C7-B2DF-C12986C0526E} = {18950A1B-D37A-40C7-B2DF-C12986C0526E}
 	EndProjectSection
-EndProject
-Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "sw-ippeveselfcert10", "sw-ippeveselfcert10.vdproj", "{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -65,14 +63,6 @@ Global
 		{82A03BC7-0746-4B85-8908-3C7A3FAA58A9}.Release|Win32.Build.0 = Release|Win32
 		{82A03BC7-0746-4B85-8908-3C7A3FAA58A9}.Release|x64.ActiveCfg = Release|x64
 		{82A03BC7-0746-4B85-8908-3C7A3FAA58A9}.Release|x64.Build.0 = Release|x64
-		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Debug|Win32.ActiveCfg = Debug
-		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Debug|Win32.Build.0 = Debug
-		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Debug|x64.ActiveCfg = Debug
-		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Debug|x64.Build.0 = Debug
-		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Release|Win32.ActiveCfg = Release
-		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Release|Win32.Build.0 = Release
-		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Release|x64.ActiveCfg = Release
-		{4D059483-764F-4B00-9FAC-D0E86E7C7BF4}.Release|x64.Build.0 = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

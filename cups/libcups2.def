@@ -6,9 +6,6 @@ _cupsArrayNewStrings
 _cupsBufferGet
 _cupsBufferRelease
 _cupsCharmapFlush
-_cupsCondBroadcast
-_cupsCondInit
-_cupsCondWait
 _cupsConnect
 _cupsCreateDest
 _cupsEncodingName
