@@ -70,7 +70,9 @@ httpAddrConnect2(
 			fds[100],	/* Socket file descriptors */
 			result;		/* Result from select() or poll() */
   http_addrlist_t	*addrs[100];	/* Addresses */
+#ifndef HAVE_POLL
   int			max_fd = -1;	/* Highest file descriptor */
+#endif /* !HAVE_POLL */
 #ifdef O_NONBLOCK
 #  ifdef HAVE_POLL
   struct pollfd		pfds[100];	/* Polled file descriptors */
