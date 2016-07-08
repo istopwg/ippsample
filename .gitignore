@@ -10,6 +10,7 @@ server/ippserver
 tools/ippfind
 tools/ipptool
 tools/ipptransform
+tools/ipptransform3d
 xcuserdata
 *.log
 *.o
