@@ -119,6 +119,9 @@ extern char **environ;
 #    define SERVER_WEB_TYPE "_http._tcp"
 #  endif /* HAVE_SSL */
 
+#  define SERVER_IPP3D_TYPE "_ipps-3d._tcp"
+
+
 /*
  * LogLevel constants...
  */

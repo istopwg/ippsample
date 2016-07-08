@@ -668,7 +668,53 @@ serverLoadConfiguration(
 	  cupsArrayAdd(Printers, printer);
 	}
       }
-      else
+      else if (!strstr(dent->filename, ".png"))
+        serverLog(SERVER_LOGLEVEL_INFO, "Skipping \"%s\".", dent->filename);
+
+    }
+
+    cupsDirClose(dir);
+  }
+
+ /*
+  * Finally, see if there are any 3D print queues...
+  */
+
+  snprintf(filename, sizeof(filename), "%s/print3d", directory);
+  if ((dir = cupsDirOpen(filename)) != NULL)
+  {
+    serverLog(SERVER_LOGLEVEL_INFO, "Loading 3D printers from \"%s\".", filename);
+
+    while ((dent = cupsDirRead(dir)) != NULL)
+    {
+      if ((ptr = dent->filename + strlen(dent->filename) - 5) >= dent->filename && !strcmp(ptr, ".conf"))
+      {
+       /*
+        * Load the conf file, with any associated icon image.
+        */
+
+        serverLog(SERVER_LOGLEVEL_INFO, "Loading 3D printer from \"%s\".", dent->filename);
+
+        snprintf(filename, sizeof(filename), "%s/print3d/%s", directory, dent->filename);
+        *ptr = '\0';
+        snprintf(iconname, sizeof(iconname), "%s/print3d/%s.png", directory, dent->filename);
+
+        authtype = command = device_uri = make = model = proxy_user = NULL;
+
+        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &make, &model, &proxy_user)) != NULL)
+	{
+          snprintf(resource, sizeof(resource), "/ipp/print3d/%s", dent->filename);
+
+	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, proxy_user)) == NULL)
+          continue;
+
+	  if (!Printers)
+	    Printers = cupsArrayNew((cups_array_func_t)compare_printers, NULL);
+
+	  cupsArrayAdd(Printers, printer);
+	}
+      }
+      else if (!strstr(dent->filename, ".png"))
         serverLog(SERVER_LOGLEVEL_INFO, "Skipping \"%s\".", dent->filename);
 
     }
