@@ -19,6 +19,7 @@
 				72E006181C5C0C52006CF057 /* PBXTargetDependency */,
 				72E0061A1C5C0C52006CF057 /* PBXTargetDependency */,
 				725C87C21C7664EF00FB3AD5 /* PBXTargetDependency */,
+				2778EBB21D2FF67B00DE72EC /* PBXTargetDependency */,
 			);
 			name = All;
 			productName = All;
@@ -32,6 +33,14 @@
 		275C6BA61C878A8E000D2DE7 /* ipptool.man in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E006091C5C0BA8006CF057 /* ipptool.man */; };
 		275C6BA81C878AAE000D2DE7 /* ipptoolfile.man in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E0060A1C5C0BA8006CF057 /* ipptoolfile.man */; };
 		275C6BA91C878AF5000D2DE7 /* ipptransform.man in CopyFiles */ = {isa = PBXBuildFile; fileRef = 275C6BA31C878A65000D2DE7 /* ipptransform.man */; };
+		2778EBA21D2FF60E00DE72EC /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
+		2778EBA31D2FF60E00DE72EC /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
+		2778EBA41D2FF60E00DE72EC /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
+		2778EBA51D2FF60E00DE72EC /* libcups.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups.a */; };
+		2778EBA61D2FF60E00DE72EC /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402E91C0CE81900139783 /* ApplicationServices.framework */; };
+		2778EBA71D2FF60E00DE72EC /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
+		2778EBA91D2FF60E00DE72EC /* ipptransform.man in CopyFiles */ = {isa = PBXBuildFile; fileRef = 275C6BA31C878A65000D2DE7 /* ipptransform.man */; };
+		2778EBB01D2FF64300DE72EC /* ipptransform3d.c in Sources */ = {isa = PBXBuildFile; fileRef = 2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */; };
 		27E2CC681C99C69400D203EC /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
 		27E2CC691C99C6A000D203EC /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EB1C0CE81900139783 /* SystemConfiguration.framework */; };
 		725C87B61C7664DE00FB3AD5 /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
@@ -143,6 +152,20 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		2778EB9E1D2FF60E00DE72EC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72B402251C0CE0E100139783;
+			remoteInfo = libcups;
+		};
+		2778EBB11D2FF67B00DE72EC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2778EB9C1D2FF60E00DE72EC;
+			remoteInfo = ipptransform3d;
+		};
 		725C87B21C7664DE00FB3AD5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
@@ -233,6 +256,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
+		2778EBA81D2FF60E00DE72EC /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/local/share/man/man1;
+			dstSubfolderSpec = 0;
+			files = (
+				2778EBA91D2FF60E00DE72EC /* ipptransform.man in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
 		725C87BC1C7664DE00FB3AD5 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -289,6 +322,8 @@
 		275C6BA21C878A65000D2DE7 /* ipptransform.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = ipptransform.html; path = ../doc/ipptransform.html; sourceTree = "<group>"; };
 		275C6BA31C878A65000D2DE7 /* ipptransform.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ipptransform.man; path = ../doc/ipptransform.man; sourceTree = "<group>"; };
 		275C6BAA1C87D907000D2DE7 /* dither.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dither.h; path = ../tools/dither.h; sourceTree = "<group>"; };
+		2778EBAD1D2FF60E00DE72EC /* ipptransform3d */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ipptransform3d; sourceTree = BUILT_PRODUCTS_DIR; };
+		2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ipptransform3d.c; path = ../tools/ipptransform3d.c; sourceTree = "<group>"; };
 		279C01D61D1B0F9700F06A84 /* LICENSE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = LICENSE.md; path = ../LICENSE.md; sourceTree = "<group>"; };
 		279C01D71D1B0F9700F06A84 /* PI.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = PI.md; path = ../PI.md; sourceTree = "<group>"; };
 		723D66D41C723CB70078B537 /* CONTRIBUTING.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = CONTRIBUTING.md; path = ../CONTRIBUTING.md; sourceTree = "<group>"; };
@@ -401,6 +436,19 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		2778EBA11D2FF60E00DE72EC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2778EBA21D2FF60E00DE72EC /* libiconv.dylib in Frameworks */,
+				2778EBA31D2FF60E00DE72EC /* libresolv.dylib in Frameworks */,
+				2778EBA41D2FF60E00DE72EC /* libz.dylib in Frameworks */,
+				2778EBA51D2FF60E00DE72EC /* libcups.a in Frameworks */,
+				2778EBA61D2FF60E00DE72EC /* ApplicationServices.framework in Frameworks */,
+				2778EBA71D2FF60E00DE72EC /* CoreFoundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		725C87B51C7664DE00FB3AD5 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -503,6 +551,7 @@
 				72B402D91C0CE61D00139783 /* ippfind */,
 				72E006021C5C0B10006CF057 /* ippproxy */,
 				725C87C01C7664DE00FB3AD5 /* ipptransform */,
+				2778EBAD1D2FF60E00DE72EC /* ipptransform3d */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -601,9 +650,10 @@
 			isa = PBXGroup;
 			children = (
 				275C6BAA1C87D907000D2DE7 /* dither.h */,
-				725C87C31C767CF800FB3AD5 /* ipptransform.c */,
 				72B402D01C0CE60400139783 /* ippfind.c */,
 				72B402D11C0CE60400139783 /* ipptool.c */,
+				725C87C31C767CF800FB3AD5 /* ipptransform.c */,
+				2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */,
 			);
 			name = tools;
 			sourceTree = "<group>";
@@ -690,6 +740,24 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
+		2778EB9C1D2FF60E00DE72EC /* ipptransform3d */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2778EBAA1D2FF60E00DE72EC /* Build configuration list for PBXNativeTarget "ipptransform3d" */;
+			buildPhases = (
+				2778EB9F1D2FF60E00DE72EC /* Sources */,
+				2778EBA11D2FF60E00DE72EC /* Frameworks */,
+				2778EBA81D2FF60E00DE72EC /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				2778EB9D1D2FF60E00DE72EC /* PBXTargetDependency */,
+			);
+			name = ipptransform3d;
+			productName = ipptool;
+			productReference = 2778EBAD1D2FF60E00DE72EC /* ipptransform3d */;
+			productType = "com.apple.product-type.tool";
+		};
 		725C87B01C7664DE00FB3AD5 /* ipptransform */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 725C87BD1C7664DE00FB3AD5 /* Build configuration list for PBXNativeTarget "ipptransform" */;
@@ -842,12 +910,21 @@
 				72B402171C0CDFB400139783 /* ippserver */,
 				72B402C81C0CE5EC00139783 /* ipptool */,
 				725C87B01C7664DE00FB3AD5 /* ipptransform */,
+				2778EB9C1D2FF60E00DE72EC /* ipptransform3d */,
 				72E0060D1C5C0C48006CF057 /* All */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		2778EB9F1D2FF60E00DE72EC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2778EBB01D2FF64300DE72EC /* ipptransform3d.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		725C87B31C7664DE00FB3AD5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -944,6 +1021,16 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		2778EB9D1D2FF60E00DE72EC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72B402251C0CE0E100139783 /* libcups */;
+			targetProxy = 2778EB9E1D2FF60E00DE72EC /* PBXContainerItemProxy */;
+		};
+		2778EBB21D2FF67B00DE72EC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2778EB9C1D2FF60E00DE72EC /* ipptransform3d */;
+			targetProxy = 2778EBB11D2FF67B00DE72EC /* PBXContainerItemProxy */;
+		};
 		725C87B11C7664DE00FB3AD5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 72B402251C0CE0E100139783 /* libcups */;
@@ -1002,6 +1089,24 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		2778EBAB1D2FF60E00DE72EC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		2778EBAC1D2FF60E00DE72EC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		725C87BE1C7664DE00FB3AD5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1244,6 +1349,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		2778EBAA1D2FF60E00DE72EC /* Build configuration list for PBXNativeTarget "ipptransform3d" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2778EBAB1D2FF60E00DE72EC /* Debug */,
+				2778EBAC1D2FF60E00DE72EC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		725C87BD1C7664DE00FB3AD5 /* Build configuration list for PBXNativeTarget "ipptransform" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

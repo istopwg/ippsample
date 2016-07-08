@@ -17,11 +17,13 @@ include ../Makedefs
 OBJS		=	\
 			ippfind.o \
 			ipptool.o \
-			ipptransform.o
+			ipptransform.o \
+			ipptransform3d.o
 TARGETS		=	\
 			$(IPPFIND_BIN) \
 			ipptool \
-			$(IPPTRANSFORM_BIN)
+			$(IPPTRANSFORM_BIN) \
+			$(IPPTRANSFORM3D_BIN)
 
 
 #
@@ -83,6 +85,15 @@ ipptool:	ipptool.o ../cups/libcups.a
 ipptransform:	ipptransform.o ../cups/libcups.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ipptransform.o $(LIBS)
+
+
+#
+# ipptransform3d
+#
+
+ipptransform3d:	ipptransform3d.o ../cups/libcups.a
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ ipptransform3d.o $(LIBS)
 
 
 #

@@ -201,3 +201,27 @@ case $uname in
 		;;
 esac
 
+# 3D support
+IPPTRANSFORM3D_BIN=""
+IPPTRANSFORM3D_HTML=""
+IPPTRANSFORM3D_MAN=""
+AC_SUBST(IPPTRANSFORM3D_BIN)
+AC_SUBST(IPPTRANSFORM3D_HTML)
+AC_SUBST(IPPTRANSFORM3D_MAN)
+
+if test -x /Applications/Cura/Cura.app/Contents/Resources/CuraEngine; then
+	AC_MSG_CHECKING(for CuraEngine)
+	CURAENGINE="/Applications/Cura/Cura.app/Contents/Resources/CuraEngine"
+	AC_MSG_RESULT($CURAENGINE)
+	AC_SUBST(CURAENGINE)
+else
+	AC_PATH_PROG(CURAENGINE,CuraEngine)
+fi
+
+if test "x$CURAENGINE" != x; then
+	IPPTRANSFORM3D_BIN="ipptransform3d"
+	IPPTRANSFORM3D_HTML="ipptransform3d.html"
+	IPPTRANSFORM3D_MAN="ipptransform3d.man"
+
+	AC_DEFINE_UNQUOTED(CURAENGINE, "$CURAENGINE")
+fi

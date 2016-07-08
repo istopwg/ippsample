@@ -20,7 +20,8 @@ TARGETS		=	\
 MAN1		=	\
 			$(IPPFIND_MAN) \
 			ipptool.man \
-			$(IPPTRANSFORM_MAN)
+			$(IPPTRANSFORM_MAN) \
+			$(IPPTRANSFORM3D_MAN)
 MAN5		=	\
 			ipptoolfile.man
 
@@ -33,7 +34,8 @@ HTML		=	\
 			ippserver.html \
 			ipptool.html \
 			ipptoolfile.html \
-			$(IPPTRANSFORM_HTML)
+			$(IPPTRANSFORM_HTML) \
+			$(IPPTRANSFORM3D_HTML)
 
 
 #

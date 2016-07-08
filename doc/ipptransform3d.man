@@ -1,0 +1,133 @@
+.\"
+.\" ipptransform3d man page.
+.\"
+.\" Copyright 2016 by Apple Inc.
+.\"
+.\" These coded instructions, statements, and computer programs are the
+.\" property of Apple Inc. and are protected by Federal copyright
+.\" law.  Distribution and use rights are outlined in the file "LICENSE.txt"
+.\" which should have been included with this file.  If this file is
+.\" file is missing or damaged, see the license at "http://www.cups.org/".
+.\"
+.TH ipptransform3d 1 "ippsample" "8 July 2016" "Apple Inc."
+.SH NAME
+ipptransform3d \- convert 3d document data to alternate formats
+.SH SYNOPSIS
+.B ipptransform3d
+[
+.B \-\-help
+] [
+.B \-d
+.I device-uri
+] [
+.B \-i
+.I input/format
+] [
+.B \-m
+.I output/format
+] [
+.B \-o
+.I "name=value [... name=value]"
+] [
+.B \-v
+]
+.I filename
+.SH DESCRIPTION
+.B ipptransform3d
+converts the input file into the output format and optionally sends the output to a USB (serial) printer.
+.B ipptransform3d
+is normally run by
+.BR ippserver (1)
+to convert document data for printing.
+.SH OPTIONS
+The following options are recognized by
+.B ipptransform3d:
+.TP 5
+.B \-\-help
+Shows program help.
+.TP 5
+.BI \-d \ device-uri
+Specifies an output device as a URI.
+Currently only the "usbserial" URI scheme is supported, for example "usbserial:///dev/ttyACM0" to send print data to an attached USB printer on Linux.
+.TP 5
+.BI \-i \ input/format
+Specifies the MIME media type of the input file.
+Currently the "model/3mf" (3MF) and "application/sla" (STL) MIME media types are supported.
+.TP 5
+.BI \-m \ output/format
+Specifies the MIME media type of the output file.
+Currently the "application/g-code" (G-code) MIME media type is supported.
+.TP 5
+.BI \-o \ "name=value [... name=value]"
+Specifies one or more named options for the conversion.
+Currently the "materials-col", "print-accuracy", "print-quality", "print-rafts", "print-supports", and "printer-bed-temperatures" options are supported.
+See the NAMED OPTIONS section for more information.
+.TP 5
+.B \-v
+Increases the verbosity for any diagnostics.
+.SH NAMED OPTIONS
+The following named options are supported:
+.TP 5
+.B materials-col
+Specifies the material(s) to use.
+Each value is surrounded by curley braces and contains a list of material properties and their values, e.g., '{material-diameter=285 material-type="pla" ...}'.
+The "material-diameter", "material-fill-density", "material-purpose", "material-rate", "material-rate-units", "material-shell-thickness", "material-temperature", and "material-type" properties are supported.
+.TP 5
+.B print-accuracy
+Specifies the dimensional accuracy requirements for the print in nanometers.
+For example, a horizontal accuracy of 0.1mm and vertical accuracy of 0.05mm is '{x-accuracy=100000 y-accuracy=100000 z-accuracy=50000}'.
+.TP 5
+.B print-quality
+Specifies the print quality with value 3 (draft), 4 (normal), or 5 (high/best).
+.TP 5
+.B print-rafts
+Specifies whether rafts should be printed.
+The values 'none', 'brim', 'raft', 'skirt', and 'standard' are supported.
+.TP 5
+.B print-supports
+Specifies whether supports are printed.
+The values 'none', 'material', and 'standard' are supported.
+.SH DIAGNOSTICS
+.B ipptransform3d
+sends all messages to the standard error.
+Each message is prefixed with "ERROR", "INFO", or "DEBUG" depending on the level of verbosity.
+.SH EXIT STATUS
+The
+.B ipptransform3d
+program returns 0 if the input file is converted successfully and 1 otherwise.
+.SH ENVIRONMENT
+.B ipptransform3d
+recognizes the following environment variables:
+.TP 5
+.B CONTENT_TYPE
+Specifies the MIME media type of the input file.
+.TP 5
+.B DEVICE_URI
+Specifies the output device as a URI.
+.TP 5
+.B DOCUMENT_NAME
+Specifies the title of the input file.
+.TP 5
+.B IPP_xxx
+Specifies the value of the "xxx" Job Template attribute, where "xxx" is converted to uppercase.
+For example, the "materials-col" Job Template attribute is stored as the "IPP_MATERIALS_COL" environment variable.
+.TP 5
+.B OUTPUT_TYPE
+Specifies the MIME media type of the output file.
+For 'application/g-code' the "flavor" media type parameter specifies the variant of G-code to produce: 'bfb', 'griffin', 'mach3', 'makerbot', 'reprap' (default), 'reprap-volumatric', and 'ultimaker' are currently supported.
+.TP 5
+.B PRINTER_xxx_DEFAULT
+Specifies the default value of the corresponding "xxx-default" Printer Description attribute, where "xxx" is converted to uppercase.
+For example, the "materials-col-default" Printer Description attribute is stored as the "PRINTER_MATERIALS_COL_DEFAULT" environment variable.
+.TP 5
+.B SERVER_LOGLEVEL
+Specifies the log level (verbosity) as "error", "info", or "debug".
+.SH EXAMPLES
+Print a 3MF file to a G-code printer connected via USB on Linux using the default options:
+.nf
+
+    ipptransform3d -d usbserial:///dev/usbACM0 -m application/g-code \\
+        filename.3mf
+.fi
+.SH COPYRIGHT
+Copyright \[co] 2016 by Apple Inc.
