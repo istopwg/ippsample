@@ -63,6 +63,7 @@ static SecCertificateRef http_cdsa_create_credential(http_credential_t *credenti
 #ifdef HAVE_SECKEYCHAINOPEN
 static const char	*http_cdsa_default_path(char *buffer, size_t bufsize);
 static SecKeychainRef	http_cdsa_open_keychain(const char *path, char *filename, size_t filesize);
+static SecKeychainRef	http_cdsa_open_system_keychain(void);
 #endif /* HAVE_SECKEYCHAINOPEN */
 static OSStatus		http_cdsa_read(SSLConnectionRef connection, void *data, size_t *dataLength);
 static int		http_cdsa_set_credentials(http_t *http);
@@ -824,7 +825,8 @@ httpLoadCredentials(
   OSStatus		err;		/* Error info */
 #ifdef HAVE_SECKEYCHAINOPEN
   char			filename[1024];	/* Filename for keychain */
-  SecKeychainRef	keychain = NULL;/* Keychain reference */
+  SecKeychainRef	keychain = NULL,/* Keychain reference */
+			syschain = NULL;/* System keychain */
   CFArrayRef		list;		/* Keychain list */
 #endif /* HAVE_SECKEYCHAINOPEN */
   SecCertificateRef	cert = NULL;	/* Certificate */
@@ -847,6 +849,8 @@ httpLoadCredentials(
 
   if (!keychain)
     goto cleanup;
+
+  syschain = http_cdsa_open_system_keychain();
 
 #else
   if (path)
@@ -872,7 +876,14 @@ httpLoadCredentials(
   CFDictionaryAddValue(query, kSecMatchLimit, kSecMatchLimitOne);
 
 #ifdef HAVE_SECKEYCHAINOPEN
-  list = CFArrayCreate(kCFAllocatorDefault, (const void **)&keychain, 1, &kCFTypeArrayCallBacks);
+  if (syschain)
+  {
+    const void *values[2] = { syschain, keychain };
+
+    list = CFArrayCreate(kCFAllocatorDefault, (const void **)values, 2, &kCFTypeArrayCallBacks);
+  }
+  else
+    list = CFArrayCreate(kCFAllocatorDefault, (const void **)&keychain, 1, &kCFTypeArrayCallBacks);
   CFDictionaryAddValue(query, kSecMatchSearchList, list);
   CFRelease(list);
 #endif /* HAVE_SECKEYCHAINOPEN */
@@ -899,6 +910,9 @@ httpLoadCredentials(
 #ifdef HAVE_SECKEYCHAINOPEN
   if (keychain)
     CFRelease(keychain);
+
+  if (syschain)
+    CFRelease(syschain);
 #endif /* HAVE_SECKEYCHAINOPEN */
   if (cert)
     CFRelease(cert);
@@ -1694,6 +1708,7 @@ http_cdsa_copy_server(
 					/* Server name */
   CFMutableDictionaryRef query = NULL;	/* Query qualifiers */
   CFArrayRef		list = NULL;	/* Keychain list */
+  SecKeychainRef	syschain = NULL;/* System keychain */
 
 
   DEBUG_printf(("3http_cdsa_copy_server(common_name=\"%s\")", common_name));
@@ -1721,7 +1736,17 @@ http_cdsa_copy_server(
   CFDictionaryAddValue(query, kSecReturnRef, kCFBooleanTrue);
   CFDictionaryAddValue(query, kSecMatchLimit, kSecMatchLimitOne);
 
-  list = CFArrayCreate(kCFAllocatorDefault, (const void **)&tls_keychain, 1, &kCFTypeArrayCallBacks);
+  syschain = http_cdsa_open_system_keychain();
+
+  if (syschain)
+  {
+    const void *values[2] = { syschain, tls_keychain };
+
+    list = CFArrayCreate(kCFAllocatorDefault, (const void **)values, 2, &kCFTypeArrayCallBacks);
+  }
+  else
+    list = CFArrayCreate(kCFAllocatorDefault, (const void **)&tls_keychain, 1, &kCFTypeArrayCallBacks);
+
   CFDictionaryAddValue(query, kSecMatchSearchList, list);
   CFRelease(list);
 
@@ -1749,6 +1774,8 @@ http_cdsa_copy_server(
 
   cleanup :
 
+  if (syschain)
+    CFRelease(syschain);
   if (identity)
     CFRelease(identity);
   if (policy)
@@ -1884,6 +1911,64 @@ http_cdsa_open_keychain(
   {
     /* TODO: Set cups last error string */
     DEBUG_printf(("4http_cdsa_open_keychain: Unable to open keychain (%d), returning NULL.", (int)err));
+
+    if (keychain)
+    {
+      CFRelease(keychain);
+      keychain = NULL;
+    }
+  }
+
+ /*
+  * Return the keychain or NULL...
+  */
+
+  return (keychain);
+}
+
+
+/*
+ * 'http_cdsa_open_system_keychain()' - Open the System keychain.
+ */
+
+static SecKeychainRef
+http_cdsa_open_system_keychain(void)
+{
+  SecKeychainRef	keychain = NULL;/* Temporary keychain */
+  OSStatus		err;		/* Error code */
+  Boolean		interaction;	/* Interaction allowed? */
+  SecKeychainStatus	status = 0;	/* Keychain status */
+
+
+ /*
+  * Save the interaction setting and disable while we open the keychain...
+  */
+
+  SecKeychainGetUserInteractionAllowed(&interaction);
+  SecKeychainSetUserInteractionAllowed(TRUE);
+
+  err = SecKeychainOpen("/Library/Keychains/System.keychain", &keychain);
+
+  if (err == noErr)
+    err = SecKeychainGetStatus(keychain, &status);
+
+  if (err == noErr && !(status & kSecUnlockStateStatus))
+    err = errSecInteractionNotAllowed;
+
+ /*
+  * Restore interaction setting...
+  */
+
+  SecKeychainSetUserInteractionAllowed(interaction);
+
+ /*
+  * Release the keychain if we had any errors...
+  */
+
+  if (err != noErr)
+  {
+    /* TODO: Set cups last error string */
+    DEBUG_printf(("4http_cdsa_open_system_keychain: Unable to open keychain (%d), returning NULL.", (int)err));
 
     if (keychain)
     {
