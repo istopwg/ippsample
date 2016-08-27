@@ -1,7 +1,7 @@
 #
 # API library Makefile for CUPS.
 #
-# Copyright 2007-2015 by Apple Inc.
+# Copyright 2007-2016 by Apple Inc.
 # Copyright 1997-2006 by Easy Software Products, all rights reserved.
 #
 # These coded instructions, statements, and computer programs are the
@@ -65,6 +65,18 @@ OBJS	=	\
 		transcode.o \
 		usersys.o \
 		util.o
+HEADERS =       \
+                array.h \
+                cups.h \
+                dir.h \
+                file.h \
+                http.h \
+                ipp.h \
+                language.h \
+                pwg.h \
+                raster.h \
+                transcode.h \
+                versioning.h
 
 
 #
@@ -106,7 +118,7 @@ install:	all
 	$(INSTALL_LIB) -m 755 libcups.a $(BUILDROOT)$(libdir)
 	$(RANLIB) $(BUILDROOT)$(libdir)/libcups.a
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(includedir)/cups
-	for file in $(PUBLIC_HEADERS); do \
+	for file in $(HEADERS); do \
 		$(INSTALL_DATA) $$file $(BUILDROOT)$(includedir)/cups; \
 	done
 
@@ -137,6 +149,20 @@ libcups2.def: $(OBJS) Makefile
 		    -e 'cups_debug|Apple|BackChannel|Backend|FileCheck|Filter|GSSService|SetNegotiate|SideChannel' \
 		    -e 'Block$$' | \
 		sed -e '1,$$s/^_//' | sort >>libcups2.def
+
+
+#
+# Automatic API help files...
+#
+
+apihelp:
+	echo Generating CUPS API help files...
+	mxmldoc --section "Programming" \
+		--title "CUPS API Programming Guide" \
+		--css api.css \
+		--header api.header --intro api.shtml \
+		api.xml $(PUBLIC_HEADERS) $(OBJS:.o=.c) >../doc/api.html
+	$(RM) api.xml
 
 
 #
