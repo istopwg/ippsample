@@ -155,13 +155,44 @@ libcups2.def: $(OBJS) Makefile
 # Automatic API help files...
 #
 
+APISOURCES =	\
+		auth.c \
+                cups.h \
+		dest.c \
+		dest-job.c \
+		dest-localization.c \
+		dest-options.c \
+		encode.c \
+		error.c \
+		getputfile.c \
+		hash.c \
+		http.c \
+                http.h \
+		http-addr.c \
+		http-addrlist.c \
+		http-support.c \
+		ipp.c \
+                ipp.h \
+		ipp-support.c \
+		md5passwd.c \
+		notify.c \
+		options.c \
+                pwg.h \
+		pwg-media.c \
+		raster.c \
+                raster.h \
+		request.c \
+		tls.c \
+		usersys.c \
+		util.c
+
 apihelp:
 	echo Generating CUPS API help files...
 	mxmldoc --section "Programming" \
 		--title "CUPS API Programming Guide" \
 		--css api.css \
 		--header api.header --intro api.shtml \
-		api.xml $(PUBLIC_HEADERS) $(OBJS:.o=.c) >../doc/api.html
+		api.xml $(APISOURCES) >../doc/api.html
 	$(RM) api.xml
 
 

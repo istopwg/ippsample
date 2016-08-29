@@ -1,17 +1,1 @@
 <h1 class='title'>CUPS API Programming Guide</h1>
-
-<div class='summary'><table summary='General Information'>
-<thead>
-<tr>
-	<th>Headers</th>
-	<th>cups/cups.h<br>
-	cups/raster.h</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-	<th>Library</th>
-	<td>-lcups</td>
-</tr>
-</tbody>
-</table></div>
