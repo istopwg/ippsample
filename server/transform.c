@@ -14,9 +14,10 @@
 
 #include "ippserver.h"
 
-
 #ifdef WIN32
 #  include <sys/timeb.h>
+#else
+#  include <spawn.h>
 #endif /* WIN32 */
 
 
@@ -37,7 +38,7 @@ int					/* O - 0 on success, non-zero on error */
 serverTransformJob(
     server_client_t    *client,		/* I - Client connection (if any) */
     server_job_t       *job,		/* I - Job to transform */
-    const char         *command,		/* I - Command to run */
+    const char         *command,	/* I - Command to run */
     const char         *format,		/* I - Destination MIME media type */
     server_transform_t mode)		/* I - Transform mode */
 {
@@ -48,10 +49,11 @@ serverTransformJob(
   char		*myargv[3],		/* Command-line arguments */
 		*myenvp[200];		/* Environment variables */
   int		myenvc;			/* Number of environment variables */
-  ipp_attribute_t *attr;			/* Job attribute */
+  ipp_attribute_t *attr;		/* Job attribute */
   char		val[1280],		/* IPP_NAME=value */
-                *valptr;			/* Pointer into string */
+                *valptr;		/* Pointer into string */
 #ifndef WIN32
+  posix_spawn_file_actions_t actions;	/* Spawn file actions */
   int		mystdout[2] = {-1, -1},	/* Pipe for stdout */
 		mystderr[2] = {-1, -1};	/* Pipe for stderr */
   struct pollfd	polldata[2];		/* Poll data */
@@ -59,7 +61,7 @@ serverTransformJob(
   char		data[32768],		/* Data from stdout */
 		line[2048],		/* Line from stderr */
                 *ptr,			/* Pointer into line */
-                *endptr;			/* End of line */
+                *endptr;		/* End of line */
   ssize_t	bytes;			/* Bytes read */
 #endif /* !WIN32 */
 
@@ -198,141 +200,131 @@ serverTransformJob(
     goto transform_failure;
   }
 
-  if ((pid = fork()) == 0)
+  posix_spawn_file_actions_init(&actions);
+  posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0);
+  if (mystdout[1] < 0)
+    posix_spawn_file_actions_addopen(&actions, 1, "/dev/null", O_WRONLY, 0);
+  else
+    posix_spawn_file_actions_adddup2(&actions, mystdout[1], 1);
+
+  if (mystderr[1] < 0)
+    posix_spawn_file_actions_addopen(&actions, 2, "/dev/null", O_WRONLY, 0);
+  else
+    posix_spawn_file_actions_adddup2(&actions, mystderr[1], 2);
+
+  if (posix_spawn(&pid, command, &actions, NULL, myargv, myenvp))
   {
-   /*
-    * Child comes here...
-    */
-
-    close(1);
-    dup2(mystdout[1], 1);
-    if (mystdout[0] >= 0)
-      close(mystdout[0]);
-    close(mystdout[1]);
-
-    close(2);
-    dup2(mystderr[1], 2);
-    close(mystderr[0]);
-    close(mystderr[1]);
-
-    execve(command, myargv, myenvp);
-    exit(errno);
-  }
-  else if (pid < 0)
-  {
-   /*
-    * Unable to fork process...
-    */
-
     serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Unable to start job processing command: %s", strerror(errno));
 
     goto transform_failure;
   }
-  else
+
+  serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Started job processing command, pid=%d", pid);
+
+ /*
+  * Free memory used for command...
+  */
+
+  posix_spawn_file_actions_destroy(&actions);
+
+  while (myenvc > 0)
+    free(myenvp[-- myenvc]);
+
+ /*
+  * Read from the stdout and stderr pipes until EOF...
+  */
+
+  close(mystdout[1]);
+  close(mystderr[1]);
+
+  endptr = line;
+
+  pollcount = 0;
+  polldata[pollcount].fd     = mystderr[0];
+  polldata[pollcount].events = POLLIN;
+  pollcount ++;
+
+  if (mystdout[0] >= 0)
   {
-   /*
-    * Free memory used for environment...
-    */
-
-    while (myenvc > 0)
-      free(myenvp[-- myenvc]);
-
-   /*
-    * Read from the stdout and stderr pipes until EOF...
-    */
-
-    close(mystdout[1]);
-    close(mystderr[1]);
-
-    endptr = line;
-
-    pollcount = 0;
-    polldata[pollcount].fd     = mystderr[0];
+    polldata[pollcount].fd     = mystdout[0];
     polldata[pollcount].events = POLLIN;
     pollcount ++;
+  }
 
-    if (mystdout[0] >= 0)
+  while (poll(polldata, (nfds_t)pollcount, -1))
+  {
+    if (polldata[0].revents & POLLIN)
     {
-      polldata[pollcount].fd     = mystdout[0];
-      polldata[pollcount].events = POLLIN;
-      pollcount ++;
-    }
-
-    while (poll(polldata, (nfds_t)pollcount, -1))
-    {
-      if (polldata[0].revents & POLLIN)
+      if ((bytes = read(mystderr[0], endptr, sizeof(line) - (size_t)(endptr - line) - 1)) > 0)
       {
-        if ((bytes = read(mystderr[0], endptr, sizeof(line) - (size_t)(endptr - line) - 1)) > 0)
-        {
-          endptr += bytes;
-          *endptr = '\0';
+	endptr += bytes;
+	*endptr = '\0';
 
-          while ((ptr = strchr(line, '\n')) != NULL)
-          {
-            *ptr++ = '\0';
+	while ((ptr = strchr(line, '\n')) != NULL)
+	{
+	  *ptr++ = '\0';
 
-            if (!strncmp(line, "STATE:", 6))
-            {
-             /*
-              * Process printer-state-reasons keywords.
-              */
+	  if (!strncmp(line, "STATE:", 6))
+	  {
+	   /*
+	    * Process printer-state-reasons keywords.
+	    */
 
-              process_state_message(job, line);
-            }
-            else if (!strncmp(line, "ATTR:", 5))
-            {
-             /*
-              * Process printer attribute update.
-              */
+	    process_state_message(job, line);
+	  }
+	  else if (!strncmp(line, "ATTR:", 5))
+	  {
+	   /*
+	    * Process printer attribute update.
+	    */
 
-              process_attr_message(job, line);
-            }
-            else
-              serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "%s: %s", command, line);
+	    process_attr_message(job, line);
+	  }
+	  else
+	    serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "%s: %s", command, line);
 
-            bytes = ptr - line;
-            if (ptr < endptr)
-              memmove(line, ptr, (size_t)(endptr - ptr));
-            endptr -= bytes;
-            *endptr = '\0';
-          }
-        }
-      }
-      else if (pollcount > 1 && polldata[1].revents & POLLIN)
-      {
-        if ((bytes = read(mystdout[0], data, sizeof(data))) > 0)
-          httpWrite2(client->http, data, (size_t)bytes);
+	  bytes = ptr - line;
+	  if (ptr < endptr)
+	    memmove(line, ptr, (size_t)(endptr - ptr));
+	  endptr -= bytes;
+	  *endptr = '\0';
+	}
       }
     }
-
-    if (mystdout[0] >= 0)
+    else if (pollcount > 1 && polldata[1].revents & POLLIN)
     {
-      close(mystdout[0]);
-      httpFlushWrite(client->http);
-      httpWrite2(client->http, "", 0);
+      if ((bytes = read(mystdout[0], data, sizeof(data))) > 0)
+	httpWrite2(client->http, data, (size_t)bytes);
     }
+  }
 
-    close(mystderr[0]);
+  if (mystdout[0] >= 0)
+  {
+    close(mystdout[0]);
+    httpFlushWrite(client->http);
+    httpWrite2(client->http, "", 0);
+  }
 
-    if (endptr > line)
-    {
-     /*
-      * Write the final output that wasn't terminated by a newline...
-      */
+  close(mystderr[0]);
 
-      serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "%s: %s", command, line);
-    }
-
+  if (endptr > line)
+  {
    /*
-    * Wait for child to complete...
+    * Write the final output that wasn't terminated by a newline...
     */
 
-#  ifdef HAVE_WAITPID
-    while (waitpid(pid, &status, 0) < 0);
-#  else
-    while (wait(&status) < 0);
-#  endif /* HAVE_WAITPID */
+    serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "%s: %s", command, line);
   }
+
+ /*
+  * Wait for child to complete...
+  */
+
+#  ifdef HAVE_WAITPID
+  while (waitpid(pid, &status, 0) < 0);
+#  else
+  while (wait(&status) < 0);
+#  endif /* HAVE_WAITPID */
 #endif /* WIN32 */
 
   end = time_seconds();
