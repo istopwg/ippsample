@@ -18,8 +18,8 @@
  * Version of software...
  */
 
-#define CUPS_SVERSION "IPPSAMPLE v20160531"
-#define CUPS_MINIMAL "IPPSAMPLE/20160531"
+#define CUPS_SVERSION "IPPSAMPLE v1.0b1"
+#define CUPS_MINIMAL "IPPSAMPLE/1.0b1"
 
 
 /*
@@ -417,5 +417,13 @@ static __inline int _cups_abs(int i) { return (i < 0 ? -i : i); }
 #    define abs(x) ((x) < 0 ? -(x) : (x))
 #  endif /* __GNUC__ || __STDC_VERSION__ */
 #endif /* !HAVE_ABS && !abs */
+
+
+/*
+ * Do we have the Cura software?
+ */
+
+#define CURAENGINE "/Applications/Cura/Cura.app/Contents/Resources/CuraEngine"
+
 
 #endif /* !_CUPS_CONFIG_H_ */
