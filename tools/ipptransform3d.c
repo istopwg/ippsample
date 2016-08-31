@@ -628,7 +628,7 @@ usage(int status)			/* I - Exit status */
   puts("Device URIs: usbserial:///dev/...");
   puts("Input Formats: application/sla, model/3mf");
   puts("Output Formats: application/g-code;flavor=FOO");
-  puts("Options: materials-col, print-accuracy, print-quality, print-rafts, print-supports, printer-bed-temperatures");
+  puts("Options: materials-col, print-accuracy, print-quality, print-rafts, print-supports, printer-bed-temperature");
 
   exit(status);
 }
