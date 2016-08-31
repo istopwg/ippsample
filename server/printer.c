@@ -653,6 +653,10 @@ serverCreatePrinter(
   ippAddRange(printer->attrs, IPP_TAG_PRINTER, "job-k-octets-supported", 0,
 	      k_supported);
 
+  /* job-password-encryption-supported */
+  if (!is_print3d && !ippFindAttribute(printer->attrs, "job-password-encryption-supported", IPP_TAG_ZERO))
+    ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "job-password-encryption-supported", NULL, "none");
+
   /* job-password-supported */
   if (!is_print3d && !ippFindAttribute(printer->attrs, "job-password-supported", IPP_TAG_ZERO))
     ippAddInteger(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "job-password-supported", 4);
