@@ -216,6 +216,8 @@ serverTransformJob(
   {
     serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Unable to start job processing command: %s", strerror(errno));
 
+    posix_spawn_file_actions_destroy(&actions);
+
     goto transform_failure;
   }
 
