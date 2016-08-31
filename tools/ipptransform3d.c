@@ -12,6 +12,7 @@
  * This file is subject to the Apple OS-Developed Software exception.
  */
 
+#include <config.h>
 #include <cups/cups.h>
 #include <cups/array-private.h>
 #include <cups/string-private.h>
@@ -24,6 +25,11 @@
 #ifdef __APPLE__
 #  include <IOKit/serial/ioss.h>
 #endif /* __APPLE__ */
+
+#ifndef WIN32
+#  include <spawn.h>
+#  include <poll.h>
+#endif /* !WIN32 */
 
 
 /*
@@ -55,6 +61,7 @@ static int	gcode_puts(gcode_buffer_t *buf, int device_fd, char *line, int linenu
 static int	load_env_options(cups_option_t **options);
 static int	open_device(const char *device_uri);
 static void	usage(int status) __attribute__((noreturn));
+static int	xform_document(const char *filename, const char *outformat, int num_options, cups_option_t *options, gcode_buffer_t *buf, int device_fd);
 
 
 /*
@@ -234,8 +241,7 @@ main(int  argc,				/* I - Number of command-line args */
   * Do transform...
   */
 
-//  status = xform_document(filename, content_type, output_type, resolutions, sheet_back, types, num_options, options, write_cb, write_ptr);
-  status = 1;
+  status = xform_document(filename, output_type, num_options, options, &buffer, fd);
 
   gcode_puts(&buffer, fd, "", 1);
 
@@ -631,4 +637,337 @@ usage(int status)			/* I - Exit status */
   puts("Options: materials-col, print-accuracy, print-quality, print-rafts, print-supports, printer-bed-temperature");
 
   exit(status);
+}
+
+
+/*
+ * 'xform_document()' - Transform and print a document.
+ */
+
+static int				/* O - 0 on success, 1 on failure */
+xform_document(
+    const char     *filename,		/* I - Input file */
+    const char     *outformat,		/* I - Output format */
+    int            num_options,		/* I - Number of options */
+    cups_option_t  *options,		/* I - Options */
+    gcode_buffer_t *buf,		/* I - G-code response buffer */
+    int            device_fd)		/* I - Device file */
+{
+#ifdef WIN32
+  return (0);
+
+#else
+  const char	*val;			/* Option value */
+  int		pid,			/* Process ID */
+		status;			/* Exit status */
+  const char	*myargv[100];		/* Command-line arguments */
+  int		myargc;			/* Number of arguments */
+  posix_spawn_file_actions_t actions;	/* Spawn file actions */
+  int		mystdout[2] = {-1, -1};	/* Pipe for stdout */
+  struct pollfd	polldata[2];		/* Poll data */
+  int		pollcount;		/* Number of pipes to poll */
+  char		data[32768],		/* Data from stdout */
+		*dataptr,		/* Pointer to end of data */
+                *ptr,			/* Pointer into data */
+		*end;			/* End of data */
+  ssize_t	bytes;			/* Bytes read */
+  int		linenum = 1;		/* G-code line number */
+
+
+  (void)outformat; /* TODO: support different gcode flavors */
+
+ /*
+  * Setup the command-line arguments...
+  */
+
+  myargv[0] = CURAENGINE;
+  myargc    = 1;
+
+  myargv[myargc++] = "-vv";
+  myargv[myargc++] = "-s";
+  myargv[myargc++] = "gcodeFlavor=1";
+  myargv[myargc++] = "-s";
+  myargv[myargc++] = "startCode=";
+  myargv[myargc++] = "-s";
+  myargv[myargc++] = "fixHorrible=1";
+  myargv[myargc++] = "-s";
+  myargv[myargc++] = "fanFullOnLayerNr=1";
+  myargv[myargc++] = "-s";
+  myargv[myargc++] = "skirtMinLength=150000";
+  myargv[myargc++] = "-s";
+  myargv[myargc++] = "skirtLineCount=1";
+  myargv[myargc++] = "-s";
+  myargv[myargc++] = "skirtDistance=3000";
+  myargv[myargc++] = "-s";
+  myargv[myargc++] = "multiVolumeOverlap=150";
+  myargv[myargc++] = "-s";
+  myargv[myargc++] = "filamentDiameter=2850";
+  myargv[myargc++] = "-s";
+  myargv[myargc++] = "posx=115000";
+  myargv[myargc++] = "-s";
+  myargv[myargc++] = "posy=112500";
+
+  if ((val = cupsGetOption("print-quality", num_options, options)) != NULL)
+  {
+    switch (atoi(val))
+    {
+      case 4 :
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "insetXSpeed=60";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "inset0Speed=60";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "extrusionWidth=500";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "upSkinCount=3";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "initialLayerSpeed=30";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "minimalLayerTime=3";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "infillSpeed=60";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "initialLayerThickness=300";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "layerThickness=200";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "printSpeed=60";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "layer0extrusionWidth=500";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "sparseInfillLineDistance=5000";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "downSkinCount=3";
+	  break;
+
+      case 5 :
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "insetXSpeed=50";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "inset0Speed=50";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "extrusionWidth=400";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "upSkinCount=10";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "initialLayerSpeed=15";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "minimalLayerTime=5";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "infillSpeed=50";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "initialLayerThickness=300";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "layerThickness=60";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "printSpeed=50";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "layer0extrusionWidth=400";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "sparseInfillLineDistance=2000";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "downSkinCount=10";
+	  break;
+
+      default :
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "insetXSpeed=50";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "inset0Speed=50";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "extrusionWidth=400";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "upSkinCount=6";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "initialLayerSpeed=20";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "minimalLayerTime=5";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "infillSpeed=50";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "initialLayerThickness=300";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "layerThickness=100";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "endCode=M25";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "printSpeed=50";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "layer0extrusionWidth=400";
+	  myargv[myargc++] = "-s";
+	  myargv[myargc++] = "sparseInfillLineDistance=2000";
+	  myargv[myargc++] = "-s downSkinCount=6";
+	  break;
+    }
+  }
+
+  if ((val = cupsGetOption("print-rafts", num_options, options)) != NULL && strcmp(val, "none"))
+  {
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "raftSurfaceLineSpacing=400";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "raftInterfaceLineSpacing=800";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "raftSurfaceSpeed=20";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "raftBaseSpeed=20";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "raftFanSpeed=0";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "raftSurfaceThickness=270";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "raftBaseThickness=300";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "raftMargin=5000";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "raftAirGap=0";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "raftInterfaceThickness=270";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "raftSurfaceLayers=2";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "raftSurfaceLinewidth=400";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "raftInterfaceLinewidth=400";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "raftBaseLinewidth=1000";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "raftAirGapLayer0=220";
+  }
+
+  if ((val = cupsGetOption("print-supports", num_options, options)) != NULL && strcmp(val, "none"))
+  {
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "supportAngle=60";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "supportXYDistance=700";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "supportZDistance=150";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "supportEverywhere=0";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "supportLineDistance=3333";
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = "supportType=0";
+  }
+
+  myargv[myargc++] = (char *)filename;
+  myargv[myargc  ] = NULL;
+
+  if (pipe(mystdout))
+  {
+    fprintf(stderr, "ERROR: Unable to create pipe for stdout: %s\n", strerror(errno));
+    return (1);
+  }
+
+  posix_spawn_file_actions_init(&actions);
+  posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0);
+  if (mystdout[1] < 0)
+    posix_spawn_file_actions_addopen(&actions, 1, "/dev/null", O_WRONLY, 0);
+  else
+    posix_spawn_file_actions_adddup2(&actions, mystdout[1], 1);
+
+  if (posix_spawn(&pid, myargv[0], &actions, NULL, (char **)myargv, environ))
+  {
+    fprintf(stderr, "ERROR: Unable to start CuraEngine command: %s", strerror(errno));
+
+    posix_spawn_file_actions_destroy(&actions);
+
+    return (1);
+  }
+
+  fprintf(stderr, "DEBUG: Started CuraEngine command, pid=%d\n", pid);
+
+ /*
+  * Free memory used for command...
+  */
+
+  posix_spawn_file_actions_destroy(&actions);
+
+ /*
+  * Read from the stdout and stderr pipes until EOF...
+  */
+
+  close(mystdout[1]);
+
+  pollcount = 0;
+  polldata[pollcount].fd     = mystdout[0];
+  polldata[pollcount].events = POLLIN;
+  pollcount ++;
+
+  polldata[pollcount].fd     = device_fd;
+  polldata[pollcount].events = POLLIN;
+  pollcount ++;
+
+  dataptr = data;
+
+  while (poll(polldata, (nfds_t)pollcount, -1))
+  {
+    if (polldata[1].revents & POLLIN)
+    {
+     /*
+      * Read status info back (eventually do something with it...)
+      */
+
+      if (gcode_fill(buf, device_fd, 0))
+      {
+	while ((ptr = gcode_gets(buf)) != NULL)
+	  fprintf(stderr, "DEBUG: %s\n", ptr);
+      }
+    }
+
+    if (polldata[0].revents & POLLIN)
+    {
+     /*
+      * Read G-code...
+      */
+
+      if ((bytes = read(mystdout[0], dataptr, sizeof(data) - (size_t)(dataptr - data + 1))) > 0)
+      {
+        dataptr += bytes;
+	*dataptr = '\0';
+
+        for (end = data; (ptr = strchr(end, '\n')) != NULL; end = ptr)
+	{
+	 /*
+	  * Send whole lines to the printer...
+	  */
+
+          *ptr++ = '\0';
+
+	  if ((linenum = gcode_puts(buf, device_fd, end, linenum)) < 0)
+	  {
+	    perror("ERROR: Unable to write print data");
+	    break;
+	  }
+	}
+
+	if (end > data)
+	{
+	 /*
+	  * Copy remainder to beginning of buffer...
+	  */
+
+	  dataptr -= (end - data);
+	  if (dataptr > data)
+	    memmove(data, end, (size_t)(dataptr - data));
+	}
+      }
+    }
+  }
+
+  close(mystdout[0]);
+
+ /*
+  * Wait for child to complete...
+  */
+
+#  ifdef HAVE_WAITPID
+  while (waitpid(pid, &status, 0) < 0);
+#  else
+  while (wait(&status) < 0);
+#  endif /* HAVE_WAITPID */
+
+  return (status);
+#endif /* WIN32 */
 }
