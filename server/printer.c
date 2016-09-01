@@ -124,11 +124,13 @@ serverCreatePrinter(
   const char		*prefix;	/* Prefix string */
   ipp_attribute_t	*format_sup = NULL,
 					/* document-format-supported */
+			*xri_sup,	/* printer-xri-supported */
 			*media_col_database,
 					/* media-col-database value */
 			*media_size_supported;
 					/* media-size-supported value */
-  ipp_t			*media_col;	/* media-col-default value */
+  ipp_t			*media_col,	/* media-col-default value */
+			*xri_col;	/* printer-xri-supported value */
   int			k_supported;	/* Maximum file size supported */
 #ifdef HAVE_STATVFS
   struct statvfs	spoolinfo;	/* FS info for spool directory */
@@ -1001,6 +1003,27 @@ serverCreatePrinter(
   httpAssembleUUID(lis->host, lis->port, name, 0, uuid, sizeof(uuid));
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uuid", NULL, uuid);
 
+  /* printer-xri-supported */
+  xri_sup = ippAddCollections(printer->attrs, IPP_TAG_PRINTER, "printer-xri-supported", cupsArrayCount(uris), NULL);
+  for (i = 0; i < cupsArrayCount(uris); i ++)
+  {
+    xri_col = ippNew();
+
+    ippAddString(xri_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "xri-authentication", NULL, proxy_user ? "basic"  : "none");
+
+#ifdef HAVE_SSL
+    if (Encryption != HTTP_ENCRYPTION_NEVER)
+      ippAddString(xri_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "xri-security", NULL, "tls");
+    else
+#endif /* HAVE_SSL */
+      ippAddString(xri_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "xri-security", NULL, "none");
+
+    ippAddString(xri_col, IPP_TAG_PRINTER, IPP_TAG_URI, "xri-uri", NULL, uriptrs[i]);
+
+    ippSetCollection(printer->attrs, &xri_sup, i, xri_col);
+    ippDelete(xri_col);
+  }
+
   /* pwg-raster-document-xxx-supported */
   for (i = 0; i < num_formats; i ++)
     if (!strcasecmp(formats[i], "image/pwg-raster"))
@@ -1042,15 +1065,19 @@ serverCreatePrinter(
 
   /* uri-security-supported */
 #ifdef HAVE_SSL
-  attr = ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", NULL, "tls");
-  for (i = 1; i < cupsArrayCount(uris); i ++)
-    ippSetString(printer->attrs, &attr, i, "tls");
-
-#else
-  attr = ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", NULL, "none");
-  for (i = 1; i < cupsArrayCount(uris); i ++)
-    ippSetString(printer->attrs, &attr, i, "none");
+  if (Encryption != HTTP_ENCRYPTION_NEVER)
+  {
+    attr = ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", NULL, "tls");
+    for (i = 1; i < cupsArrayCount(uris); i ++)
+      ippSetString(printer->attrs, &attr, i, "tls");
+  }
+  else
 #endif /* HAVE_SSL */
+  {
+    attr = ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", NULL, "none");
+    for (i = 1; i < cupsArrayCount(uris); i ++)
+      ippSetString(printer->attrs, &attr, i, "none");
+  }
 
   /* which-jobs-supported */
   ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "which-jobs-supported", sizeof(which_jobs) / sizeof(which_jobs[0]), NULL, which_jobs);
@@ -1509,12 +1536,14 @@ register_printer(
 #if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
   int			is_print3d;	/* 3D printer? */
   server_txt_t		ipp_txt;	/* Bonjour IPP TXT record */
-  ipp_attribute_t	*format_sup = ippFindAttribute(printer->attrs, "document-format-supported", IPP_TAG_MIMETYPE);
+  ipp_attribute_t	*format_sup = ippFindAttribute(printer->attrs, "document-format-supported", IPP_TAG_MIMETYPE),
 					/* document-formats-supported */
+			*urf_sup = ippFindAttribute(printer->attrs, "urf-supported", IPP_TAG_KEYWORD);
+					/* urf-supported */
   int			i,		/* Looping var */
 			count;		/* Number for formats */
-  char			pdl[252],	/* List of supported formats */
-			*pdlptr;	/* Pointer into list */
+  char			temp[256],	/* Temporary list */
+			*ptr;		/* Pointer into list */
 #endif /* HAVE_DNSSD || HAVE_AVAHI */
 #ifdef HAVE_DNSSD
   DNSServiceErrorType	error;		/* Error from Bonjour */
@@ -1535,28 +1564,30 @@ register_printer(
   snprintf(product, sizeof(product), "(%s)", model);
 
   TXTRecordCreate(&ipp_txt, 1024, NULL);
-  TXTRecordSetValue(&ipp_txt, "rp", (uint8_t)strlen(printer->resource), printer->resource);
+  TXTRecordSetValue(&ipp_txt, "rp", (uint8_t)strlen(printer->resource) - 1, printer->resource + 1);
   TXTRecordSetValue(&ipp_txt, "ty", (uint8_t)strlen(make_model), make_model);
   TXTRecordSetValue(&ipp_txt, "adminurl", (uint8_t)strlen(adminurl), adminurl);
   if (location && *location)
     TXTRecordSetValue(&ipp_txt, "note", (uint8_t)strlen(location), location);
   if (format_sup)
   {
-    for (i = 0, count = ippGetCount(format_sup), pdlptr = pdl; i < count; i ++)
+    for (i = 0, count = ippGetCount(format_sup), ptr = temp; i < count; i ++)
     {
       const char *format = ippGetString(format_sup, i, NULL);
 
       if (strcmp(format, "application/octet-stream"))
       {
-        if (pdlptr > pdl && pdlptr < (pdl + sizeof(pdl) - 1))
-	  *pdlptr++ = ',';
+        if (ptr > temp && ptr < (temp + sizeof(temp) - 1))
+	  *ptr++ = ',';
 
-	strlcpy(pdlptr, format, sizeof(pdl) - (size_t)(pdlptr - pdl));
+	strlcpy(ptr, format, sizeof(temp) - (size_t)(ptr - temp));
+	ptr += strlen(ptr);
       }
     }
-    *pdlptr = '\0';
+    *ptr = '\0';
 
-    TXTRecordSetValue(&ipp_txt, "pdl", (uint8_t)strlen(pdl), pdl);
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "document-format-supported(%d)=%s", count, temp);
+    TXTRecordSetValue(&ipp_txt, "pdl", (uint8_t)strlen(temp), temp);
   }
 
   if (!is_print3d)
@@ -1577,8 +1608,23 @@ register_printer(
     TXTRecordSetValue(&ipp_txt, "TLS", 3, "1.2");
 #  endif /* HAVE_SSL */
 
-  if (ippContainsString(format_sup, "image/urf"))
-    TXTRecordSetValue(&ipp_txt, "URF", 66, "CP1,IS1-5-7,MT1-2-3-4-5-6-8-9-10-11-12-13,RS300,SRGB24,V1.4,W8,DM1");
+  if (urf_sup)
+  {
+    for (i = 0, count = ippGetCount(urf_sup), ptr = temp; i < count; i ++)
+    {
+      const char *val = ippGetString(urf_sup, i, NULL);
+
+      if (ptr > temp && ptr < (temp + sizeof(temp) - 1))
+	*ptr++ = ',';
+
+      strlcpy(ptr, val, sizeof(temp) - (size_t)(ptr - temp));
+      ptr += strlen(ptr);
+    }
+    *ptr = '\0';
+
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "urf-supported(%d)=%s", count, temp);
+    TXTRecordSetValue(&ipp_txt, "URF", (uint8_t)strlen(temp), temp);
+  }
 
   TXTRecordSetValue(&ipp_txt, "txtvers", 1, "1");
   TXTRecordSetValue(&ipp_txt, "qtotal", 1, "1");
@@ -1702,28 +1748,29 @@ register_printer(
   */
 
   ipp_txt = NULL;
-  ipp_txt = avahi_string_list_add_printf(ipp_txt, "rp=%s", printer->resource);
+  ipp_txt = avahi_string_list_add_printf(ipp_txt, "rp=%s", printer->resource + 1);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "ty=%s %s", make, model);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "adminurl=%s", adminurl);
   if (location && *location)
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "note=%s", location);
   if (format_sup)
   {
-    for (i = 0, count = ippGetCount(format_sup), pdlptr = pdl; i < count; i ++)
+    for (i = 0, count = ippGetCount(format_sup), ptr = temp; i < count; i ++)
     {
       const char *format = ippGetString(format_sup, i, NULL);
 
       if (strcmp(format, "application/octet-stream"))
       {
-        if (pdlptr > pdl && pdlptr < (pdl + sizeof(pdl) - 1))
-	  *pdlptr++ = ',';
+        if (ptr > temp && ptr < (temp + sizeof(temp) - 1))
+	  *ptr++ = ',';
 
-	strlcpy(pdlptr, format, sizeof(pdl) - (size_t)(pdlptr - pdl));
+	strlcpy(ptr, format, sizeof(temp) - (size_t)(ptr - temp));
+	ptr += strlen(ptr);
       }
     }
-    *pdlptr = '\0';
+    *ptr = '\0';
 
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "pdl=%s", pdl);
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "pdl=%s", temp);
   }
 
   if (!is_print3d)
@@ -1742,8 +1789,23 @@ register_printer(
   if (!is_print3d && Encryption != HTTP_ENCRYPTION_NEVER)
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "TLS=1.2");
 #  endif /* HAVE_SSL */
-  if (ippContainsString(format_sup, "image/urf"))
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "URF=CP1,IS1-5-7,MT1-2-3-4-5-6-8-9-10-11-12-13,RS300,SRGB24,V1.4,W8,DM1");
+  if (urf_sup)
+  {
+    for (i = 0, count = ippGetCount(urf_sup), ptr = temp; i < count; i ++)
+    {
+      const char *val = ippGetString(urf_sup, i, NULL);
+
+      if (ptr > temp && ptr < (temp + sizeof(temp) - 1))
+	*ptr++ = ',';
+
+      strlcpy(ptr, val, sizeof(temp) - (size_t)(ptr - temp));
+      ptr += strlen(ptr);
+    }
+    *ptr = '\0';
+
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "URF=%s", temp);
+  }
+
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "txtvers=1");
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "qtotal=1");
 
