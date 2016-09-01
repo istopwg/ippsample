@@ -88,10 +88,13 @@ serverCreateListeners(const char *host,	/* I - Hostname, IP address, or NULL for
   server_listener_t	*lis;		/* New listener */
 
 
+  if (host && !strcmp(host, "*"))
+    host = NULL;
+
   snprintf(service, sizeof(service), "%d", port);
   if ((addrlist = httpAddrGetList(host, AF_UNSPEC, service)) == NULL)
   {
-    serverLog(SERVER_LOGLEVEL_ERROR, "Unable to resolve Listen address \"%s\": %s", host, cupsLastErrorString());
+    serverLog(SERVER_LOGLEVEL_ERROR, "Unable to resolve Listen address \"%s\": %s", host ? host : "*", cupsLastErrorString());
     return (0);
   }
 

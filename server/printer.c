@@ -39,7 +39,7 @@ static void		dnssd_callback(AvahiEntryGroup *p, AvahiEntryGroupState state, void
 #if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
 static void		register_geo(server_printer_t *printer);
 #endif /* HAVE_DNSSD || HAVE_AVAHI */
-static int		register_printer(server_printer_t *printer, const char *location, const char *make, const char *model, const char *formats, const char *adminurl, const char *uuid, int color, int duplex, const char *regtype);
+static int		register_printer(server_printer_t *printer, const char *location, const char *make, const char *model, const char *adminurl, const char *uuid, int color, int duplex, const char *regtype);
 
 
 /*
@@ -122,7 +122,9 @@ serverCreatePrinter(
 			*formats[100],	/* document-format-supported values */
 			*ptr;		/* Pointer into string */
   const char		*prefix;	/* Prefix string */
-  ipp_attribute_t	*media_col_database,
+  ipp_attribute_t	*format_sup = NULL,
+					/* document-format-supported */
+			*media_col_database,
 					/* media-col-database value */
 			*media_size_supported;
 					/* media-size-supported value */
@@ -136,6 +138,7 @@ serverCreatePrinter(
   double		spoolsize;	/* FS size */
 #endif /* HAVE_STATVFS */
   ipp_attribute_t	*attr;		/* Attribute */
+  const char		*webscheme;	/* HTTP/HTTPS */
   static const int	orients[4] =	/* orientation-requested-supported values */
   {
     IPP_ORIENT_PORTRAIT,
@@ -450,18 +453,28 @@ serverCreatePrinter(
 
   lis = cupsArrayFirst(Listeners);
 
-  httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPP_SCHEME, NULL, lis->host, lis->port, resource);
+#ifdef HAVE_SSL
+  if (Encryption != HTTP_ENCRYPTION_NEVER)
+  {
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPPS_SCHEME, NULL, lis->host, lis->port, resource);
+    webscheme = SERVER_HTTPS_SCHEME;
+  }
+  else
+#endif /* HAVE_SSL */
+  {
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPP_SCHEME, NULL, lis->host, lis->port, resource);
+    webscheme = SERVER_HTTP_SCHEME;
+  }
+
   printer->default_uri = strdup(uri);
 
-  httpAssembleURIf(HTTP_URI_CODING_ALL, icons, sizeof(icons), SERVER_WEB_SCHEME, NULL, lis->host, lis->port, "%s/icon.png", resource);
-  httpAssembleURI(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), SERVER_WEB_SCHEME, NULL, lis->host, lis->port, "/");
-  httpAssembleURI(HTTP_URI_CODING_ALL, supplyurl, sizeof(supplyurl), SERVER_WEB_SCHEME, NULL, lis->host, lis->port, "/supplies");
+  httpAssembleURIf(HTTP_URI_CODING_ALL, icons, sizeof(icons), webscheme, NULL, lis->host, lis->port, "%s/icon.png", resource);
+  httpAssembleURI(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), webscheme, NULL, lis->host, lis->port, "/");
+  httpAssembleURI(HTTP_URI_CODING_ALL, supplyurl, sizeof(supplyurl), webscheme, NULL, lis->host, lis->port, "/supplies");
 
   serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-more-info=\"%s\"", adminurl);
   serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-supply-info-uri=\"%s\"", supplyurl);
   serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-uri=\"%s\"", (char *)cupsArrayFirst(uris));
-
-  snprintf(make_model, sizeof(make_model), "%s %s", make, model);
 
   if (docformats)
   {
@@ -474,35 +487,8 @@ serverCreatePrinter(
       formats[num_formats++] = ptr;
 
       if (!strcasecmp(ptr, "application/octet-stream"))
-        defformat = ptr;
+	defformat = ptr;
     }
-  }
-
-  snprintf(device_id, sizeof(device_id), "MFG:%s;MDL:%s;", make, model);
-  ptr    = device_id + strlen(device_id);
-  prefix = "CMD:";
-  for (i = 0; i < num_formats; i ++)
-  {
-    if (!strcasecmp(formats[i], "application/pdf"))
-      snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%sPDF", prefix);
-    else if (!strcasecmp(formats[i], "application/postscript"))
-      snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%sPS", prefix);
-    else if (!strcasecmp(formats[i], "application/vnd.hp-PCL"))
-      snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%sPCL", prefix);
-    else if (!strcasecmp(formats[i], "image/jpeg"))
-      snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%sJPEG", prefix);
-    else if (!strcasecmp(formats[i], "image/png"))
-      snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%sPNG", prefix);
-    else if (strcasecmp(formats[i], "application/octet-stream"))
-      snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%s%s", prefix, formats[i]);
-
-    ptr += strlen(ptr);
-    prefix = ",";
-  }
-  if (ptr < (device_id + sizeof(device_id) - 1))
-  {
-    *ptr++ = ';';
-    *ptr = '\0';
   }
 
  /*
@@ -575,12 +561,12 @@ serverCreatePrinter(
     ippAddRange(printer->attrs, IPP_TAG_PRINTER, "copies-supported", 1, is_print3d ? 1 : 999);
 
   /* document-format-default */
-  if (!ippFindAttribute(printer->attrs, "document-format-default", IPP_TAG_ZERO))
+  if (defformat && !ippFindAttribute(printer->attrs, "document-format-default", IPP_TAG_ZERO))
     ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_MIMETYPE, "document-format-default", NULL, defformat);
 
   /* document-format-supported */
-  if (!ippFindAttribute(printer->attrs, "document-format-supported", IPP_TAG_ZERO) && num_formats > 0)
-    ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_MIMETYPE, "document-format-supported", num_formats, NULL, (const char * const *)formats);
+  if ((format_sup = ippFindAttribute(printer->attrs, "document-format-supported", IPP_TAG_ZERO)) == NULL && num_formats > 0)
+    format_sup = ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_MIMETYPE, "document-format-supported", num_formats, NULL, (const char * const *)formats);
 
   /* document-password-supported */
   if (!ippFindAttribute(printer->attrs, "document-password-supported", IPP_TAG_ZERO))
@@ -897,7 +883,43 @@ serverCreatePrinter(
 
   /* printer-device-id */
   if (!is_print3d)
+  {
+    int count = ippGetCount(format_sup);/* Number of supported formats */
+
+    snprintf(device_id, sizeof(device_id), "MFG:%s;MDL:%s;", make, model);
+    ptr    = device_id + strlen(device_id);
+    prefix = "CMD:";
+    for (i = 0; i < count; i ++)
+    {
+      const char *format = ippGetString(format_sup, i, NULL);
+					/* Current format */
+
+      if (!strcasecmp(format, "application/pdf"))
+	snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%sPDF", prefix);
+      else if (!strcasecmp(format, "application/postscript"))
+	snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%sPS", prefix);
+      else if (!strcasecmp(format, "application/vnd.hp-PCL"))
+	snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%sPCL", prefix);
+      else if (!strcasecmp(format, "image/jpeg"))
+	snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%sJPEG", prefix);
+      else if (!strcasecmp(format, "image/png"))
+	snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%sPNG", prefix);
+      else if (!strcasecmp(format, "image/urf"))
+	snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%sURF", prefix);
+      else if (strcasecmp(format, "application/octet-stream"))
+	snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%s%s", prefix, format);
+
+      ptr += strlen(ptr);
+      prefix = ",";
+    }
+    if (ptr < (device_id + sizeof(device_id) - 1))
+    {
+      *ptr++ = ';';
+      *ptr = '\0';
+    }
+
     ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-device-id", NULL, device_id);
+  }
 
   /* printer-get-attributes-supported */
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-get-attributes-supported", NULL, "document-format");
@@ -921,6 +943,8 @@ serverCreatePrinter(
                "printer-location", NULL, location);
 
   /* printer-make-and-model */
+  snprintf(make_model, sizeof(make_model), "%s %s", make, model);
+
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT,
                "printer-make-and-model", NULL, make_model);
 
@@ -1001,7 +1025,7 @@ serverCreatePrinter(
 
   /* sides-supported */
   if (!is_print3d && !ippFindAttribute(printer->attrs, "sides-supported", IPP_TAG_ZERO))
-  ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "sides-supported", duplex ? 3 : 1, NULL, sides_supported);
+    ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "sides-supported", duplex ? 3 : 1, NULL, sides_supported);
 
   /* urf-supported */
   for (i = 0; i < num_formats; i ++)
@@ -1041,7 +1065,7 @@ serverCreatePrinter(
   * Register the printer with Bonjour...
   */
 
-  if (!register_printer(printer, location, make, model, docformats, adminurl, uuid + 9, ppm_color > 0, duplex, DNSSDSubType))
+  if (!register_printer(printer, location, make, model, adminurl, uuid + 9, ppm_color > 0, duplex, DNSSDSubType))
     goto bad_printer;
 
  /*
@@ -1079,18 +1103,16 @@ serverDeletePrinter(server_printer_t *printer)	/* I - Printer */
     DNSServiceRefDeallocate(printer->printer_ref);
   if (printer->ipp_ref)
     DNSServiceRefDeallocate(printer->ipp_ref);
+  if (printer->ipps_ref)
+    DNSServiceRefDeallocate(printer->ipps_ref);
   if (printer->http_ref)
     DNSServiceRefDeallocate(printer->http_ref);
 
 #elif defined(HAVE_AVAHI)
   avahi_threaded_poll_lock(DNSSDMaster);
 
-  if (printer->printer_ref)
-    avahi_entry_group_free(printer->printer_ref);
   if (printer->ipp_ref)
     avahi_entry_group_free(printer->ipp_ref);
-  if (printer->http_ref)
-    avahi_entry_group_free(printer->http_ref);
 
   avahi_threaded_poll_unlock(DNSSDMaster);
 #endif /* HAVE_DNSSD */
@@ -1478,7 +1500,6 @@ register_printer(
     const char       *location,		/* I - Location */
     const char       *make,		/* I - Manufacturer */
     const char       *model,		/* I - Model name */
-    const char       *formats,		/* I - Supported formats */
     const char       *adminurl,		/* I - Web interface URL */
     const char       *uuid,		/* I - Printer UUID */
     int              color,		/* I - 1 = color, 0 = monochrome */
@@ -1488,6 +1509,12 @@ register_printer(
 #if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
   int			is_print3d;	/* 3D printer? */
   server_txt_t		ipp_txt;	/* Bonjour IPP TXT record */
+  ipp_attribute_t	*format_sup = ippFindAttribute(printer->attrs, "document-format-supported", IPP_TAG_MIMETYPE);
+					/* document-formats-supported */
+  int			i,		/* Looping var */
+			count;		/* Number for formats */
+  char			pdl[252],	/* List of supported formats */
+			*pdlptr;	/* Pointer into list */
 #endif /* HAVE_DNSSD || HAVE_AVAHI */
 #ifdef HAVE_DNSSD
   DNSServiceErrorType	error;		/* Error from Bonjour */
@@ -1513,8 +1540,24 @@ register_printer(
   TXTRecordSetValue(&ipp_txt, "adminurl", (uint8_t)strlen(adminurl), adminurl);
   if (location && *location)
     TXTRecordSetValue(&ipp_txt, "note", (uint8_t)strlen(location), location);
-  if (formats)
-    TXTRecordSetValue(&ipp_txt, "pdl", (uint8_t)strlen(formats), formats);
+  if (format_sup)
+  {
+    for (i = 0, count = ippGetCount(format_sup), pdlptr = pdl; i < count; i ++)
+    {
+      const char *format = ippGetString(format_sup, i, NULL);
+
+      if (strcmp(format, "application/octet-stream"))
+      {
+        if (pdlptr > pdl && pdlptr < (pdl + sizeof(pdl) - 1))
+	  *pdlptr++ = ',';
+
+	strlcpy(pdlptr, format, sizeof(pdl) - (size_t)(pdlptr - pdl));
+      }
+    }
+    *pdlptr = '\0';
+
+    TXTRecordSetValue(&ipp_txt, "pdl", (uint8_t)strlen(pdl), pdl);
+  }
 
   if (!is_print3d)
   {
@@ -1530,11 +1573,11 @@ register_printer(
   TXTRecordSetValue(&ipp_txt, "UUID", (uint8_t)strlen(uuid), uuid);
 
 #  ifdef HAVE_SSL
-  if (!is_print3d)
+  if (!is_print3d && Encryption != HTTP_ENCRYPTION_NEVER)
     TXTRecordSetValue(&ipp_txt, "TLS", 3, "1.2");
 #  endif /* HAVE_SSL */
 
-  if (formats && strstr(formats, "image/urf"))
+  if (ippContainsString(format_sup, "image/urf"))
     TXTRecordSetValue(&ipp_txt, "URF", 66, "CP1,IS1-5-7,MT1-2-3-4-5-6-8-9-10-11-12-13,RS300,SRGB24,V1.4,W8,DM1");
 
   TXTRecordSetValue(&ipp_txt, "txtvers", 1, "1");
@@ -1561,37 +1604,66 @@ register_printer(
   }
 
  /*
-  * Then register the corresponding IPP service type with the real port number to
-  * advertise our IPP printer...
+  * Then register the corresponding IPP service types with the real port
+  * number to advertise our printer...
   */
 
-  printer->ipp_ref = DNSSDMaster;
-
-  if (is_print3d)
+  if (!is_print3d)
   {
+    printer->ipp_ref = DNSSDMaster;
+
     if (subtype && *subtype)
-      snprintf(regtype, sizeof(regtype), SERVER_IPP3D_TYPE ",%s", subtype);
+      snprintf(regtype, sizeof(regtype), SERVER_IPP_TYPE ",%s", subtype);
     else
-      strlcpy(regtype, SERVER_IPP3D_TYPE, sizeof(regtype));
-  }
-  else if (subtype && *subtype)
-    snprintf(regtype, sizeof(regtype), SERVER_IPP_TYPE ",%s", subtype);
-  else
-    strlcpy(regtype, SERVER_IPP_TYPE, sizeof(regtype));
+      strlcpy(regtype, SERVER_IPP_TYPE, sizeof(regtype));
 
-  if ((error = DNSServiceRegister(&(printer->ipp_ref),
-                                  kDNSServiceFlagsShareConnection,
-                                  0 /* interfaceIndex */, printer->dnssd_name,
-				  regtype, NULL /* domain */,
-				  NULL /* host */, htons(lis->port),
-				  TXTRecordGetLength(&ipp_txt),
-				  TXTRecordGetBytesPtr(&ipp_txt),
-			          (DNSServiceRegisterReply)dnssd_callback,
-			          printer)) != kDNSServiceErr_NoError)
-  {
-    serverLogPrinter(SERVER_LOGLEVEL_ERROR, printer, "Unable to register \"%s.%s\": %d", printer->dnssd_name, regtype, error);
-    return (0);
+    if ((error = DNSServiceRegister(&(printer->ipp_ref),
+				    kDNSServiceFlagsShareConnection,
+				    0 /* interfaceIndex */, printer->dnssd_name,
+				    regtype, NULL /* domain */,
+				    NULL /* host */, htons(lis->port),
+				    TXTRecordGetLength(&ipp_txt),
+				    TXTRecordGetBytesPtr(&ipp_txt),
+				    (DNSServiceRegisterReply)dnssd_callback,
+				    printer)) != kDNSServiceErr_NoError)
+    {
+      serverLogPrinter(SERVER_LOGLEVEL_ERROR, printer, "Unable to register \"%s.%s\": %d", printer->dnssd_name, regtype, error);
+      return (0);
+    }
   }
+
+#  ifdef HAVE_SSL
+  if (Encryption != HTTP_ENCRYPTION_NEVER)
+  {
+    printer->ipps_ref = DNSSDMaster;
+
+    if (is_print3d)
+    {
+      if (subtype && *subtype)
+	snprintf(regtype, sizeof(regtype), SERVER_IPPS_3D_TYPE ",%s", subtype);
+      else
+	strlcpy(regtype, SERVER_IPPS_3D_TYPE, sizeof(regtype));
+    }
+    else if (subtype && *subtype)
+      snprintf(regtype, sizeof(regtype), SERVER_IPPS_TYPE ",%s", subtype);
+    else
+      strlcpy(regtype, SERVER_IPPS_TYPE, sizeof(regtype));
+
+    if ((error = DNSServiceRegister(&(printer->ipps_ref),
+				    kDNSServiceFlagsShareConnection,
+				    0 /* interfaceIndex */, printer->dnssd_name,
+				    regtype, NULL /* domain */,
+				    NULL /* host */, htons(lis->port),
+				    TXTRecordGetLength(&ipp_txt),
+				    TXTRecordGetBytesPtr(&ipp_txt),
+				    (DNSServiceRegisterReply)dnssd_callback,
+				    printer)) != kDNSServiceErr_NoError)
+    {
+      serverLogPrinter(SERVER_LOGLEVEL_ERROR, printer, "Unable to register \"%s.%s\": %d", printer->dnssd_name, regtype, error);
+      return (0);
+    }
+  }
+#  endif /* HAVE_SSL */
 
   register_geo(printer);
 
@@ -1635,8 +1707,25 @@ register_printer(
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "adminurl=%s", adminurl);
   if (location && *location)
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "note=%s", location);
-  if (formats)
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "pdl=%s", formats);
+  if (format_sup)
+  {
+    for (i = 0, count = ippGetCount(format_sup), pdlptr = pdl; i < count; i ++)
+    {
+      const char *format = ippGetString(format_sup, i, NULL);
+
+      if (strcmp(format, "application/octet-stream"))
+      {
+        if (pdlptr > pdl && pdlptr < (pdl + sizeof(pdl) - 1))
+	  *pdlptr++ = ',';
+
+	strlcpy(pdlptr, format, sizeof(pdl) - (size_t)(pdlptr - pdl));
+      }
+    }
+    *pdlptr = '\0';
+
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "pdl=%s", pdl);
+  }
+
   if (!is_print3d)
   {
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "product=(%s)", model);
@@ -1650,10 +1739,10 @@ register_printer(
 
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "UUID=%s", uuid);
 #  ifdef HAVE_SSL
-  if (!is_print3d)
+  if (!is_print3d && Encryption != HTTP_ENCRYPTION_NEVER)
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "TLS=1.2");
 #  endif /* HAVE_SSL */
-  if (formats && strstr(formats, "image/urf"))
+  if (ippContainsString(format_sup, "image/urf"))
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "URF=CP1,IS1-5-7,MT1-2-3-4-5-6-8-9-10-11-12-13,RS300,SRGB24,V1.4,W8,DM1");
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "txtvers=1");
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "qtotal=1");
@@ -1669,19 +1758,10 @@ register_printer(
   avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_printer._tcp", NULL, NULL, 0, NULL);
 
  /*
-  * Then register the IPP service...
+  * Then register the IPP/IPPS services...
   */
 
-  if (is_print3d)
-  {
-    avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPP3D_TYPE, NULL, NULL, lis->port, ipp_txt);
-    if (subtype && *subtype)
-    {
-      snprintf(temp, sizeof(temp), "%s._sub." SERVER_IPP3D_TYPE, subtype);
-      avahi_entry_group_add_service_subtype(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPP_TYPE, NULL, temp);
-    }
-  }
-  else
+  if (!is_print3d)
   {
     avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPP_TYPE, NULL, NULL, lis->port, ipp_txt);
     if (subtype && *subtype)
@@ -1690,6 +1770,30 @@ register_printer(
       avahi_entry_group_add_service_subtype(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPP_TYPE, NULL, temp);
     }
   }
+
+#  ifdef HAVE_SSL
+  if (Encryption != HTTP_ENCRYPTION_NEVER)
+  {
+    if (is_print3d)
+    {
+      avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPPS_3D_TYPE, NULL, NULL, lis->port, ipp_txt);
+      if (subtype && *subtype)
+      {
+	snprintf(temp, sizeof(temp), "%s._sub." SERVER_IPPS_3D_TYPE, subtype);
+	avahi_entry_group_add_service_subtype(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPP_TYPE, NULL, temp);
+      }
+    }
+    else
+    {
+      avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPPS_TYPE, NULL, NULL, lis->port, ipp_txt);
+      if (subtype && *subtype)
+      {
+	snprintf(temp, sizeof(temp), "%s._sub." SERVER_IPPS_TYPE, subtype);
+	avahi_entry_group_add_service_subtype(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPP_TYPE, NULL, temp);
+      }
+    }
+  }
+#  endif /* HAVE_SSL */
 
   register_geo(printer);
 

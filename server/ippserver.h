@@ -98,7 +98,7 @@ extern char **environ;
  * Constants...
  */
 
-/* Maximum lease duration value from RFC 3995 - 2^26-1 or ~2 years */
+/* Maximum lease duration value from RFC 3995 - 2^26-1 seconds or ~2 years */
 #  define SERVER_NOTIFY_LEASE_DURATION_MAX		67108863
 /* But a value of 0 means "never expires"... */
 #  define SERVER_NOTIFY_LEASE_DURATION_FOREVER		0
@@ -107,19 +107,14 @@ extern char **environ;
 
 
 /* URL schemes and DNS-SD types for IPP and web resources... */
-#  ifdef HAVE_SSL
-#    define SERVER_IPP_SCHEME "ipps"
-#    define SERVER_IPP_TYPE "_ipps._tcp"
-#    define SERVER_WEB_SCHEME "https"
-#    define SERVER_WEB_TYPE "_http._tcp"
-#  else
-#    define SERVER_IPP_SCHEME "ipp"
-#    define SERVER_IPP_TYPE "_ipp._tcp"
-#    define SERVER_WEB_SCHEME "http"
-#    define SERVER_WEB_TYPE "_http._tcp"
-#  endif /* HAVE_SSL */
-
-#  define SERVER_IPP3D_TYPE "_ipps-3d._tcp"
+#  define SERVER_IPP_SCHEME "ipp"
+#  define SERVER_IPP_TYPE "_ipp._tcp"
+#  define SERVER_IPPS_SCHEME "ipps"
+#  define SERVER_IPPS_TYPE "_ipps._tcp"
+#  define SERVER_IPPS_3D_TYPE "_ipps-3d._tcp"
+#  define SERVER_WEB_TYPE "_http._tcp"
+#  define SERVER_HTTP_SCHEME "http"
+#  define SERVER_HTTPS_SCHEME "https"
 
 
 /*
@@ -369,7 +364,10 @@ typedef struct server_device_s		/**** Output Device data ****/
 typedef struct server_printer_s		/**** Printer data ****/
 {
   _cups_rwlock_t	rwlock;		/* Printer lock */
-  server_srv_t		ipp_ref,	/* Bonjour IPP(S) service */
+  server_srv_t		ipp_ref,	/* Bonjour IPP service */
+#ifdef HAVE_SSL
+			ipps_ref,	/* Bonjour IPPS service */
+#endif /* HAVE_SSL */
 			http_ref,	/* Bonjour HTTP(S) service */
 			printer_ref;	/* Bonjour LPD service */
   server_loc_t		geo_ref;	/* Bonjour geo-location */
