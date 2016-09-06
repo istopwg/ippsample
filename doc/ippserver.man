@@ -167,7 +167,7 @@ Specify a proxy username of "foo" and password of "bar":
 .fi
 .SH CONFIGURATION DIRECTORIES
 When the \fB\-C\fR option is specified, \fBippserver\fR reads a series of configuration files from the specified directory to configure the server and services supported by the server.
-.SS SERVER.CONF CONFIGURATION FILE
+.SS SYSTEM.CONF CONFIGURATION FILE
 The \fIsystem.conf\fR configuration file specifies settings that apply to all services.
 Each line consists of a directive followed by its value(s).
 Comments start with the # character and continue to the end of the line.
