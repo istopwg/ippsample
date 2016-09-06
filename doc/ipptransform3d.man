@@ -74,8 +74,8 @@ Each value is surrounded by curley braces and contains a list of material proper
 The "material-diameter", "material-fill-density", "material-purpose", "material-rate", "material-rate-units", "material-shell-thickness", "material-temperature", and "material-type" properties are supported.
 .TP 5
 .B print-accuracy
-Specifies the dimensional accuracy requirements for the print in nanometers.
-For example, a horizontal accuracy of 0.1mm and vertical accuracy of 0.05mm is '{x-accuracy=100000 y-accuracy=100000 z-accuracy=50000}'.
+Specifies the dimensional accuracy requirements for the print.
+For example, a horizontal accuracy of 0.1mm and vertical accuracy of 0.05mm is '{x-accuracy=100 y-accuracy=100 z-accuracy=50 accuracy-units=um}'.
 .TP 5
 .B print-quality
 Specifies the print quality with value 3 (draft), 4 (normal), or 5 (high/best).
