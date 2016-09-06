@@ -146,7 +146,7 @@ with a service name of My Cool Printer:
 <h2 class="title"><a name="CONFIGURATION_DIRECTORIES">Configuration Directories</a></h2>
 When the <b>-C</b> option is specified, <b>ippserver</b> reads a series of configuration files from the specified directory to configure the server and services supported by the server.
 <h3><a name="SERVER_CONF_CONFIGURATION_FILE">Server.conf Configuration File</a></h3>
-The <i>server.conf</i> configuration file specifies settings that apply to all services.
+The <i>system.conf</i> configuration file specifies settings that apply to all services.
 Each line consists of a directive followed by its value(s).
 Comments start with the # character and continue to the end of the line.
 The following directives are supported:
@@ -182,7 +182,8 @@ The value 0 specifies there is no limit.
 <dd style="margin-left: 5.0em">Specifies the location of print job spool files.
 </dl>
 <h3><a name="PRINT_SERVICE_CONFIGURATION_FILES">Print Service Configuration Files</a></h3>
-Each print service is configured by a <i>print/name.conf</i> configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print/name".
+Each 2D print service is configured by a <i>print/name.conf</i> configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print/name".
+Each 3D print service is configured by a <i>print3d/name.conf</i> configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print3d/name".
 Each line consists of a directive followed by its value(s).
 Comments start with the # character and continue to the end of the line.
 The following directives are supported:
@@ -209,6 +210,8 @@ command can be used for many printers.
 <dt><b>ProxyUser </b><i>user</i>
 <dd style="margin-left: 5.0em">Specifies the name of the proxy user for the printer.
 </dl>
+<h3><a name="PRINT_SERVICE_ICON_FILES">Print Service Icon Files</a></h3>
+The icon for each 2D print service is stored in the <i>print/name.png</i>  file. Similarly, the icon for each 3D print service is stored in the <i>print3d/name.png</i> file.
 <h2 class="title"><a name="SEE_ALSO">See Also</a></h2>
 ISTO PWG Internet Printing Protocol Workgroup (<a href="http://www.pwg.org/ipp">http://www.pwg.org/ipp</a>)
 <h2 class="title"><a name="COPYRIGHT">Copyright</a></h2>

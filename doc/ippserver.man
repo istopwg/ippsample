@@ -9,7 +9,7 @@
 .\" which should have been included with this file.  If this file is
 .\" file is missing or damaged, see the license at "http://www.cups.org/".
 .\"
-.TH ippserver 8 "ippsample" "22 June 2016" "Apple Inc."
+.TH ippserver 8 "ippsample" "6 September 2016" "Apple Inc."
 .SH NAME
 ippserver \- a simple ipp server
 .SH SYNOPSIS
@@ -168,7 +168,7 @@ Specify a proxy username of "foo" and password of "bar":
 .SH CONFIGURATION DIRECTORIES
 When the \fB\-C\fR option is specified, \fBippserver\fR reads a series of configuration files from the specified directory to configure the server and services supported by the server.
 .SS SERVER.CONF CONFIGURATION FILE
-The \fIserver.conf\fR configuration file specifies settings that apply to all services.
+The \fIsystem.conf\fR configuration file specifies settings that apply to all services.
 Each line consists of a directive followed by its value(s).
 Comments start with the # character and continue to the end of the line.
 The following directives are supported:
@@ -211,7 +211,8 @@ The value 0 specifies there is no limit.
 \fBSpoolDirectory \fIpath\fR
 Specifies the location of print job spool files.
 .SS PRINT SERVICE CONFIGURATION FILES
-Each print service is configured by a \fIprint/name.conf\fR configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print/name".
+Each 2D print service is configured by a \fIprint/name.conf\fR configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print/name".
+Each 3D print service is configured by a \fIprint3d/name.conf\fR configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print3d/name".
 Each line consists of a directive followed by its value(s).
 Comments start with the # character and continue to the end of the line.
 The following directives are supported:
@@ -243,6 +244,8 @@ Specifies the model for the printer.
 .TP 5
 \fBProxyUser \fIuser\fR
 Specifies the name of the proxy user for the printer.
+.SS PRINT SERVICE ICON FILES
+The icon for each 2D print service is stored in the \fIprint/name.png\fR  file. Similarly, the icon for each 3D print service is stored in the \fIprint3d/name.png\fR file.
 .SH SEE ALSO
 ISTO PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp)
 .SH COPYRIGHT
