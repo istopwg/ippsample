@@ -39,7 +39,7 @@ static void		dnssd_callback(AvahiEntryGroup *p, AvahiEntryGroupState state, void
 #if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
 static void		register_geo(server_printer_t *printer);
 #endif /* HAVE_DNSSD || HAVE_AVAHI */
-static int		register_printer(server_printer_t *printer, const char *location, const char *make, const char *model, const char *adminurl, const char *uuid, int color, int duplex, const char *regtype);
+static int		register_printer(server_printer_t *printer, const char *location, const char *make, const char *model, const char *adminurl, int color, int duplex, const char *regtype);
 
 
 /*
@@ -1000,8 +1000,11 @@ serverCreatePrinter(
   ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uri-supported", cupsArrayCount(uris), NULL, (const char **)uriptrs);
 
   /* printer-uuid */
-  httpAssembleUUID(lis->host, lis->port, name, 0, uuid, sizeof(uuid));
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uuid", NULL, uuid);
+  if (!ippFindAttribute(printer->attrs, "printer-uuid", IPP_TAG_URI))
+  {
+    httpAssembleUUID(lis->host, lis->port, name, 0, uuid, sizeof(uuid));
+    ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uuid", NULL, uuid);
+  }
 
   /* printer-xri-supported */
   xri_sup = ippAddCollections(printer->attrs, IPP_TAG_PRINTER, "printer-xri-supported", cupsArrayCount(uris), NULL);
@@ -1092,7 +1095,7 @@ serverCreatePrinter(
   * Register the printer with Bonjour...
   */
 
-  if (!register_printer(printer, location, make, model, adminurl, uuid + 9, ppm_color > 0, duplex, DNSSDSubType))
+  if (!register_printer(printer, location, make, model, adminurl, ppm_color > 0, duplex, DNSSDSubType))
     goto bad_printer;
 
  /*
@@ -1528,7 +1531,6 @@ register_printer(
     const char       *make,		/* I - Manufacturer */
     const char       *model,		/* I - Model name */
     const char       *adminurl,		/* I - Web interface URL */
-    const char       *uuid,		/* I - Printer UUID */
     int              color,		/* I - 1 = color, 0 = monochrome */
     int              duplex,		/* I - 1 = duplex, 0 = simplex */
     const char       *subtype)		/* I - Service subtype */
@@ -1538,8 +1540,11 @@ register_printer(
   server_txt_t		ipp_txt;	/* Bonjour IPP TXT record */
   ipp_attribute_t	*format_sup = ippFindAttribute(printer->attrs, "document-format-supported", IPP_TAG_MIMETYPE),
 					/* document-formats-supported */
-			*urf_sup = ippFindAttribute(printer->attrs, "urf-supported", IPP_TAG_KEYWORD);
+			*urf_sup = ippFindAttribute(printer->attrs, "urf-supported", IPP_TAG_KEYWORD),
 					/* urf-supported */
+			*uuid = ippFindAttribute(printer->attrs, "printer-uuid", IPP_TAG_URI);
+					/* printer-uuid */
+  const char		*uuidval;	/* String value of UUID */
   int			i,		/* Looping var */
 			count;		/* Number for formats */
   char			temp[256],	/* Temporary list */
@@ -1601,7 +1606,13 @@ register_printer(
       TXTRecordSetValue(&ipp_txt, "usb_MDL", (uint8_t)strlen(model), model);
   }
 
-  TXTRecordSetValue(&ipp_txt, "UUID", (uint8_t)strlen(uuid), uuid);
+  uuidval = ippGetString(uuid, 0, NULL);
+  if (uuidval)
+  {
+    uuidval += 9; /* Skip "urn:uuid:" prefix */
+
+    TXTRecordSetValue(&ipp_txt, "UUID", (uint8_t)strlen(uuidval), uuidval);
+  }
 
 #  ifdef HAVE_SSL
   if (!is_print3d && Encryption != HTTP_ENCRYPTION_NEVER)
@@ -1784,7 +1795,14 @@ register_printer(
       ipp_txt = avahi_string_list_add_printf(ipp_txt, "usb_MDL=%s", model);
   }
 
-  ipp_txt = avahi_string_list_add_printf(ipp_txt, "UUID=%s", uuid);
+  uuidval = ippGetString(uuid, 0, NULL);
+  if (uuidval)
+  {
+    uuidval += 9; /* Skip "urn:uuid:" prefix */
+
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "UUID=%s", uuidval);
+  }
+
 #  ifdef HAVE_SSL
   if (!is_print3d && Encryption != HTTP_ENCRYPTION_NEVER)
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "TLS=1.2");
