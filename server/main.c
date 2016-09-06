@@ -46,7 +46,7 @@ main(int  argc,				/* I - Number of command-line args */
 		*formats = (char *)"application/pdf,image/jpeg,image/pwg-raster";
 	      				/* Supported formats */
   int		duplex = 0,		/* Duplex mode */
-		ppm = 10,		/* Pages per minute for mono */
+		ppm = 0,		/* Pages per minute for mono */
 		ppm_color = 0,		/* Pages per minute for color */
 		pin = 0;		/* PIN printing mode? */
   char		*proxy_user = NULL;	/* Proxy username */
@@ -226,6 +226,12 @@ main(int  argc,				/* I - Number of command-line args */
 
   if (!DNSSDSubType)
     DNSSDSubType = strdup("_print");
+
+  if (confdir && (name || make || model || location || attrs || command || icon || formats || duplex || pin || ppm || ppm_color))
+  {
+    fputs("ippserver: Cannot specify configuration directory with printer options (-2, -M, -P, -a, -c, -f, -i, -l, -m, -s)\n", stderr);
+    usage(1);
+  }
 
   if (!name && !confdir)
     usage(1);
