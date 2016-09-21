@@ -1749,7 +1749,6 @@ register_printer(
 #elif defined(HAVE_AVAHI)
   server_listener_t	*lis = cupsArrayFirst(Listeners);
 					/* Listen socket */
-  char		temp[256];		/* Subtype service string */
 
 
   is_print3d = !strncmp(printer->resource, "/ipp/print3d/", 13);
