@@ -38,13 +38,11 @@ main(int  argc,				/* I - Number of command-line args */
                 *command = NULL,	/* Command to run with job files */
 		*device_uri = NULL,	/* Device URI */
 		*name = NULL,		/* Printer name */
-		*location = (char *)"",	/* Location of printer */
-		*make = (char *)"Test",	/* Manufacturer */
-		*model = (char *)"Printer",
-					/* Model */
+		*location = NULL,	/* Location of printer */
+		*make = NULL,		/* Manufacturer */
+		*model = NULL,		/* Model */
 		*icon = NULL,		/* Icon file */
-		*formats = (char *)"application/pdf,image/jpeg,image/pwg-raster";
-	      				/* Supported formats */
+		*formats = NULL;	/* Supported formats */
   int		duplex = 0,		/* Duplex mode */
 		ppm = 0,		/* Pages per minute for mono */
 		ppm_color = 0,		/* Pages per minute for color */
@@ -231,6 +229,22 @@ main(int  argc,				/* I - Number of command-line args */
   {
     fputs("ippserver: Cannot specify configuration directory with printer options (-2, -M, -P, -a, -c, -f, -i, -l, -m, -s)\n", stderr);
     usage(1);
+  }
+
+  if (!confdir)
+  {
+   /*
+    * Apply defaults for some of the other options...
+    */
+
+    if (!location)
+      location = (char *)"";
+    if (!make)
+      make = (char *)"Test";
+    if (!model)
+      model = (char *)"Printer";
+    if (!formats)
+      formats = (char *)"application/pdf,image/jpeg,image/pwg-raster";
   }
 
   if (!name && !confdir)
