@@ -1908,8 +1908,6 @@ xform_document(
       fprintf(stderr, "ATTR: job-media-sheets-completed=%u\n", media_sheets);
     }
 
-    (*(ras.end_job))(&ras, cb, ctx);
-
     CFRelease(image);
   }
 
