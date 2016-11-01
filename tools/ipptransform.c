@@ -57,6 +57,7 @@ typedef struct xform_raster_s xform_raster_t;
 
 struct xform_raster_s
 {
+  const char		*format;	/* Output format */
   int			num_options;	/* Number of job options */
   cups_option_t		*options;	/* Job options */
   unsigned		copies;		/* Number of copies */
@@ -294,7 +295,7 @@ main(int  argc,				/* I - Number of command-line args */
     fputs("ERROR: Unknown output format, please specify with '-m' option.\n", stderr);
     usage(1);
   }
-  else if (strcmp(output_type, "application/vnd.hp-pcl") && strcmp(output_type, "image/pwg-raster"))
+  else if (strcmp(output_type, "application/vnd.hp-pcl") && strcmp(output_type, "image/pwg-raster") && strcmp(output_type, "image/urf"))
   {
     fprintf(stderr, "ERROR: Unsupported output format \"%s\".\n", output_type);
     usage(1);
@@ -1193,7 +1194,7 @@ raster_start_job(xform_raster_t   *ras,	/* I - Raster information */
 		 xform_write_cb_t cb,	/* I - Write callback */
 		 void             *ctx)	/* I - Write context */
 {
-  ras->ras = cupsRasterOpenIO((cups_raster_iocb_t)cb, ctx, CUPS_RASTER_WRITE_PWG);
+  ras->ras = cupsRasterOpenIO((cups_raster_iocb_t)cb, ctx, !strcmp(ras->format, "image/pwg-raster") ? CUPS_RASTER_WRITE_PWG : CUPS_RASTER_WRITE_APPLE);
 }
 
 
@@ -1321,7 +1322,7 @@ usage(int status)			/* I - Exit status */
   puts("  -v\n");
   puts("Device URIs: socket://address[:port], ipp://address[:port]/resource, ipps://address[:port]/resource");
   puts("Input Formats: application/pdf, image/jpeg");
-  puts("Output Formats: application/vnd.hp-pcl, image/pwg-raster");
+  puts("Output Formats: application/vnd.hp-pcl, image/pwg-raster, image/urf");
   puts("Options: copies, media, media-col, page-ranges, print-color-mode, print-quality, print-scaling, printer-resolution, sides");
   puts("Resolutions: NNNdpi or NNNxNNNdpi");
   puts("Types: black_1, sgray_1, sgray_8, srgb_8");
@@ -2373,6 +2374,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
 
   memset(ras, 0, sizeof(xform_raster_t));
 
+  ras->format      = format;
   ras->num_options = num_options;
   ras->options     = options;
 
