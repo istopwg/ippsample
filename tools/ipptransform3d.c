@@ -672,12 +672,51 @@ xform_document(
 		*end;			/* End of data */
   ssize_t	bytes;			/* Bytes read */
   int		linenum = 1;		/* G-code line number */
+  int		bed = 0,		/* printer-bed-temperature value */
+		material;		/* material-temperature value */
 
 
   (void)outformat; /* TODO: support different gcode flavors */
 
  /*
-  * Setup the command-line arguments...
+  * Start with gcode commands to set the extruder and print bed temperatures...
+  */
+
+  if ((val = cupsGetOption("printer-bed-temperature", num_options, options)) != NULL)
+    bed = atoi(val);
+  else if ((val = getenv("PRINTER_BED_TEMPERATURE_DEFAULT")) != NULL)
+    bed = atoi(val);
+
+  if (bed)
+  {
+    snprintf(data, sizeof(data), "M190 S%d", bed);
+    linenum = gcode_puts(buf, device_fd, data, linenum);
+  }
+
+  if ((val = cupsGetOption("materials-col", num_options, options)) != NULL)
+    val = getenv("PRINTER_MATERIALS_COL_DEFAULT");
+
+  if (val && (ptr = strstr(val, "material-temperature=")) != NULL)
+  {
+    /* TODO: Support multiple materials */
+    material = atoi(ptr + 21);
+    snprintf(data, sizeof(data), "M109 S%d", material);
+    linenum = gcode_puts(buf, device_fd, data, linenum);
+  }
+
+  linenum = gcode_puts(buf, device_fd, "G21", linenum); /* Metric */
+  linenum = gcode_puts(buf, device_fd, "G90", linenum); /* Absolute positioning */
+  linenum = gcode_puts(buf, device_fd, "M82", linenum); /* Absolute extruder mode */
+  linenum = gcode_puts(buf, device_fd, "M107", linenum); /* Fans off */
+  linenum = gcode_puts(buf, device_fd, "G28 X0 Y0 Z0", linenum); /* Home */
+  linenum = gcode_puts(buf, device_fd, "G1 Z15", linenum); /* Get ready to prime the extruder */
+  linenum = gcode_puts(buf, device_fd, "G92 E0", linenum); /* Clear the extruded length */
+  linenum = gcode_puts(buf, device_fd, "G1 F200 E3", linenum); /* Extrude 3mm */
+  linenum = gcode_puts(buf, device_fd, "G92 E0", linenum); /* Clear the extruded length */
+  linenum = gcode_puts(buf, device_fd, "M117 Printing with ippserver...", linenum);
+
+ /*
+  * Setup the Cura command-line arguments...
   */
 
   myargv[0] = CURAENGINE;

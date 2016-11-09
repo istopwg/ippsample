@@ -105,7 +105,18 @@ serverTransformJob(
   if (asprintf(myenvp + myenvc, "OUTPUT_TYPE=%s", format) > 0)
     myenvc ++;
 
+  if ((attr = ippFindAttribute(job->printer->attrs, "materials-col-default", IPP_TAG_BEGIN_COLLECTION)) != NULL)
+  {
+    ippAttributeString(attr, val, sizeof(val));
+
+    if (asprintf(myenvp + myenvc, "PRINTER_MATERIALS_COL_DEFAULT=%s", val))
+      myenvc ++;
+  }
+
   if ((attr = ippFindAttribute(job->printer->attrs, "media-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_MEDIA_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+    myenvc ++;
+
+  if ((attr = ippFindAttribute(job->printer->attrs, "printer-bed-temperature-default", IPP_TAG_INTEGER)) != NULL && asprintf(myenvp + myenvc, "PRINTER_BED_TEMPERATURE_DEFAULT=%d", ippGetInteger(attr, 0)))
     myenvc ++;
 
   if ((attr = ippFindAttribute(job->printer->attrs, "sides-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_SIDES_DEFAULT=%s", ippGetString(attr, 0, NULL)))
