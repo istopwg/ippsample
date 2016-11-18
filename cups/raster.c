@@ -705,10 +705,10 @@ cupsRasterReadPixels(cups_raster_t *r,	/* I - Raster stream */
             case CUPS_CSPACE_SRGB :
             case CUPS_CSPACE_RGBW :
             case CUPS_CSPACE_ADOBERGB :
-                memset(temp, 0xff, bytes);
+                memset(temp, 0xff, (size_t)bytes);
                 break;
             default :
-                memset(temp, 0x00, bytes);
+                memset(temp, 0x00, (size_t)bytes);
                 break;
           }
 
@@ -951,7 +951,7 @@ cupsRasterWriteHeader(
     * zeroed.
     */
 
-    unsigned char appleheader[64];	/* Raw page header */
+    unsigned char appleheader[32];	/* Raw page header */
 
     if (r->apple_page_count == 0xffffffffU)
     {
@@ -1099,7 +1099,7 @@ cupsRasterWriteHeader2(
     * zeroed.
     */
 
-    unsigned char appleheader[64];	/* Raw page header */
+    unsigned char appleheader[32];	/* Raw page header */
 
     if (r->apple_page_count == 0xffffffffU)
     {
@@ -1422,7 +1422,7 @@ cups_raster_read_header(
     case CUPS_RASTER_SYNCapple :
     case CUPS_RASTER_REVSYNCapple :
         {
-          unsigned char	appleheader[64];	/* Raw header */
+          unsigned char	appleheader[32];	/* Raw header */
           static const unsigned rawcspace[] =
           {
             CUPS_CSPACE_SW,

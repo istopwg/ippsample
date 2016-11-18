@@ -386,10 +386,7 @@ _cupsSetNegotiateAuthString(
 
     if (data.sem)
     {
-      major_status = gss_acquire_cred_ex_f(NULL, GSS_C_NO_NAME, 0,
-				           GSS_C_INDEFINITE, GSS_KRB5_MECHANISM,
-					   GSS_C_INITIATE, &identity, &data,
-					   cups_gss_acquire);
+      major_status = gss_acquire_cred_ex_f(NULL, GSS_C_NO_NAME, 0, GSS_C_INDEFINITE, GSS_KRB5_MECHANISM, GSS_C_INITIATE, (gss_auth_identity_t)&identity, &data, cups_gss_acquire);
 
       if (major_status == GSS_S_COMPLETE)
       {
