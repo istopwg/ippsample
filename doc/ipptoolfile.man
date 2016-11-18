@@ -9,7 +9,7 @@
 .\" which should have been included with this file.  If this file is
 .\" file is missing or damaged, see the license at "http://www.cups.org/".
 .\"
-.TH ipptoolfile 5 "ippsample" "2 March 2016" "Apple Inc."
+.TH ipptoolfile 5 "ippsample" "18 November 2016" "Apple Inc."
 .SH NAME
 ipptoolfile \- ipptool file format
 .SH DESCRIPTION
@@ -21,16 +21,34 @@ program accepts free-form plain text files that describe one or more IPP request
     # This is a comment
     {
       # The name of the test
-      NAME "Print PostScript File"
+      NAME "Print PDF File"
 
       # The request to send
       OPERATION Print\-Job
+
       GROUP operation\-attributes\-tag
       ATTR charset attributes\-charset utf\-8
       ATTR language attributes\-natural\-language en
       ATTR uri printer\-uri $uri
       ATTR name requesting\-user\-name $user
-      FILE testfile.ps
+      ATTR mimeMediaType document\-format application/pdf
+
+      GROUP job\-attributes\-tag
+      ATTR collection media\-col {
+        # US Letter plain paper from the "main" tray
+        MEMBER collection media\-size {
+          MEMBER integer x\-dimension 21590
+          MEMBER integer y\-dimension 27940
+        }
+        MEMBER integer media\-top\-margin 423
+        MEMBER integer media\-bottom\-margin 423
+        MEMBER integer media\-left\-margin 423
+        MEMBER integer media\-right\-margin 423
+        MEMBER keyword media\-source "main"
+        MEMBER keyword media\-type "stationery"
+      }
+
+      FILE testfile.pdf
 
       # The response to expect
       STATUS successful\-ok
@@ -43,6 +61,7 @@ program accepts free-form plain text files that describe one or more IPP request
 
       # The request to send
       OPERATION Get\-Job\-Attributes
+
       GROUP operation\-attributes\-tag
       ATTR charset attributes\-charset utf\-8
       ATTR language attributes\-natural\-language en
@@ -140,10 +159,14 @@ Specifies the default IPP version number to use for the tests that follow.
 The following directives are understood within a \fItest\fR:
 .TP 5
 \fBATTR \fItag attribute-name value(s)\fR
-Adds an attribute to the test request. Values are separated by the comma (",") character - escape commas using the "\" character. Common attributes and values are listed in the IANA IPP registry - see references below.
+Adds an attribute to the test request.
+Values are separated by the comma (",") character - escape commas using the "\" character.
+Common attributes and values are listed in the IANA IPP registry - see references below.
 .TP 5
 \fBATTR collection \fIattribute-name \fB{ MEMBER \fItag member-name value(s) ... \fB}\fR [ \fI... \fB,{ \fI... \fB} \fR]
-Adds a collection attribute to the test request. Member attributes follow the same syntax as regular attributes and can themselves be nested collections. Multiple collection values can be supplied as needed, separated by commas.
+Adds a collection attribute to the test request.
+Member attributes follow the same syntax as regular attributes and can themselves be nested collections.
+Multiple collection values can be supplied as needed, separated by commas.
 .TP 5
 \fBCOMPRESSION deflate\fR
 .TP 5
