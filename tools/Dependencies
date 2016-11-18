@@ -5,6 +5,9 @@ ippfind.o: ippfind.c ../cups/cups-private.h ../cups/string-private.h \
   ../cups/md5-private.h ../cups/language-private.h ../cups/transcode.h \
   ../cups/pwg-private.h ../cups/cups.h ../cups/file.h ../cups/pwg.h \
   ../cups/thread-private.h
+ippproxy.o: ippproxy.c ../cups/cups.h ../cups/file.h ../cups/versioning.h \
+  ../cups/ipp.h ../cups/http.h ../cups/array.h ../cups/language.h \
+  ../cups/pwg.h ../cups/thread-private.h ../config.h
 ipptool.o: ipptool.c ../cups/cups-private.h ../cups/string-private.h \
   ../config.h ../cups/debug-private.h ../cups/versioning.h \
   ../cups/array-private.h ../cups/array.h ../cups/ipp-private.h \
@@ -15,4 +18,10 @@ ipptool.o: ipptool.c ../cups/cups-private.h ../cups/string-private.h \
 ipptransform.o: ipptransform.c ../cups/cups.h ../cups/file.h \
   ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
   ../cups/language.h ../cups/pwg.h ../cups/raster.h \
-  ../cups/array-private.h ../cups/string-private.h ../config.h dither.h
+  ../cups/array-private.h ../cups/string-private.h ../config.h \
+  ../cups/thread-private.h dither.h
+ipptransform3d.o: ipptransform3d.c ../config.h ../cups/cups.h \
+  ../cups/file.h ../cups/versioning.h ../cups/ipp.h ../cups/http.h \
+  ../cups/array.h ../cups/language.h ../cups/pwg.h \
+  ../cups/array-private.h ../cups/string-private.h \
+  ../cups/thread-private.h

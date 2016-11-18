@@ -429,7 +429,7 @@
 		72B403061C0DE7FC00139783 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		72B589F51D1C6628007117DA /* printer-png.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "printer-png.h"; path = "../server/printer-png.h"; sourceTree = "<group>"; };
 		72E006021C5C0B10006CF057 /* ippproxy */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ippproxy; sourceTree = BUILT_PRODUCTS_DIR; };
-		72E006031C5C0B49006CF057 /* ippproxy.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ippproxy.c; path = ../proxy/ippproxy.c; sourceTree = "<group>"; };
+		72E006031C5C0B49006CF057 /* ippproxy.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ippproxy.c; path = ../tools/ippproxy.c; sourceTree = "<group>"; };
 		72E006081C5C0BA8006CF057 /* ippfind.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ippfind.man; path = ../doc/ippfind.man; sourceTree = "<group>"; };
 		72E006091C5C0BA8006CF057 /* ipptool.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ipptool.man; path = ../doc/ipptool.man; sourceTree = "<group>"; };
 		72E0060A1C5C0BA8006CF057 /* ipptoolfile.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ipptoolfile.man; path = ../doc/ipptoolfile.man; sourceTree = "<group>"; };
@@ -534,7 +534,6 @@
 			isa = PBXGroup;
 			children = (
 				72B402A11C0CE3AC00139783 /* config.h */,
-				72E006061C5C0B4F006CF057 /* ippproxy */,
 				72B4022D1C0CE21C00139783 /* ippserver */,
 				72B4022A1C0CE16200139783 /* libcups */,
 				72B4022E1C0CE22300139783 /* tools */,
@@ -653,6 +652,7 @@
 			children = (
 				275C6BAA1C87D907000D2DE7 /* dither.h */,
 				72B402D01C0CE60400139783 /* ippfind.c */,
+				72E006031C5C0B49006CF057 /* ippproxy.c */,
 				72B402D11C0CE60400139783 /* ipptool.c */,
 				725C87C31C767CF800FB3AD5 /* ipptransform.c */,
 				2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */,
@@ -698,14 +698,6 @@
 				72B402EB1C0CE81900139783 /* SystemConfiguration.framework */,
 			);
 			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		72E006061C5C0B4F006CF057 /* ippproxy */ = {
-			isa = PBXGroup;
-			children = (
-				72E006031C5C0B49006CF057 /* ippproxy.c */,
-			);
-			name = ippproxy;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

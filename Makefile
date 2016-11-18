@@ -17,7 +17,6 @@ include Makedefs
 # Source directories...
 DIRS	=	\
 		cups \
-		proxy \
 		server \
 		tools
 
@@ -105,8 +104,3 @@ dist:	all
 #
 
 .NOTPARALLEL:
-
-
-#
-# End of "$Id: Makefile 12414 2015-01-21 00:02:04Z msweet $".
-#

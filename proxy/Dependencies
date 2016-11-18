@@ -1,3 +1,0 @@
-ippproxy.o: ippproxy.c ../cups/cups.h ../cups/file.h ../cups/versioning.h \
-  ../cups/ipp.h ../cups/http.h ../cups/array.h ../cups/language.h \
-  ../cups/pwg.h

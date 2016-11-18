@@ -16,14 +16,20 @@ include ../Makedefs
 
 OBJS		=	\
 			ippfind.o \
+			ippproxy.o \
 			ipptool.o \
 			ipptransform.o \
 			ipptransform3d.o
-TARGETS		=	\
+TARGETS         =       \
+                        $(BIN_TARGETS) \
+                        $(SBIN_TARGETS)
+BIN_TARGETS	=	\
 			$(IPPFIND_BIN) \
 			ipptool \
 			$(IPPTRANSFORM_BIN) \
 			$(IPPTRANSFORM3D_BIN)
+SBIN_TARGETS	=	\
+			ippproxy
 
 
 #
@@ -55,8 +61,12 @@ depend:
 
 install:	all
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(bindir)
-	for file in $(TARGETS); do \
+	for file in $(BIN_TARGETS); do \
 		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir); \
+	done
+	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(sbindir)
+	for file in $(SBIN_TARGETS); do \
+		$(INSTALL_BIN) $$file $(BUILDROOT)$(sbindir); \
 	done
 
 
@@ -67,6 +77,15 @@ install:	all
 ippfind:	ippfind.o ../cups/libcups.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ippfind.o $(LIBS)
+
+
+#
+# ippproxy
+#
+
+ippproxy:	ippproxy.o ../cups/libcups.a
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ ippproxy.o $(LIBS)
 
 
 #

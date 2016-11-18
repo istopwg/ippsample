@@ -5,9 +5,9 @@ config.log
 config.status
 cups/libcups.a
 doc/mantohtml
-proxy/ippproxy
 server/ippserver
 tools/ippfind
+tools/ippproxy
 tools/ipptool
 tools/ipptransform
 tools/ipptransform3d
