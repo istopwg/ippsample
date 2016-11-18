@@ -12,10 +12,20 @@ ippproxy - a simple ipp proxy client
 <h2 class="title"><a name="SYNOPSIS">Synopsis</a></h2>
 <b>ippproxy</b>
 [
+<b>--help</b>
+] [
+<b>-d</b>
+<i>device-uri</i>
+] [
+<b>-p</b>
+<i>password</i>
+] [
+<b>-u</b>
+<i>user</i>
+] [
 <b>-v[vv]</b>
 ]
 <i>infrastructure-printer-uri</i>
-<i>local-printer-uri</i>
 <h2 class="title"><a name="DESCRIPTION">Description</a></h2>
 <b>ippproxy</b>
 is a simple IPP proxy client conforming to the IPP Shared Infrastructure Extensions (INFRA) specification. It can be used to proxy access to a local IPP printer through an Infrastructure Printer such as
@@ -24,6 +34,16 @@ is a simple IPP proxy client conforming to the IPP Shared Infrastructure Extensi
 The following options are recognized by
 <b>ippproxy:</b>
 <dl class="man">
+<dt><b>--help</b>
+<dd style="margin-left: 5.0em">Show program help.
+<dt><b>-d </b><i>device-uri</i>
+<dd style="margin-left: 5.0em">Specifies the local device using its URI.
+<b>ippproxy</b>
+supports "ipp", "ipps", and "socket" URIs.
+<dt><b>-p </b><i>password</i>
+<dd style="margin-left: 5.0em">Specifies the password to use when authenticating with the Infrastructure Printer.
+<dt><b>-u </b><i>user</i>
+<dd style="margin-left: 5.0em">Specifies the user name to use when authenticating with the Infrastructure Printer.
 <dt><b>-v[vvv]</b>
 <dd style="margin-left: 5.0em">Be (very) verbose when logging activity to the standard output.
 </dl>
@@ -44,7 +64,7 @@ Run
 with an infrastructure URI of "ipps://host.example.com/ipp/print" and a local URI of "ipp://10.0.1.42/ipp/print":
 <pre class="man">
 
-    ippproxy ipps://host.example.com/ipp/print ipp://10.0.1.42/ipp/print
+    ippproxy -d ipp://10.0.1.42/ipp/print ipps://host.example.com/ipp/print
 </pre>
 <h2 class="title"><a name="SEE_ALSO">See Also</a></h2>
 PWG Internet Printing Protocol Workgroup (<a href="http://www.pwg.org/ipp">http://www.pwg.org/ipp</a>)

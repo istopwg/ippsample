@@ -9,16 +9,26 @@
 .\" which should have been included with this file.  If this file is
 .\" file is missing or damaged, see the license at "http://www.cups.org/".
 .\"
-.TH ippproxy 8 "ippsample" "22 June 2016" "Apple Inc."
+.TH ippproxy 8 "ippsample" "18 November 2016" "Apple Inc."
 .SH NAME
 ippproxy \- a simple ipp proxy client
 .SH SYNOPSIS
 .B ippproxy
 [
+.B \-\-help
+] [
+.B \-d
+.I device-uri
+] [
+.B \-p
+.I password
+] [
+.B \-u
+.I user
+] [
 .B \-v[vv]
 ]
 .I infrastructure-printer-uri
-.I local-printer-uri
 .SH DESCRIPTION
 .B ippproxy
 is a simple IPP proxy client conforming to the IPP Shared Infrastructure Extensions (INFRA) specification. It can be used to proxy access to a local IPP printer through an Infrastructure Printer such as
@@ -26,6 +36,20 @@ is a simple IPP proxy client conforming to the IPP Shared Infrastructure Extensi
 .SH OPTIONS
 The following options are recognized by
 .B ippproxy:
+.TP 5
+.B \-\-help
+Show program help.
+.TP 5
+\fB\-d \fIdevice-uri\fR
+Specifies the local device using its URI.
+.B ippproxy
+supports "ipp", "ipps", and "socket" URIs.
+.TP 5
+\fB\-p \fIpassword\fR
+Specifies the password to use when authenticating with the Infrastructure Printer.
+.TP 5
+\fB\-u \fIuser\fR
+Specifies the user name to use when authenticating with the Infrastructure Printer.
 .TP 5
 .B \-v[vvv]
 Be (very) verbose when logging activity to the standard output.
@@ -46,7 +70,7 @@ Run
 with an infrastructure URI of "ipps://host.example.com/ipp/print" and a local URI of "ipp://10.0.1.42/ipp/print":
 .nf
 
-    ippproxy ipps://host.example.com/ipp/print ipp://10.0.1.42/ipp/print
+    ippproxy -d ipp://10.0.1.42/ipp/print ipps://host.example.com/ipp/print
 .fi
 .SH SEE ALSO
 PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp)

@@ -79,6 +79,7 @@ static const char * const printer_attrs[] =
 		  "urf-supported"
 		};
 static int	stop_running = 0;
+static int	verbosity = 0;
 
 
 /*
@@ -167,6 +168,10 @@ main(int  argc,				/* I - Number of command-line arguments */
 
 	      cupsSetUser(argv[i]);
 	      break;
+
+          case 'v' : /* Be verbose */
+              verbosity ++;
+              break;
 
 	  default :
 	      fprintf(stderr, "ippproxy: Unknown option '-%c'.\n", *opt);
@@ -1014,6 +1019,7 @@ usage(int status)			/* O - Exit status */
   puts("  -p password     Password for authentication.");
   puts("                  (Also IPPPROXY_PASSWORD environment variable)");
   puts("  -u username     Username for authentication.");
+  puts("  -v              Be verbose.");
   puts("  --help          Show this help.");
 
   exit(status);
