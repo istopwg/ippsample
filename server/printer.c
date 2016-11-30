@@ -340,6 +340,27 @@ serverCreatePrinter(
     IPP_QUALITY_NORMAL,
     IPP_QUALITY_HIGH
   };
+  static const char * const printer_supply[] =
+  {					/* printer-supply values */
+    "index=1;class=receptacleThatIsFilled;type=wasteToner;unit=percent;"
+        "maxcapacity=100;level=67;colorantname=unknown;",
+    "index=2;class=supplyThatIsConsumed;type=toner;unit=percent;"
+        "maxcapacity=100;level=100;colorantname=black;",
+    "index=3;class=supplyThatIsConsumed;type=toner;unit=percent;"
+        "maxcapacity=100;level=25;colorantname=cyan;",
+    "index=4;class=supplyThatIsConsumed;type=toner;unit=percent;"
+        "maxcapacity=100;level=50;colorantname=magenta;",
+    "index=5;class=supplyThatIsConsumed;type=toner;unit=percent;"
+        "maxcapacity=100;level=75;colorantname=yellow;"
+  };
+  static const char * const printer_supply_desc[] =
+  {					/* printer-supply-description values */
+    "Toner Waste",
+    "Black Toner",
+    "Cyan Toner",
+    "Magenta Toner",
+    "Yellow Toner"
+  };
   static const int	pwg_raster_document_resolution_supported[] =
   {
     150,
@@ -391,6 +412,7 @@ serverCreatePrinter(
     "processing",
     "processing-stopped"
   };
+
 
   serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreatePrinter(resource=\"%s\", name=\"%s\", location=\"%s\", make=\"%s\", model=\"%s\", icon=\"%s\", docformats=\"%s\", ppm=%d, ppm_color=%d, duplex=%d, pin=%d, attrs=%p, command=\"%s\", device_uri=\"%s\", proxy_user=\"%s\")", resource, name, location, make, model, icon, docformats, ppm, ppm_color, duplex, pin, (void *)attrs, command, device_uri, proxy_user);
 
@@ -988,8 +1010,19 @@ serverCreatePrinter(
     if (!ippFindAttribute(printer->attrs, "printer-resolutions-supported", IPP_TAG_ZERO))
       ippAddResolution(printer->attrs, IPP_TAG_PRINTER, "printer-resolution-supported", IPP_RES_PER_INCH, 600, 600);
 
-  //  /* printer-supply-description */
-  //  ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_TEXT), "printer-supply-description", (int)(sizeof(printer_supplies) / sizeof(printer_supplies[0])), NULL, printer_supplies);
+    /* printer-supply */
+    if (!ippFindAttribute(printer->attrs, "printer-supply", IPP_TAG_ZERO))
+    {
+      int count = ppm_color > 0 ? 5 : 2;	/* Number of values */
+
+      attr = ippAddOctetString(printer->attrs, IPP_TAG_PRINTER, "printer-supply", printer_supply[0], (int)strlen(printer_supply[0]));
+      for (i = 1; i < count; i ++)
+        ippSetOctetString(printer->attrs, &attr, i, printer_supply[i], (int)strlen(printer_supply[i]));
+    }
+
+    /* printer-supply-description */
+    if (!ippFindAttribute(printer->attrs, "printer-supply-description", IPP_TAG_ZERO))
+      ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_TEXT), "printer-supply-description", ppm_color > 0 ? 5 : 2, NULL, printer_supply_desc);
 
     /* printer-supply-info-uri */
     ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-supply-info-uri", NULL, supplyurl);
