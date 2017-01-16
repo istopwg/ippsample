@@ -7,7 +7,7 @@
  * property of Apple Inc. and are protected by Federal copyright
  * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
  * which should have been included with this file.  If this file is
- * file is missing or damaged, see the license at "http://www.cups.org/".
+ * missing or damaged, see the license at "http://www.cups.org/".
  *
  * This file is subject to the Apple OS-Developed Software exception.
  */
@@ -554,7 +554,7 @@ serverProcessHTTP(
               if (printer->state_reasons & reason)
                 html_printf(client, "\n<br>&nbsp;&nbsp;&nbsp;&nbsp;%s", reasons[i]);
             html_printf(client, "</p>\n");
-            
+
             if (cupsArrayCount(printer->jobs) > 0)
             {
               _cupsRWLockRead(&(printer->rwlock));
