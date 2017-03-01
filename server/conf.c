@@ -267,8 +267,6 @@ serverLoadAttributes(
 
   while (get_token(fp, token, sizeof(token), &linenum) != NULL)
   {
-    serverLog(SERVER_LOGLEVEL_DEBUG, "\"%s\": %s on line %d.", filename, token, linenum);
-
     if (!_cups_strcasecmp(token, "ATTR"))
     {
      /*
