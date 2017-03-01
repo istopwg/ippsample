@@ -2045,7 +2045,7 @@ ippOpString(ipp_op_t op)		/* I - Operation ID */
   * See if the operation ID is a known value...
   */
 
-  if (op >= IPP_OP_PRINT_JOB && op <= IPP_OP_VALIDATE_DOCUMENT)
+  if (op >= IPP_OP_PRINT_JOB && op < (sizeof(ipp_std_ops) / sizeof(ipp_std_ops[0])))
     return (ipp_std_ops[op]);
   else if (op == IPP_OP_PRIVATE)
     return ("windows-ext");

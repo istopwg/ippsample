@@ -1423,7 +1423,6 @@ ipp_get_printer_attributes(
   if (!ra || cupsArrayFind(ra, "printer-current-time"))
     ippAddDate(client->response, IPP_TAG_PRINTER, "printer-current-time", ippTimeToDate(time(NULL)));
 
-
   if (!ra || cupsArrayFind(ra, "printer-state"))
     ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_ENUM,
                   "printer-state", printer->state > printer->dev_state ? (int)printer->state : (int)printer->dev_state);
@@ -1446,6 +1445,48 @@ ipp_get_printer_attributes(
 
   if (!ra || cupsArrayFind(ra, "printer-state-reasons"))
     serverCopyPrinterStateReasons(client->response, IPP_TAG_PRINTER, printer);
+
+  if (printer->strings && (!ra || cupsArrayFind(ra, "printer-strings-uri")))
+  {
+   /*
+    * See if we have a localization that matches the request language.
+    */
+
+    ipp_attribute_t	*attr;		/* attributes-natural-language attribute */
+    char		lang[32];	/* Copy of language string */
+    server_lang_t	key, *match;	/* Localization key and match */
+
+    attr = ippFirstAttribute(client->request);
+    attr = ippNextAttribute(client->request);
+    strlcpy(lang, ippGetString(attr, 0, NULL), sizeof(lang));
+    key.lang = lang;
+    if ((match = cupsArrayFind(printer->strings, &key)) == NULL && lang[2])
+    {
+     /*
+      * Try base language...
+      */
+
+      lang[2] = '\0';
+      match = cupsArrayFind(printer->strings, &key);
+    }
+
+    if (match)
+    {
+      char		uri[1024];	/* printer-strings-uri value */
+      server_listener_t	*lis = cupsArrayFirst(Listeners);
+					/* Default listener */
+      const char	*scheme = "http";
+					/* URL scheme */
+
+#ifdef HAVE_SSL
+      if (Encryption != HTTP_ENCRYPTION_NEVER)
+        scheme = "https";
+#endif /* HAVE_SSL */
+
+      httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), scheme, NULL, lis->host, lis->port, "%s/%s.strings", printer->resource, match->lang);
+      ippAddString(client->response, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-strings-uri", NULL, uri);
+    }
+  }
 
   if (!ra || cupsArrayFind(ra, "printer-up-time"))
     ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "printer-up-time", (int)(time(NULL) - printer->start_time));

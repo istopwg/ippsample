@@ -249,7 +249,7 @@ serverLoadAttributes(
 {
   ipp_t		*attrs;			/* Attributes to return */
   cups_file_t	*fp;			/* File */
-  int		linenum = 0;		/* Current line number */
+  int		linenum = 1;		/* Current line number */
   char		attr[128],		/* Attribute name */
 		token[1024],		/* Token from file */
 		*tokenptr;		/* Pointer into token */
@@ -267,6 +267,8 @@ serverLoadAttributes(
 
   while (get_token(fp, token, sizeof(token), &linenum) != NULL)
   {
+    serverLog(SERVER_LOGLEVEL_DEBUG, "\"%s\": %s on line %d.", filename, token, linenum);
+
     if (!_cups_strcasecmp(token, "ATTR"))
     {
      /*
@@ -599,6 +601,8 @@ serverLoadAttributes(
         *strings = cupsArrayNew3((cups_array_func_t)compare_lang, NULL, NULL, 0, (cups_acopy_func_t)copy_lang, (cups_afree_func_t)free_lang);
 
       cupsArrayAdd(*strings, &lang);
+
+      serverLog(SERVER_LOGLEVEL_DEBUG, "Added strings file \"%s\" for language \"%s\".", stringsfile, token);
     }
     else
     {
@@ -691,10 +695,8 @@ serverLoadConfiguration(
 	{
           snprintf(resource, sizeof(resource), "/ipp/print/%s", dent->filename);
 
-	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, proxy_user)) == NULL)
+	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, proxy_user, strings)) == NULL)
             continue;
-
-          printer->strings = strings;
 
 	  if (!Printers)
 	    Printers = cupsArrayNew((cups_array_func_t)compare_printers, NULL);
@@ -740,7 +742,7 @@ serverLoadConfiguration(
 	{
           snprintf(resource, sizeof(resource), "/ipp/print3d/%s", dent->filename);
 
-	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, proxy_user)) == NULL)
+	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, proxy_user, strings)) == NULL)
           continue;
 
 	  if (!Printers)

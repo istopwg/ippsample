@@ -270,10 +270,8 @@ main(int  argc,				/* I - Number of command-line args */
     if (!serverFinalizeConfiguration())
       return (1);
 
-    if ((printer = serverCreatePrinter("/ipp/print", name, location, make, model, icon, formats, ppm, ppm_color, duplex, pin, attrs, command, device_uri, proxy_user)) == NULL)
+    if ((printer = serverCreatePrinter("/ipp/print", name, location, make, model, icon, formats, ppm, ppm_color, duplex, pin, attrs, command, device_uri, proxy_user, strings)) == NULL)
       return (1);
-
-    printer->strings = strings;
 
     Printers = cupsArrayNew(NULL, NULL);
     cupsArrayAdd(Printers, printer);
