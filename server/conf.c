@@ -1,7 +1,7 @@
 /*
  * Configuration file support for sample IPP server implementation.
  *
- * Copyright 2015-2016 by Apple Inc.
+ * Copyright 2015-2017 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -29,10 +29,13 @@ static _cups_mutex_t	printer_mutex = _CUPS_MUTEX_INITIALIZER;
  * Local functions...
  */
 
+static int		compare_lang(server_lang_t *a, server_lang_t *b);
 static int		compare_printers(server_printer_t *a, server_printer_t *b);
+static server_lang_t	*copy_lang(server_lang_t *a);
 #ifdef HAVE_AVAHI
 static void		dnssd_client_cb(AvahiClient *c, AvahiClientState state, void *userdata);
 #endif /* HAVE_AVAHI */
+static void		free_lang(server_lang_t *a);
 static ipp_t		*get_collection(cups_file_t *fp, const char *filename, int *linenum);
 static char		*get_token(cups_file_t *fp, char *buf, int buflen, int *linenum);
 static int		load_system(const char *conf);
@@ -225,6 +228,7 @@ serverFindPrinter(const char *resource)	/* I - Resource path */
  *    MAKE "manufacturer"
  *    MODEL "model name"
  *    PROXY-USER "username"
+ *    STRINGS lang filename.strings
  *
  * AUTH schemes are "none" for no authentication or "basic" for HTTP Basic
  * authentication.
@@ -234,13 +238,14 @@ serverFindPrinter(const char *resource)	/* I - Resource path */
 
 ipp_t *					/* O - Attributes */
 serverLoadAttributes(
-    const char *filename,		/* I - File to load */
-    char       **authtype,		/* O - Authentication type, if any */
-    char       **command,		/* O - Command to run, if any */
-    char       **device_uri,		/* O - Device URI, if any */
-    char       **make,			/* O - Manufacturer */
-    char       **model,			/* O - Model */
-    char       **proxy_user)		/* O - Proxy user, if any */
+    const char   *filename,		/* I - File to load */
+    char         **authtype,		/* O - Authentication type, if any */
+    char         **command,		/* O - Command to run, if any */
+    char         **device_uri,		/* O - Device URI, if any */
+    char         **make,		/* O - Manufacturer */
+    char         **model,		/* O - Model */
+    char         **proxy_user,		/* O - Proxy user, if any */
+    cups_array_t **strings)		/* O - Localizations, if any */
 {
   ipp_t		*attrs;			/* Attributes to return */
   cups_file_t	*fp;			/* File */
@@ -570,6 +575,31 @@ serverLoadAttributes(
 
       *proxy_user = strdup(token);
     }
+    else if (!_cups_strcasecmp(token, "STRINGS") && strings)
+    {
+      server_lang_t	lang;			/* New localization */
+      char		stringsfile[1024];	/* Strings filename */
+
+      if (!get_token(fp, token, sizeof(token), &linenum))
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing STRINGS language on line %d of \"%s\".", linenum, filename);
+        goto load_error;
+      }
+
+      if (!get_token(fp, stringsfile, sizeof(stringsfile), &linenum))
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing STRINGS filename on line %d of \"%s\".", linenum, filename);
+        goto load_error;
+      }
+
+      lang.lang     = token;
+      lang.filename = stringsfile;
+
+      if (!*strings)
+        *strings = cupsArrayNew3((cups_array_func_t)compare_lang, NULL, NULL, 0, (cups_acopy_func_t)copy_lang, (cups_afree_func_t)free_lang);
+
+      cupsArrayAdd(*strings, &lang);
+    }
     else
     {
       serverLog(SERVER_LOGLEVEL_ERROR, "Unknown directive \"%s\" on line %d of \"%s\".", token, linenum, filename);
@@ -617,6 +647,7 @@ serverLoadConfiguration(
 		*make,			/* Make value, if any */
 		*model,			/* Model value, if any */
 		*proxy_user;		/* ProxyUser value, if any */
+  cups_array_t	*strings;		/* Strings files, if any */
 
 
  /*
@@ -654,13 +685,16 @@ serverLoadConfiguration(
         snprintf(iconname, sizeof(iconname), "%s/print/%s.png", directory, dent->filename);
 
         authtype = command = device_uri = make = model = proxy_user = NULL;
+        strings  = NULL;
 
-        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &make, &model, &proxy_user)) != NULL)
+        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &make, &model, &proxy_user, &strings)) != NULL)
 	{
           snprintf(resource, sizeof(resource), "/ipp/print/%s", dent->filename);
 
 	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, proxy_user)) == NULL)
-          continue;
+            continue;
+
+          printer->strings = strings;
 
 	  if (!Printers)
 	    Printers = cupsArrayNew((cups_array_func_t)compare_printers, NULL);
@@ -700,8 +734,9 @@ serverLoadConfiguration(
         snprintf(iconname, sizeof(iconname), "%s/print3d/%s.png", directory, dent->filename);
 
         authtype = command = device_uri = make = model = proxy_user = NULL;
+        strings  = NULL;
 
-        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &make, &model, &proxy_user)) != NULL)
+        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &make, &model, &proxy_user, &strings)) != NULL)
 	{
           snprintf(resource, sizeof(resource), "/ipp/print3d/%s", dent->filename);
 
@@ -727,6 +762,18 @@ serverLoadConfiguration(
 
 
 /*
+ * 'compare_lang()' - Compare two languages.
+ */
+
+static int				/* O - Result of comparison */
+compare_lang(server_lang_t *a,		/* I - First localization */
+             server_lang_t *b)		/* I - Second localization */
+{
+  return (strcmp(a->lang, b->lang));
+}
+
+
+/*
  * 'compare_printers()' - Compare two printers.
  */
 
@@ -735,6 +782,26 @@ compare_printers(server_printer_t *a,	/* I - First printer */
                  server_printer_t *b)	/* I - Second printer */
 {
   return (strcmp(a->resource, b->resource));
+}
+
+
+/*
+ * 'copy_lang()' - Copy a localization.
+ */
+
+static server_lang_t *			/* O - New localization */
+copy_lang(server_lang_t *a)		/* I - Localization to copy */
+{
+  server_lang_t	*b;			/* New localization */
+
+
+  if ((b = calloc(1, sizeof(server_lang_t))) != NULL)
+  {
+    b->lang     = strdup(a->lang);
+    b->filename = strdup(a->filename);
+  }
+
+  return (b);
 }
 
 
@@ -772,6 +839,19 @@ dnssd_client_cb(
   }
 }
 #endif /* HAVE_AVAHI */
+
+
+/*
+ * 'free_lang()' - Free a localization.
+ */
+
+static void
+free_lang(server_lang_t *a)		/* I - Localization */
+{
+  free(a->lang);
+  free(a->filename);
+  free(a);
+}
 
 
 /*

@@ -1,7 +1,7 @@
 /*
  * Header file for sample IPP server implementation.
  *
- * Copyright 2010-2016 by Apple Inc.
+ * Copyright 2010-2017 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -361,6 +361,12 @@ typedef struct server_device_s		/**** Output Device data ****/
   server_preason_t	reasons;	/* printer-state-reasons values */
 } server_device_t;
 
+typedef struct server_lang_s		/**** Localization data ****/
+{
+  char			*lang,		/* Language code */
+			*filename;	/* Strings file */
+} server_lang_t;
+
 typedef struct server_printer_s		/**** Printer data ****/
 {
   _cups_rwlock_t	rwlock;		/* Printer lock */
@@ -379,6 +385,7 @@ typedef struct server_printer_s		/**** Printer data ****/
                         *command,	/* Command to run for job processing, if any */
                         *device_uri,	/* Output device URI, if any */
 			*proxy_user;	/* Proxy username, if any */
+  cups_array_t		*strings;	/* Strings files for various languages */
   size_t		resourcelen;	/* Length of resource path */
   cups_array_t		*devices;	/* Associated devices */
   ipp_t			*attrs;		/* Static attributes */
@@ -540,7 +547,7 @@ extern server_jreason_t	serverGetJobStateReasonsBits(ipp_attribute_t *attr);
 extern server_event_t	serverGetNotifyEventsBits(ipp_attribute_t *attr);
 extern const char	*serverGetNotifySubscribedEvent(server_event_t event);
 extern server_preason_t	serverGetPrinterStateReasonsBits(ipp_attribute_t *attr);
-extern ipp_t		*serverLoadAttributes(const char *filename, char **authtype, char **command, char **device_uri, char **make, char **model, char **proxy_user);
+extern ipp_t		*serverLoadAttributes(const char *filename, char **authtype, char **command, char **device_uri, char **make, char **model, char **proxy_user, cups_array_t **strings);
 extern int		serverLoadConfiguration(const char *directory);
 extern void		serverLog(server_loglevel_t level, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
 extern void		serverLogAttributes(server_client_t *client, const char *title, ipp_t *ipp, int type);

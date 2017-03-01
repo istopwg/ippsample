@@ -304,8 +304,8 @@ serverCreatePrinter(
   };
   static const char * const media_supported[] =
   {					/* Default media-supported values */
-    "na_letter_8.5x11in"	,		/* Letter */
-    "na_legal_8.5x14in",			/* Legal */
+    "na_letter_8.5x11in",		/* Letter */
+    "na_legal_8.5x14in",		/* Legal */
     "iso_a4_210x297mm"			/* A4 */
   };
   static const int media_xxx_margin_supported[] =

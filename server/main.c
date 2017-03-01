@@ -50,6 +50,7 @@ main(int  argc,				/* I - Number of command-line args */
   char		*proxy_user = NULL;	/* Proxy username */
   server_printer_t *printer;		/* Printer object */
   ipp_t		*attrs = NULL;		/* Extra printer attributes */
+  cups_array_t	*strings = NULL;	/* Localization files */
 
 
  /*
@@ -103,7 +104,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-	      attrs = serverLoadAttributes(argv[i], &authtype, &command, &device_uri, &make, &model, &proxy_user);
+	      attrs = serverLoadAttributes(argv[i], &authtype, &command, &device_uri, &make, &model, &proxy_user, &strings);
 	      break;
 
           case 'c' : /* -c command */
@@ -271,6 +272,8 @@ main(int  argc,				/* I - Number of command-line args */
 
     if ((printer = serverCreatePrinter("/ipp/print", name, location, make, model, icon, formats, ppm, ppm_color, duplex, pin, attrs, command, device_uri, proxy_user)) == NULL)
       return (1);
+
+    printer->strings = strings;
 
     Printers = cupsArrayNew(NULL, NULL);
     cupsArrayAdd(Printers, printer);
