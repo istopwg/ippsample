@@ -955,6 +955,8 @@ html_header(server_client_t *client,	/* I - Client */
 	      "<meta name=\"viewport\" content=\"width=device-width\">\n"
 	      "<style>\n"
 	      "body { font-family: sans-serif; margin: 0; }\n"
+              "div.header { background: black; color: white; left: 0px; margin: 0px; padding: 10px; right: 0px; width: 100%%; }\n"
+              "div.header a { color: white; text-decoration: none; }\n"
 	      "div.body { padding: 0px 10px 10px; }\n"
 	      "blockquote { background: #dfd; border-radius: 5px; color: #006; padding: 10px; }\n"
 	      "table.form { border-collapse: collapse; margin-top: 10px; width: 100%%; }\n"
@@ -965,22 +967,13 @@ html_header(server_client_t *client,	/* I - Client */
 	      "table.striped tr:nth-child(odd) { background: #f0f0f0; }\n"
 	      "table.striped th { background: white; border-bottom: solid thin black; text-align: left; vertical-align: bottom; }\n"
 	      "table.striped td { margin: 0; padding: 5px; vertical-align: top; }\n"
-	      "table.nav { border-collapse: collapse; width: 100%%; }\n"
-	      "table.nav td { margin: 0; text-align: center; }\n"
-	      "td.nav a, td.nav a:active, td.nav a:hover, td.nav a:hover:link, td.nav a:hover:link:visited, td.nav a:link, td.nav a:link:visited, td.nav a:visited { background: inherit; color: inherit; font-size: 80%%; text-decoration: none; }\n"
-	      "td.nav { background: #333; color: #fff; padding: 4px 8px; width: 33%%; }\n"
-	      "td.nav.sel { background: #fff; color: #000; font-weight: bold; }\n"
-	      "td.nav:hover { background: #666; color: #fff; }\n"
-	      "td.nav:active { background: #000; color: #ff0; }\n"
+	      "a.button { background: black; border-color: black; border-radius: 8px; color: white; padding: 2px 10px; text-decoration: none; }\n"
+              "a:hover.button { background: #444; border-color: #444; }\n"
 	      "</style>\n"
 	      "</head>\n"
 	      "<body>\n"
-	      "<table class=\"nav\"><tr>"
-	      "<td class=\"nav%s\"><a href=\"/\">Status</a></td>"
-	      "<td class=\"nav%s\"><a href=\"/supplies\">Supplies</a></td>"
-	      "<td class=\"nav%s\"><a href=\"/media\">Media</a></td>"
-	      "</tr></table>\n"
-	      "<div class=\"body\">\n", title, !strcmp(client->uri, "/") ? " sel" : "", !strcmp(client->uri, "/supplies") ? " sel" : "", !strcmp(client->uri, "/media") ? " sel" : "");
+	      "<div class=\"header\"><a href=\"/\">" CUPS_SVERSION "</a></div>\n"
+	      "<div class=\"body\">\n", title);
 }
 
 
@@ -1427,11 +1420,9 @@ show_status(server_client_t  *client,	/* I - Client connection */
   if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
     return (0);
 
-  html_header(client, "ippserver (" CUPS_SVERSION ")");
-  html_printf(client, "<h1>ippserver (" CUPS_SVERSION ")</h1>\n");
-
   if (printer)
   {
+    html_header(client, printer->name);
     html_printf(client,
                 "<h2><img align=\"right\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s</h2>\n"
                 "<p>%s, %d job(s).", printer->resource, printer->name, printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
@@ -1481,6 +1472,7 @@ show_status(server_client_t  *client,	/* I - Client connection */
   }
   else
   {
+    html_header(client, CUPS_SVERSION);
     for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
     {
       html_printf(client,
