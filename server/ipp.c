@@ -1456,7 +1456,7 @@ ipp_get_printer_attributes(
     char		lang[32];	/* Copy of language string */
     server_lang_t	key, *match;	/* Localization key and match */
 
-    attr = ippFirstAttribute(client->request);
+    ippFirstAttribute(client->request);
     attr = ippNextAttribute(client->request);
     strlcpy(lang, ippGetString(attr, 0, NULL), sizeof(lang));
     key.lang = lang;

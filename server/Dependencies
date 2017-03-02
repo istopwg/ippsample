@@ -1,7 +1,7 @@
 client.o: client.c ippserver.h ../config.h ../cups/cups.h ../cups/file.h \
   ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
   ../cups/language.h ../cups/pwg.h ../cups/string-private.h \
-  ../cups/thread-private.h printer-png.h
+  ../cups/thread-private.h printer-png.h printer3d-png.h
 conf.o: conf.c ippserver.h ../config.h ../cups/cups.h ../cups/file.h \
   ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
   ../cups/language.h ../cups/pwg.h ../cups/string-private.h \
