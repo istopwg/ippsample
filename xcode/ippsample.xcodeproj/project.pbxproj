@@ -56,6 +56,7 @@
 		72737CF91C24BA4F007CBEF6 /* dest.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF21C24BA4F007CBEF6 /* dest.c */; };
 		72737CFB1C24BA4F007CBEF6 /* notify.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF41C24BA4F007CBEF6 /* notify.c */; };
 		72737CFC1C24BA4F007CBEF6 /* util.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF51C24BA4F007CBEF6 /* util.c */; };
+		72A0D4531E6864EB0092958D /* printer3d-png.h in Headers */ = {isa = PBXBuildFile; fileRef = 72A0D4521E6864EB0092958D /* printer3d-png.h */; };
 		72B402681C0CE27900139783 /* array-private.h in Headers */ = {isa = PBXBuildFile; fileRef = 72B4022F1C0CE27800139783 /* array-private.h */; };
 		72B402691C0CE27900139783 /* array.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B402301C0CE27800139783 /* array.c */; };
 		72B4026A1C0CE27900139783 /* array.h in Headers */ = {isa = PBXBuildFile; fileRef = 72B402311C0CE27800139783 /* array.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -339,6 +340,7 @@
 		72737CF21C24BA4F007CBEF6 /* dest.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = dest.c; path = ../cups/dest.c; sourceTree = "<group>"; };
 		72737CF41C24BA4F007CBEF6 /* notify.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = notify.c; path = ../cups/notify.c; sourceTree = "<group>"; };
 		72737CF51C24BA4F007CBEF6 /* util.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = util.c; path = ../cups/util.c; sourceTree = "<group>"; };
+		72A0D4521E6864EB0092958D /* printer3d-png.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "printer3d-png.h"; path = "../server/printer3d-png.h"; sourceTree = "<group>"; };
 		72B402181C0CDFB400139783 /* ippserver */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ippserver; sourceTree = BUILT_PRODUCTS_DIR; };
 		72B402261C0CE0E100139783 /* libcups.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libcups.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		72B4022F1C0CE27800139783 /* array-private.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "array-private.h"; path = "../cups/array-private.h"; sourceTree = "<group>"; };
@@ -409,7 +411,6 @@
 		72B402AA1C0CE43D00139783 /* log.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = log.c; path = ../server/log.c; sourceTree = "<group>"; };
 		72B402AB1C0CE43D00139783 /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = main.c; path = ../server/main.c; sourceTree = "<group>"; };
 		72B402AC1C0CE43D00139783 /* printer.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = printer.c; path = ../server/printer.c; sourceTree = "<group>"; };
-		72B402AD1C0CE43D00139783 /* printer.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = printer.png; path = ../server/printer.png; sourceTree = "<group>"; };
 		72B402AE1C0CE43D00139783 /* subscription.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = subscription.c; path = ../server/subscription.c; sourceTree = "<group>"; };
 		72B402AF1C0CE43D00139783 /* transform.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = transform.c; path = ../server/transform.c; sourceTree = "<group>"; };
 		72B402C91C0CE5EC00139783 /* ipptool */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ipptool; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -639,8 +640,8 @@
 				72B402AA1C0CE43D00139783 /* log.c */,
 				72B402AB1C0CE43D00139783 /* main.c */,
 				72B402AC1C0CE43D00139783 /* printer.c */,
-				72B402AD1C0CE43D00139783 /* printer.png */,
 				72B589F51D1C6628007117DA /* printer-png.h */,
+				72A0D4521E6864EB0092958D /* printer3d-png.h */,
 				72B402AE1C0CE43D00139783 /* subscription.c */,
 				72B402AF1C0CE43D00139783 /* transform.c */,
 			);
@@ -709,6 +710,7 @@
 			files = (
 				72B4028E1C0CE27900139783 /* pwg.h in Headers */,
 				72B402831C0CE27900139783 /* ipp.h in Headers */,
+				72A0D4531E6864EB0092958D /* printer3d-png.h in Headers */,
 				72B4027F1C0CE27900139783 /* http.h in Headers */,
 				72B402711C0CE27900139783 /* dir.h in Headers */,
 				72B4026A1C0CE27900139783 /* array.h in Headers */,
