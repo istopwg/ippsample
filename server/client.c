@@ -1262,6 +1262,8 @@ show_materials(
   cups_option_t	*options;		/* Form options */
 
 
+  /* TODO: Pull list of materials from materials-col-database, and provide N select/option controls based on max-materials-col-supported. Then build materials-col-ready from selections */
+
   if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
     return (0);
 
@@ -1417,6 +1419,8 @@ show_media(server_client_t  *client,	/* I - Client connection */
     0
   };
 
+
+  /* TODO: Pull list of sources from media-source-supported, then list available size/type combos from media-col-database. Then build media-col-ready and media-ready from selections */
   if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
     return (0);
 
@@ -1645,6 +1649,7 @@ show_supplies(
 //  static const int levels[] = { 0, 5, 10, 25, 50, 75, 90, 95, 100 };
 
 
+  /* TODO: Pull from printer-supplies and printer-supplies-description, provide controls to change levels for each */
   if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
     return (0);
 
