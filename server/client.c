@@ -985,7 +985,8 @@ html_header(server_client_t *client,	/* I - Client */
 	      "table.striped tr:nth-child(odd) { background: #f0f0f0; }\n"
 	      "table.striped th { background: white; border-bottom: solid thin black; text-align: left; vertical-align: bottom; }\n"
 	      "table.striped td { margin: 0; padding: 5px; vertical-align: top; }\n"
-	      "a.button { background: black; border-color: black; border-radius: 8px; color: white; padding: 2px 10px; text-decoration: none; }\n"
+              "p.buttons { line-height: 200%%; }\n"
+	      "a.button { background: black; border-color: black; border-radius: 8px; color: white; padding: 2px 10px; text-decoration: none; white-space: nowrap; }\n"
               "a:hover.button { background: #444; border-color: #444; }\n"
 	      "</style>\n"
 	      "</head>\n"
@@ -1282,7 +1283,7 @@ show_materials(
 
   html_header(client, printer->dnssd_name);
 
-  html_printf(client, "<p><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a></p>\n", printer->resource);
+  html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a></p>\n", printer->resource);
   html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Materials</h1>\n", printer->resource, printer->dnssd_name);
 
   if ((materials_db = ippFindAttribute(printer->attrs, "materials-col-database", IPP_TAG_BEGIN_COLLECTION)) == NULL)
@@ -1594,9 +1595,9 @@ show_status(server_client_t  *client,	/* I - Client connection */
   {
     html_header(client, printer->dnssd_name);
     if (!strncmp(printer->resource, "/ipp/print3d", 12))
-      html_printf(client, "<p><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s/materials\">Show Materials</a>\n", printer->resource);
+      html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s/materials\">Show Materials</a>\n", printer->resource);
     else
-      html_printf(client, "<p><a class=\"button\" href=\"%s/media\">Show Media</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource);
+      html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"%s/media\">Show Media</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource);
     html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Jobs</h1>\n", printer->resource, printer->dnssd_name);
     html_printf(client, "<p>%s, %d job(s).", printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
     for (i = 0, reason = 1; i < (int)(sizeof(reasons) / sizeof(reasons[0])); i ++, reason <<= 1)
@@ -1655,9 +1656,9 @@ show_status(server_client_t  *client,	/* I - Client connection */
           html_printf(client, "\n<br>&nbsp;&nbsp;&nbsp;&nbsp;%s", reasons[j]);
       html_printf(client, "</p>\n");
       if (!strncmp(printer->resource, "/ipp/print3d", 12))
-        html_printf(client, "  <p><a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/materials\">Show Materials</a></p>\n", printer->resource, printer->resource);
+        html_printf(client, "  <p class=\"buttons\"><a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/materials\">Show Materials</a></p>\n", printer->resource, printer->resource);
       else
-        html_printf(client, "  <p><a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/media\">Show Media</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource, printer->resource);
+        html_printf(client, "  <p class=\"buttons\"><a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/media\">Show Media</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource, printer->resource);
       html_printf(client, "</div>\n");
     }
   }
