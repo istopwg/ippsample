@@ -1409,40 +1409,33 @@ show_media(server_client_t  *client,	/* I - Client connection */
            server_printer_t *printer,	/* I - Printer to show */
            const char       *encoding)	/* I - Content-Encoding */
 {
-  int		i,			/* Looping var */
-                num_options;		/* Number of form options */
-  cups_option_t	*options;		/* Form options */
-  static const char * const sizes[] =	/* Size strings */
-  {
-    "ISO A4",
-    "ISO A5",
-    "ISO A6",
-    "DL Envelope",
-    "US Legal",
-    "US Letter",
-    "#10 Envelope",
-    "3x5 Photo",
-    "3.5x5 Photo",
-    "4x6 Photo",
-    "5x7 Photo"
-  };
-  static const char * const types[] =	/* Type strings */
-  {
-    "Auto",
-    "Cardstock",
-    "Envelope",
-    "Labels",
-    "Other",
-    "Glossy Photo",
-    "High-Gloss Photo",
-    "Matte Photo",
-    "Satin Photo",
-    "Semi-Gloss Photo",
-    "Plain",
-    "Letterhead",
-    "Transparency"
-  };
-  static const int sheets[] =		/* Number of sheets */
+  int			i, j,		/* Looping vars */
+                        num_ready,	/* Number of ready media */
+                        num_sizes,	/* Number of media sizes */
+			num_sources,	/* Number of media sources */
+                        num_types;	/* Number of media types */
+  ipp_attribute_t	*media_col_ready,/* media-col-ready attribute */
+                        *media_ready,	/* media-ready attribute */
+                        *media_sizes,	/* media-supported attribute */
+                        *media_sources,	/* media-source-supported attribute */
+                        *media_types,	/* media-type-supported attribute */
+                        *input_tray;	/* printer-input-tray attribute */
+//                        *attr;		/* Other attribute */
+  ipp_t			*media_col;	/* media-col value */
+  const char            *media_size,	/* media value */
+                        *media_source,	/* media-source value */
+                        *media_type,	/* media-type value */
+                        *ready_size,	/* media-col-ready media-size[-name] value */
+                        *ready_source,	/* media-col-ready media-source value */
+                        *ready_tray,	/* printer-input-tray value */
+                        *ready_type;	/* media-col-ready media-type value */
+  char			tray_str[1024],	/* printer-input-tray string value */
+			*tray_ptr;	/* Pointer into value */
+  int			tray_len;	/* Length of printer-input-tray value */
+  int			ready_sheets;	/* printer-input-tray sheets value */
+  int			num_options;	/* Number of form options */
+  cups_option_t		*options;	/* Form options */
+  static const int	sheets[] =	/* Number of sheets */
   {
     250,
     100,
@@ -1457,6 +1450,62 @@ show_media(server_client_t  *client,	/* I - Client connection */
     return (0);
 
   html_header(client, printer->name);
+
+  html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource);
+  html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Media</h1>\n", printer->resource, printer->dnssd_name);
+
+  if ((media_col_ready = ippFindAttribute(printer->attrs, "media-col-ready", IPP_TAG_BEGIN_COLLECTION)) == NULL)
+  {
+    html_printf(client, "<p>Error: No media-col-ready defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  media_ready = ippFindAttribute(printer->attrs, "media-ready", IPP_TAG_ZERO);
+
+  if ((media_sizes = ippFindAttribute(printer->attrs, "media-supported", IPP_TAG_ZERO)) == NULL)
+  {
+    html_printf(client, "<p>Error: No media-supported defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  if ((media_sources = ippFindAttribute(printer->attrs, "media-source-supported", IPP_TAG_ZERO)) == NULL)
+  {
+    html_printf(client, "<p>Error: No media-source-supported defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  if ((media_types = ippFindAttribute(printer->attrs, "media-type-supported", IPP_TAG_ZERO)) == NULL)
+  {
+    html_printf(client, "<p>Error: No media-type-supported defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  if ((input_tray = ippFindAttribute(printer->attrs, "printer-input-tray", IPP_TAG_STRING)) == NULL)
+  {
+    html_printf(client, "<p>Error: No printer-input-tray defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  num_ready   = ippGetCount(media_col_ready);
+  num_sizes   = ippGetCount(media_sizes);
+  num_sources = ippGetCount(media_sources);
+  num_types   = ippGetCount(media_types);
+
+  if (num_sources != ippGetCount(input_tray))
+  {
+    html_printf(client, "<p>Error: Different number of trays in media-source-supported and printer-input-tray defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+ /*
+  * Process form data if present...
+  */
 
   if ((num_options = parse_options(client, &options)) > 0)
   {
@@ -1511,42 +1560,75 @@ show_media(server_client_t  *client,	/* I - Client connection */
   html_printf(client, "<form method=\"GET\" action=\"%s/media\">\n", printer->resource);
 
   html_printf(client, "<table class=\"form\" summary=\"Media\">\n");
-  html_printf(client, "<tr><th>Main Tray:</th><td><select name=\"main_size\"><option value=\"-1\">None</option>");
-  for (i = 0; i < (int)(sizeof(sizes) / sizeof(sizes[0])); i ++)
-    if (!strstr(sizes[i], "Envelope") && !strstr(sizes[i], "Photo"))
-      html_printf(client, "<option value=\"%d\"%s>%s</option>", i, /*i == printer->main_size ? " selected" :*/ "", sizes[i]);
-  html_printf(client, "</select> <select name=\"main_type\"><option value=\"-1\">None</option>");
-  for (i = 0; i < (int)(sizeof(types) / sizeof(types[0])); i ++)
-    if (!strstr(types[i], "Photo"))
-      html_printf(client, "<option value=\"%d\"%s>%s</option>", i, /*i == printer->main_type ? " selected" :*/ "", types[i]);
-  html_printf(client, "</select> <select name=\"main_level\">");
-  for (i = 0; i < (int)(sizeof(sheets) / sizeof(sheets[0])); i ++)
-    html_printf(client, "<option value=\"%d\"%s>%d sheets</option>", sheets[i], /*sheets[i] == printer->main_level ? " selected" :*/ "", sheets[i]);
-  html_printf(client, "</select></td></tr>\n");
+  for (i = 0; i < num_sources; i ++)
+  {
+    media_source = ippGetString(media_sources, i, NULL);
 
-  html_printf(client,
-              "<tr><th>Envelope Feeder:</th><td><select name=\"envelope_size\"><option value=\"-1\">None</option>");
-  for (i = 0; i < (int)(sizeof(sizes) / sizeof(sizes[0])); i ++)
-    if (strstr(sizes[i], "Envelope"))
-      html_printf(client, "<option value=\"%d\"%s>%s</option>", i, /*i == printer->envelope_size ? " selected" :*/ "", sizes[i]);
-  html_printf(client, "</select> <select name=\"envelope_level\">");
-  for (i = 0; i < (int)(sizeof(sheets) / sizeof(sheets[0])); i ++)
-    html_printf(client, "<option value=\"%d\"%s>%d sheets</option>", sheets[i], /*sheets[i] == printer->envelope_level ? " selected" :*/ "", sheets[i]);
-  html_printf(client, "</select></td></tr>\n");
+    for (j = 0, ready_size = NULL, ready_type = NULL; j < num_ready; j ++)
+    {
+      media_col    = ippGetCollection(media_col_ready, j);
+      ready_size   = ippGetString(ippFindAttribute(media_col, "media-size-name", IPP_TAG_ZERO), 0, NULL);
+      ready_source = ippGetString(ippFindAttribute(media_col, "media-source", IPP_TAG_ZERO), 0, NULL);
+      ready_type   = ippGetString(ippFindAttribute(media_col, "media-type", IPP_TAG_ZERO), 0, NULL);
 
-  html_printf(client,
-              "<tr><th>Photo Tray:</th><td><select name=\"photo_size\"><option value=\"-1\">None</option>");
-  for (i = 0; i < (int)(sizeof(sizes) / sizeof(sizes[0])); i ++)
-    if (strstr(sizes[i], "Photo"))
-      html_printf(client, "<option value=\"%d\"%s>%s</option>", i, /*i == printer->photo_size ? " selected" :*/ "", sizes[i]);
-  html_printf(client, "</select> <select name=\"photo_type\"><option value=\"-1\">None</option>");
-  for (i = 0; i < (int)(sizeof(types) / sizeof(types[0])); i ++)
-    if (strstr(types[i], "Photo"))
-      html_printf(client, "<option value=\"%d\"%s>%s</option>", i, /*i == printer->photo_type ? " selected" :*/ "", types[i]);
-  html_printf(client, "</select> <select name=\"photo_level\">");
-  for (i = 0; i < (int)(sizeof(sheets) / sizeof(sheets[0])); i ++)
-    html_printf(client, "<option value=\"%d\"%s>%d sheets</option>", sheets[i], /*sheets[i] == printer->photo_level ? " selected" :*/ "", sheets[i]);
-  html_printf(client, "</select></td></tr>\n");
+      if (ready_source && !strcmp(ready_source, media_source))
+        break;
+
+      ready_source = NULL;
+      ready_size   = NULL;
+      ready_type   = NULL;
+    }
+
+   /*
+    * Media size...
+    */
+
+    html_printf(client, "<tr><th>%s:</th><td><select name=\"size%d\"><option value=\"\">None</option>", media_source, i);
+    for (j = 0; j < num_sizes; j ++)
+    {
+      media_size = ippGetString(media_sizes, j, NULL);
+
+      html_printf(client, "<option%s>%s</option>", (ready_size && !strcmp(ready_size, media_size)) ? " selected" : "", media_size);
+    }
+    html_printf(client, "</select>\n");
+
+   /*
+    * Media type...
+    */
+
+    html_printf(client, "<select name=\"type%d\"><option value=\"\">None</option>", i);
+    for (j = 0; j < num_types; j ++)
+    {
+      media_type = ippGetString(media_types, j, NULL);
+
+      html_printf(client, "<option%s>%s</option>", (ready_type && !strcmp(ready_type, media_type)) ? " selected" : "", media_type);
+    }
+    html_printf(client, "</select>\n");
+
+   /*
+    * Level/sheets loaded...
+    */
+
+    if ((ready_tray = ippGetOctetString(input_tray, i, &tray_len)) != NULL)
+    {
+      if (tray_len > (sizeof(tray_str) - 1))
+        tray_len = sizeof(tray_str) - 1;
+      memcpy(tray_str, ready_tray, tray_len);
+      tray_str[tray_len] = '\0';
+
+      if ((tray_ptr = strstr(tray_str, "level=")) != NULL)
+        ready_sheets = atoi(tray_ptr + 6);
+      else
+        ready_sheets = 0;
+    }
+    else
+      ready_sheets = 0;
+
+    html_printf(client, "<select name=\"level%d\">", i);
+    for (j = 0; j < (int)(sizeof(sheets) / sizeof(sheets[0])); j ++)
+      html_printf(client, "<option value=\"%d\"%s>%d sheets</option>", sheets[j], sheets[j] == ready_sheets ? " selected" : "", sheets[j]);
+    html_printf(client, "</select></td></tr>\n");
+  }
 
   html_printf(client, "<tr><td></td><td><input type=\"submit\" value=\"Update Media\"></td></tr></table></form>\n");
   html_footer(client);

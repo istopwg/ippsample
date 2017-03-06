@@ -280,11 +280,11 @@ serverCreatePrinter(
     "job-name",
     "job-priority",
     "materials-col",
+    "platform-temperatures",
     "print-accuracy",
+    "print-base",
     "print-quality",
-    "print-rafts",
-    "print-supports",
-    "printer-bed-temperatures"
+    "print-supports"
   };
   static const int media_col_sizes[][2] =
   {					/* Default media-col sizes */
@@ -721,7 +721,7 @@ serverCreatePrinter(
     /* media-col-ready */
     if (!ippFindAttribute(printer->attrs, "media-col-ready", IPP_TAG_ZERO))
     {
-      media_col = create_media_col(media_supported[0], NULL, NULL, media_col_sizes[0][0], media_col_sizes[0][1], media_xxx_margin_supported[0]);
+      media_col = create_media_col(media_supported[0], "main", NULL, media_col_sizes[0][0], media_col_sizes[0][1], media_xxx_margin_supported[0]);
 
       ippAddCollection(printer->attrs, IPP_TAG_PRINTER, "media-col-ready", media_col);
       ippDelete(media_col);
@@ -765,7 +765,7 @@ serverCreatePrinter(
 
     /* media-source-supported */
     if (!ippFindAttribute(printer->attrs, "media-source-supported", IPP_TAG_ZERO))
-      ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "media-source-supported", NULL, "face-down");
+      ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "media-source-supported", NULL, "main");
 
     /* media-top-margin-supported */
     if (!ippFindAttribute(printer->attrs, "media-top-margin-supported", IPP_TAG_ZERO))
@@ -957,11 +957,22 @@ serverCreatePrinter(
   /* printer-icons */
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-icons", NULL, icons);
 
+  /* printer-info */
+  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-info", NULL, name);
+
   /* printer-is-accepting-jobs */
   ippAddBoolean(printer->attrs, IPP_TAG_PRINTER, "printer-is-accepting-jobs", 1);
 
-  /* printer-info */
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-info", NULL, name);
+  if (!is_print3d)
+  {
+    /* printer-input-tray */
+    if (!ippFindAttribute(printer->attrs, "printer-input-tray", IPP_TAG_STRING))
+    {
+      const char *tray = "type=sheetFeedAutoRemovableTray;mediafeed=0;mediaxfeed=0;maxcapacity=250;level=100;status=0;name=main;";
+
+      ippAddOctetString(printer->attrs, IPP_TAG_PRINTER, "printer-input-tray", tray, (int)strlen(tray));
+    }
+  }
 
   /* printer-location */
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT,
