@@ -1324,8 +1324,8 @@ show_materials(
     * enable testing and development!
     */
 
-    char	name[255];	/* Form name */
-    const char	*val;		/* Form value */
+    char	name[255];		/* Form name */
+    const char	*val;			/* Form value */
 
     _cupsRWLockWrite(&printer->rwlock);
 
@@ -1753,8 +1753,8 @@ show_status(server_client_t  *client,	/* I - Client connection */
       html_printf(client, "<table class=\"striped\" summary=\"Jobs\"><thead><tr><th>Job #</th><th>Name</th><th>Owner</th><th>When</th></tr></thead><tbody>\n");
       for (job = (server_job_t *)cupsArrayFirst(printer->jobs); job; job = (server_job_t *)cupsArrayNext(printer->jobs))
       {
-        char	when[256],	/* When job queued/started/finished */
-                  hhmmss[64];	/* Time HH:MM:SS */
+        char	when[256],		/* When job queued/started/finished */
+                hhmmss[64];		/* Time HH:MM:SS */
 
         switch (job->state)
         {
@@ -1894,8 +1894,8 @@ show_supplies(
     * enable testing and development!
     */
 
-    char	name[64];	/* Form field */
-    const char	*val;		/* Form value */
+    char	name[64];		/* Form field */
+    const char	*val;			/* Form value */
 
     _cupsRWLockWrite(&printer->rwlock);
 
