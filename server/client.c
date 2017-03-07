@@ -1517,42 +1517,101 @@ show_media(server_client_t  *client,	/* I - Client connection */
     * enable testing and development!
     */
 
-#if 0
-    const char	*val;		/* Form value */
+    char	name[255];		/* Form name */
+    const char	*val;			/* Form value */
+    pwg_media_t	*media;			/* Media info */
 
-    if ((val = cupsGetOption("main_size", num_options, options)) != NULL)
-      printer->main_size = atoi(val);
-    if ((val = cupsGetOption("main_type", num_options, options)) != NULL)
-      printer->main_type = atoi(val);
-    if ((val = cupsGetOption("main_level", num_options, options)) != NULL)
-      printer->main_level = atoi(val);
+    _cupsRWLockWrite(&printer->rwlock);
 
-    if ((val = cupsGetOption("envelope_size", num_options, options)) != NULL)
-      printer->envelope_size = atoi(val);
-    if ((val = cupsGetOption("envelope_level", num_options, options)) != NULL)
-      printer->envelope_level = atoi(val);
+    ippDeleteAttribute(printer->attrs, input_tray);
+    input_tray = NULL;
 
-    if ((val = cupsGetOption("photo_size", num_options, options)) != NULL)
-      printer->photo_size = atoi(val);
-    if ((val = cupsGetOption("photo_type", num_options, options)) != NULL)
-      printer->photo_type = atoi(val);
-    if ((val = cupsGetOption("photo_level", num_options, options)) != NULL)
-      printer->photo_level = atoi(val);
+    ippDeleteAttribute(printer->attrs, media_col_ready);
+    media_col_ready = NULL;
 
-    if ((printer->main_level < 100 && printer->main_level > 0) || (printer->envelope_level < 25 && printer->envelope_level > 0) || (printer->photo_level < 25 && printer->photo_level > 0))
-      printer->state_reasons |= SERVER_PREASON_MEDIA_LOW;
-    else
-      printer->state_reasons &= (server_preason_t)~SERVER_PREASON_MEDIA_LOW;
-
-    if ((printer->main_level == 0 && printer->main_size > _IPP_MEDIA_SIZE_NONE) || (printer->envelope_level == 0 && printer->envelope_size > _IPP_MEDIA_SIZE_NONE) || (printer->photo_level == 0 && printer->photo_size > _IPP_MEDIA_SIZE_NONE))
+    if (media_ready)
     {
-      printer->state_reasons |= SERVER_PREASON_MEDIA_EMPTY;
-      if (printer->active_job)
-        printer->state_reasons |= SERVER_PREASON_MEDIA_NEEDED;
+      ippDeleteAttribute(printer->attrs, media_ready);
+      media_ready = NULL;
     }
-    else
-      printer->state_reasons &= (server_preason_t)~(SERVER_PREASON_MEDIA_EMPTY | SERVER_PREASON_MEDIA_NEEDED);
-#endif // 0
+
+    printer->state_reasons &= (server_preason_t)~(SERVER_PREASON_MEDIA_LOW | SERVER_PREASON_MEDIA_EMPTY | SERVER_PREASON_MEDIA_NEEDED);
+
+    for (i = 0; i < num_sources; i ++)
+    {
+      media_source = ippGetString(media_sources, i, NULL);
+
+      snprintf(name, sizeof(name), "size%d", i);
+      if ((media_size = cupsGetOption(name, num_options, options)) != NULL && (media = pwgMediaForPWG(media_size)) != NULL)
+      {
+        char	media_key[128];		/* media-key value */
+        ipp_t	*media_size_col;	/* media-size collection */
+
+        snprintf(name, sizeof(name), "type%d", i);
+        media_type = cupsGetOption(name, num_options, options);
+
+        if (media_ready)
+          ippSetString(printer->attrs, &media_ready, ippGetCount(media_ready), media_size);
+        else
+          media_ready = ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-ready", NULL, media_size);
+
+        if (media_type && *media_type)
+          snprintf(media_key, sizeof(media_key), "%s_%s_%s", media_size, media_source, media_type);
+        else
+          snprintf(media_key, sizeof(media_key), "%s_%s", media_size, media_source);
+
+        media_size_col = ippNew();
+        ippAddInteger(media_size_col, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "x-dimension", media->width);
+        ippAddInteger(media_size_col, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "y-dimension", media->length);
+
+        media_col = ippNew();
+        ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-key", NULL, media_key);
+        ippAddCollection(media_col, IPP_TAG_PRINTER, "media-size", media_size_col);
+        ippDelete(media_size_col);
+        ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-size-name", NULL, media_size);
+        ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-source", NULL, media_source);
+        if (media_type && *media_type)
+          ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-type", NULL, media_type);
+
+        if (media_col_ready)
+          ippSetCollection(printer->attrs, &media_col_ready, ippGetCount(media_col_ready), media_col);
+        else
+          media_col_ready = ippAddCollection(printer->attrs, IPP_TAG_PRINTER, "media-col-ready", media_col);
+        ippDelete(media_col);
+      }
+      else
+        media = NULL;
+
+      snprintf(name, sizeof(name), "level%d", i);
+      if ((val = cupsGetOption(name, num_options, options)) != NULL)
+        ready_sheets = atoi(val);
+      else
+        ready_sheets = 0;
+
+      snprintf(tray_str, sizeof(tray_str), "type=sheetFeedAutoRemovableTray;mediafeed=%d;mediaxfeed=%d;maxcapacity=250;level=%d;status=0;name=%s;", media ? media->length : 0, media ? media->width : 0, ready_sheets, media_source);
+
+      if (input_tray)
+        ippSetOctetString(printer->attrs, &input_tray, ippGetCount(input_tray), tray_str, (int)strlen(tray_str));
+      else
+        input_tray = ippAddOctetString(printer->attrs, IPP_TAG_PRINTER, "printer-input-tray", tray_str, (int)strlen(tray_str));
+
+      if (ready_sheets == 0)
+      {
+        printer->state_reasons |= SERVER_PREASON_MEDIA_EMPTY;
+        if (printer->processing_job)
+          printer->state_reasons |= SERVER_PREASON_MEDIA_NEEDED;
+      }
+      else if (ready_sheets < 25)
+        printer->state_reasons |= SERVER_PREASON_MEDIA_LOW;
+    }
+
+    if (!media_col_ready)
+      media_col_ready = ippAddOutOfBand(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "media-col-ready");
+
+    if (!media_ready)
+      media_ready = ippAddOutOfBand(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "media-ready");
+
+    _cupsRWUnlock(&printer->rwlock);
 
     html_printf(client, "<blockquote>Media updated.</blockquote>\n");
   }
