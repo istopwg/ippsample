@@ -1,7 +1,7 @@
 /*
  * API definitions for CUPS.
  *
- * Copyright 2007-2016 by Apple Inc.
+ * Copyright 2007-2017 by Apple Inc.
  * Copyright 1997-2007 by Easy Software Products.
  *
  * These coded instructions, statements, and computer programs are the
@@ -47,10 +47,10 @@ extern "C" {
  * Constants...
  */
 
-#  define CUPS_VERSION			2.0202
+#  define CUPS_VERSION			2.0203
 #  define CUPS_VERSION_MAJOR		2
 #  define CUPS_VERSION_MINOR		2
-#  define CUPS_VERSION_PATCH		2
+#  define CUPS_VERSION_PATCH		3
 
 #  define CUPS_BC_FD			3
 					/* Back-channel file descriptor for
@@ -233,13 +233,12 @@ enum cups_ptype_e			/* Printer type/capability bit
   CUPS_PRINTER_COMMANDS = 0x800000,	/* Printer supports maintenance commands
 					 * @since CUPS 1.2/macOS 10.5@ */
   CUPS_PRINTER_DISCOVERED = 0x1000000,	/* Printer was automatically discovered
-					 * and added @private@
-					 * @since Deprecated@ */
+					 * and added @private@ */
   CUPS_PRINTER_SCANNER = 0x2000000,	/* Scanner-only device
 					 * @since CUPS 1.4/macOS 10.6@ */
   CUPS_PRINTER_MFP = 0x4000000,		/* Printer with scanning capabilities
 					 * @since CUPS 1.4/macOS 10.6@ */
-  CUPS_PRINTER_3D = 0x8000000,		/* Printer with 3D capabilities @since CUPS 2.1@ */
+  CUPS_PRINTER_3D = 0x8000000,		/* Printer with 3D capabilities @private@ */
   CUPS_PRINTER_OPTIONS = 0x6fffc	/* ~(CLASS | REMOTE | IMPLICIT |
 					 * DEFAULT | FAX | REJECTING | DELETE |
 					 * NOT_SHARED | AUTHENTICATED |

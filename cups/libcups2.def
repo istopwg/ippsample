@@ -6,6 +6,9 @@ _cupsArrayNewStrings
 _cupsBufferGet
 _cupsBufferRelease
 _cupsCharmapFlush
+_cupsCondBroadcast
+_cupsCondInit
+_cupsCondWait
 _cupsConnect
 _cupsCreateDest
 _cupsEncodingName
@@ -79,8 +82,6 @@ _httpUpdate
 _httpWait
 _ippCheckOptions
 _ippFindOption
-_pwgGenerateSize
-_pwgInitSize
 _pwgMediaNearSize
 _pwgMediaTable
 cupsAddDest
