@@ -986,8 +986,9 @@ html_header(server_client_t *client,	/* I - Client */
 	      "table.striped th { background: white; border-bottom: solid thin black; text-align: left; vertical-align: bottom; }\n"
 	      "table.striped td { margin: 0; padding: 5px; vertical-align: top; }\n"
               "p.buttons { line-height: 200%%; }\n"
-	      "a.button { background: black; border-color: black; border-radius: 8px; color: white; padding: 2px 10px; text-decoration: none; white-space: nowrap; }\n"
+	      "a.button { background: black; border-color: black; border-radius: 8px; color: white; font-size: 12px; padding: 4px 10px; text-decoration: none; white-space: nowrap; }\n"
               "a:hover.button { background: #444; border-color: #444; }\n"
+              "span.bar { border: thin black; box-shadow: 0px 0px 5px rgba(0,0,0,0.2); display: inline-block; height: 10px; width: 100px; }\n"
 	      "</style>\n"
 	      "</head>\n"
 	      "<body>\n"
@@ -1445,7 +1446,6 @@ show_media(server_client_t  *client,	/* I - Client connection */
   };
 
 
-  /* TODO: Pull list of sources from media-source-supported, then list available size/type combos from media-col-database. Then build media-col-ready and media-ready from selections */
   if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
     return (0);
 
@@ -1738,7 +1738,7 @@ show_status(server_client_t  *client,	/* I - Client connection */
     if (!strncmp(printer->resource, "/ipp/print3d", 12))
       html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s/materials\">Show Materials</a>\n", printer->resource);
     else
-      html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"%s/media\">Show Media</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource);
+      html_printf(client, "<p class=\"buttons\"><p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s/media\">Show Media</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource);
     html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Jobs</h1>\n", printer->resource, printer->dnssd_name);
     html_printf(client, "<p>%s, %d job(s).", printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
     for (i = 0, reason = 1; i < (int)(sizeof(reasons) / sizeof(reasons[0])); i ++, reason <<= 1)
@@ -1819,17 +1819,70 @@ show_supplies(
     server_printer_t *printer,		/* I - Printer to show */
     const char       *encoding)		/* I - Content-Encoding to use */
 {
-//  int		i, j,			/* Looping vars */
+  int		i,			/* Looping var */
+		num_supply;		/* Number of supplies */
+  ipp_attribute_t *supply,		/* printer-supply attribute */
+		*supply_desc;		/* printer-supply-description attribute */
   int		num_options;		/* Number of form options */
   cups_option_t	*options;		/* Form options */
-//  static const int levels[] = { 0, 5, 10, 25, 50, 75, 90, 95, 100 };
+  int		supply_len,		/* Length of supply value */
+		level;			/* Supply level */
+  const char	*supply_value;		/* Supply value */
+  char		supply_text[1024],	/* Supply string */
+		*supply_ptr;		/* Pointer into supply string */
+  static const char * const printer_supply[] =
+  {					/* printer-supply values */
+    "index=1;class=receptacleThatIsFilled;type=wasteToner;unit=percent;"
+        "maxcapacity=100;level=%d;colorantname=unknown;",
+    "index=2;class=supplyThatIsConsumed;type=toner;unit=percent;"
+        "maxcapacity=100;level=%d;colorantname=black;",
+    "index=3;class=supplyThatIsConsumed;type=toner;unit=percent;"
+        "maxcapacity=100;level=%d;colorantname=cyan;",
+    "index=4;class=supplyThatIsConsumed;type=toner;unit=percent;"
+        "maxcapacity=100;level=%d;colorantname=magenta;",
+    "index=5;class=supplyThatIsConsumed;type=toner;unit=percent;"
+        "maxcapacity=100;level=%d;colorantname=yellow;"
+  };
+  static const char * const colors[] =	/* Colors for the supply-level bars */
+  {
+    "#777 linear-gradient(#333,#777)",
+    "#000 linear-gradient(#666,#000)",
+    "#0FF linear-gradient(#6FF,#0FF)",
+    "#F0F linear-gradient(#F6F,#F0F)",
+    "#CC0 linear-gradient(#EE6,#EE0)"
+  };
 
 
-  /* TODO: Pull from printer-supplies and printer-supplies-description, provide controls to change levels for each */
   if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
     return (0);
 
   html_header(client, printer->name);
+
+  html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/media\">Show Media</a></p>\n", printer->resource, printer->resource);
+  html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Media</h1>\n", printer->resource, printer->dnssd_name);
+
+  if ((supply = ippFindAttribute(printer->attrs, "printer-supply", IPP_TAG_STRING)) == NULL)
+  {
+    html_printf(client, "<p>Error: No printer-supply defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  num_supply = ippGetCount(supply);
+
+  if ((supply_desc = ippFindAttribute(printer->attrs, "printer-supply-description", IPP_TAG_TEXT)) == NULL)
+  {
+    html_printf(client, "<p>Error: No printer-supply-description defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  if (num_supply != ippGetCount(supply_desc))
+  {
+    html_printf(client, "<p>Error: Different number of values for printer-supply and printer-supply-description defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
 
   if ((num_options = parse_options(client, &options)) > 0)
   {
@@ -1841,53 +1894,70 @@ show_supplies(
     * enable testing and development!
     */
 
-#if 0
     char	name[64];	/* Form field */
     const char	*val;		/* Form value */
 
+    _cupsRWLockWrite(&printer->rwlock);
+
+    ippDeleteAttribute(printer->attrs, supply);
+    supply = NULL;
+
     printer->state_reasons &= (server_preason_t)~(SERVER_PREASON_MARKER_SUPPLY_EMPTY | SERVER_PREASON_MARKER_SUPPLY_LOW | SERVER_PREASON_MARKER_WASTE_ALMOST_FULL | SERVER_PREASON_MARKER_WASTE_FULL | SERVER_PREASON_TONER_EMPTY | SERVER_PREASON_TONER_LOW);
 
-    for (i = 0; i < (int)(sizeof(printer_supplies) / sizeof(printer_supplies[0])); i ++)
+    for (i = 0; i < num_supply; i ++)
     {
-      snprintf(name, sizeof(name), "supply_%d", i);
+      snprintf(name, sizeof(name), "supply%d", i);
       if ((val = cupsGetOption(name, num_options, options)) != NULL)
       {
-        int level = printer->supplies[i] = atoi(val);
-                                /* New level */
+        level = atoi(val);      /* New level */
 
-        if (i < 4)
-        {
-          if (level == 0)
-            printer->state_reasons |= SERVER_PREASON_TONER_EMPTY;
-          else if (level < 10)
-            printer->state_reasons |= SERVER_PREASON_TONER_LOW;
-        }
+        snprintf(supply_text, sizeof(supply_text), printer_supply[i], level);
+        if (supply)
+          ippSetOctetString(printer->attrs, &supply, ippGetCount(supply), supply_text, (int)strlen(supply_text));
         else
+          supply = ippAddOctetString(printer->attrs, IPP_TAG_PRINTER, "printer-supply", supply_text, (int)strlen(supply_text));
+
+        if (i == 0)
         {
           if (level == 100)
             printer->state_reasons |= SERVER_PREASON_MARKER_WASTE_FULL;
           else if (level > 90)
             printer->state_reasons |= SERVER_PREASON_MARKER_WASTE_ALMOST_FULL;
         }
+        else
+        {
+          if (level == 0)
+            printer->state_reasons |= SERVER_PREASON_TONER_EMPTY;
+          else if (level < 10)
+            printer->state_reasons |= SERVER_PREASON_TONER_LOW;
+        }
       }
     }
-#endif // 0
+
+    _cupsRWUnlock(&printer->rwlock);
 
     html_printf(client, "<blockquote>Supplies updated.</blockquote>\n");
   }
 
-  html_printf(client, "<form method=\"GET\" action=\"/supplies\">\n");
+  html_printf(client, "<form method=\"GET\" action=\"%s/supplies\">\n", printer->resource);
 
   html_printf(client, "<table class=\"form\" summary=\"Supplies\">\n");
-#if 0
-  for (i = 0; i < (int)(sizeof(printer_supplies) / sizeof(printer_supplies[0])); i ++)
+  for (i = 0; i < num_supply; i ++)
   {
-    html_printf(client, "<tr><th>%s:</th><td><select name=\"supply_%d\">", printer_supplies[i], i);
-    for (j = 0; j < (int)(sizeof(levels) / sizeof(levels[0])); j ++)
-      html_printf(client, "<option value=\"%d\"%s>%d%%</option>", levels[j], levels[j] == printer->supplies[i] ? " selected" : "", levels[j]);
-    html_printf(client, "</select></td></tr>\n");
+    supply_value = ippGetOctetString(supply, i, &supply_len);
+    if (supply_len > (sizeof(supply_text) - 1))
+      supply_len = sizeof(supply_text) - 1;
+
+    memcpy(supply_text, supply_value, supply_len);
+    supply_text[supply_len] = '\0';
+
+    if ((supply_ptr = strstr(supply_text, "level=")) != NULL)
+      level = atoi(supply_ptr + 6);
+    else
+      level = 50;
+
+    html_printf(client, "<tr><th>%s:</th><td><input name=\"supply%d\" size=\"3\" value=\"%d\"><span class=\"bar\" style=\"background: %s; width: %dpx;\"></span></td></tr>\n", ippGetString(supply_desc, i, NULL), i, level, colors[i], level * 2);
   }
-#endif // 0
   html_printf(client, "<tr><td></td><td><input type=\"submit\" value=\"Update Supplies\"></td></tr>\n</table>\n</form>\n");
   html_footer(client);
 

@@ -471,6 +471,18 @@ serverCreatePrinter(
 
   printer->devices = cupsArrayNew((cups_array_func_t)compare_devices, NULL);
 
+  if (ppm == 0)
+  {
+    ppm = ippGetInteger(ippFindAttribute(attrs, "pages-per-minute", IPP_TAG_INTEGER), 0);
+    serverLog(SERVER_LOGLEVEL_DEBUG, "Using ppm=%d", ppm);
+  }
+
+  if (ppm_color == 0)
+  {
+    ppm_color = ippGetInteger(ippFindAttribute(attrs, "pages-per-minute-color", IPP_TAG_INTEGER), 0);
+    serverLog(SERVER_LOGLEVEL_DEBUG, "Using ppm_color=%d", ppm_color);
+  }
+
   _cupsRWInit(&(printer->rwlock));
 
  /*
@@ -859,13 +871,12 @@ serverCreatePrinter(
       ippAddBoolean(printer->attrs, IPP_TAG_PRINTER, "page-ranges-supported", 1);
 
     /* pages-per-minute */
-    ippAddInteger(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER,
-		  "pages-per-minute", ppm);
+    if (!ippFindAttribute(printer->attrs, "pages-per-minute", IPP_TAG_INTEGER))
+      ippAddInteger(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "pages-per-minute", ppm);
 
     /* pages-per-minute-color */
-    if (ppm_color > 0)
-      ippAddInteger(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER,
-		    "pages-per-minute-color", ppm_color);
+    if (ppm_color > 0 && !ippFindAttribute(printer->attrs, "pages-per-minute-color", IPP_TAG_INTEGER))
+      ippAddInteger(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "pages-per-minute-color", ppm_color);
 
     /* pdl-override-supported */
     if (!ippFindAttribute(printer->attrs, "pdl-override-supported", IPP_TAG_ZERO))
