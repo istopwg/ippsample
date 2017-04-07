@@ -4,6 +4,7 @@ config.h
 config.log
 config.status
 cups/libcups.a
+cups/org.pwg.ippsample.*
 doc/mantohtml
 server/ippserver
 tools/ippfind
