@@ -1672,7 +1672,7 @@ show_media(server_client_t  *client,	/* I - Client connection */
     {
       if (tray_len > (sizeof(tray_str) - 1))
         tray_len = sizeof(tray_str) - 1;
-      memcpy(tray_str, ready_tray, tray_len);
+      memcpy(tray_str, ready_tray, (size_t)tray_len);
       tray_str[tray_len] = '\0';
 
       if ((tray_ptr = strstr(tray_str, "level=")) != NULL)
@@ -1948,7 +1948,7 @@ show_supplies(
     if (supply_len > (sizeof(supply_text) - 1))
       supply_len = sizeof(supply_text) - 1;
 
-    memcpy(supply_text, supply_value, supply_len);
+    memcpy(supply_text, supply_value, (size_t)supply_len);
     supply_text[supply_len] = '\0';
 
     if ((supply_ptr = strstr(supply_text, "level=")) != NULL)
