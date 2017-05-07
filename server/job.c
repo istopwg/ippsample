@@ -1,7 +1,7 @@
 /*
  * Job object code for sample IPP server implementation.
  *
- * Copyright 2010-2016 by Apple Inc.
+ * Copyright 2010-2017 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -265,7 +265,7 @@ void serverCreateJobFilename(
   else if (!strcasecmp(format, "image/pwg-raster"))
     ext = "ras";
   else if (!strcasecmp(format, "image/urf"))
-    ext = "urf";
+    ext = "apple";
   else if (!strcasecmp(format, "application/pdf"))
     ext = "pdf";
   else if (!strcasecmp(format, "application/postscript"))
