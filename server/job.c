@@ -266,10 +266,16 @@ void serverCreateJobFilename(
     ext = "ras";
   else if (!strcasecmp(format, "image/urf"))
     ext = "apple";
+  else if (!strcasecmp(format, "model/3mf"))
+    ext = "3mf";
+  else if (!strcasecmp(format, "model/amf"))
+    ext = "amf";
   else if (!strcasecmp(format, "application/pdf"))
     ext = "pdf";
   else if (!strcasecmp(format, "application/postscript"))
     ext = "ps";
+  else if (!strcasecmp(format, "application/sla"))
+    ext = "stl";
   else
     ext = "prn";
 
