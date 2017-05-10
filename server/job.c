@@ -426,7 +426,7 @@ serverProcessJob(server_job_t *job)		/* I - Job */
     * Execute a command with the job spool file and wait for it to complete...
     */
 
-    serverTransformJob(NULL, job, job->printer->command, job->format, SERVER_TRANSFORM_COMMAND);
+    serverTransformJob(NULL, job, job->printer->command, job->printer->output_format, SERVER_TRANSFORM_COMMAND);
   }
   else
   {

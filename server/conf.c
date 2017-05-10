@@ -242,6 +242,7 @@ serverLoadAttributes(
     char         **authtype,		/* O - Authentication type, if any */
     char         **command,		/* O - Command to run, if any */
     char         **device_uri,		/* O - Device URI, if any */
+    char         **output_format,	/* O - Output format, if any */
     char         **make,		/* O - Manufacturer */
     char         **model,		/* O - Model */
     char         **proxy_user,		/* O - Proxy user, if any */
@@ -519,7 +520,7 @@ serverLoadAttributes(
     {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing AUTHTYPE value on line %d of \"%s\".", linenum, filename);
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing AuthType value on line %d of \"%s\".", linenum, filename);
         goto load_error;
       }
 
@@ -529,7 +530,7 @@ serverLoadAttributes(
     {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing COMMAND value on line %d of \"%s\".", linenum, filename);
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing Command value on line %d of \"%s\".", linenum, filename);
         goto load_error;
       }
 
@@ -539,17 +540,27 @@ serverLoadAttributes(
     {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing DEVICE-URI value on line %d of \"%s\".", linenum, filename);
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing DeviceURI value on line %d of \"%s\".", linenum, filename);
         goto load_error;
       }
 
       *device_uri = strdup(token);
     }
+    else if (!_cups_strcasecmp(token, "OUTPUTFORMAT") && device_uri)
+    {
+      if (!get_token(fp, token, sizeof(token), &linenum))
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing OutputFormat value on line %d of \"%s\".", linenum, filename);
+        goto load_error;
+      }
+
+      *output_format = strdup(token);
+    }
     else if (!_cups_strcasecmp(token, "MAKE") && make)
     {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing MAKE value on line %d of \"%s\".", linenum, filename);
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing Make value on line %d of \"%s\".", linenum, filename);
         goto load_error;
       }
 
@@ -559,7 +570,7 @@ serverLoadAttributes(
     {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing MODEL value on line %d of \"%s\".", linenum, filename);
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing Model value on line %d of \"%s\".", linenum, filename);
         goto load_error;
       }
 
@@ -569,7 +580,7 @@ serverLoadAttributes(
     {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing PROXY-USER value on line %d of \"%s\".", linenum, filename);
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing ProxyUser value on line %d of \"%s\".", linenum, filename);
         goto load_error;
       }
 
@@ -646,6 +657,7 @@ serverLoadConfiguration(
   char		*authtype,		/* AuthType value, if any */
 		*command,		/* Command value, if any */
 		*device_uri,		/* DeviceURI value, if any */
+		*output_format,		/* OutputFormat value, if any */
 		*make,			/* Make value, if any */
 		*model,			/* Model value, if any */
 		*proxy_user;		/* ProxyUser value, if any */
@@ -686,14 +698,14 @@ serverLoadConfiguration(
         *ptr = '\0';
         snprintf(iconname, sizeof(iconname), "%s/print/%s.png", directory, dent->filename);
 
-        authtype = command = device_uri = make = model = proxy_user = NULL;
+        authtype = command = device_uri = output_format = make = model = proxy_user = NULL;
         strings  = NULL;
 
-        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &make, &model, &proxy_user, &strings)) != NULL)
+        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &output_format, &make, &model, &proxy_user, &strings)) != NULL)
 	{
           snprintf(resource, sizeof(resource), "/ipp/print/%s", dent->filename);
 
-	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, proxy_user, strings)) == NULL)
+	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, output_format, proxy_user, strings)) == NULL)
             continue;
 
 	  if (!Printers)
@@ -733,14 +745,14 @@ serverLoadConfiguration(
         *ptr = '\0';
         snprintf(iconname, sizeof(iconname), "%s/print3d/%s.png", directory, dent->filename);
 
-        authtype = command = device_uri = make = model = proxy_user = NULL;
+        authtype = command = device_uri = output_format = make = model = proxy_user = NULL;
         strings  = NULL;
 
-        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &make, &model, &proxy_user, &strings)) != NULL)
+        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &output_format, &make, &model, &proxy_user, &strings)) != NULL)
 	{
           snprintf(resource, sizeof(resource), "/ipp/print3d/%s", dent->filename);
 
-	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, proxy_user, strings)) == NULL)
+	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, output_format, proxy_user, strings)) == NULL)
           continue;
 
 	  if (!Printers)

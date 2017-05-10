@@ -657,6 +657,7 @@ xform_document(
   return (0);
 
 #else
+  int		i;			/* Looping var */
   const char	*val;			/* Option value */
   int		pid,			/* Process ID */
 		status;			/* Exit status */
@@ -687,8 +688,13 @@ xform_document(
   else if ((val = getenv("PRINTER_BED_TEMPERATURE_DEFAULT")) != NULL)
     bed = atoi(val);
 
+  fputs("DEBUG: Warming up...\n", stderr);
+  linenum = gcode_puts(buf, device_fd, "M117 Warming up...", linenum);
+
   if (bed)
   {
+    fprintf(stderr, "DEBUG: Platform temperature to %dC...\n", bed);
+
     snprintf(data, sizeof(data), "M190 S%d", bed);
     linenum = gcode_puts(buf, device_fd, data, linenum);
   }
@@ -700,9 +706,14 @@ xform_document(
   {
     /* TODO: Support multiple materials */
     material = atoi(ptr + 21);
+
+    fprintf(stderr, "DEBUG: Extruder temperature to %dC...\n", material);
+
     snprintf(data, sizeof(data), "M109 S%d", material);
     linenum = gcode_puts(buf, device_fd, data, linenum);
   }
+
+  fputs("DEBUG: Extrude 3cm of material...\n", stderr);
 
   linenum = gcode_puts(buf, device_fd, "G21", linenum); /* Metric */
   linenum = gcode_puts(buf, device_fd, "G90", linenum); /* Absolute positioning */
@@ -711,7 +722,7 @@ xform_document(
   linenum = gcode_puts(buf, device_fd, "G28 X0 Y0 Z0", linenum); /* Home */
   linenum = gcode_puts(buf, device_fd, "G1 Z15", linenum); /* Get ready to prime the extruder */
   linenum = gcode_puts(buf, device_fd, "G92 E0", linenum); /* Clear the extruded length */
-  linenum = gcode_puts(buf, device_fd, "G1 F200 E3", linenum); /* Extrude 3mm */
+  linenum = gcode_puts(buf, device_fd, "G1 F200 E30", linenum); /* Extrude 30mm */
   linenum = gcode_puts(buf, device_fd, "G92 E0", linenum); /* Clear the extruded length */
   linenum = gcode_puts(buf, device_fd, "M117 Printing with ippserver...", linenum);
 
@@ -892,6 +903,11 @@ xform_document(
 
   myargv[myargc++] = (char *)filename;
   myargv[myargc  ] = NULL;
+
+  fprintf(stderr, "DEBUG: %s", myargv[0]);
+  for (i = 1; i < myargc; i ++)
+    fprintf(stderr, " %s", myargv[i]);
+  fputs("\n", stderr);
 
   if (pipe(mystdout))
   {

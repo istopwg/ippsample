@@ -98,6 +98,7 @@ serverCreatePrinter(
     ipp_t        *attrs,		/* I - Attributes */
     const char   *command,		/* I - Command to run, if any */
     const char   *device_uri,		/* I - Device URI, if any */
+    const char   *output_format,	/* I - Output format, if any */
     const char   *proxy_user,		/* I - Proxy account username, if any */
     cups_array_t *strings)		/* I - Localization files, if any */
 {
@@ -465,6 +466,9 @@ serverCreatePrinter(
 
   if (device_uri)
     printer->device_uri = strdup(device_uri);
+
+  if (output_format)
+    printer->output_format = strdup(output_format);
 
   if (proxy_user)
     printer->proxy_user = strdup(proxy_user);

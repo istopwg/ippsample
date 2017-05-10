@@ -1,7 +1,7 @@
 /*
  * Transform code for sample IPP server implementation.
  *
- * Copyright 2015-2016 by Apple Inc.
+ * Copyright 2015-2017 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -102,7 +102,7 @@ serverTransformJob(
 
   /* TODO: OUTPUT_ORDER, defaults */
 
-  if (asprintf(myenvp + myenvc, "OUTPUT_TYPE=%s", format) > 0)
+  if (format && asprintf(myenvp + myenvc, "OUTPUT_TYPE=%s", format) > 0)
     myenvc ++;
 
   if ((attr = ippFindAttribute(job->printer->attrs, "materials-col-default", IPP_TAG_BEGIN_COLLECTION)) != NULL)
