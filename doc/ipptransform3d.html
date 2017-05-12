@@ -21,7 +21,7 @@ ipptransform3d - convert 3d document data to alternate formats
 <i>input/format</i>
 ] [
 <b>-m</b>
-<i>output/format</i>
+<i>output/format;machine=name</i>
 ] [
 <b>-o</b>
 <i>"name=value [... name=value]"</i>
@@ -48,12 +48,13 @@ Currently only the "usbserial" URI scheme is supported, for example "usbserial:/
 <dt><b>-i</b><i> input/format</i>
 <dd style="margin-left: 5.0em">Specifies the MIME media type of the input file.
 Currently the "model/3mf" (3MF) and "application/sla" (STL) MIME media types are supported.
-<dt><b>-m</b><i> output/format</i>
+<dt><b>-m</b><i> output/format;machine=name</i>
 <dd style="margin-left: 5.0em">Specifies the MIME media type of the output file.
-Currently the "application/g-code" (G-code) MIME media type is supported.
+Currently only the "application/g-code" (G-code) MIME media type is supported.
+The "machine=name" parameter specifies a machine-specific variant such as "ultimaker2".
 <dt><b>-o</b><i> "name=value [... name=value]"</i>
 <dd style="margin-left: 5.0em">Specifies one or more named options for the conversion.
-Currently the "materials-col", "print-accuracy", "print-quality", "print-rafts", "print-supports", and "printer-bed-temperatures" options are supported.
+Currently the "materials-col", "platform-temperature", "print-accuracy", "print-base", "print-quality", and "print-supports" options are supported.
 See the NAMED OPTIONS section for more information.
 <dt><b>-v</b>
 <dd style="margin-left: 5.0em">Increases the verbosity for any diagnostics.
@@ -65,14 +66,16 @@ The following named options are supported:
 <dd style="margin-left: 5.0em">Specifies the material(s) to use.
 Each value is surrounded by curley braces and contains a list of material properties and their values, e.g., '{material-diameter=285 material-type="pla" ...}'.
 The "material-diameter", "material-fill-density", "material-purpose", "material-rate", "material-rate-units", "material-shell-thickness", "material-temperature", and "material-type" properties are supported.
+<dt><b>platform-temperature</b>
+<dd style="margin-left: 5.0em">Specifies the temperature of the build platform in degrees Celsius.
 <dt><b>print-accuracy</b>
 <dd style="margin-left: 5.0em">Specifies the dimensional accuracy requirements for the print.
 For example, a horizontal accuracy of 0.1mm and vertical accuracy of 0.05mm is '{x-accuracy=100 y-accuracy=100 z-accuracy=50 accuracy-units=um}'.
+<dt><b>print-base</b>
+<dd style="margin-left: 5.0em">Specifies whether brims, rafts, or skirts should be printed.
+The values 'none', 'brim', 'raft', and 'skirt' are supported.
 <dt><b>print-quality</b>
 <dd style="margin-left: 5.0em">Specifies the print quality with value 3 (draft), 4 (normal), or 5 (high/best).
-<dt><b>print-rafts</b>
-<dd style="margin-left: 5.0em">Specifies whether rafts should be printed.
-The values 'none', 'brim', 'raft', 'skirt', and 'standard' are supported.
 <dt><b>print-supports</b>
 <dd style="margin-left: 5.0em">Specifies whether supports are printed.
 The values 'none', 'material', and 'standard' are supported.
@@ -115,7 +118,7 @@ Print a 3MF file to a G-code printer connected via USB on Linux using the defaul
         filename.3mf
 </pre>
 <h2 class="title"><a name="COPYRIGHT">Copyright</a></h2>
-Copyright &copy; 2016 by Apple Inc.
+Copyright &copy; 2016-2017 by Apple Inc.
 
 </body>
 </html>

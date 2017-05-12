@@ -389,6 +389,7 @@ gcode_puts(gcode_buffer_t *buf,		/* I - G-code buffer */
     checksum ^= (unsigned char)*ptr;
 
   snprintf(buffer, sizeof(buffer), "N%d %s*%d\n", linenum ++, line, checksum);
+  fprintf(stderr, "DEBUG: >%s", buffer);
 
  /*
   * Finally, write the line to the output device and wait for an OK...
@@ -424,6 +425,8 @@ gcode_puts(gcode_buffer_t *buf,		/* I - G-code buffer */
 	  return (-1);
 	}
       }
+
+      fprintf(stderr, "DEBUG: %s\n", resp);
 
       if (!resp)
       {
@@ -633,8 +636,8 @@ usage(int status)			/* I - Exit status */
   puts("  -v\n");
   puts("Device URIs: usbserial:///dev/...");
   puts("Input Formats: application/sla, model/3mf");
-  puts("Output Formats: application/g-code;flavor=FOO");
-  puts("Options: materials-col, print-accuracy, print-quality, print-rafts, print-supports, printer-bed-temperature");
+  puts("Output Formats: application/g-code;machine=FOO");
+  puts("Options: materials-col, platform-temperature, print-accuracy, print-base, print-quality, print-supports");
 
   exit(status);
 }
@@ -663,6 +666,11 @@ xform_document(
 		status;			/* Exit status */
   const char	*myargv[100];		/* Command-line arguments */
   int		myargc;			/* Number of arguments */
+  const char	*machine;		/* Machine name in output format */
+  char		curapath[1024],		/* CuraEngine path */
+		json[1024],		/* JSON settings name */
+		material_temp[1024],	/* Extruder temperature setting */
+		platform_temp[1024];	/* Platform temperature setting */
   posix_spawn_file_actions_t actions;	/* Spawn file actions */
   int		mystdout[2] = {-1, -1};	/* Pipe for stdout */
   struct pollfd	polldata[2];		/* Poll data */
@@ -673,186 +681,232 @@ xform_document(
 		*end;			/* End of data */
   ssize_t	bytes;			/* Bytes read */
   int		linenum = 1;		/* G-code line number */
-  int		bed = 0,		/* printer-bed-temperature value */
-		material;		/* material-temperature value */
+  int		platform,		/* platform-temperature value */
+		material,		/* material-temperature value */
+		quality;		/* print-quality value */
+  const char	*base,			/* print-base value */
+		*supports;		/* print-supports value */
 
-
-  (void)outformat; /* TODO: support different gcode flavors */
 
  /*
-  * Start with gcode commands to set the extruder and print bed temperatures...
+  * Look for the machine name in the output format...
   */
 
-  if ((val = cupsGetOption("printer-bed-temperature", num_options, options)) != NULL)
-    bed = atoi(val);
-  else if ((val = getenv("PRINTER_BED_TEMPERATURE_DEFAULT")) != NULL)
-    bed = atoi(val);
+  if ((machine = strstr(outformat, ";machine=")) != NULL)
+    machine += 9;
+  else
+    machine = "ultimaker2";
 
-  fputs("DEBUG: Warming up...\n", stderr);
-  linenum = gcode_puts(buf, device_fd, "M117 Warming up...", linenum);
-
-  if (bed)
+  strlcpy(curapath, CURAENGINE, sizeof(curapath));
+  if ((ptr = strstr(curapath, "Cura.app/")) != NULL)
   {
-    fprintf(stderr, "DEBUG: Platform temperature to %dC...\n", bed);
+   /*
+    * macOS bundle, locate the resources within the bundle...
+    */
 
-    snprintf(data, sizeof(data), "M190 S%d", bed);
-    linenum = gcode_puts(buf, device_fd, data, linenum);
+    ptr[8] = '\0'; /* Trim at slash... */
+
+    snprintf(json, sizeof(json), "%s/Contents/Resources/resources/definitions/%s.def.json", curapath, machine);
   }
-
-  if ((val = cupsGetOption("materials-col", num_options, options)) != NULL)
-    val = getenv("PRINTER_MATERIALS_COL_DEFAULT");
-
-  if (val && (ptr = strstr(val, "material-temperature=")) != NULL)
+  else if ((ptr = strstr(curapath, "/bin/CuraEngine")) != NULL)
   {
-    /* TODO: Support multiple materials */
-    material = atoi(ptr + 21);
+   /*
+    * Standard install, use the same prefix but look under "prefix/share/CuraEngine/"...
+    */
 
-    fprintf(stderr, "DEBUG: Extruder temperature to %dC...\n", material);
-
-    snprintf(data, sizeof(data), "M109 S%d", material);
-    linenum = gcode_puts(buf, device_fd, data, linenum);
+    *ptr = '\0';
+    snprintf(json, sizeof(json), "%s/share/CuraEngine/resources/definitions/%s.def.json", curapath, machine);
   }
+  else
+  {
+   /*
+    * Rely on CURA_ENGINE_SEARCH_PATH...
+    */
 
-  fputs("DEBUG: Extrude 3cm of material...\n", stderr);
-
-  linenum = gcode_puts(buf, device_fd, "G21", linenum); /* Metric */
-  linenum = gcode_puts(buf, device_fd, "G90", linenum); /* Absolute positioning */
-  linenum = gcode_puts(buf, device_fd, "M82", linenum); /* Absolute extruder mode */
-  linenum = gcode_puts(buf, device_fd, "M107", linenum); /* Fans off */
-  linenum = gcode_puts(buf, device_fd, "G28 X0 Y0 Z0", linenum); /* Home */
-  linenum = gcode_puts(buf, device_fd, "G1 Z15", linenum); /* Get ready to prime the extruder */
-  linenum = gcode_puts(buf, device_fd, "G92 E0", linenum); /* Clear the extruded length */
-  linenum = gcode_puts(buf, device_fd, "G1 F200 E30", linenum); /* Extrude 30mm */
-  linenum = gcode_puts(buf, device_fd, "G92 E0", linenum); /* Clear the extruded length */
-  linenum = gcode_puts(buf, device_fd, "M117 Printing with ippserver...", linenum);
+    snprintf(json, sizeof(json), "%s.def.json", machine);
+  }
 
  /*
-  * Setup the Cura command-line arguments...
+  * Setup the CuraEngine command-line arguments...
   */
 
   myargv[0] = CURAENGINE;
   myargc    = 1;
 
+  myargv[myargc++] = "slice";
   myargv[myargc++] = "-vv";
+  myargv[myargc++] = "-j";
+  myargv[myargc++] = json;
   myargv[myargc++] = "-s";
-  myargv[myargc++] = "gcodeFlavor=1";
-  myargv[myargc++] = "-s";
-  myargv[myargc++] = "startCode=";
-  myargv[myargc++] = "-s";
-  myargv[myargc++] = "fixHorrible=1";
-  myargv[myargc++] = "-s";
-  myargv[myargc++] = "fanFullOnLayerNr=1";
-  myargv[myargc++] = "-s";
-  myargv[myargc++] = "skirtMinLength=150000";
-  myargv[myargc++] = "-s";
-  myargv[myargc++] = "skirtLineCount=1";
-  myargv[myargc++] = "-s";
-  myargv[myargc++] = "skirtDistance=3000";
-  myargv[myargc++] = "-s";
-  myargv[myargc++] = "multiVolumeOverlap=150";
-  myargv[myargc++] = "-s";
-  myargv[myargc++] = "filamentDiameter=2850";
-  myargv[myargc++] = "-s";
-  myargv[myargc++] = "posx=115000";
-  myargv[myargc++] = "-s";
-  myargv[myargc++] = "posy=112500";
+  myargv[myargc++] = "machine_gcode_flavor=0";
 
-  if ((val = cupsGetOption("print-quality", num_options, options)) != NULL)
+ /*
+  * Get the extruder and build platform temperatures...
+  */
+
+  if ((val = cupsGetOption("platform-temperature", num_options, options)) != NULL)
+    platform = atoi(val);
+  else if ((val = getenv("PRINTER_PLATFORM_TEMPERATURE_DEFAULT")) != NULL)
+    platform = atoi(val);
+  else
+    platform = 0;
+
+  if (platform > 0)
   {
-    switch (atoi(val))
-    {
-      case 4 :
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "insetXSpeed=60";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "inset0Speed=60";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "extrusionWidth=500";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "upSkinCount=3";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "initialLayerSpeed=30";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "minimalLayerTime=3";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "infillSpeed=60";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "initialLayerThickness=300";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "layerThickness=200";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "printSpeed=60";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "layer0extrusionWidth=500";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "sparseInfillLineDistance=5000";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "downSkinCount=3";
-	  break;
-
-      case 5 :
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "insetXSpeed=50";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "inset0Speed=50";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "extrusionWidth=400";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "upSkinCount=10";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "initialLayerSpeed=15";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "minimalLayerTime=5";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "infillSpeed=50";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "initialLayerThickness=300";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "layerThickness=60";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "printSpeed=50";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "layer0extrusionWidth=400";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "sparseInfillLineDistance=2000";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "downSkinCount=10";
-	  break;
-
-      default :
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "insetXSpeed=50";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "inset0Speed=50";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "extrusionWidth=400";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "upSkinCount=6";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "initialLayerSpeed=20";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "minimalLayerTime=5";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "infillSpeed=50";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "initialLayerThickness=300";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "layerThickness=100";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "endCode=M25";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "printSpeed=50";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "layer0extrusionWidth=400";
-	  myargv[myargc++] = "-s";
-	  myargv[myargc++] = "sparseInfillLineDistance=2000";
-	  myargv[myargc++] = "-s downSkinCount=6";
-	  break;
-    }
+    fprintf(stderr, "DEBUG: Build platform temperature is %dC...\n", platform);
+    snprintf(platform_temp, sizeof(platform_temp), "material_bed_temperature=%d", platform);
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = platform_temp;
   }
 
-  if ((val = cupsGetOption("print-rafts", num_options, options)) != NULL && strcmp(val, "none"))
+  if ((val = cupsGetOption("materials-col", num_options, options)) == NULL)
+    val = getenv("PRINTER_MATERIALS_COL_DEFAULT");
+
+  if (val)
+    fprintf(stderr, "DEBUG: materials-col=%s\n", val);
+
+  if (val && (ptr = strstr(val, "material-temperature=")) != NULL)
   {
+    /* TODO: Support multiple materials */
+    material = atoi(ptr + 21);
+    snprintf(material_temp, sizeof(material_temp), "material_print_temperature=%d", platform);
+
+    fprintf(stderr, "DEBUG: Extruder temperature is %dC...\n", material);
+    myargv[myargc++] = "-s";
+    myargv[myargc++] = material_temp;
+  }
+
+ /*
+  * Get the print accuracy settings...
+  */
+
+  /* TODO: Support print-accuracy */
+
+ /*
+  * Get the print quality settings...
+  */
+
+  if ((val = cupsGetOption("print-quality", num_options, options)) != NULL)
+    quality = atoi(val);
+  else if ((val = getenv("PRINTER_PRINT_QUALITY_DEFAULT")) != NULL)
+    quality = atoi(val);
+  else
+    quality = 4; /* Normal */
+
+ /* TODO: Sigh, fix all of the print quality settings since the latest CuraEngine has renamed them all... */
+  switch (quality)
+  {
+    case 3 : /* Draft */
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "insetXSpeed=60";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "inset0Speed=60";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "extrusionWidth=500";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "upSkinCount=3";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "initialLayerSpeed=30";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "minimalLayerTime=3";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "infillSpeed=60";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "initialLayerThickness=300";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "layerThickness=200";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "printSpeed=60";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "layer0extrusionWidth=500";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "sparseInfillLineDistance=5000";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "downSkinCount=3";
+	break;
+
+    case 5 : /* High */
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "insetXSpeed=50";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "inset0Speed=50";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "extrusionWidth=400";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "upSkinCount=10";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "initialLayerSpeed=15";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "minimalLayerTime=5";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "infillSpeed=50";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "initialLayerThickness=300";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "layerThickness=60";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "printSpeed=50";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "layer0extrusionWidth=400";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "sparseInfillLineDistance=2000";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "downSkinCount=10";
+	break;
+
+    default : /* Normal/default */
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "insetXSpeed=50";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "inset0Speed=50";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "extrusionWidth=400";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "upSkinCount=6";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "initialLayerSpeed=20";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "minimalLayerTime=5";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "infillSpeed=50";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "initialLayerThickness=300";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "layerThickness=100";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "endCode=M25";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "printSpeed=50";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "layer0extrusionWidth=400";
+	myargv[myargc++] = "-s";
+	myargv[myargc++] = "sparseInfillLineDistance=2000";
+	myargv[myargc++] = "-s downSkinCount=6";
+	break;
+  }
+
+ /*
+  * Get the print base settings...
+  */
+
+  if ((base = cupsGetOption("print-base", num_options, options)) == NULL)
+    if ((base = getenv("PRINTER_PRINT_BASE_DEFAULT")) == NULL)
+      base = "none";
+
+  if (!strcmp(base, "brim"))
+  {
+   /*
+    * Print a brim...
+    */
+
+    /* TODO: Add brim settings */
+  }
+  else if (!strcmp(base, "raft"))
+  {
+   /*
+    * Print a raft...
+    */
+
     myargv[myargc++] = "-s";
     myargv[myargc++] = "raftSurfaceLineSpacing=400";
     myargv[myargc++] = "-s";
@@ -884,9 +938,25 @@ xform_document(
     myargv[myargc++] = "-s";
     myargv[myargc++] = "raftAirGapLayer0=220";
   }
-
-  if ((val = cupsGetOption("print-supports", num_options, options)) != NULL && strcmp(val, "none"))
+  else if (!strcmp(base, "skirt"))
   {
+   /*
+    * Print a skirt...
+    */
+
+    /* TODO: Add skirt settings */
+  }
+
+  if ((supports = cupsGetOption("print-supports", num_options, options)) == NULL)
+    if ((supports = getenv("PRINTER_PRINT_SUPPORTS_DEFAULT")) == NULL)
+      supports = "none";
+
+  if (strcmp(supports, "none"))
+  {
+   /*
+    * Print supports...
+    */
+
     myargv[myargc++] = "-s";
     myargv[myargc++] = "supportAngle=60";
     myargv[myargc++] = "-s";
@@ -901,6 +971,7 @@ xform_document(
     myargv[myargc++] = "supportType=0";
   }
 
+  myargv[myargc++] = "-l";
   myargv[myargc++] = (char *)filename;
   myargv[myargc  ] = NULL;
 

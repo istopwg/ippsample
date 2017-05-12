@@ -4566,15 +4566,9 @@ IPPTRANSFORM3D_MAN=""
 
 
 
-if test -x /Applications/Cura/Cura.app/Contents/Resources/CuraEngine; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for CuraEngine" >&5
-$as_echo_n "checking for CuraEngine... " >&6; }
-	CURAENGINE="/Applications/Cura/Cura.app/Contents/Resources/CuraEngine"
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $CURAENGINE" >&5
-$as_echo "$CURAENGINE" >&6; }
-
-else
-	# Extract the first word of "CuraEngine", so it can be a program name with args.
+SAVEPATH="$PATH"
+PATH="$PATH:/Applications/Cura/Cura.app/Contents/Resources:/Applications/Cura.app/Contents/MacOS"
+# Extract the first word of "CuraEngine", so it can be a program name with args.
 set dummy CuraEngine; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -4614,7 +4608,7 @@ $as_echo "no" >&6; }
 fi
 
 
-fi
+PATH="$SAVEPATH"
 
 if test "x$CURAENGINE" != x; then
 	IPPTRANSFORM3D_BIN="ipptransform3d"
