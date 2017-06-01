@@ -1,7 +1,7 @@
 /*
  * ipptool command for CUPS.
  *
- * Copyright 2007-2016 by Apple Inc.
+ * Copyright 2007-2017 by Apple Inc.
  * Copyright 1997-2007 by Easy Software Products.
  *
  * These coded instructions, statements, and computer programs are the
@@ -3475,10 +3475,10 @@ do_tests(FILE         *outfile,		/* I - Output file */
       free(statuses[i].if_defined);
     if (statuses[i].if_not_defined)
       free(statuses[i].if_not_defined);
-      if (statuses[i].define_match)
-        free(statuses[i].define_match);
-      if (statuses[i].define_no_match)
-        free(statuses[i].define_no_match);
+    if (statuses[i].define_match)
+      free(statuses[i].define_match);
+    if (statuses[i].define_no_match)
+      free(statuses[i].define_no_match);
   }
 
   for (i = num_expects, expect = expects; i > 0; i --, expect ++)
