@@ -1,7 +1,7 @@
 /*
  * ipptransform utility for converting PDF and JPEG files to raster data or HP PCL.
  *
- * Copyright 2016 by Apple Inc.
+ * Copyright 2016-2017 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -2053,7 +2053,7 @@ xform_document(
     * Grayscale output...
     */
 
-    ras.band_bpp = 2;
+    ras.band_bpp = 2; /* TODO: Update when alpha is disabled */
     cs           = fz_device_gray(context);
   }
   else
@@ -2062,7 +2062,7 @@ xform_document(
     * Color (sRGB) output...
     */
 
-    ras.band_bpp = 4;
+    ras.band_bpp = 4; /* TODO: Update when alpha is disabled */
     cs           = fz_device_rgb(context);
   }
 
@@ -2077,16 +2077,11 @@ xform_document(
   else if (ras.band_height > ras.header.cupsHeight)
     ras.band_height = ras.header.cupsHeight;
 
-  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth, (int)ras.band_height);
+  /* TODO: Update code to not use RGBA/GrayA pixmap now that MuPDF supports it */
+  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth, (int)ras.band_height, 1);
   pixmap->interpolate = 0;
   pixmap->xres        = (int)ras.header.HWResolution[0];
   pixmap->yres        = (int)ras.header.HWResolution[1];
-
-  device = fz_new_draw_device(context, pixmap);
-
-  /* Don't anti-alias or interpolate when creating raster data */
-  fz_set_aa_level(context, 0);
-  fz_enable_device_hints(context, device, FZ_DONT_INTERPOLATE_IMAGES);
 
   xscale = ras.header.HWResolution[0] / 72.0;
   yscale = ras.header.HWResolution[1] / 72.0;
@@ -2097,6 +2092,12 @@ xform_document(
 
   if (Verbosity > 1)
     fprintf(stderr, "DEBUG: Band height=%u, page height=%u\n", ras.band_height, ras.header.cupsHeight);
+
+  device = fz_new_draw_device(context, &base_transform, pixmap);
+
+  /* Don't anti-alias or interpolate when creating raster data */
+  fz_set_aa_level(context, 0);
+  fz_enable_device_hints(context, device, FZ_DONT_INTERPOLATE_IMAGES);
 
  /*
   * Setup the back page transform, if any...
@@ -2257,7 +2258,7 @@ xform_document(
 
           fz_clear_pixmap_with_value(context, pixmap, 0xff);
 
-          transform = base_transform;
+          transform = fz_identity;
 	  fz_pre_translate(&transform, 0.0, -1.0 * y / yscale);
 	  if (!(page & 1) && ras.header.Duplex)
 	    fz_concat(&transform, &transform, &back_transform);
