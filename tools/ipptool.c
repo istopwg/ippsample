@@ -1685,7 +1685,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	  goto test_exit;
 	}
 
-	if ((value = ippTagValue(token)) == IPP_TAG_ZERO)
+	if ((value = ippTagValue(token)) < IPP_TAG_UNSUPPORTED_VALUE)
 	{
 	  print_fatal_error(outfile, "Bad ATTR value tag \"%s\" on line %d.", token,
 	                    linenum);
@@ -1700,18 +1700,46 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	  goto test_exit;
 	}
 
-	if (!get_token(fp, temp, sizeof(temp), &linenum))
+        if (value < IPP_TAG_INTEGER)
+        {
+         /*
+          * Add out-of-band value - no value string needed...
+          */
+
+          token[0] = '\0';
+        }
+        else if (!get_token(fp, temp, sizeof(temp), &linenum))
 	{
 	  print_fatal_error(outfile, "Missing ATTR value on line %d.", linenum);
 	  pass = 0;
 	  goto test_exit;
 	}
+	else
+	{
+          expand_variables(vars, token, temp, sizeof(token));
+        }
 
-        expand_variables(vars, token, temp, sizeof(token));
         attrptr = NULL;
 
         switch (value)
 	{
+          default :
+              if (value < IPP_TAG_INTEGER)
+              {
+               /*
+                * Add out-of-band value...
+                */
+
+                attrptr = ippAddOutOfBand(request, group, value, attr);
+              }
+              else
+              {
+                print_fatal_error(outfile, "Unsupported ATTR value tag %s for \"%s\" on line %d.", ippTagString(value), attr, linenum);
+                pass = 0;
+                goto test_exit;
+              }
+              break;
+
 	  case IPP_TAG_BOOLEAN :
 	      if (!_cups_strcasecmp(token, "true"))
 		attrptr = ippAddBoolean(request, group, attr, 1);
@@ -1927,11 +1955,6 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
           case IPP_TAG_STRING :
               attrptr = ippAddOctetString(request, group, attr, token, (int)strlen(token));
 	      break;
-
-	  default :
-	      print_fatal_error(outfile, "Unsupported ATTR value tag %s for \"%s\" on line %d.", ippTagString(value), attr, linenum);
-	      pass = 0;
-	      goto test_exit;
 
 	  case IPP_TAG_TEXTLANG :
 	  case IPP_TAG_NAMELANG :
@@ -3731,7 +3754,7 @@ get_collection(cups_file_t  *outfile,	/* I  - Output file */
 	goto col_error;
       }
 
-      if ((value = ippTagValue(token)) == IPP_TAG_ZERO)
+      if ((value = ippTagValue(token)) < IPP_TAG_UNSUPPORTED_VALUE)
       {
 	print_fatal_error(outfile, "Bad MEMBER value tag \"%s\" on line %d.", token,
 			  *linenum);
@@ -3744,17 +3767,43 @@ get_collection(cups_file_t  *outfile,	/* I  - Output file */
 	goto col_error;
       }
 
-      if (!get_token(fp, temp, sizeof(temp), linenum))
+      if (value < IPP_TAG_INTEGER)
+      {
+       /*
+        * Out-of-band member attributes have no value...
+        */
+
+        token[0] = '\0';
+      }
+      else if (!get_token(fp, temp, sizeof(temp), linenum))
       {
 	print_fatal_error(outfile, "Missing MEMBER value on line %d.", *linenum);
 	goto col_error;
       }
-
-      expand_variables(vars, token, temp, sizeof(token));
+      else
+      {
+        expand_variables(vars, token, temp, sizeof(token));
+      }
 
       switch (value)
       {
-	case IPP_TAG_BOOLEAN :
+        default :
+              if (value < IPP_TAG_INTEGER)
+              {
+               /*
+                * Add out-of-band value...
+                */
+
+                ippAddOutOfBand(col, IPP_TAG_ZERO, value, attr);
+              }
+              else
+              {
+                print_fatal_error(outfile, "Unsupported MEMBER value tag %s for \"%s\" on line %d.", ippTagString(value), attr, *linenum);
+                goto col_error;
+              }
+              break;
+
+        case IPP_TAG_BOOLEAN :
 	    if (!_cups_strcasecmp(token, "true"))
 	      ippAddBoolean(col, IPP_TAG_ZERO, attr, 1);
 	    else
@@ -3838,11 +3887,21 @@ get_collection(cups_file_t  *outfile,	/* I  - Output file */
 	      goto col_error;
 	    }
 	    break;
-	case IPP_TAG_STRING :
+
+        case IPP_TAG_STRING :
 	    ippAddOctetString(col, IPP_TAG_ZERO, attr, token, (int)strlen(token));
 	    break;
 
-	default :
+        case IPP_TAG_TEXTLANG :
+        case IPP_TAG_NAMELANG :
+        case IPP_TAG_TEXT :
+        case IPP_TAG_NAME :
+        case IPP_TAG_KEYWORD :
+        case IPP_TAG_URI :
+        case IPP_TAG_URISCHEME :
+        case IPP_TAG_CHARSET :
+        case IPP_TAG_LANGUAGE :
+        case IPP_TAG_MIMETYPE :
 	    if (!strchr(token, ','))
 	      ippAddString(col, IPP_TAG_ZERO, value, attr, NULL, token);
 	    else
@@ -3861,9 +3920,14 @@ get_collection(cups_file_t  *outfile,	/* I  - Output file */
 
 	      for (ptr = strchr(token, ','); ptr; ptr = strchr(ptr, ','))
 	      {
-		*ptr++ = '\0';
-		values[num_values] = ptr;
-		num_values ++;
+                if (ptr > token && ptr[-1] == '\\')
+                  _cups_strcpy(ptr - 1, ptr);
+                else
+                {
+                  *ptr++ = '\0';
+                  values[num_values] = ptr;
+                  num_values ++;
+                }
 	      }
 
 	      ippAddStrings(col, IPP_TAG_ZERO, value, attr, num_values,
