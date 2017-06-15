@@ -152,6 +152,7 @@ static int	PasswordTries = 0;	/* Number of tries with password */
  */
 
 static void	add_stringf(cups_array_t *a, const char *s, ...) __attribute__ ((__format__ (__printf__, 2, 3)));
+static int      compare_uris(const char *a, const char *b);
 static int	compare_vars(_cups_var_t *a, _cups_var_t *b);
 static int	do_tests(cups_file_t *outfile, _cups_vars_t *vars, const char *testfile);
 static void	expand_variables(_cups_vars_t *vars, char *dst, const char *src, size_t dstsize) __attribute__((nonnull(1,2,3)));
@@ -742,6 +743,71 @@ add_stringf(cups_array_t *a,		/* I - Array */
   */
 
   cupsArrayAdd(a, buffer);
+}
+
+
+/*
+ * 'compare_uris()' - Compare two URIs...
+ */
+
+static int                              /* O - Result of comparison */
+compare_uris(const char *a,             /* I - First URI */
+             const char *b)             /* I - Second URI */
+{
+  char  ascheme[32],                    /* Components of first URI */
+        auserpass[256],
+        ahost[256],
+        aresource[256];
+  int   aport;
+  char  bscheme[32],                    /* Components of second URI */
+        buserpass[256],
+        bhost[256],
+        bresource[256];
+  int   bport;
+  char  *ptr;                           /* Pointer into string */
+  int   result;                         /* Result of comparison */
+
+
+ /*
+  * Separate the URIs into their components...
+  */
+
+  if (httpSeparateURI(HTTP_URI_CODING_ALL, a, ascheme, sizeof(ascheme), auserpass, sizeof(auserpass), ahost, sizeof(ahost), &aport, aresource, sizeof(aresource)) < HTTP_URI_STATUS_OK)
+    return (-1);
+
+  if (httpSeparateURI(HTTP_URI_CODING_ALL, b, bscheme, sizeof(bscheme), buserpass, sizeof(buserpass), bhost, sizeof(bhost), &bport, bresource, sizeof(bresource)) < HTTP_URI_STATUS_OK)
+    return (-1);
+
+ /*
+  * Strip trailing dots from the host components, if present...
+  */
+
+  if ((ptr = ahost + strlen(ahost) - 1) > ahost && *ptr == '.')
+    *ptr = '\0';
+
+  if ((ptr = bhost + strlen(bhost) - 1) > bhost && *ptr == '.')
+    *ptr = '\0';
+
+ /*
+  * Compare each component...
+  */
+
+  if ((result = _cups_strcasecmp(ascheme, bscheme)) != 0)
+    return (result);
+
+  if ((result = strcmp(auserpass, buserpass)) != 0)
+    return (result);
+
+  if ((result = _cups_strcasecmp(ahost, bhost)) != 0)
+    return (result);
+
+  if (aport != bport)
+    return (aport - bport);
+
+  if (!_cups_strcasecmp(ascheme, "mailto") || !_cups_strcasecmp(ascheme, "urn"))
+    return (_cups_strcasecmp(aresource, bresource));
+  else
+    return (strcmp(aresource, bresource));
 }
 
 
@@ -6000,34 +6066,13 @@ with_value(cups_file_t     *outfile,	/* I - Output file */
 	}
 	else if (ippGetValueTag(attr) == IPP_TAG_URI)
 	{
-          if (!strncmp(value, "ipp://", 6) || !strncmp(value, "http://", 7) || !strncmp(value, "ipps://", 7) || !strncmp(value, "https://", 8))
-          {
-	    char	scheme[256],	/* URI scheme */
-			userpass[256],	/* username:password, if any */
-			hostname[256],	/* hostname */
-			*hostptr,	/* Pointer into hostname */
-			resource[1024];	/* Resource path */
-	    int		port;		/* Port number */
-
-            if (httpSeparateURI(HTTP_URI_CODING_ALL, value, scheme, sizeof(scheme), userpass, sizeof(userpass), hostname, sizeof(hostname), &port, resource, sizeof(resource)) >= HTTP_URI_STATUS_OK && (hostptr = hostname + strlen(hostname) - 1) > hostname && *hostptr == '.')
-            {
-             /*
-              * Strip trailing "." in hostname of URI...
-              */
-
-              *hostptr = '\0';
-              httpAssembleURI(HTTP_URI_CODING_ALL, temp, sizeof(temp), scheme, userpass, hostname, port, resource);
-              value = temp;
-            }
-          }
-
 	 /*
 	  * Value is a literal URI string, see if the value(s) match...
 	  */
 
 	  for (i = 0; i < attr->num_values; i ++)
 	  {
-	    if (!strcmp(value, get_string(attr, i, flags, temp, sizeof(temp))))
+	    if (!compare_uris(value, get_string(attr, i, flags, temp, sizeof(temp))))
 	    {
 	      if (!matchbuf[0])
 		strlcpy(matchbuf,
