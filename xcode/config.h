@@ -1,7 +1,7 @@
 /*
  * Configuration file for the IPP samples.
  *
- * Copyright 2007-2016 by Apple Inc.
+ * Copyright 2007-2017 by Apple Inc.
  * Copyright 1997-2007 by Easy Software Products.
  *
  * These coded instructions, statements, and computer programs are the
@@ -255,6 +255,13 @@
  */
 
 #define HAVE_GETNAMEINFO 1
+
+
+/*
+ * Do we have getifaddrs()?
+ */
+
+#define HAVE_GETIFADDRS 1
 
 
 /*

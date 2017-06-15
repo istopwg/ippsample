@@ -258,6 +258,13 @@
 
 
 /*
+ * Do we have getifaddrs()?
+ */
+
+#undef HAVE_GETIFADDRS
+
+
+/*
  * Do we have hstrerror()?
  */
 

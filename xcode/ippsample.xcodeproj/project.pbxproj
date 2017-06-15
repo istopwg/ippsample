@@ -36,7 +36,7 @@
 		2778EBA21D2FF60E00DE72EC /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
 		2778EBA31D2FF60E00DE72EC /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
 		2778EBA41D2FF60E00DE72EC /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
-		2778EBA51D2FF60E00DE72EC /* libcups.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups.a */; };
+		2778EBA51D2FF60E00DE72EC /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups_static.a */; };
 		2778EBA61D2FF60E00DE72EC /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402E91C0CE81900139783 /* ApplicationServices.framework */; };
 		2778EBA71D2FF60E00DE72EC /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
 		2778EBA91D2FF60E00DE72EC /* ipptransform.man in CopyFiles */ = {isa = PBXBuildFile; fileRef = 275C6BA31C878A65000D2DE7 /* ipptransform.man */; };
@@ -46,7 +46,7 @@
 		725C87B61C7664DE00FB3AD5 /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
 		725C87B71C7664DE00FB3AD5 /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
 		725C87B81C7664DE00FB3AD5 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
-		725C87B91C7664DE00FB3AD5 /* libcups.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups.a */; };
+		725C87B91C7664DE00FB3AD5 /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups_static.a */; };
 		725C87BA1C7664DE00FB3AD5 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402E91C0CE81900139783 /* ApplicationServices.framework */; };
 		725C87BB1C7664DE00FB3AD5 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
 		725C87C41C767CF800FB3AD5 /* ipptransform.c in Sources */ = {isa = PBXBuildFile; fileRef = 725C87C31C767CF800FB3AD5 /* ipptransform.c */; };
@@ -123,14 +123,14 @@
 		72B402C41C0CE46800139783 /* transform.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B402AF1C0CE43D00139783 /* transform.c */; };
 		72B402D41C0CE60800139783 /* ipptool.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B402D11C0CE60400139783 /* ipptool.c */; };
 		72B402E01C0CE62C00139783 /* ippfind.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B402D01C0CE60400139783 /* ippfind.c */; };
-		72B402E81C0CE81900139783 /* libcups.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups.a */; };
+		72B402E81C0CE81900139783 /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups_static.a */; };
 		72B402EC1C0CE81900139783 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402E91C0CE81900139783 /* ApplicationServices.framework */; };
 		72B402ED1C0CE81900139783 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
 		72B402EE1C0CE81900139783 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EB1C0CE81900139783 /* SystemConfiguration.framework */; };
-		72B402F11C0CE83200139783 /* libcups.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups.a */; };
+		72B402F11C0CE83200139783 /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups_static.a */; };
 		72B402F21C0CE83200139783 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402E91C0CE81900139783 /* ApplicationServices.framework */; };
 		72B402F31C0CE83200139783 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
-		72B402F61C0CE84700139783 /* libcups.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups.a */; };
+		72B402F61C0CE84700139783 /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups_static.a */; };
 		72B402F71C0CE84700139783 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402E91C0CE81900139783 /* ApplicationServices.framework */; };
 		72B402F81C0CE84700139783 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
 		72B402FA1C0CE87800139783 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
@@ -146,7 +146,7 @@
 		72E005F81C5C0B10006CF057 /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
 		72E005F91C5C0B10006CF057 /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
 		72E005FA1C5C0B10006CF057 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
-		72E005FB1C5C0B10006CF057 /* libcups.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups.a */; };
+		72E005FB1C5C0B10006CF057 /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups_static.a */; };
 		72E005FC1C5C0B10006CF057 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402E91C0CE81900139783 /* ApplicationServices.framework */; };
 		72E005FD1C5C0B10006CF057 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
 		72E006071C5C0B65006CF057 /* ippproxy.c in Sources */ = {isa = PBXBuildFile; fileRef = 72E006031C5C0B49006CF057 /* ippproxy.c */; };
@@ -342,7 +342,7 @@
 		72737CF51C24BA4F007CBEF6 /* util.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = util.c; path = ../cups/util.c; sourceTree = "<group>"; };
 		72A0D4521E6864EB0092958D /* printer3d-png.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "printer3d-png.h"; path = "../server/printer3d-png.h"; sourceTree = "<group>"; };
 		72B402181C0CDFB400139783 /* ippserver */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ippserver; sourceTree = BUILT_PRODUCTS_DIR; };
-		72B402261C0CE0E100139783 /* libcups.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libcups.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		72B402261C0CE0E100139783 /* libcups_static.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libcups_static.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		72B4022F1C0CE27800139783 /* array-private.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "array-private.h"; path = "../cups/array-private.h"; sourceTree = "<group>"; };
 		72B402301C0CE27800139783 /* array.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = array.c; path = ../cups/array.c; sourceTree = "<group>"; };
 		72B402311C0CE27800139783 /* array.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = array.h; path = ../cups/array.h; sourceTree = "<group>"; };
@@ -446,7 +446,7 @@
 				2778EBA21D2FF60E00DE72EC /* libiconv.dylib in Frameworks */,
 				2778EBA31D2FF60E00DE72EC /* libresolv.dylib in Frameworks */,
 				2778EBA41D2FF60E00DE72EC /* libz.dylib in Frameworks */,
-				2778EBA51D2FF60E00DE72EC /* libcups.a in Frameworks */,
+				2778EBA51D2FF60E00DE72EC /* libcups_static.a in Frameworks */,
 				2778EBA61D2FF60E00DE72EC /* ApplicationServices.framework in Frameworks */,
 				2778EBA71D2FF60E00DE72EC /* CoreFoundation.framework in Frameworks */,
 			);
@@ -459,7 +459,7 @@
 				725C87B61C7664DE00FB3AD5 /* libiconv.dylib in Frameworks */,
 				725C87B71C7664DE00FB3AD5 /* libresolv.dylib in Frameworks */,
 				725C87B81C7664DE00FB3AD5 /* libz.dylib in Frameworks */,
-				725C87B91C7664DE00FB3AD5 /* libcups.a in Frameworks */,
+				725C87B91C7664DE00FB3AD5 /* libcups_static.a in Frameworks */,
 				725C87BA1C7664DE00FB3AD5 /* ApplicationServices.framework in Frameworks */,
 				725C87BB1C7664DE00FB3AD5 /* CoreFoundation.framework in Frameworks */,
 			);
@@ -476,7 +476,7 @@
 				72B402EC1C0CE81900139783 /* ApplicationServices.framework in Frameworks */,
 				72B402ED1C0CE81900139783 /* CoreFoundation.framework in Frameworks */,
 				72B402EE1C0CE81900139783 /* SystemConfiguration.framework in Frameworks */,
-				72B402E81C0CE81900139783 /* libcups.a in Frameworks */,
+				72B402E81C0CE81900139783 /* libcups_static.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -494,7 +494,7 @@
 				72B402FD1C0CE8CE00139783 /* libiconv.dylib in Frameworks */,
 				72B402FE1C0CE8CE00139783 /* libresolv.dylib in Frameworks */,
 				72B402FA1C0CE87800139783 /* libz.dylib in Frameworks */,
-				72B402F11C0CE83200139783 /* libcups.a in Frameworks */,
+				72B402F11C0CE83200139783 /* libcups_static.a in Frameworks */,
 				72B402F21C0CE83200139783 /* ApplicationServices.framework in Frameworks */,
 				72B402F31C0CE83200139783 /* CoreFoundation.framework in Frameworks */,
 			);
@@ -507,7 +507,7 @@
 				72B402FF1C0CE8FE00139783 /* libiconv.dylib in Frameworks */,
 				72B403001C0CE8FE00139783 /* libresolv.dylib in Frameworks */,
 				72B403011C0CE8FE00139783 /* libz.dylib in Frameworks */,
-				72B402F61C0CE84700139783 /* libcups.a in Frameworks */,
+				72B402F61C0CE84700139783 /* libcups_static.a in Frameworks */,
 				72B402F71C0CE84700139783 /* ApplicationServices.framework in Frameworks */,
 				72B402F81C0CE84700139783 /* CoreFoundation.framework in Frameworks */,
 			);
@@ -520,7 +520,7 @@
 				72E005F81C5C0B10006CF057 /* libiconv.dylib in Frameworks */,
 				72E005F91C5C0B10006CF057 /* libresolv.dylib in Frameworks */,
 				72E005FA1C5C0B10006CF057 /* libz.dylib in Frameworks */,
-				72E005FB1C5C0B10006CF057 /* libcups.a in Frameworks */,
+				72E005FB1C5C0B10006CF057 /* libcups_static.a in Frameworks */,
 				72E005FC1C5C0B10006CF057 /* ApplicationServices.framework in Frameworks */,
 				72E005FD1C5C0B10006CF057 /* CoreFoundation.framework in Frameworks */,
 				27E2CC681C99C69400D203EC /* Security.framework in Frameworks */,
@@ -548,7 +548,7 @@
 			isa = PBXGroup;
 			children = (
 				72B402181C0CDFB400139783 /* ippserver */,
-				72B402261C0CE0E100139783 /* libcups.a */,
+				72B402261C0CE0E100139783 /* libcups_static.a */,
 				72B402C91C0CE5EC00139783 /* ipptool */,
 				72B402D91C0CE61D00139783 /* ippfind */,
 				72E006021C5C0B10006CF057 /* ippproxy */,
@@ -792,9 +792,9 @@
 			productReference = 72B402181C0CDFB400139783 /* ippserver */;
 			productType = "com.apple.product-type.tool";
 		};
-		72B402251C0CE0E100139783 /* libcups */ = {
+		72B402251C0CE0E100139783 /* libcups_static */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 72B402271C0CE0E100139783 /* Build configuration list for PBXNativeTarget "libcups" */;
+			buildConfigurationList = 72B402271C0CE0E100139783 /* Build configuration list for PBXNativeTarget "libcups_static" */;
 			buildPhases = (
 				72B402221C0CE0E100139783 /* Sources */,
 				72B402231C0CE0E100139783 /* Frameworks */,
@@ -804,9 +804,9 @@
 			);
 			dependencies = (
 			);
-			name = libcups;
+			name = libcups_static;
 			productName = libcups;
-			productReference = 72B402261C0CE0E100139783 /* libcups.a */;
+			productReference = 72B402261C0CE0E100139783 /* libcups_static.a */;
 			productType = "com.apple.product-type.library.static";
 		};
 		72B402C81C0CE5EC00139783 /* ipptool */ = {
@@ -902,7 +902,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				72B402251C0CE0E100139783 /* libcups */,
+				72B402251C0CE0E100139783 /* libcups_static */,
 				72B402D81C0CE61D00139783 /* ippfind */,
 				72E005F21C5C0B10006CF057 /* ippproxy */,
 				72B402171C0CDFB400139783 /* ippserver */,
@@ -1021,7 +1021,7 @@
 /* Begin PBXTargetDependency section */
 		2778EB9D1D2FF60E00DE72EC /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 72B402251C0CE0E100139783 /* libcups */;
+			target = 72B402251C0CE0E100139783 /* libcups_static */;
 			targetProxy = 2778EB9E1D2FF60E00DE72EC /* PBXContainerItemProxy */;
 		};
 		2778EBB21D2FF67B00DE72EC /* PBXTargetDependency */ = {
@@ -1031,7 +1031,7 @@
 		};
 		725C87B11C7664DE00FB3AD5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 72B402251C0CE0E100139783 /* libcups */;
+			target = 72B402251C0CE0E100139783 /* libcups_static */;
 			targetProxy = 725C87B21C7664DE00FB3AD5 /* PBXContainerItemProxy */;
 		};
 		725C87C21C7664EF00FB3AD5 /* PBXTargetDependency */ = {
@@ -1041,27 +1041,27 @@
 		};
 		72B402E71C0CE7EA00139783 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 72B402251C0CE0E100139783 /* libcups */;
+			target = 72B402251C0CE0E100139783 /* libcups_static */;
 			targetProxy = 72B402E61C0CE7EA00139783 /* PBXContainerItemProxy */;
 		};
 		72B402F01C0CE82100139783 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 72B402251C0CE0E100139783 /* libcups */;
+			target = 72B402251C0CE0E100139783 /* libcups_static */;
 			targetProxy = 72B402EF1C0CE82100139783 /* PBXContainerItemProxy */;
 		};
 		72B402F51C0CE83A00139783 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 72B402251C0CE0E100139783 /* libcups */;
+			target = 72B402251C0CE0E100139783 /* libcups_static */;
 			targetProxy = 72B402F41C0CE83A00139783 /* PBXContainerItemProxy */;
 		};
 		72E005F31C5C0B10006CF057 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 72B402251C0CE0E100139783 /* libcups */;
+			target = 72B402251C0CE0E100139783 /* libcups_static */;
 			targetProxy = 72E005F41C5C0B10006CF057 /* PBXContainerItemProxy */;
 		};
 		72E006121C5C0C52006CF057 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 72B402251C0CE0E100139783 /* libcups */;
+			target = 72B402251C0CE0E100139783 /* libcups_static */;
 			targetProxy = 72E006111C5C0C52006CF057 /* PBXContainerItemProxy */;
 		};
 		72E006141C5C0C52006CF057 /* PBXTargetDependency */ = {
@@ -1135,7 +1135,9 @@
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -1145,6 +1147,7 @@
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
@@ -1200,7 +1203,9 @@
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -1210,6 +1215,7 @@
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
@@ -1389,7 +1395,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		72B402271C0CE0E100139783 /* Build configuration list for PBXNativeTarget "libcups" */ = {
+		72B402271C0CE0E100139783 /* Build configuration list for PBXNativeTarget "libcups_static" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				72B402281C0CE0E100139783 /* Debug */,
