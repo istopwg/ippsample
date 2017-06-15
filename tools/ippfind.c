@@ -308,8 +308,12 @@ main(int  argc,				/* I - Number of command-line args */
   */
 
   if (getenv("IPPFIND_DEBUG"))
+  {
     for (i = 1; i < argc; i ++)
+    {
       fprintf(stderr, "argv[%d]=\"%s\"\n", i, argv[i]);
+    }
+  }
 
   for (i = 1; i < argc; i ++)
   {

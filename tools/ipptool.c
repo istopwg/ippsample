@@ -920,10 +920,10 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 
       continue;
     }
-    else if (!strcmp(token, "cups_file_t-ID"))
+    else if (!strcmp(token, "FILE-ID"))
     {
      /*
-      * cups_file_t-ID "string"
+      * FILE-ID "string"
       */
 
       if (get_token(fp, temp, sizeof(temp), &linenum))
@@ -932,7 +932,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
       }
       else
       {
-        print_fatal_error(outfile, "Missing cups_file_t-ID value on line %d.", linenum);
+        print_fatal_error(outfile, "Missing FILE-ID value on line %d.", linenum);
 	pass = 0;
 	goto test_exit;
       }
@@ -1984,7 +1984,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	  goto test_exit;
 	}
       }
-      else if (!_cups_strcasecmp(token, "cups_file_t"))
+      else if (!_cups_strcasecmp(token, "FILE"))
       {
        /*
         * File...
@@ -1992,7 +1992,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 
 	if (!get_token(fp, temp, sizeof(temp), &linenum))
 	{
-	  print_fatal_error(outfile, "Missing cups_file_t filename on line %d.", linenum);
+	  print_fatal_error(outfile, "Missing FILE filename on line %d.", linenum);
 	  pass = 0;
 	  goto test_exit;
 	}
@@ -3686,9 +3686,9 @@ expect_matches(
  */
 
 static ipp_t *				/* O  - Collection value */
-get_collection(cups_file_t         *outfile,	/* I  - Output file */
+get_collection(cups_file_t  *outfile,	/* I  - Output file */
                _cups_vars_t *vars,	/* I  - Variables */
-               cups_file_t         *fp,	/* I  - File to read from */
+               cups_file_t  *fp,	/* I  - File to read from */
 	       int          *linenum)	/* IO - Line number */
 {
   char		token[1024],		/* Token from file */
@@ -4316,7 +4316,7 @@ pause_message(const char *message)	/* I - Message */
  */
 
 static void
-print_attr(cups_file_t            *outfile,	/* I  - Output file */
+print_attr(cups_file_t     *outfile,	/* I  - Output file */
            int             format,	/* I  - Output format */
            ipp_attribute_t *attr,	/* I  - Attribute to print */
            ipp_tag_t       *group)	/* IO - Current group */
@@ -4466,7 +4466,7 @@ print_attr(cups_file_t            *outfile,	/* I  - Output file */
 
 static void
 print_csv(
-    cups_file_t            *outfile,		/* I - Output file */
+    cups_file_t     *outfile,		/* I - Output file */
     ipp_attribute_t *attr,		/* I - First attribute for line */
     int             num_displayed,	/* I - Number of attributes to display */
     char            **displayed,	/* I - Attributes to display */
@@ -4554,8 +4554,8 @@ print_csv(
  */
 
 static void
-print_fatal_error(cups_file_t       *outfile,	/* I - Output file */
-		  const char *s,	/* I - Printf-style format string */
+print_fatal_error(cups_file_t *outfile,	/* I - Output file */
+		  const char  *s,	/* I - Printf-style format string */
                   ...)			/* I - Additional arguments as needed */
 {
   char		buffer[10240];		/* Format buffer */
@@ -4590,7 +4590,7 @@ print_fatal_error(cups_file_t       *outfile,	/* I - Output file */
 
 static void
 print_line(
-    cups_file_t            *outfile,		/* I - Output file */
+    cups_file_t     *outfile,		/* I - Output file */
     ipp_attribute_t *attr,		/* I - First attribute for line */
     int             num_displayed,	/* I - Number of attributes to display */
     char            **displayed,	/* I - Attributes to display */
@@ -4703,9 +4703,9 @@ print_xml_header(cups_file_t *outfile)		/* I - Output file */
  */
 
 static void
-print_xml_string(cups_file_t       *outfile,	/* I - Output file */
-                 const char *element,	/* I - Element name or NULL */
-		 const char *s)		/* I - String to print */
+print_xml_string(cups_file_t *outfile,	/* I - Output file */
+                 const char  *element,	/* I - Element name or NULL */
+		 const char  *s)	/* I - String to print */
 {
   if (element)
     cupsFilePrintf(outfile, "<%s>", element);
@@ -4797,9 +4797,9 @@ print_xml_string(cups_file_t       *outfile,	/* I - Output file */
  */
 
 static void
-print_xml_trailer(cups_file_t       *outfile,	/* I - Output file */
-                  int        success,	/* I - 1 on success, 0 on failure */
-                  const char *message)	/* I - Error message or NULL */
+print_xml_trailer(cups_file_t *outfile,	/* I - Output file */
+                  int         success,	/* I - 1 on success, 0 on failure */
+                  const char  *message)	/* I - Error message or NULL */
 {
   if (XMLHeader)
   {
@@ -4824,7 +4824,7 @@ print_xml_trailer(cups_file_t       *outfile,	/* I - Output file */
  */
 
 static void
-set_variable(cups_file_t         *outfile,	/* I - Output file */
+set_variable(cups_file_t  *outfile,	/* I - Output file */
              _cups_vars_t *vars,	/* I - Variables */
              const char   *name,	/* I - Variable name */
              const char   *value)	/* I - Value string */
@@ -4962,7 +4962,7 @@ usage(void)
  */
 
 static int				/* O - 1 if valid, 0 otherwise */
-validate_attr(cups_file_t            *outfile,	/* I - Output file */
+validate_attr(cups_file_t     *outfile,	/* I - Output file */
               cups_array_t    *errors,	/* I - Errors array */
               ipp_attribute_t *attr)	/* I - Attribute to validate */
 {
