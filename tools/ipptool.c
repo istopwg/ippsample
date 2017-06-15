@@ -1671,14 +1671,6 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
         }
         else
           repeat_interval = delay;
-
-        if (delay > 0)
-        {
-	  if (Output == _CUPS_OUTPUT_TEST)
-	    printf("    [%g second delay]\n", delay * 0.000001);
-
-	  usleep(delay);
-	}
       }
       else if (!_cups_strcasecmp(token, "ATTR"))
       {
@@ -2222,15 +2214,17 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	  goto test_exit;
 	}
 
-        if ((in_group = ippTagValue(token)) == (ipp_tag_t)-1)
+        if ((in_group = ippTagValue(token)) == (ipp_tag_t)-1 || in_group >= IPP_TAG_UNSUPPORTED_VALUE)
 	{
+          print_fatal_error(outfile, "Bad IN-GROUP group tag \"%s\" on line %d.", token, linenum);
+          pass = 0;
+          goto test_exit;
 	}
 	else if (last_expect)
 	  last_expect->in_group = in_group;
 	else
 	{
-	  print_fatal_error(outfile, "IN-GROUP without a preceding EXPECT on line %d.",
-	                    linenum);
+	  print_fatal_error(outfile, "IN-GROUP without a preceding EXPECT on line %d.", linenum);
 	  pass = 0;
 	  goto test_exit;
 	}
@@ -2256,8 +2250,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	  last_expect->repeat_limit = atoi(token);
 	else
 	{
-	  print_fatal_error(outfile, "REPEAT-LIMIT without a preceding EXPECT or STATUS "
-	                    "on line %d.", linenum);
+	  print_fatal_error(outfile, "REPEAT-LIMIT without a preceding EXPECT or STATUS on line %d.", linenum);
 	  pass = 0;
 	  goto test_exit;
 	}
@@ -2270,8 +2263,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	  last_expect->repeat_match = 1;
 	else
 	{
-	  print_fatal_error(outfile, "REPEAT-MATCH without a preceding EXPECT or STATUS "
-	                    "on line %d.", linenum);
+	  print_fatal_error(outfile, "REPEAT-MATCH without a preceding EXPECT or STATUS on line %d.", linenum);
 	  pass = 0;
 	  goto test_exit;
 	}
@@ -2284,8 +2276,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	  last_expect->repeat_no_match = 1;
 	else
 	{
-	  print_fatal_error(outfile, "REPEAT-NO-MATCH without a preceding EXPECT or "
-	                    "STATUS on ine %d.", linenum);
+	  print_fatal_error(outfile, "REPEAT-NO-MATCH without a preceding EXPECT or STATUS on ine %d.", linenum);
 	  pass = 0;
 	  goto test_exit;
 	}
@@ -2324,8 +2315,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	  last_status->if_defined = strdup(token);
 	else
 	{
-	  print_fatal_error(outfile, "IF-DEFINED without a preceding EXPECT or STATUS "
-	                    "on line %d.", linenum);
+	  print_fatal_error(outfile, "IF-DEFINED without a preceding EXPECT or STATUS on line %d.", linenum);
 	  pass = 0;
 	  goto test_exit;
 	}
@@ -2345,8 +2335,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	  last_status->if_not_defined = strdup(token);
 	else
 	{
-	  print_fatal_error(outfile, "IF-NOT-DEFINED without a preceding EXPECT or STATUS "
-			    "on line %d.", linenum);
+	  print_fatal_error(outfile, "IF-NOT-DEFINED without a preceding EXPECT or STATUS on line %d.", linenum);
 	  pass = 0;
 	  goto test_exit;
 	}
@@ -2431,8 +2420,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	}
 	else
 	{
-	  print_fatal_error(outfile, "%s without a preceding EXPECT on line %d.", token,
-		            linenum);
+	  print_fatal_error(outfile, "%s without a preceding EXPECT on line %d.", token, linenum);
 	  pass = 0;
 	  goto test_exit;
 	}
@@ -2459,8 +2447,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	}
 	else
 	{
-	  print_fatal_error(outfile, "%s without a preceding EXPECT on line %d.", token,
-		            linenum);
+	  print_fatal_error(outfile, "%s without a preceding EXPECT on line %d.", token, linenum);
 	  pass = 0;
 	  goto test_exit;
 	}
@@ -2490,8 +2477,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
       }
       else
       {
-	print_fatal_error(outfile, "Unexpected token %s seen on line %d.", token,
-	                  linenum);
+	print_fatal_error(outfile, "Unexpected token %s seen on line %d.", token, linenum);
 	pass = 0;
 	goto test_exit;
       }
@@ -2586,6 +2572,10 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 
     do
     {
+      if (delay > 0)
+        usleep(delay);
+
+      delay = repeat_interval;
       repeat_count ++;
 
       status = HTTP_STATUS_OK;
@@ -2975,9 +2965,8 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 
 	  if (response->request.status.status_code == statuses[i].status)
 	  {
-	    if (statuses[i].repeat_match &&
-	        repeat_count < statuses[i].repeat_limit)
-	      repeat_test = 1;
+	    if (statuses[i].repeat_match && repeat_count < statuses[i].repeat_limit)
+              repeat_test = 1;
 
             if (statuses[i].define_match)
               set_variable(outfile, vars, statuses[i].define_match, "1");
@@ -2986,9 +2975,8 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	  }
 	  else
 	  {
-	    if (statuses[i].repeat_no_match &&
-		repeat_count < statuses[i].repeat_limit)
-	      repeat_test = 1;
+	    if (statuses[i].repeat_no_match && repeat_count < statuses[i].repeat_limit)
+              repeat_test = 1;
 
             if (statuses[i].define_no_match)
             {
@@ -3010,7 +2998,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 		get_variable(vars, statuses[i].if_not_defined))
 	      continue;
 
-            if (!statuses[i].repeat_match)
+            if (!statuses[i].repeat_match || repeat_count >= statuses[i].repeat_limit)
 	      add_stringf(errors, "EXPECTED: STATUS %s (got %s)",
 			  ippErrorString(statuses[i].status),
 			  ippErrorString(cupsLastError()));
@@ -3063,9 +3051,8 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 		}
 	      }
 
-	      if (expect->repeat_no_match &&
-		  repeat_count < expect->repeat_limit)
-		repeat_test = 1;
+	      if (expect->repeat_no_match && repeat_count < expect->repeat_limit)
+                repeat_test = 1;
 
 	      break;
 	    }
@@ -3077,7 +3064,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	    {
 	      if (expect->define_no_match)
 		set_variable(outfile, vars, expect->define_no_match, "1");
-	      else if (!expect->define_match && !expect->define_value && !expect->repeat_match && !expect->repeat_no_match)
+	      else if (!expect->define_match && !expect->define_value && ((!expect->repeat_match && !expect->repeat_no_match) || repeat_count >= expect->repeat_limit))
 	      {
 		add_stringf(errors, "EXPECTED: %s WITH-VALUES-FROM %s", expect->name, expect->with_value_from);
 
@@ -3094,7 +3081,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	      if (expect->define_no_match)
 		set_variable(outfile, vars, expect->define_no_match, "1");
 	      else if (!expect->define_match && !expect->define_value &&
-		       !expect->repeat_match && !expect->repeat_no_match)
+		       !expect->repeat_match && (!expect->repeat_no_match || repeat_count >= expect->repeat_limit))
 	      {
 		if (expect->with_flags & _CUPS_WITH_REGEX)
 		  add_stringf(errors, "EXPECTED: %s %s /%s/",
@@ -3269,8 +3256,6 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	    }
 	  }
         }
-
-        usleep(repeat_interval);
 
 	if (Output == _CUPS_OUTPUT_TEST || (Output == _CUPS_OUTPUT_PLIST && outfile != cupsFileStdout()))
 	{
@@ -4940,8 +4925,7 @@ timeout_cb(http_t *http,		/* I - Connection to server */
 static void
 usage(void)
 {
-  _cupsLangPuts(stderr, _("Usage: ipptool [options] URI filename [ ... "
-		          "filenameN ]"));
+  _cupsLangPuts(stderr, _("Usage: ipptool [options] URI filename [ ... filenameN ]"));
   _cupsLangPuts(stderr, _("Options:"));
   _cupsLangPuts(stderr, _("  --help                  Show help."));
   _cupsLangPuts(stderr, _("  --stop-after-include-error\n"
@@ -4951,30 +4935,20 @@ usage(void)
   _cupsLangPuts(stderr, _("  -6                      Connect using IPv6."));
   _cupsLangPuts(stderr, _("  -C                      Send requests using "
                           "chunking (default)."));
-  _cupsLangPuts(stderr, _("  -E                      Test with HTTP Upgrade to "
-                          "TLS."));
+  _cupsLangPuts(stderr, _("  -E                      Test with encryption using HTTP Upgrade to TLS."));
   _cupsLangPuts(stderr, _("  -I                      Ignore errors."));
-  _cupsLangPuts(stderr, _("  -L                      Send requests using "
-                          "content-length."));
+  _cupsLangPuts(stderr, _("  -L                      Send requests using content-length."));
   _cupsLangPuts(stderr, _("  -P filename.plist       Produce XML plist to a file and test report to standard output."));
-  _cupsLangPuts(stderr, _("  -S                      Test with SSL "
-			  "encryption."));
-  _cupsLangPuts(stderr, _("  -T seconds              Set the receive/send "
-                          "timeout in seconds."));
-  _cupsLangPuts(stderr, _("  -V version              Set default IPP "
-                          "version."));
-  _cupsLangPuts(stderr, _("  -X                      Produce XML plist instead "
-                          "of plain text."));
+  _cupsLangPuts(stderr, _("  -S                      Test with encryption using HTTPS."));
+  _cupsLangPuts(stderr, _("  -T seconds              Set the receive/send timeout in seconds."));
+  _cupsLangPuts(stderr, _("  -V version              Set default IPP version."));
+  _cupsLangPuts(stderr, _("  -X                      Produce XML plist instead of plain text."));
   _cupsLangPuts(stderr, _("  -c                      Produce CSV output."));
-  _cupsLangPuts(stderr, _("  -d name=value           Set named variable to "
-                          "value."));
-  _cupsLangPuts(stderr, _("  -f filename             Set default request "
-                          "filename."));
-  _cupsLangPuts(stderr, _("  -i seconds              Repeat the last file with "
-                          "the given time interval."));
+  _cupsLangPuts(stderr, _("  -d name=value           Set named variable to value."));
+  _cupsLangPuts(stderr, _("  -f filename             Set default request filename."));
+  _cupsLangPuts(stderr, _("  -i seconds              Repeat the last file with the given time interval."));
   _cupsLangPuts(stderr, _("  -l                      Produce plain text output."));
-  _cupsLangPuts(stderr, _("  -n count                Repeat the last file the "
-                          "given number of times."));
+  _cupsLangPuts(stderr, _("  -n count                Repeat the last file the given number of times."));
   _cupsLangPuts(stderr, _("  -q                      Run silently."));
   _cupsLangPuts(stderr, _("  -t                      Produce a test report."));
   _cupsLangPuts(stderr, _("  -v                      Be verbose."));
