@@ -1618,7 +1618,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	  goto test_exit;
 	}
 
-	if ((value = ippTagValue(token)) < 0)
+	if ((value = ippTagValue(token)) == IPP_TAG_ZERO || value >= IPP_TAG_UNSUPPORTED_VALUE)
 	{
 	  print_fatal_error(outfile, "Bad GROUP tag \"%s\" on line %d.", token, linenum);
 	  pass = 0;
@@ -2214,7 +2214,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	  goto test_exit;
 	}
 
-        if ((in_group = ippTagValue(token)) == (ipp_tag_t)-1 || in_group >= IPP_TAG_UNSUPPORTED_VALUE)
+        if ((in_group = ippTagValue(token)) == IPP_TAG_ZERO || in_group >= IPP_TAG_UNSUPPORTED_VALUE)
 	{
           print_fatal_error(outfile, "Bad IN-GROUP group tag \"%s\" on line %d.", token, linenum);
           pass = 0;
