@@ -1,6 +1,4 @@
 /*
- * "$Id: ippfind.c 12638 2015-05-19 02:36:15Z msweet $"
- *
  * Utility to find IPP printers via Bonjour/DNS-SD and optionally run
  * commands such as IPP and Bonjour conformance tests.  This tool is
  * inspired by the UNIX "find" command, thus its name.
@@ -308,12 +306,8 @@ main(int  argc,				/* I - Number of command-line args */
   */
 
   if (getenv("IPPFIND_DEBUG"))
-  {
     for (i = 1; i < argc; i ++)
-    {
       fprintf(stderr, "argv[%d]=\"%s\"\n", i, argv[i]);
-    }
-  }
 
   for (i = 1; i < argc; i ++)
   {
@@ -2844,8 +2838,3 @@ show_version(void)
 
   exit(IPPFIND_EXIT_TRUE);
 }
-
-
-/*
- * End of "$Id: ippfind.c 12638 2015-05-19 02:36:15Z msweet $".
- */
