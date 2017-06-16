@@ -875,7 +875,8 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
   int		num_statuses = 0;	/* Number of valid status codes */
   _cups_status_t statuses[100],		/* Valid status codes */
 		*last_status;		/* Last STATUS (for predicates) */
-  int		num_expects = 0;	/* Number of expected attributes */
+  int           status_ok,              /* Did we get a matching status? */
+	        num_expects = 0;  /* Number of expected attributes */
   _cups_expect_t expects[200],		/* Expected attributes */
 		*expect,		/* Current expected attribute */
 		*last_expect;		/* Last EXPECT (for predicates) */
@@ -3042,7 +3043,7 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
         * values...
         */
 
-	for (i = 0; i < num_statuses; i ++)
+	for (i = 0, status_ok = 0; i < num_statuses; i ++)
 	{
 	  if (statuses[i].if_defined &&
 	      !get_variable(vars, statuses[i].if_defined))
@@ -3052,15 +3053,15 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
 	      get_variable(vars, statuses[i].if_not_defined))
 	    continue;
 
-	  if (response->request.status.status_code == statuses[i].status)
+	  if (ippGetStatusCode(response) == statuses[i].status)
 	  {
-	    if (statuses[i].repeat_match && repeat_count < statuses[i].repeat_limit)
+            status_ok = 1;
+
+            if (statuses[i].repeat_match && repeat_count < statuses[i].repeat_limit)
               repeat_test = 1;
 
             if (statuses[i].define_match)
               set_variable(outfile, vars, statuses[i].define_match, "1");
-
-            break;
 	  }
 	  else
 	  {
@@ -3070,12 +3071,12 @@ do_tests(cups_file_t  *outfile,		/* I - Output file */
             if (statuses[i].define_no_match)
             {
               set_variable(outfile, vars, statuses[i].define_no_match, "1");
-              break;
+              status_ok = 1;
             }
           }
 	}
 
-	if (i == num_statuses && num_statuses > 0)
+	if (!status_ok && num_statuses > 0)
 	{
 	  for (i = 0; i < num_statuses; i ++)
 	  {
