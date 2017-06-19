@@ -225,8 +225,8 @@ static const char	*cups_dnssd_resolve(cups_dest_t *dest, const char *uri,
 static int		cups_dnssd_resolve_cb(void *context);
 static void		cups_dnssd_unquote(char *dst, const char *src,
 			                   size_t dstsize);
-#endif /* HAVE_DNSSD || HAVE_AVAHI */
 static int		cups_elapsed(struct timeval *t);
+#endif /* HAVE_DNSSD || HAVE_AVAHI */
 static int		cups_find_dest(const char *name, const char *instance,
 				       int num_dests, cups_dest_t *dests, int prev,
 				       int *rdiff);
@@ -976,11 +976,11 @@ cupsEnumDests(
 #  ifdef HAVE_DNSSD
   int			nfds,		/* Number of files responded */
 			main_fd;	/* File descriptor for lookups */
-  DNSServiceRef		ipp_ref,	/* IPP browser */
-			local_ipp_ref;	/* Local IPP browser */
+  DNSServiceRef		ipp_ref = NULL,	/* IPP browser */
+			local_ipp_ref = NULL; /* Local IPP browser */
 #    ifdef HAVE_SSL
-  DNSServiceRef		ipps_ref,	/* IPPS browser */
-			local_ipps_ref;	/* Local IPPS browser */
+  DNSServiceRef		ipps_ref = NULL,/* IPPS browser */
+			local_ipps_ref = NULL; /* Local IPPS browser */
 #    endif /* HAVE_SSL */
 #    ifdef HAVE_POLL
   struct pollfd		pfd;		/* Polling data */
@@ -990,12 +990,13 @@ cupsEnumDests(
 #    endif /* HAVE_POLL */
 #  else /* HAVE_AVAHI */
   int			error;		/* Error value */
-  AvahiServiceBrowser	*ipp_ref;	/* IPP browser */
+  AvahiServiceBrowser	*ipp_ref = NULL;/* IPP browser */
 #    ifdef HAVE_SSL
-  AvahiServiceBrowser	*ipps_ref;	/* IPPS browser */
+  AvahiServiceBrowser	*ipps_ref = NULL; /* IPPS browser */
 #    endif /* HAVE_SSL */
 #  endif /* HAVE_DNSSD */
 #endif /* HAVE_DNSSD || HAVE_AVAHI */
+
 
  /*
   * Range check input...
@@ -1011,6 +1012,8 @@ cupsEnumDests(
   */
 
 #if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
+  memset(&data, 0, sizeof(data));
+
   data.type      = type;
   data.mask      = mask;
   data.cb        = cb;
@@ -1072,11 +1075,11 @@ cupsEnumDests(
         */
 
         char	scheme[32],		/* URI scheme */
-                  userpass[32],		/* Username:password */
-                  serviceName[256],	/* Service name (host field) */
-                  resource[256],		/* Resource (options) */
-                  *regtype,		/* Registration type */
-                  *replyDomain;		/* Registration domain */
+                userpass[32],           /* Username:password */
+                serviceName[256],       /* Service name (host field) */
+                resource[256],          /* Resource (options) */
+                *regtype,               /* Registration type */
+                *replyDomain;           /* Registration domain */
         int	port;			/* Port number (not used) */
 
         if (httpSeparateURI(HTTP_URI_CODING_ALL, device_uri, scheme, sizeof(scheme), userpass, sizeof(userpass), serviceName, sizeof(serviceName), &port, resource, sizeof(resource)) >= HTTP_URI_STATUS_OK)
@@ -1312,28 +1315,7 @@ cupsEnumDests(
       break;
 #  endif /* HAVE_AVAHI */
   }
-
-#  ifdef HAVE_DNSSD
-  DNSServiceRefDeallocate(ipp_ref);
-  DNSServiceRefDeallocate(local_ipp_ref);
-
-#    ifdef HAVE_SSL
-  DNSServiceRefDeallocate(ipp_ref);
-  DNSServiceRefDeallocate(local_ipp_ref);
-#    endif /* HAVE_SSL */
-
-  DNSServiceRefDeallocate(data.main_ref);
-
-#  else /* HAVE_AVAHI */
-  avahi_service_browser_free(ipp_ref);
-#    ifdef HAVE_SSL
-  avahi_service_browser_free(ipps_ref);
-#    endif /* HAVE_SSL */
-
-  avahi_client_free(data.client);
-  avahi_simple_poll_free(data.simple_poll);
-#  endif /* HAVE_DNSSD */
-#endif /* HAVE_DNSSD || HAVE_DNSSD */
+#endif /* HAVE_DNSSD || HAVE_AVAHI */
 
  /*
   * Return...
@@ -1343,6 +1325,36 @@ cupsEnumDests(
 
 #if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
   cupsArrayDelete(data.devices);
+
+#  ifdef HAVE_DNSSD
+  if (ipp_ref)
+    DNSServiceRefDeallocate(ipp_ref);
+  if (local_ipp_ref)
+    DNSServiceRefDeallocate(local_ipp_ref);
+
+#    ifdef HAVE_SSL
+  if (ipps_ref)
+    DNSServiceRefDeallocate(ipps_ref);
+  if (local_ipps_ref)
+    DNSServiceRefDeallocate(local_ipps_ref);
+#    endif /* HAVE_SSL */
+
+  if (data.main_ref)
+    DNSServiceRefDeallocate(data.main_ref);
+
+#  else /* HAVE_AVAHI */
+  if (ipp_ref)
+    avahi_service_browser_free(ipp_ref);
+#    ifdef HAVE_SSL
+  if (ipps_ref)
+    avahi_service_browser_free(ipps_ref);
+#    endif /* HAVE_SSL */
+
+  if (data.client)
+    avahi_client_free(data.client);
+  if (data.simple_poll)
+    avahi_simple_poll_free(data.simple_poll);
+#  endif /* HAVE_DNSSD */
 #endif /* HAVE_DNSSD || HAVE_AVAHI */
 
   return (1);
@@ -1733,6 +1745,7 @@ _cupsGetDests(http_t       *http,	/* I  - Connection to server or
 		  "printer-info",
 		  "printer-is-accepting-jobs",
 		  "printer-is-shared",
+                  "printer-is-temporary",
 		  "printer-location",
 		  "printer-make-and-model",
 		  "printer-mandatory-job-attributes",
@@ -1839,7 +1852,8 @@ _cupsGetDests(http_t       *http,	/* I  - Connection to server or
 	    !strcmp(attr->name, "marker-types") ||
 	    !strcmp(attr->name, "printer-commands") ||
 	    !strcmp(attr->name, "printer-info") ||
-	    !strcmp(attr->name, "printer-is-shared") ||
+            !strcmp(attr->name, "printer-is-shared") ||
+            !strcmp(attr->name, "printer-is-temporary") ||
 	    !strcmp(attr->name, "printer-make-and-model") ||
 	    !strcmp(attr->name, "printer-mandatory-job-attributes") ||
 	    !strcmp(attr->name, "printer-state") ||
@@ -3845,6 +3859,7 @@ cups_dnssd_unquote(char       *dst,	/* I - Destination buffer */
 #endif /* HAVE_DNSSD */
 
 
+#if defined(HAVE_AVAHI) || defined(HAVE_DNSSD)
 /*
  * 'cups_elapsed()' - Return the elapsed time in milliseconds.
  */
@@ -3864,6 +3879,7 @@ cups_elapsed(struct timeval *t)		/* IO - Previous time */
 
   return (msecs);
 }
+#endif /* HAVE_AVAHI || HAVE_DNSSD */
 
 
 /*
