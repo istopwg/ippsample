@@ -1,6 +1,6 @@
 
 name: ipp
-version: 1.0
+version: 1.0b1
 summary: IPP Sample Implementation
 description: |
   The ippsample project provides sample implementations of an IPP Client, Proxy,
@@ -13,25 +13,28 @@ icon: server/printer.png
 
 apps:
     server:
-        command: usr/bin/server
-        plugs: [avahi-observe home network network-bind]
+        command: sbin/ippserver
+        plugs: [avahi-observe, home, network, network-bind]
     find:
-        command: usr/bin/find
-        plugs: [avahi-observe home network]
+        command: bin/ippfind
+        plugs: [avahi-observe, home, network]
+    proxy:
+        command: sbin/ippproxy
+        plugs: [avahi-observe, home, network]
     tool:
-        command: usr/bin/tool
-        plugs: [avahi-observe home network]
-    transform:
-        command: usr/bin/transform
-        plugs: [home network]
-    transform3d:
-        command: usr/bin/transform3d
-        plugs: [home network]
+        command: bin/ipptool
+        plugs: [avahi-observe, home, network]
+#    transform:
+#        command: bin/ipptransform
+#        plugs: [avahi-observe, home, network]
+#    transform3d:
+#        command: bin/ipptransform3d
+#        plugs: [avahi-observe, home, network]
 
 parts:
     main:
         plugin: autotools
         source: .
 
-build-packages: [libavahi-dev libgnutls-dev libjpeg-dev libmupdf-dev libpng-dev zlib-dev]
+build-packages: [libavahi-client-dev, libgnutls28-dev, libjpeg-dev, libpng-dev, zlib1g-dev]
 
