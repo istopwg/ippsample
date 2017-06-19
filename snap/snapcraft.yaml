@@ -24,15 +24,22 @@ apps:
     tool:
         command: bin/ipptool
         plugs: [avahi-observe, home, network]
-#    transform:
-#        command: bin/ipptransform
-#        plugs: [avahi-observe, home, network]
+    transform:
+        command: bin/ipptransform
+        plugs: [avahi-observe, home, network]
 #    transform3d:
 #        command: bin/ipptransform3d
 #        plugs: [avahi-observe, home, network]
 
 parts:
+    mupdf:
+        plugin: make
+        make-install-var: prefix
+        make-parameters: [HAVE_X11=no, HAVE_GLFW=no]
+        source: https://mupdf.com/downloads/mupdf-1.11-source.tar.gz
+
     main:
+        after: [mupdf]
         plugin: autotools
         source: .
 
