@@ -6,7 +6,10 @@ config.status
 cups/libcups.a
 cups/org.pwg.ippsample.*
 doc/mantohtml
+parts
+prime
 server/ippserver
+stage
 tools/ippfind
 tools/ippproxy
 tools/ipptool
@@ -16,4 +19,5 @@ xcuserdata
 *.log
 *.o
 *.ras
+*.snap
 *.xcworkspace
