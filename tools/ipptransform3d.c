@@ -26,8 +26,21 @@
 #  include <IOKit/serial/ioss.h>
 #endif /* __APPLE__ */
 
-#ifdef __linux /* Because <termios.h> does not define termios2 structure */
-#  include <asm-generic/termbits.h>
+#ifdef __linux
+/*
+ * <termios.h> does not define termios2 structure, but <asm-generic/termbits.h>
+ * is not compatible with <termios.h> header...
+ */
+struct termios2 {
+	tcflag_t c_iflag;		/* input mode flags */
+	tcflag_t c_oflag;		/* output mode flags */
+	tcflag_t c_cflag;		/* control mode flags */
+	tcflag_t c_lflag;		/* local mode flags */
+	cc_t c_line;			/* line discipline */
+	cc_t c_cc[NCCS];		/* control characters */
+	speed_t c_ispeed;		/* input speed */
+	speed_t c_ospeed;		/* output speed */
+};
 #endif /* __linux */
 
 #ifndef WIN32
@@ -523,7 +536,11 @@ open_device(const char *device_uri)	/* I - Device URI */
 		*options;		/* Pointer to options */
   int		device_fd,		/* Serial device */
                 device_state;		/* Serial control lines */
+#ifdef __linux
+  struct termios2 opts;			/* Serial port options */
+#else
   struct termios opts;			/* Serial port options */
+#endif /* __linux */
   int		baud = 250000;		/* Baud rate */
 
 
@@ -561,9 +578,9 @@ open_device(const char *device_uri)	/* I - Device URI */
   * Set any options provided...
   */
 
-  tcgetattr(device_fd, &opts);
+  tcgetattr(device_fd, (struct termios *)&opts);
 
-  cfmakeraw(&opts);
+  cfmakeraw((struct termios *)&opts);
 
   opts.c_cflag |= CREAD | CLOCAL;	/* Enable reader */
 
@@ -597,9 +614,9 @@ open_device(const char *device_uri)	/* I - Device URI */
   ioctl(device_fd, IOSSIOSPEED, &baud);
 
 #elif defined(__linux)			/* Linux needs to use non-POSIX termios2 ioctl, grrr... */
-  opts.c_cflag &= ~CBAUD;
-  opts.c_cflag != BOTHER;
-  opts.c_ospeed = opts.c_ispeed = baud;
+  opts.c_cflag &= (unsigned)~CBAUD;
+//  opts.c_cflag != BOTHER;
+  opts.c_ospeed = opts.c_ispeed = (speed_t)baud;
 
   ioctl(device_fd, TCSETS2, &opts);
 
