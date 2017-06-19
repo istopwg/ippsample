@@ -1,7 +1,7 @@
 /*
  * ipptransform3d utility for converting 3MF and STL files to G-code.
  *
- * Copyright 2016 by Apple Inc.
+ * Copyright 2016-2017 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -26,9 +26,14 @@
 #  include <IOKit/serial/ioss.h>
 #endif /* __APPLE__ */
 
+#ifdef __linux /* Because <termios.h> does not define termios2 structure */
+#  include <asm-generic/termbits.h>
+#endif /* __linux */
+
 #ifndef WIN32
 #  include <spawn.h>
 #  include <poll.h>
+#  include <sys/wait.h>
 #endif /* !WIN32 */
 
 
