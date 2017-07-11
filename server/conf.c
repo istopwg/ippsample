@@ -1,7 +1,7 @@
 /*
  * Configuration file support for sample IPP server implementation.
  *
- * Copyright 2015-2016 by Apple Inc.
+ * Copyright 2015-2017 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -29,10 +29,13 @@ static _cups_mutex_t	printer_mutex = _CUPS_MUTEX_INITIALIZER;
  * Local functions...
  */
 
+static int		compare_lang(server_lang_t *a, server_lang_t *b);
 static int		compare_printers(server_printer_t *a, server_printer_t *b);
+static server_lang_t	*copy_lang(server_lang_t *a);
 #ifdef HAVE_AVAHI
 static void		dnssd_client_cb(AvahiClient *c, AvahiClientState state, void *userdata);
 #endif /* HAVE_AVAHI */
+static void		free_lang(server_lang_t *a);
 static ipp_t		*get_collection(cups_file_t *fp, const char *filename, int *linenum);
 static char		*get_token(cups_file_t *fp, char *buf, int buflen, int *linenum);
 static int		load_system(const char *conf);
@@ -225,6 +228,7 @@ serverFindPrinter(const char *resource)	/* I - Resource path */
  *    MAKE "manufacturer"
  *    MODEL "model name"
  *    PROXY-USER "username"
+ *    STRINGS lang filename.strings
  *
  * AUTH schemes are "none" for no authentication or "basic" for HTTP Basic
  * authentication.
@@ -234,17 +238,19 @@ serverFindPrinter(const char *resource)	/* I - Resource path */
 
 ipp_t *					/* O - Attributes */
 serverLoadAttributes(
-    const char *filename,		/* I - File to load */
-    char       **authtype,		/* O - Authentication type, if any */
-    char       **command,		/* O - Command to run, if any */
-    char       **device_uri,		/* O - Device URI, if any */
-    char       **make,			/* O - Manufacturer */
-    char       **model,			/* O - Model */
-    char       **proxy_user)		/* O - Proxy user, if any */
+    const char   *filename,		/* I - File to load */
+    char         **authtype,		/* O - Authentication type, if any */
+    char         **command,		/* O - Command to run, if any */
+    char         **device_uri,		/* O - Device URI, if any */
+    char         **output_format,	/* O - Output format, if any */
+    char         **make,		/* O - Manufacturer */
+    char         **model,		/* O - Model */
+    char         **proxy_user,		/* O - Proxy user, if any */
+    cups_array_t **strings)		/* O - Localizations, if any */
 {
   ipp_t		*attrs;			/* Attributes to return */
   cups_file_t	*fp;			/* File */
-  int		linenum = 0;		/* Current line number */
+  int		linenum = 1;		/* Current line number */
   char		attr[128],		/* Attribute name */
 		token[1024],		/* Token from file */
 		*tokenptr;		/* Pointer into token */
@@ -514,7 +520,7 @@ serverLoadAttributes(
     {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing AUTHTYPE value on line %d of \"%s\".", linenum, filename);
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing AuthType value on line %d of \"%s\".", linenum, filename);
         goto load_error;
       }
 
@@ -524,7 +530,7 @@ serverLoadAttributes(
     {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing COMMAND value on line %d of \"%s\".", linenum, filename);
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing Command value on line %d of \"%s\".", linenum, filename);
         goto load_error;
       }
 
@@ -534,17 +540,27 @@ serverLoadAttributes(
     {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing DEVICE-URI value on line %d of \"%s\".", linenum, filename);
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing DeviceURI value on line %d of \"%s\".", linenum, filename);
         goto load_error;
       }
 
       *device_uri = strdup(token);
     }
+    else if (!_cups_strcasecmp(token, "OUTPUTFORMAT") && device_uri)
+    {
+      if (!get_token(fp, token, sizeof(token), &linenum))
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing OutputFormat value on line %d of \"%s\".", linenum, filename);
+        goto load_error;
+      }
+
+      *output_format = strdup(token);
+    }
     else if (!_cups_strcasecmp(token, "MAKE") && make)
     {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing MAKE value on line %d of \"%s\".", linenum, filename);
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing Make value on line %d of \"%s\".", linenum, filename);
         goto load_error;
       }
 
@@ -554,7 +570,7 @@ serverLoadAttributes(
     {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing MODEL value on line %d of \"%s\".", linenum, filename);
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing Model value on line %d of \"%s\".", linenum, filename);
         goto load_error;
       }
 
@@ -564,11 +580,38 @@ serverLoadAttributes(
     {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing PROXY-USER value on line %d of \"%s\".", linenum, filename);
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing ProxyUser value on line %d of \"%s\".", linenum, filename);
         goto load_error;
       }
 
       *proxy_user = strdup(token);
+    }
+    else if (!_cups_strcasecmp(token, "STRINGS") && strings)
+    {
+      server_lang_t	lang;			/* New localization */
+      char		stringsfile[1024];	/* Strings filename */
+
+      if (!get_token(fp, token, sizeof(token), &linenum))
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing STRINGS language on line %d of \"%s\".", linenum, filename);
+        goto load_error;
+      }
+
+      if (!get_token(fp, stringsfile, sizeof(stringsfile), &linenum))
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Missing STRINGS filename on line %d of \"%s\".", linenum, filename);
+        goto load_error;
+      }
+
+      lang.lang     = token;
+      lang.filename = stringsfile;
+
+      if (!*strings)
+        *strings = cupsArrayNew3((cups_array_func_t)compare_lang, NULL, NULL, 0, (cups_acopy_func_t)copy_lang, (cups_afree_func_t)free_lang);
+
+      cupsArrayAdd(*strings, &lang);
+
+      serverLog(SERVER_LOGLEVEL_DEBUG, "Added strings file \"%s\" for language \"%s\".", stringsfile, token);
     }
     else
     {
@@ -614,9 +657,11 @@ serverLoadConfiguration(
   char		*authtype,		/* AuthType value, if any */
 		*command,		/* Command value, if any */
 		*device_uri,		/* DeviceURI value, if any */
+		*output_format,		/* OutputFormat value, if any */
 		*make,			/* Make value, if any */
 		*model,			/* Model value, if any */
 		*proxy_user;		/* ProxyUser value, if any */
+  cups_array_t	*strings;		/* Strings files, if any */
 
 
  /*
@@ -653,14 +698,15 @@ serverLoadConfiguration(
         *ptr = '\0';
         snprintf(iconname, sizeof(iconname), "%s/print/%s.png", directory, dent->filename);
 
-        authtype = command = device_uri = make = model = proxy_user = NULL;
+        authtype = command = device_uri = output_format = make = model = proxy_user = NULL;
+        strings  = NULL;
 
-        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &make, &model, &proxy_user)) != NULL)
+        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &output_format, &make, &model, &proxy_user, &strings)) != NULL)
 	{
           snprintf(resource, sizeof(resource), "/ipp/print/%s", dent->filename);
 
-	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, proxy_user)) == NULL)
-          continue;
+	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, output_format, proxy_user, strings)) == NULL)
+            continue;
 
 	  if (!Printers)
 	    Printers = cupsArrayNew((cups_array_func_t)compare_printers, NULL);
@@ -699,13 +745,14 @@ serverLoadConfiguration(
         *ptr = '\0';
         snprintf(iconname, sizeof(iconname), "%s/print3d/%s.png", directory, dent->filename);
 
-        authtype = command = device_uri = make = model = proxy_user = NULL;
+        authtype = command = device_uri = output_format = make = model = proxy_user = NULL;
+        strings  = NULL;
 
-        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &make, &model, &proxy_user)) != NULL)
+        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &output_format, &make, &model, &proxy_user, &strings)) != NULL)
 	{
           snprintf(resource, sizeof(resource), "/ipp/print3d/%s", dent->filename);
 
-	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, proxy_user)) == NULL)
+	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, output_format, proxy_user, strings)) == NULL)
           continue;
 
 	  if (!Printers)
@@ -727,6 +774,18 @@ serverLoadConfiguration(
 
 
 /*
+ * 'compare_lang()' - Compare two languages.
+ */
+
+static int				/* O - Result of comparison */
+compare_lang(server_lang_t *a,		/* I - First localization */
+             server_lang_t *b)		/* I - Second localization */
+{
+  return (strcmp(a->lang, b->lang));
+}
+
+
+/*
  * 'compare_printers()' - Compare two printers.
  */
 
@@ -735,6 +794,26 @@ compare_printers(server_printer_t *a,	/* I - First printer */
                  server_printer_t *b)	/* I - Second printer */
 {
   return (strcmp(a->resource, b->resource));
+}
+
+
+/*
+ * 'copy_lang()' - Copy a localization.
+ */
+
+static server_lang_t *			/* O - New localization */
+copy_lang(server_lang_t *a)		/* I - Localization to copy */
+{
+  server_lang_t	*b;			/* New localization */
+
+
+  if ((b = calloc(1, sizeof(server_lang_t))) != NULL)
+  {
+    b->lang     = strdup(a->lang);
+    b->filename = strdup(a->filename);
+  }
+
+  return (b);
 }
 
 
@@ -772,6 +851,19 @@ dnssd_client_cb(
   }
 }
 #endif /* HAVE_AVAHI */
+
+
+/*
+ * 'free_lang()' - Free a localization.
+ */
+
+static void
+free_lang(server_lang_t *a)		/* I - Localization */
+{
+  free(a->lang);
+  free(a->filename);
+  free(a);
+}
 
 
 /*

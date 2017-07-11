@@ -1,0 +1,385 @@
+#
+# IPP 3D test suite.
+#
+# Copyright 2017 by Apple Inc.
+#
+# These coded instructions, statements, and computer programs are the
+# property of Apple Inc. and are protected by Federal copyright
+# law.  Distribution and use rights are outlined in the file "LICENSE.txt"
+# which should have been included with this file.  If this file is
+# missing or damaged, see the license at "http://www.cups.org/".
+#
+# Usage:
+#
+#   ./ipptool -V 2.0 -tf filename.3mf printer-uri ipp-3d.test
+#
+
+# Test required IPP operations (section 6.3 of PWG 5100.21)
+{
+	NAME "PWG 5100.21 - Section 6.3 IPP Operations"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format application/octet-stream
+	ATTR keyword requested-attributes operations-supported
+
+	STATUS successful-ok
+
+	# Operations
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag
+	EXPECT !operations-supported WITH-VALUE 0x0002 # Print-Job not supported
+	EXPECT !operations-supported WITH-VALUE 0x0003 # Print-URI not supported
+	EXPECT operations-supported WITH-VALUE 0x0004 # Validate-Job
+	EXPECT operations-supported WITH-VALUE 0x0005 # Create-Job
+	EXPECT operations-supported WITH-VALUE 0x0006 # Send-Document
+	EXPECT operations-supported WITH-VALUE 0x0008 # Cancel-Job
+	EXPECT operations-supported WITH-VALUE 0x0009 # Get-Job-Attributes
+	EXPECT operations-supported WITH-VALUE 0x000a # Get-Jobs
+	EXPECT operations-supported WITH-VALUE 0x000b # Get-Printer-Attributes
+	EXPECT operations-supported WITH-VALUE 0x0039 # Cancel-My-Jobs
+	EXPECT operations-supported WITH-VALUE 0x003b # Close-Job
+	EXPECT operations-supported WITH-VALUE 0x003c # Identify-Printer
+}
+
+
+# Test required Printer Description Attributes
+{
+	NAME "PWG 5100.21 - Section 6.5 IPP Printer Description Attributes"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format application/octet-stream
+	ATTR keyword requested-attributes all
+
+	STATUS successful-ok
+
+	# Unconditionally required Printer Description attributes
+	EXPECT accuracy-units-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "/^(mm|nm|um)\$/"
+
+	EXPECT charset-configured OF-TYPE charset IN-GROUP printer-attributes-tag
+	EXPECT charset-supported OF-TYPE charset IN-GROUP printer-attributes-tag WITH-VALUE "utf-8"
+
+	EXPECT color-supported OF-TYPE boolean IN-GROUP printer-attributes-tag
+
+	EXPECT compression-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "none"
+
+	EXPECT document-format-default OF-TYPE mimeMediaType IN-GROUP printer-attributes-tag
+	EXPECT document-format-supported OF-TYPE mimeMediaType IN-GROUP printer-attributes-tag WITH-VALUE "model/3mf"
+
+	EXPECT generated-natural-language-supported OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag
+
+	EXPECT identify-actions-default OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT identify-actions-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+
+	EXPECT ipp-features-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "ipp-3d"
+
+	EXPECT ipp-versions-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "2.0"
+
+	EXPECT job-creation-attributes-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+
+	EXPECT job-ids-supported OF-TYPE boolean IN-GROUP printer-attributes-tag WITH-VALUE true
+
+	EXPECT ?material-diameter-supported OF-TYPE integer|rangeOfInteger IN-GROUP printer-attributes-tag
+
+	EXPECT material-purpose-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+
+	EXPECT ?material-rate-supported OF-TYPE integer|rangeOfInteger IN-GROUP printer-attributes-tag
+	EXPECT ?material-rate-units-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+
+	EXPECT material-shell-thickness-supported OF-TYPE integer|rangeOfInteger IN-GROUP printer-attributes-tag
+
+	EXPECT ?material-temperature-supported OF-TYPE integer|rangeOfInteger IN-GROUP printer-attributes-tag
+
+	EXPECT material-type-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+
+	EXPECT ?materials-col-database OF-TYPE collection IN-GROUP printer-attributes-tag
+
+	EXPECT materials-col-default OF-TYPE collection IN-GROUP printer-attributes-tag
+	EXPECT materials-col-default/material-key OF-TYPE keyword
+	EXPECT materials-col-default/material-name OF-TYPE name
+	EXPECT materials-col-default/material-type OF-TYPE keyword
+
+	EXPECT materials-col-ready OF-TYPE collection IN-GROUP printer-attributes-tag
+	EXPECT materials-col-ready/material-key OF-TYPE keyword
+	EXPECT materials-col-ready/material-name OF-TYPE name
+	EXPECT materials-col-ready/material-type OF-TYPE keyword
+
+ 	EXPECT materials-col-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT materials-col-supported WITH-VALUE "material-fill-density"
+	EXPECT materials-col-supported WITH-VALUE "material-key"
+	EXPECT materials-col-supported WITH-VALUE "material-name"
+	EXPECT materials-col-supported WITH-VALUE "material-purpose"
+	EXPECT materials-col-supported WITH-VALUE "material-shell-thickness"
+	EXPECT materials-col-supported WITH-VALUE "material-type"
+
+	EXPECT max-materials-col-supported OF-TYPE integer IN-GROUP printer-attributes-tag WITH-VALUE >0
+
+	EXPECT multiple-document-jobs-supported OF-TYPE boolean IN-GROUP printer-attributes-tag
+
+	EXPECT ?multiple-object-handling-default OF-TYPE keyword IN-GROUP printer-attributes-tag
+
+	EXPECT ?multiple-object-handling-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+
+	EXPECT multiple-operation-timeout OF-TYPE integer IN-GROUP printer-attributes-tag
+
+	EXPECT multiple-operation-timeout-action OF-TYPE keyword IN-GROUP printer-attributes-tag
+
+	EXPECT natural-language-configured OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag
+
+	EXPECT ?pdf-features-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+
+	EXPECT ?platform-temperature-default OF-TYPE integer IN-GROUP printer-attributes-tag
+	EXPECT ?platform-temperature-supported OF-TYPE integer|rangeOfInteger IN-GROUP printer-attributes-tag
+
+	EXPECT print-accuracy-default OF-TYPE collection IN-GROUP printer-attributes-tag
+	EXPECT print-accuracy-default/accuracy-units OF-TYPE keyword
+	EXPECT print-accuracy-default/x-accuracy OF-TYPE integer
+	EXPECT print-accuracy-default/y-accuracy OF-TYPE integer
+	EXPECT print-accuracy-default/z-accuracy OF-TYPE integer
+	EXPECT print-accuracy-supported OF-TYPE collection IN-GROUP printer-attributes-tag
+	EXPECT print-accuracy-supported/accuracy-units OF-TYPE keyword
+	EXPECT print-accuracy-supported/x-accuracy OF-TYPE integer
+	EXPECT print-accuracy-supported/y-accuracy OF-TYPE integer
+	EXPECT print-accuracy-supported/z-accuracy OF-TYPE integer
+
+	EXPECT print-base-default OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT print-base-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT print-base-supported OF-TYPE keyword WITH-VALUE "none"
+
+	EXPECT ?print-objects-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+
+	EXPECT print-quality-default OF-TYPE enum IN-GROUP printer-attributes-tag
+	EXPECT print-quality-supported OF-TYPE enum IN-GROUP printer-attributes-tag
+
+	EXPECT print-supports-default OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT print-supports-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT print-supports-supported OF-TYPE keyword WITH-VALUE "none"
+
+	EXPECT printer-geo-location OF-TYPE unknown|uri IN-GROUP printer-attributes-tag
+
+	EXPECT printer-get-attributes-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+
+	EXPECT printer-icons OF-TYPE uri IN-GROUP printer-attributes-tag
+
+	EXPECT printer-info OF-TYPE text IN-GROUP printer-attributes-tag
+
+	EXPECT printer-location OF-TYPE text IN-GROUP printer-attributes-tag
+
+	EXPECT printer-make-and-model OF-TYPE text IN-GROUP printer-attributes-tag
+
+	EXPECT printer-more-info OF-TYPE uri IN-GROUP printer-attributes-tag
+
+	EXPECT printer-name OF-TYPE name IN-GROUP printer-attributes-tag
+
+	EXPECT printer-organization OF-TYPE text IN-GROUP printer-attributes-tag
+
+	EXPECT printer-organizational-unit OF-TYPE text IN-GROUP printer-attributes-tag
+
+	EXPECT printer-volume-supported OF-TYPE collection IN-GROUP printer-attributes-tag
+	EXPECT printer-volume-supported/x-dimension OF-TYPE integer WITH-VALUE >0
+	EXPECT printer-volume-supported/y-dimension OF-TYPE integer WITH-VALUE >0
+	EXPECT printer-volume-supported/z-dimension OF-TYPE integer WITH-VALUE >0
+
+	EXPECT printer-xri-supported OF-TYPE collection IN-GROUP printer-attributes-tag SAME-COUNT-AS printer-uri-supported
+	EXPECT printer-xri-supported/xri-authentication OF-TYPE keyword WITH-VALUE-FROM uri-authentication-supported
+	EXPECT printer-xri-supported/xri-security OF-TYPE keyword WITH-VALUE-FROM uri-security-supported
+	EXPECT printer-xri-supported/xri-uri OF-TYPE uri WITH-VALUE-FROM printer-uri-supported
+
+	EXPECT which-jobs-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+
+	# Conditional stuff...
+	EXPECT document-format-supported WITH-VALUE "application/pdf" DEFINE-MATCH HAVE_PDF
+
+	EXPECT pdf-features-supported IF-DEFINED HAVE_PDF
+	EXPECT pdf-features-supported WITH-VALUE "/^(prc|u3d)\$/" IF-DEFINED HAVE_PDF
+
+	EXPECT print-objects-supported IF-DEFINED HAVE_PDF
+	EXPECT print-objects-supported WITH-VALUE "document-number" IF-DEFINED HAVE_PDF
+	EXPECT print-objects-supported WITH-VALUE "object-offset" IF-DEFINED HAVE_PDF
+	EXPECT print-objects-supported WITH-VALUE "object-size" IF-DEFINED HAVE_PDF
+	EXPECT print-objects-supported WITH-VALUE "object-uuid" IF-DEFINED HAVE_PDF
+
+	EXPECT multiple-object-handling-default IF-DEFINED HAVE_PDF
+
+	EXPECT multiple-object-handling-supported IF-DEFINED HAVE_PDF
+
+	EXPECT materials-col-supported WITH-VALUE "material-amount" DEFINE-MATCH HAVE_MATERIAL_AMOUNT
+	EXPECT materials-col-supported WITH-VALUE "material-amount-units" IF-DEFINED HAVE_MATERIAL_AMOUNT
+	EXPECT materials-col-supported WITH-VALUE "material-diameter" DEFINE-MATCH HAVE_MATERIAL_DIAMETER
+	EXPECT materials-col-supported WITH-VALUE "material-rate" DEFINE-MATCH HAVE_MATERIAL_RATE
+	EXPECT materials-col-supported WITH-VALUE "material-rate-units" IF-DEFINED HAVE_MATERIAL_RATE
+	EXPECT materials-col-supported WITH-VALUE "material-temperature" DEFINE-MATCH HAVE_MATERIAL_TEMPERATURE
+
+	EXPECT material-diameter-supported IF-DEFINED HAVE_MATERIAL_DIAMETER
+
+	EXPECT material-rate-supported IF-DEFINED HAVE_MATERIAL_RATE
+	EXPECT material-rate-units-supported IF-DEFINED HAVE_MATERIAL_RATE
+
+	EXPECT material-temperature-supported IF-DEFINED HAVE_MATERIAL_TEMPERATURE
+
+	EXPECT platform-temperature-supported DEFINE-MATCH HAVE_PLATFORM_TEMPERATURE
+	EXPECT platform-temperature-default IF-DEFINED HAVE_PLATFORM_TEMPERATURE
+}
+
+
+# Test required Printer Status Attributes
+{
+	NAME "PWG 5100.21 - Section 6.6 IPP Printer Status Attributes"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format application/octet-stream
+	ATTR keyword requested-attributes all
+
+	STATUS successful-ok
+
+	# Printer Status attributes
+	EXPECT ?printer-camera-image-uri OF-TYPE uri IN-GROUP printer-attributes-tag
+	EXPECT printer-config-change-date-time OF-TYPE dateTime IN-GROUP printer-attributes-tag
+	EXPECT printer-config-change-time OF-TYPE integer IN-GROUP printer-attributes-tag WITH-VALUE >-1
+	EXPECT printer-is-accepting-jobs OF-TYPE boolean IN-GROUP printer-attributes-tag
+	EXPECT printer-state OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUES 3,4,5
+	EXPECT printer-state-change-date-time OF-TYPE dateTime IN-GROUP printer-attributes-tag
+	EXPECT printer-state-change-time OF-TYPE integer IN-GROUP printer-attributes-tag WITH-VALUE >-1
+	EXPECT printer-up-time OF-TYPE integer IN-GROUP printer-attributes-tag WITH-VALUE >0
+	EXPECT printer-uri-supported OF-TYPE uri IN-GROUP printer-attributes-tag SAME-COUNT-AS printer-xri-supported
+	EXPECT printer-uuid OF-TYPE uri IN-GROUP printer-attributes-tag WITH-VALUE "/^urn:uuid:/"
+	EXPECT queued-job-count OF-TYPE integer IN-GROUP printer-attributes-tag WITH-VALUE >-1
+	EXPECT uri-authentication-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT uri-security-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT xri-authentication-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT xri-security-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT xri-uri-scheme-supported OF-TYPE uriScheme IN-GROUP printer-attributes-tag
+	EXPECT xri-uri-scheme-supported WITH-VALUE "ipps"
+}
+
+
+# Test required Job Template Attributes
+{
+	NAME "PWG 5100.21 - Section 6.7 IPP Job Template Attributes"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format application/octet-stream
+	ATTR keyword requested-attributes all
+
+	STATUS successful-ok
+
+	# Job Template attributes
+	EXPECT job-creation-attributes-supported WITH-VALUE "materials-col"
+	EXPECT job-creation-attributes-supported WITH-VALUE "multiple-document-handling"
+	EXPECT job-creation-attributes-supported WITH-VALUE "multiple-object-handling" IF-DEFINED HAVE_PDF
+	EXPECT job-creation-attributes-supported WITH-VALUE "platform-temperature" IF-DEFINED HAVE_PLATFORM_TEMPERATURE
+	EXPECT job-creation-attributes-supported WITH-VALUE "print-accuracy"
+	EXPECT job-creation-attributes-supported WITH-VALUE "print-base"
+	EXPECT job-creation-attributes-supported WITH-VALUE "print-objects" IF-DEFINED HAVE_PDF
+	EXPECT job-creation-attributes-supported WITH-VALUE "print-quality"
+	EXPECT job-creation-attributes-supported WITH-VALUE "print-supports"
+}
+
+
+# Create a test job and wait for completion...
+{
+	NAME "Create-Job: IPP 3D Test Job"
+	OPERATION Create-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name "IPP 3D Test Job"
+
+	STATUS successful-ok
+}
+{
+	NAME "Send-Document: IPP 3D Test Document"
+	OPERATION Send-Document
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job_id
+	ATTR name requesting-user-name $user
+	ATTR name document-name "IPP 3D Test Document"
+	ATTR mimeMediaType document-format "model/3mf"
+
+	FILE $filename
+
+	STATUS successful-ok
+}
+{
+	DELAY 30
+
+	NAME "Get-Job-Attributes: Wait for Completion"
+	OPERATION Get-Job-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job_id
+	ATTR name requesting-user-name $user
+	ATTR keyword requested-attributes job-state
+
+	STATUS successful-ok
+
+        # Repeat while we are not canceled, aborted, or completed...
+	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag WITH-VALUE <7 REPEAT-MATCH
+}
+
+
+# Test required Job Description/Status Attributes
+{
+	NAME "PWG 5100.21 - Section 6.8/6.9 IPP Job Description/Status Attributes"
+	OPERATION Get-Job-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job_id
+	ATTR name requesting-user-name $user
+	ATTR keyword requested-attributes all
+
+	STATUS successful-ok
+
+	# Job Status attributes
+	EXPECT compression-supplied OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT date-time-at-completed OF-TYPE dateTime IN-GROUP job-attributes-tag
+	EXPECT date-time-at-creation OF-TYPE dateTime IN-GROUP job-attributes-tag
+	EXPECT date-time-at-processing OF-TYPE dateTime IN-GROUP job-attributes-tag
+	EXPECT document-format-supplied OF-TYPE mimeMediaType IN-GROUP job-attributes-tag WITH-VALUE "model/3mf"
+	EXPECT document-name-supplied OF-TYPE name IN-GROUP job-attributes-tag "IPP 3D Test Document"
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0
+	EXPECT job-name OF-TYPE name IN-GROUP job-attributes-tag WITH-VALUE "IPP 3D Test Job"
+	EXPECT job-originating-user-name OF-TYPE name IN-GROUP job-attributes-tag
+	EXPECT job-printer-up-time OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0
+	EXPECT job-printer-uri OF-TYPE uri IN-GROUP job-attributes-tag WITH-VALUE "$uri"
+	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag WITH-VALUE 9 # completed
+	EXPECT job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag
+	EXPECT job-uuid OF-TYPE uri IN-GROUP job-attributes-tag WITH-VALUE "/^urn:uuid:/"
+	EXPECT materials-col-actual OF-TYPE collection IN-GROUP job-attributes-tag
+	EXPECT multiple-object-handling-actual OF-TYPE collection IN-GROUP job-attributes-tag IF-DEFINED HAVE_PDF
+	EXPECT platform-temperature-actual OF-TYPE integer IN-GROUP job-attributes-tag IF-DEFINED HAVE_PLATFORM_TEMPERATURE
+	EXPECT print-accuracy-actual OF-TYPE collection IN-GROUP job-attributes-tag
+	EXPECT print-base-actual OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT print-objects-actual OF-TYPE collection IN-GROUP job-attributes-tag IF-DEFINED HAVE_PDF
+	EXPECT print-supports-actual OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT time-at-completed OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0
+	EXPECT time-at-creation OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0
+	EXPECT time-at-processing OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0
+}
+
+

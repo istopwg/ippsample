@@ -1,7 +1,7 @@
 #
 # Makefile for sample IPP server implementation.
 #
-# Copyright 2015-2016 by Apple Inc.
+# Copyright 2015-2017 by Apple Inc.
 #
 # These coded instructions, statements, and computer programs are the
 # property of Apple Inc. and are protected by Federal copyright
@@ -90,6 +90,18 @@ printer-png.h:	printer.png
 	echo "{" >>printer-png.h
 	od -t x1 printer.png | cut -b12- | awk '{printf("  "); for (i = 1; i <= NF; i ++) printf("0x%s,", $$i); print "";}' >>printer-png.h
 	echo "};" >>printer-png.h
+
+
+#
+# printer3d-png.h
+#
+
+printer3d-png.h:	printer3d.png
+	echo "Generating printer3d-png.h from printer3d.png..."
+	echo "static const unsigned char printer3d_png[] =" >printer3d-png.h
+	echo "{" >>printer3d-png.h
+	od -t x1 printer3d.png | cut -b12- | awk '{printf("  "); for (i = 1; i <= NF; i ++) printf("0x%s,", $$i); print "";}' >>printer3d-png.h
+	echo "};" >>printer3d-png.h
 
 
 #

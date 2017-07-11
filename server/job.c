@@ -1,7 +1,7 @@
 /*
  * Job object code for sample IPP server implementation.
  *
- * Copyright 2010-2016 by Apple Inc.
+ * Copyright 2010-2017 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -265,11 +265,17 @@ void serverCreateJobFilename(
   else if (!strcasecmp(format, "image/pwg-raster"))
     ext = "ras";
   else if (!strcasecmp(format, "image/urf"))
-    ext = "urf";
+    ext = "apple";
+  else if (!strcasecmp(format, "model/3mf"))
+    ext = "3mf";
+  else if (!strcasecmp(format, "model/amf"))
+    ext = "amf";
   else if (!strcasecmp(format, "application/pdf"))
     ext = "pdf";
   else if (!strcasecmp(format, "application/postscript"))
     ext = "ps";
+  else if (!strcasecmp(format, "application/sla"))
+    ext = "stl";
   else
     ext = "prn";
 
@@ -420,7 +426,7 @@ serverProcessJob(server_job_t *job)		/* I - Job */
     * Execute a command with the job spool file and wait for it to complete...
     */
 
-    serverTransformJob(NULL, job, job->printer->command, job->format, SERVER_TRANSFORM_COMMAND);
+    serverTransformJob(NULL, job, job->printer->command, job->printer->output_format, SERVER_TRANSFORM_COMMAND);
   }
   else
   {

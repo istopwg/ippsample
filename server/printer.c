@@ -1,7 +1,7 @@
 /*
  * Printer object code for sample IPP server implementation.
  *
- * Copyright 2010-2016 by Apple Inc.
+ * Copyright 2010-2017 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -79,26 +79,28 @@ serverCopyPrinterStateReasons(
 
 /*
  * 'serverCreatePrinter()' - Create, register, and listen for connections to a
- *                      printer object.
+ *                           printer object.
  */
 
 server_printer_t *			/* O - Printer */
 serverCreatePrinter(
-    const char *resource,		/* I - Resource path for URIs */
-    const char *name,			/* I - printer-name */
-    const char *location,		/* I - printer-location */
-    const char *make,			/* I - printer-make-and-model */
-    const char *model,			/* I - printer-make-and-model */
-    const char *icon,			/* I - printer-icons */
-    const char *docformats,		/* I - document-format-supported */
-    int        ppm,			/* I - Pages per minute in grayscale */
-    int        ppm_color,		/* I - Pages per minute in color (0 for gray) */
-    int        duplex,			/* I - 1 = duplex, 0 = simplex */
-    int        pin,			/* I - Require PIN printing */
-    ipp_t      *attrs,			/* I - Attributes */
-    const char *command,		/* I - Command to run, if any */
-    const char *device_uri,		/* I - Device URI, if any */
-    const char *proxy_user)		/* I - Proxy account username, if any */
+    const char   *resource,		/* I - Resource path for URIs */
+    const char   *name,			/* I - printer-name */
+    const char   *location,		/* I - printer-location */
+    const char   *make,			/* I - printer-make-and-model */
+    const char   *model,		/* I - printer-make-and-model */
+    const char   *icon,			/* I - printer-icons */
+    const char   *docformats,		/* I - document-format-supported */
+    int          ppm,			/* I - Pages per minute in grayscale */
+    int          ppm_color,		/* I - Pages per minute in color (0 for gray) */
+    int          duplex,		/* I - 1 = duplex, 0 = simplex */
+    int          pin,			/* I - Require PIN printing */
+    ipp_t        *attrs,		/* I - Attributes */
+    const char   *command,		/* I - Command to run, if any */
+    const char   *device_uri,		/* I - Device URI, if any */
+    const char   *output_format,	/* I - Output format, if any */
+    const char   *proxy_user,		/* I - Proxy account username, if any */
+    cups_array_t *strings)		/* I - Localization files, if any */
 {
   int			i;		/* Looping var */
   server_printer_t	*printer;	/* Printer */
@@ -279,11 +281,11 @@ serverCreatePrinter(
     "job-name",
     "job-priority",
     "materials-col",
+    "platform-temperatures",
     "print-accuracy",
+    "print-base",
     "print-quality",
-    "print-rafts",
-    "print-supports",
-    "printer-bed-temperatures"
+    "print-supports"
   };
   static const int media_col_sizes[][2] =
   {					/* Default media-col sizes */
@@ -304,8 +306,8 @@ serverCreatePrinter(
   };
   static const char * const media_supported[] =
   {					/* Default media-supported values */
-    "na_letter_8.5x11in"	,		/* Letter */
-    "na_legal_8.5x14in",			/* Legal */
+    "na_letter_8.5x11in",		/* Letter */
+    "na_legal_8.5x14in",		/* Legal */
     "iso_a4_210x297mm"			/* A4 */
   };
   static const int media_xxx_margin_supported[] =
@@ -414,7 +416,7 @@ serverCreatePrinter(
   };
 
 
-  serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreatePrinter(resource=\"%s\", name=\"%s\", location=\"%s\", make=\"%s\", model=\"%s\", icon=\"%s\", docformats=\"%s\", ppm=%d, ppm_color=%d, duplex=%d, pin=%d, attrs=%p, command=\"%s\", device_uri=\"%s\", proxy_user=\"%s\")", resource, name, location, make, model, icon, docformats, ppm, ppm_color, duplex, pin, (void *)attrs, command, device_uri, proxy_user);
+  serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreatePrinter(resource=\"%s\", name=\"%s\", location=\"%s\", make=\"%s\", model=\"%s\", icon=\"%s\", docformats=\"%s\", ppm=%d, ppm_color=%d, duplex=%d, pin=%d, attrs=%p, command=\"%s\", device_uri=\"%s\", proxy_user=\"%s\", strings=%p)", resource, name, location, make, model, icon, docformats, ppm, ppm_color, duplex, pin, (void *)attrs, command, device_uri, proxy_user, (void *)strings);
 
   is_print3d = !strncmp(resource, "/ipp/print3d/", 13);
 
@@ -441,6 +443,7 @@ serverCreatePrinter(
   printer->active_jobs    = cupsArrayNew((cups_array_func_t)compare_active_jobs, NULL);
   printer->completed_jobs = cupsArrayNew((cups_array_func_t)compare_completed_jobs, NULL);
   printer->next_job_id    = 1;
+  printer->strings        = strings;
 
   uris = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
   for (lis = cupsArrayFirst(Listeners); lis; lis = cupsArrayNext(Listeners))
@@ -464,10 +467,25 @@ serverCreatePrinter(
   if (device_uri)
     printer->device_uri = strdup(device_uri);
 
+  if (output_format)
+    printer->output_format = strdup(output_format);
+
   if (proxy_user)
     printer->proxy_user = strdup(proxy_user);
 
   printer->devices = cupsArrayNew((cups_array_func_t)compare_devices, NULL);
+
+  if (ppm == 0)
+  {
+    ppm = ippGetInteger(ippFindAttribute(attrs, "pages-per-minute", IPP_TAG_INTEGER), 0);
+    serverLog(SERVER_LOGLEVEL_DEBUG, "Using ppm=%d", ppm);
+  }
+
+  if (ppm_color == 0)
+  {
+    ppm_color = ippGetInteger(ippFindAttribute(attrs, "pages-per-minute-color", IPP_TAG_INTEGER), 0);
+    serverLog(SERVER_LOGLEVEL_DEBUG, "Using ppm_color=%d", ppm_color);
+  }
 
   _cupsRWInit(&(printer->rwlock));
 
@@ -493,8 +511,8 @@ serverCreatePrinter(
   printer->default_uri = strdup(uri);
 
   httpAssembleURIf(HTTP_URI_CODING_ALL, icons, sizeof(icons), webscheme, NULL, lis->host, lis->port, "%s/icon.png", resource);
-  httpAssembleURI(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), webscheme, NULL, lis->host, lis->port, "/");
-  httpAssembleURI(HTTP_URI_CODING_ALL, supplyurl, sizeof(supplyurl), webscheme, NULL, lis->host, lis->port, "/supplies");
+  httpAssembleURI(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), webscheme, NULL, lis->host, lis->port, resource);
+  httpAssembleURIf(HTTP_URI_CODING_ALL, supplyurl, sizeof(supplyurl), webscheme, NULL, lis->host, lis->port, "%s/supplies", resource);
 
   serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-more-info=\"%s\"", adminurl);
   serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-supply-info-uri=\"%s\"", supplyurl);
@@ -719,7 +737,7 @@ serverCreatePrinter(
     /* media-col-ready */
     if (!ippFindAttribute(printer->attrs, "media-col-ready", IPP_TAG_ZERO))
     {
-      media_col = create_media_col(media_supported[0], NULL, NULL, media_col_sizes[0][0], media_col_sizes[0][1], media_xxx_margin_supported[0]);
+      media_col = create_media_col(media_supported[0], "main", NULL, media_col_sizes[0][0], media_col_sizes[0][1], media_xxx_margin_supported[0]);
 
       ippAddCollection(printer->attrs, IPP_TAG_PRINTER, "media-col-ready", media_col);
       ippDelete(media_col);
@@ -763,7 +781,7 @@ serverCreatePrinter(
 
     /* media-source-supported */
     if (!ippFindAttribute(printer->attrs, "media-source-supported", IPP_TAG_ZERO))
-      ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "media-source-supported", NULL, "face-down");
+      ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "media-source-supported", NULL, "main");
 
     /* media-top-margin-supported */
     if (!ippFindAttribute(printer->attrs, "media-top-margin-supported", IPP_TAG_ZERO))
@@ -857,13 +875,12 @@ serverCreatePrinter(
       ippAddBoolean(printer->attrs, IPP_TAG_PRINTER, "page-ranges-supported", 1);
 
     /* pages-per-minute */
-    ippAddInteger(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER,
-		  "pages-per-minute", ppm);
+    if (!ippFindAttribute(printer->attrs, "pages-per-minute", IPP_TAG_INTEGER))
+      ippAddInteger(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "pages-per-minute", ppm);
 
     /* pages-per-minute-color */
-    if (ppm_color > 0)
-      ippAddInteger(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER,
-		    "pages-per-minute-color", ppm_color);
+    if (ppm_color > 0 && !ippFindAttribute(printer->attrs, "pages-per-minute-color", IPP_TAG_INTEGER))
+      ippAddInteger(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "pages-per-minute-color", ppm_color);
 
     /* pdl-override-supported */
     if (!ippFindAttribute(printer->attrs, "pdl-override-supported", IPP_TAG_ZERO))
@@ -955,11 +972,22 @@ serverCreatePrinter(
   /* printer-icons */
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-icons", NULL, icons);
 
+  /* printer-info */
+  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-info", NULL, name);
+
   /* printer-is-accepting-jobs */
   ippAddBoolean(printer->attrs, IPP_TAG_PRINTER, "printer-is-accepting-jobs", 1);
 
-  /* printer-info */
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-info", NULL, name);
+  if (!is_print3d)
+  {
+    /* printer-input-tray */
+    if (!ippFindAttribute(printer->attrs, "printer-input-tray", IPP_TAG_STRING))
+    {
+      const char *tray = "type=sheetFeedAutoRemovableTray;mediafeed=0;mediaxfeed=0;maxcapacity=250;level=100;status=0;name=main;";
+
+      ippAddOctetString(printer->attrs, IPP_TAG_PRINTER, "printer-input-tray", tray, (int)strlen(tray));
+    }
+  }
 
   /* printer-location */
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT,
@@ -1009,7 +1037,24 @@ serverCreatePrinter(
     /* printer-resolution-supported */
     if (!ippFindAttribute(printer->attrs, "printer-resolutions-supported", IPP_TAG_ZERO))
       ippAddResolution(printer->attrs, IPP_TAG_PRINTER, "printer-resolution-supported", IPP_RES_PER_INCH, 600, 600);
+  }
 
+  /* printer-strings-languages-supported */
+  if (!ippFindAttribute(printer->attrs, "printer-strings-languages-supported", IPP_TAG_ZERO) && strings)
+  {
+    server_lang_t *lang;
+
+    for (attr = NULL, lang = (server_lang_t *)cupsArrayFirst(strings); lang; lang = (server_lang_t *)cupsArrayNext(strings))
+    {
+      if (attr)
+        ippSetString(printer->attrs, &attr, ippGetCount(attr), lang->lang);
+      else
+        attr = ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_LANGUAGE, "printer-strings-languages-supported", NULL, lang->lang);
+    }
+  }
+
+  if (!is_print3d)
+  {
     /* printer-supply */
     if (!ippFindAttribute(printer->attrs, "printer-supply", IPP_TAG_ZERO))
     {

@@ -168,7 +168,7 @@ if test -n "$GCC"; then
 		CFLAGS="$OLDCFLAGS"
 
 		# Error out on any warnings...
-		OPTIM="-Werror $OPTIM"
+		#OPTIM="-Werror $OPTIM"
 	fi
 
 	case "$uname" in

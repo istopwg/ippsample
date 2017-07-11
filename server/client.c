@@ -1,7 +1,7 @@
 /*
  * Client code for sample IPP server implementation.
  *
- * Copyright 2010-2016 by Apple Inc.
+ * Copyright 2010-2017 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -14,6 +14,7 @@
 
 #include "ippserver.h"
 #include "printer-png.h"
+#include "printer3d-png.h"
 
 
 /*
@@ -25,9 +26,11 @@ static void		html_escape(server_client_t *client, const char *s,
 static void		html_footer(server_client_t *client);
 static void		html_header(server_client_t *client, const char *title);
 static void		html_printf(server_client_t *client, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
-#if 0
 static int		parse_options(server_client_t *client, cups_option_t **options);
-#endif // 0
+static int		show_materials(server_client_t *client, server_printer_t *printer, const char *encoding);
+static int		show_media(server_client_t *client, server_printer_t *printer, const char *encoding);
+static int		show_status(server_client_t *client, server_printer_t *printer, const char *encoding);
+static int		show_supplies(server_client_t *client, server_printer_t *printer, const char *encoding);
 
 
 /*
@@ -436,390 +439,197 @@ serverProcessHTTP(
 	return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, NULL, 0));
 
     case HTTP_STATE_HEAD :
-        uriptr = client->uri + strlen(client->uri) - 9;
+        if (!strncmp(client->uri, "/ipp/print/", 11))
+        {
+          if ((uriptr = strchr(client->uri + 11, '/')) != NULL)
+            *uriptr++ = '\0';
+          else
+            uriptr = client->uri + strlen(client->uri);
+        }
+        else if (!strncmp(client->uri, "/ipp/print3d/", 13))
+        {
+          if ((uriptr = strchr(client->uri + 13, '/')) != NULL)
+            *uriptr++ = '\0';
+          else
+            uriptr = client->uri + strlen(client->uri);
+        }
+        else if (!strcmp(client->uri, "/ipp/print"))
+          uriptr = client->uri + strlen(client->uri);
+        else
+          uriptr = NULL;
 
-        if (uriptr >= client->uri && !strcmp(uriptr, "/icon.png"))
+        if (uriptr)
         {
 	  server_printer_t *printer;	/* Printer */
 
-          *uriptr = '\0';
           if ((printer = serverFindPrinter(client->uri)) == NULL)
             printer = (server_printer_t *)cupsArrayFirst(Printers);
 
           if (printer)
-            return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", 0));
+          {
+            char *ext = strrchr(uriptr, '.');
+
+            if (!strcmp(uriptr, "icon.png"))
+              return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", 0));
+            else if (!*uriptr || !strcmp(uriptr, "materials") || !strcmp(uriptr, "media") || !strcmp(uriptr, "supplies"))
+              return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "text/html", 0));
+            else if (ext && !strcmp(ext, ".strings"))
+            {
+              server_lang_t key;
+
+              *ext = '\0';
+              key.lang = uriptr;
+              if (cupsArrayFind(printer->strings, &key))
+                return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "text/strings", 0));
+            }
+          }
         }
-	else if (!strcmp(client->uri, "/") || !strcmp(client->uri, "/media") || !strcmp(client->uri, "/supplies"))
+	else if (!strcmp(client->uri, "/"))
 	  return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "text/html", 0));
 
         return (serverRespondHTTP(client, HTTP_STATUS_NOT_FOUND, NULL, NULL, 0));
 
     case HTTP_STATE_GET :
-        uriptr = client->uri + strlen(client->uri) - 9;
+        if (!strncmp(client->uri, "/ipp/print/", 11))
+        {
+          if ((uriptr = strchr(client->uri + 11, '/')) != NULL)
+            *uriptr++ = '\0';
+          else
+            uriptr = client->uri + strlen(client->uri);
+        }
+        else if (!strncmp(client->uri, "/ipp/print3d/", 13))
+        {
+          if ((uriptr = strchr(client->uri + 13, '/')) != NULL)
+            *uriptr++ = '\0';
+          else
+            uriptr = client->uri + strlen(client->uri);
+        }
+        else if (!strcmp(client->uri, "/ipp/print"))
+          uriptr = client->uri + strlen(client->uri);
+        else
+          uriptr = NULL;
 
-        if (uriptr >= client->uri && !strcmp(uriptr, "/icon.png"))
-	{
-	 /*
-	  * Send PNG icon file.
-	  */
-
-          int		fd;		/* Icon file */
-	  struct stat	fileinfo;	/* Icon file information */
-	  char		buffer[4096];	/* Copy buffer */
-	  ssize_t	bytes;		/* Bytes */
+        if (uriptr)
+        {
 	  server_printer_t *printer;	/* Printer */
 
-          *uriptr = '\0';
           if ((printer = serverFindPrinter(client->uri)) == NULL)
             printer = (server_printer_t *)cupsArrayFirst(Printers);
 
-          if (printer && printer->icon)
+          if (printer)
           {
-            serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Icon file is \"%s\".", printer->icon);
+            char *ext = strrchr(uriptr, '.');
 
-            if (!stat(printer->icon, &fileinfo) &&
-                (fd = open(printer->icon, O_RDONLY)) >= 0)
+            if (!strcmp(uriptr, "icon.png"))
             {
-              if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png",
-                                (size_t)fileinfo.st_size))
+             /*
+              * Send PNG icon file.
+              */
+
+              int		fd;		/* Icon file */
+              struct stat	fileinfo;	/* Icon file information */
+              char		buffer[4096];	/* Copy buffer */
+              ssize_t		bytes;		/* Bytes */
+
+              if (printer->icon)
               {
-                close(fd);
-                return (0);
+                serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Icon file is \"%s\".", printer->icon);
+
+                if (!stat(printer->icon, &fileinfo) && (fd = open(printer->icon, O_RDONLY)) >= 0)
+                {
+                  if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", (size_t)fileinfo.st_size))
+                  {
+                    close(fd);
+                    return (0);
+                  }
+
+                  while ((bytes = read(fd, buffer, sizeof(buffer))) > 0)
+                    httpWrite2(client->http, buffer, (size_t)bytes);
+
+                  httpFlushWrite(client->http);
+
+                  close(fd);
+                  return (1);
+                }
               }
+              else if (printer)
+              {
+                serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Icon file is internal.");
 
-              while ((bytes = read(fd, buffer, sizeof(buffer))) > 0)
-                httpWrite2(client->http, buffer, (size_t)bytes);
+                if (!strncmp(printer->resource, "/ipp/print3d", 12))
+                {
+                  if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", sizeof(printer3d_png)))
+                    return (0);
 
-              httpFlushWrite(client->http);
+                  httpWrite2(client->http, (void *)printer3d_png, sizeof(printer3d_png));
+                }
+                else
+                {
+                  if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", sizeof(printer_png)))
+                    return (0);
 
-              close(fd);
-              return (1);
+                  httpWrite2(client->http, (void *)printer_png, sizeof(printer_png));
+                }
+                httpFlushWrite(client->http);
+
+                return (1);
+              }
             }
-          }
-          else if (printer)
-          {
-            serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Icon file is internal.");
+            else if (!*uriptr)
+            {
+              return (show_status(client, printer, encoding));
+            }
+            else if (!strcmp(uriptr, "materials"))
+            {
+              return (show_materials(client, printer, encoding));
+            }
+            else if (!strcmp(uriptr, "media"))
+            {
+              return (show_media(client, printer, encoding));
+            }
+            else if (!strcmp(uriptr, "supplies"))
+            {
+              return (show_supplies(client, printer, encoding));
+            }
+            else if (ext && !strcmp(ext, ".strings"))
+            {
+              server_lang_t key, *match;
 
-	    if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", sizeof(printer_png)))
-	      return (0);
+              *ext = '\0';
+              key.lang = uriptr;
+              if ((match = (server_lang_t *)cupsArrayFind(printer->strings, &key)) != NULL)
+              {
+                int		fd;		/* Icon file */
+                struct stat	fileinfo;	/* Icon file information */
+                char		buffer[4096];	/* Copy buffer */
+                ssize_t		bytes;		/* Bytes */
 
-	    httpWrite2(client->http, (void *)printer_png, sizeof(printer_png));
-	    httpFlushWrite(client->http);
+                serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Strings file is \"%s\".", match->filename);
 
-	    return (1);
+                if (!stat(match->filename, &fileinfo) && (fd = open(match->filename, O_RDONLY)) >= 0)
+                {
+                  if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "text/strings", (size_t)fileinfo.st_size))
+                  {
+                    close(fd);
+                    return (0);
+                  }
+
+                  while ((bytes = read(fd, buffer, sizeof(buffer))) > 0)
+                    httpWrite2(client->http, buffer, (size_t)bytes);
+
+                  httpFlushWrite(client->http);
+
+                  close(fd);
+                  return (1);
+                }
+              }
+            }
           }
 	}
 	else if (!strcmp(client->uri, "/"))
 	{
-	 /*
-	  * Show web status page...
-	  */
-
-	  server_printer_t *printer;	/* Current printer */
-          server_job_t	*job;		/* Current job */
-	  int		i;		/* Looping var */
-	  server_preason_t reason;	/* Current reason */
-	  static const char * const reasons[] =
-	  {				/* Reason strings */
-	    "Other",
-	    "Cover Open",
-	    "Input Tray Missing",
-	    "Marker Supply Empty",
-	    "Marker Supply Low",
-	    "Marker Waste Almost Full",
-	    "Marker Waste Full",
-	    "Media Empty",
-	    "Media Jam",
-	    "Media Low",
-	    "Media Needed",
-	    "Moving to Paused",
-	    "Paused",
-	    "Spool Area Full",
-	    "Toner Empty",
-	    "Toner Low"
-	  };
-
-          if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
-	    return (0);
-
-          html_header(client, "ippserver (" CUPS_SVERSION ")");
-          html_printf(client, "<h1>ippserver (" CUPS_SVERSION ")</h1>\n");
-
-          for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
-          {
-	    html_printf(client,
-			"<h2><img align=\"right\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s</h2>\n"
-			"<p>%s, %d job(s).", printer->resource, printer->name, printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
-            for (i = 0, reason = 1; i < (int)(sizeof(reasons) / sizeof(reasons[0])); i ++, reason <<= 1)
-              if (printer->state_reasons & reason)
-                html_printf(client, "\n<br>&nbsp;&nbsp;&nbsp;&nbsp;%s", reasons[i]);
-            html_printf(client, "</p>\n");
-
-            if (cupsArrayCount(printer->jobs) > 0)
-            {
-              _cupsRWLockRead(&(printer->rwlock));
-
-              html_printf(client, "<table class=\"striped\" summary=\"Jobs\"><thead><tr><th>Job #</th><th>Name</th><th>Owner</th><th>When</th></tr></thead><tbody>\n");
-              for (job = (server_job_t *)cupsArrayFirst(printer->jobs); job; job = (server_job_t *)cupsArrayNext(printer->jobs))
-              {
-                char	when[256],	/* When job queued/started/finished */
-                          hhmmss[64];	/* Time HH:MM:SS */
-
-                switch (job->state)
-                {
-                  case IPP_JSTATE_PENDING :
-                  case IPP_JSTATE_HELD :
-                      snprintf(when, sizeof(when), "Queued at %s", serverTimeString(job->created, hhmmss, sizeof(hhmmss)));
-                      break;
-                  case IPP_JSTATE_PROCESSING :
-                  case IPP_JSTATE_STOPPED :
-                      snprintf(when, sizeof(when), "Started at %s", serverTimeString(job->processing, hhmmss, sizeof(hhmmss)));
-                      break;
-                  case IPP_JSTATE_ABORTED :
-                      snprintf(when, sizeof(when), "Aborted at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
-                      break;
-                  case IPP_JSTATE_CANCELED :
-                      snprintf(when, sizeof(when), "Canceled at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
-                      break;
-                  case IPP_JSTATE_COMPLETED :
-                      snprintf(when, sizeof(when), "Completed at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
-                      break;
-                }
-
-                html_printf(client, "<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td></tr>\n", job->id, job->name, job->username, when);
-              }
-              html_printf(client, "</tbody></table>\n");
-
-              _cupsRWUnlock(&(printer->rwlock));
-            }
-          }
-          html_footer(client);
-
-	  return (1);
+          return (show_status(client, NULL, encoding));
 	}
-#if 0 /* TODO: Pull media and supply info from device attrs */
-	else if (!strcmp(client->uri, "/media"))
-	{
-	 /*
-	  * Show web media page...
-	  */
-
-	  int		i,		/* Looping var */
-			num_options;	/* Number of form options */
-	  cups_option_t	*options;	/* Form options */
-          static const char * const sizes[] =
-	  {				/* Size strings */
-	    "ISO A4",
-	    "ISO A5",
-	    "ISO A6",
-	    "DL Envelope",
-	    "US Legal",
-	    "US Letter",
-	    "#10 Envelope",
-	    "3x5 Photo",
-	    "3.5x5 Photo",
-	    "4x6 Photo",
-	    "5x7 Photo"
-	  };
-	  static const char * const types[] =
-					  /* Type strings */
-	  {
-	    "Auto",
-	    "Cardstock",
-	    "Envelope",
-	    "Labels",
-	    "Other",
-	    "Glossy Photo",
-	    "High-Gloss Photo",
-	    "Matte Photo",
-	    "Satin Photo",
-	    "Semi-Gloss Photo",
-	    "Plain",
-	    "Letterhead",
-	    "Transparency"
-	  };
-	  static const int sheets[] =	/* Number of sheets */
-	  {
-	    250,
-	    100,
-	    25,
-	    5,
-	    0
-	  };
-
-          if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
-	    return (0);
-
-          html_header(client, client->printer->name);
-
-	  if ((num_options = parse_options(client, &options)) > 0)
-	  {
-	   /*
-	    * WARNING: A real printer/server implementation MUST NOT implement
-	    * media updates via a GET request - GET requests are supposed to be
-	    * idempotent (without side-effects) and we obviously are not
-	    * authenticating access here.  This form is provided solely to
-	    * enable testing and development!
-	    */
-
-	    const char	*val;		/* Form value */
-
-	    if ((val = cupsGetOption("main_size", num_options, options)) != NULL)
-	      client->printer->main_size = atoi(val);
-	    if ((val = cupsGetOption("main_type", num_options, options)) != NULL)
-	      client->printer->main_type = atoi(val);
-	    if ((val = cupsGetOption("main_level", num_options, options)) != NULL)
-	      client->printer->main_level = atoi(val);
-
-	    if ((val = cupsGetOption("envelope_size", num_options, options)) != NULL)
-	      client->printer->envelope_size = atoi(val);
-	    if ((val = cupsGetOption("envelope_level", num_options, options)) != NULL)
-	      client->printer->envelope_level = atoi(val);
-
-	    if ((val = cupsGetOption("photo_size", num_options, options)) != NULL)
-	      client->printer->photo_size = atoi(val);
-	    if ((val = cupsGetOption("photo_type", num_options, options)) != NULL)
-	      client->printer->photo_type = atoi(val);
-	    if ((val = cupsGetOption("photo_level", num_options, options)) != NULL)
-	      client->printer->photo_level = atoi(val);
-
-            if ((client->printer->main_level < 100 && client->printer->main_level > 0) || (client->printer->envelope_level < 25 && client->printer->envelope_level > 0) || (client->printer->photo_level < 25 && client->printer->photo_level > 0))
-	      client->printer->state_reasons |= SERVER_PREASON_MEDIA_LOW;
-	    else
-	      client->printer->state_reasons &= (server_preason_t)~SERVER_PREASON_MEDIA_LOW;
-
-            if ((client->printer->main_level == 0 && client->printer->main_size > _IPP_MEDIA_SIZE_NONE) || (client->printer->envelope_level == 0 && client->printer->envelope_size > _IPP_MEDIA_SIZE_NONE) || (client->printer->photo_level == 0 && client->printer->photo_size > _IPP_MEDIA_SIZE_NONE))
-	    {
-	      client->printer->state_reasons |= SERVER_PREASON_MEDIA_EMPTY;
-	      if (client->printer->active_job)
-	        client->printer->state_reasons |= SERVER_PREASON_MEDIA_NEEDED;
-	    }
-	    else
-	      client->printer->state_reasons &= (server_preason_t)~(SERVER_PREASON_MEDIA_EMPTY | SERVER_PREASON_MEDIA_NEEDED);
-
-	    html_printf(client, "<blockquote>Media updated.</blockquote>\n");
-          }
-
-          html_printf(client, "<form method=\"GET\" action=\"/media\">\n");
-
-          html_printf(client, "<table class=\"form\" summary=\"Media\">\n");
-          html_printf(client, "<tr><th>Main Tray:</th><td><select name=\"main_size\"><option value=\"-1\">None</option>");
-          for (i = 0; i < (int)(sizeof(sizes) / sizeof(sizes[0])); i ++)
-	    if (!strstr(sizes[i], "Envelope") && !strstr(sizes[i], "Photo"))
-	      html_printf(client, "<option value=\"%d\"%s>%s</option>", i, i == client->printer->main_size ? " selected" : "", sizes[i]);
-	  html_printf(client, "</select> <select name=\"main_type\"><option value=\"-1\">None</option>");
-          for (i = 0; i < (int)(sizeof(types) / sizeof(types[0])); i ++)
-	    if (!strstr(types[i], "Photo"))
-	      html_printf(client, "<option value=\"%d\"%s>%s</option>", i, i == client->printer->main_type ? " selected" : "", types[i]);
-	  html_printf(client, "</select> <select name=\"main_level\">");
-          for (i = 0; i < (int)(sizeof(sheets) / sizeof(sheets[0])); i ++)
-	    html_printf(client, "<option value=\"%d\"%s>%d sheets</option>", sheets[i], sheets[i] == client->printer->main_level ? " selected" : "", sheets[i]);
-	  html_printf(client, "</select></td></tr>\n");
-
-          html_printf(client,
-		      "<tr><th>Envelope Feeder:</th><td><select name=\"envelope_size\"><option value=\"-1\">None</option>");
-          for (i = 0; i < (int)(sizeof(sizes) / sizeof(sizes[0])); i ++)
-	    if (strstr(sizes[i], "Envelope"))
-	      html_printf(client, "<option value=\"%d\"%s>%s</option>", i, i == client->printer->envelope_size ? " selected" : "", sizes[i]);
-	  html_printf(client, "</select> <select name=\"envelope_level\">");
-          for (i = 0; i < (int)(sizeof(sheets) / sizeof(sheets[0])); i ++)
-	    html_printf(client, "<option value=\"%d\"%s>%d sheets</option>", sheets[i], sheets[i] == client->printer->envelope_level ? " selected" : "", sheets[i]);
-	  html_printf(client, "</select></td></tr>\n");
-
-          html_printf(client,
-		      "<tr><th>Photo Tray:</th><td><select name=\"photo_size\"><option value=\"-1\">None</option>");
-          for (i = 0; i < (int)(sizeof(sizes) / sizeof(sizes[0])); i ++)
-	    if (strstr(sizes[i], "Photo"))
-	      html_printf(client, "<option value=\"%d\"%s>%s</option>", i, i == client->printer->photo_size ? " selected" : "", sizes[i]);
-	  html_printf(client, "</select> <select name=\"photo_type\"><option value=\"-1\">None</option>");
-          for (i = 0; i < (int)(sizeof(types) / sizeof(types[0])); i ++)
-	    if (strstr(types[i], "Photo"))
-	      html_printf(client, "<option value=\"%d\"%s>%s</option>", i, i == client->printer->photo_type ? " selected" : "", types[i]);
-	  html_printf(client, "</select> <select name=\"photo_level\">");
-          for (i = 0; i < (int)(sizeof(sheets) / sizeof(sheets[0])); i ++)
-	    html_printf(client, "<option value=\"%d\"%s>%d sheets</option>", sheets[i], sheets[i] == client->printer->photo_level ? " selected" : "", sheets[i]);
-	  html_printf(client, "</select></td></tr>\n");
-
-	  html_printf(client, "<tr><td></td><td><input type=\"submit\" value=\"Update Media\"></td></tr></table></form>\n");
-          html_footer(client);
-
-	  return (1);
-	}
-	else if (!strcmp(client->uri, "/supplies"))
-	{
-	 /*
-	  * Show web supplies page...
-	  */
-
-          int		i, j,		/* Looping vars */
-			num_options;	/* Number of form options */
-	  cups_option_t	*options;	/* Form options */
-	  static const int levels[] = { 0, 5, 10, 25, 50, 75, 90, 95, 100 };
-
-          if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
-	    return (0);
-
-          html_header(client, client->printer->name);
-
-	  if ((num_options = parse_options(client, &options)) > 0)
-	  {
-	   /*
-	    * WARNING: A real printer/server implementation MUST NOT implement
-	    * supply updates via a GET request - GET requests are supposed to be
-	    * idempotent (without side-effects) and we obviously are not
-	    * authenticating access here.  This form is provided solely to
-	    * enable testing and development!
-	    */
-
-	    char	name[64];	/* Form field */
-	    const char	*val;		/* Form value */
-
-            client->printer->state_reasons &= (server_preason_t)~(SERVER_PREASON_MARKER_SUPPLY_EMPTY | SERVER_PREASON_MARKER_SUPPLY_LOW | SERVER_PREASON_MARKER_WASTE_ALMOST_FULL | SERVER_PREASON_MARKER_WASTE_FULL | SERVER_PREASON_TONER_EMPTY | SERVER_PREASON_TONER_LOW);
-
-	    for (i = 0; i < (int)(sizeof(printer_supplies) / sizeof(printer_supplies[0])); i ++)
-	    {
-	      snprintf(name, sizeof(name), "supply_%d", i);
-	      if ((val = cupsGetOption(name, num_options, options)) != NULL)
-	      {
-		int level = client->printer->supplies[i] = atoi(val);
-					/* New level */
-
-		if (i < 4)
-		{
-		  if (level == 0)
-		    client->printer->state_reasons |= SERVER_PREASON_TONER_EMPTY;
-		  else if (level < 10)
-		    client->printer->state_reasons |= SERVER_PREASON_TONER_LOW;
-		}
-		else
-		{
-		  if (level == 100)
-		    client->printer->state_reasons |= SERVER_PREASON_MARKER_WASTE_FULL;
-		  else if (level > 90)
-		    client->printer->state_reasons |= SERVER_PREASON_MARKER_WASTE_ALMOST_FULL;
-		}
-	      }
-            }
-
-	    html_printf(client, "<blockquote>Supplies updated.</blockquote>\n");
-          }
-
-          html_printf(client, "<form method=\"GET\" action=\"/supplies\">\n");
-
-	  html_printf(client, "<table class=\"form\" summary=\"Supplies\">\n");
-	  for (i = 0; i < (int)(sizeof(printer_supplies) / sizeof(printer_supplies[0])); i ++)
-	  {
-	    html_printf(client, "<tr><th>%s:</th><td><select name=\"supply_%d\">", printer_supplies[i], i);
-	    for (j = 0; j < (int)(sizeof(levels) / sizeof(levels[0])); j ++)
-	      html_printf(client, "<option value=\"%d\"%s>%d%%</option>", levels[j], levels[j] == client->printer->supplies[i] ? " selected" : "", levels[j]);
-	    html_printf(client, "</select></td></tr>\n");
-	  }
-	  html_printf(client, "<tr><td></td><td><input type=\"submit\" value=\"Update Supplies\"></td></tr>\n</table>\n</form>\n");
-          html_footer(client);
-
-	  return (1);
-	}
-#endif /* 0 */
 
         return (serverRespondHTTP(client, HTTP_STATUS_NOT_FOUND, NULL, NULL, 0));
 
@@ -1161,7 +971,11 @@ html_header(server_client_t *client,	/* I - Client */
 	      "<meta name=\"viewport\" content=\"width=device-width\">\n"
 	      "<style>\n"
 	      "body { font-family: sans-serif; margin: 0; }\n"
+              "div.header { background: black; color: white; left: 0px; margin: 0px; padding: 10px; right: 0px; width: 100%%; }\n"
+              "div.header a { color: white; text-decoration: none; }\n"
 	      "div.body { padding: 0px 10px 10px; }\n"
+              "div.even { background: #fcfcfc; margin-left: -10px; margin-right: -10px; padding: 5px 10px; width: 100%%; }\n"
+              "div.odd { background: #f0f0f0; margin-left: -10px; margin-right: -10px; padding: 5px 10px; width: 100%%; }\n"
 	      "blockquote { background: #dfd; border-radius: 5px; color: #006; padding: 10px; }\n"
 	      "table.form { border-collapse: collapse; margin-top: 10px; width: 100%%; }\n"
 	      "table.form td, table.form th { padding: 5px 2px; width: 50%%; }\n"
@@ -1171,22 +985,15 @@ html_header(server_client_t *client,	/* I - Client */
 	      "table.striped tr:nth-child(odd) { background: #f0f0f0; }\n"
 	      "table.striped th { background: white; border-bottom: solid thin black; text-align: left; vertical-align: bottom; }\n"
 	      "table.striped td { margin: 0; padding: 5px; vertical-align: top; }\n"
-	      "table.nav { border-collapse: collapse; width: 100%%; }\n"
-	      "table.nav td { margin: 0; text-align: center; }\n"
-	      "td.nav a, td.nav a:active, td.nav a:hover, td.nav a:hover:link, td.nav a:hover:link:visited, td.nav a:link, td.nav a:link:visited, td.nav a:visited { background: inherit; color: inherit; font-size: 80%%; text-decoration: none; }\n"
-	      "td.nav { background: #333; color: #fff; padding: 4px 8px; width: 33%%; }\n"
-	      "td.nav.sel { background: #fff; color: #000; font-weight: bold; }\n"
-	      "td.nav:hover { background: #666; color: #fff; }\n"
-	      "td.nav:active { background: #000; color: #ff0; }\n"
+              "p.buttons { line-height: 200%%; }\n"
+	      "a.button { background: black; border-color: black; border-radius: 8px; color: white; font-size: 12px; padding: 4px 10px; text-decoration: none; white-space: nowrap; }\n"
+              "a:hover.button { background: #444; border-color: #444; }\n"
+              "span.bar { border: thin black; box-shadow: 0px 0px 5px rgba(0,0,0,0.2); display: inline-block; height: 10px; width: 100px; }\n"
 	      "</style>\n"
 	      "</head>\n"
 	      "<body>\n"
-	      "<table class=\"nav\"><tr>"
-	      "<td class=\"nav%s\"><a href=\"/\">Status</a></td>"
-	      "<td class=\"nav%s\"><a href=\"/supplies\">Supplies</a></td>"
-	      "<td class=\"nav%s\"><a href=\"/media\">Media</a></td>"
-	      "</tr></table>\n"
-	      "<div class=\"body\">\n", title, !strcmp(client->uri, "/") ? " sel" : "", !strcmp(client->uri, "/supplies") ? " sel" : "", !strcmp(client->uri, "/media") ? " sel" : "");
+	      "<div class=\"header\"><a href=\"/\">" CUPS_SVERSION "</a></div>\n"
+	      "<div class=\"body\">\n", title);
 }
 
 
@@ -1410,7 +1217,6 @@ html_printf(server_client_t *client,	/* I - Client */
 }
 
 
-#if 0
 /*
  * 'parse_options()' - Parse URL options into CUPS options.
  *
@@ -1443,4 +1249,717 @@ parse_options(server_client_t *client,	/* I - Client */
 
   return (num_options);
 }
-#endif // 0
+
+
+/*
+ * 'show_materials()' - Show material load state.
+ */
+
+static int				/* O - 1 on success, 0 on failure */
+show_materials(
+    server_client_t  *client,		/* I - Client connection */
+    server_printer_t *printer,		/* I - Printer to show */
+    const char       *encoding)		/* I - Content-Encoding */
+{
+  int			i, j,		/* Looping vars */
+			count;		/* Number of values */
+  ipp_attribute_t	*materials_db,	/* materials-col-database attribute */
+			*materials_ready,/* materials-col-ready attribute */
+                        *attr;		/* Other attribute */
+  ipp_t			*materials_col;	/* materials-col-xxx value */
+  const char            *material_name,	/* materials-col-database material-name value */
+                        *material_key,	/* materials-col-database material-key value */
+                        *ready_key;	/* materials-col-ready material-key value */
+  int			max_materials;	/* max-materials-col-supported value */
+  int			num_options;	/* Number of form options */
+  cups_option_t		*options;	/* Form options */
+
+
+ /*
+  * Grab the available, ready, and number of materials from the printer.
+  */
+
+  if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
+    return (0);
+
+  html_header(client, printer->dnssd_name);
+
+  html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a></p>\n", printer->resource);
+  html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Materials</h1>\n", printer->resource, printer->dnssd_name);
+
+  if ((materials_db = ippFindAttribute(printer->attrs, "materials-col-database", IPP_TAG_BEGIN_COLLECTION)) == NULL)
+  {
+    html_printf(client, "<p>Error: No materials-col-database defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  if ((materials_ready = ippFindAttribute(printer->attrs, "materials-col-ready", IPP_TAG_ZERO)) == NULL)
+  {
+    html_printf(client, "<p>Error: No materials-col-ready defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  if ((attr = ippFindAttribute(printer->attrs, "max-materials-col-supported", IPP_TAG_INTEGER)) == NULL)
+  {
+    html_printf(client, "<p>Error: No max-materials-col-supported defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  max_materials = ippGetInteger(attr, 0);
+
+ /*
+  * Process form data if present...
+  */
+
+  if ((num_options = parse_options(client, &options)) > 0)
+  {
+   /*
+    * WARNING: A real printer/server implementation MUST NOT implement
+    * material updates via a GET request - GET requests are supposed to be
+    * idempotent (without side-effects) and we obviously are not
+    * authenticating access here.  This form is provided solely to
+    * enable testing and development!
+    */
+
+    char	name[255];		/* Form name */
+    const char	*val;			/* Form value */
+
+    _cupsRWLockWrite(&printer->rwlock);
+
+    ippDeleteAttribute(printer->attrs, materials_ready);
+    materials_ready = NULL;
+
+    for (i = 0; i < max_materials; i ++)
+    {
+      snprintf(name, sizeof(name), "material%d", i);
+      if ((val = cupsGetOption(name, num_options, options)) == NULL || !*val)
+        continue;
+
+      for (j = 0, count = ippGetCount(materials_db); j < count; j ++)
+      {
+        materials_col = ippGetCollection(materials_db, j);
+        material_key  = ippGetString(ippFindAttribute(materials_col, "material-key", IPP_TAG_ZERO), 0, NULL);
+
+        if (!strcmp(material_key, val))
+        {
+          if (!materials_ready)
+            materials_ready = ippAddCollection(printer->attrs, IPP_TAG_PRINTER, "materials-col-ready", materials_col);
+          else
+            ippSetCollection(printer->attrs, &materials_ready, ippGetCount(materials_ready), materials_col);
+          break;
+        }
+      }
+    }
+
+    if (!materials_ready)
+      materials_ready = ippAddOutOfBand(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "materials-col-ready");
+
+    _cupsRWUnlock(&printer->rwlock);
+
+    html_printf(client, "<blockquote>Materials updated.</blockquote>\n");
+  }
+
+ /*
+  * Show the currently loaded materials and allow the user to make selections...
+  */
+
+  html_printf(client, "<form method=\"GET\" action=\"%s/materials\">\n", printer->resource);
+
+  html_printf(client, "<table class=\"form\" summary=\"Materials\">\n");
+
+  for (i = 0; i < max_materials; i ++)
+  {
+    materials_col = ippGetCollection(materials_ready, i);
+    ready_key     = ippGetString(ippFindAttribute(materials_col, "material-key", IPP_TAG_ZERO), 0, NULL);
+
+    html_printf(client, "<tr><th>Material %d:</th><td><select name=\"material%d\"><option value=\"\">None</option>", i + 1, i);
+    for (j = 0, count = ippGetCount(materials_db); j < count; j ++)
+    {
+      materials_col = ippGetCollection(materials_db, j);
+      material_key  = ippGetString(ippFindAttribute(materials_col, "material-key", IPP_TAG_ZERO), 0, NULL);
+      material_name = ippGetString(ippFindAttribute(materials_col, "material-name", IPP_TAG_NAME), 0, NULL);
+
+      if (material_key && material_name)
+        html_printf(client, "<option value=\"%s\"%s>%s</option>", material_key, ready_key && material_key && !strcmp(ready_key, material_key) ? " selected" : "", material_name);
+      else if (material_key)
+        html_printf(client, "<!-- Error: no material-name for material-key=\"%s\" -->", material_key);
+      else if (material_name)
+        html_printf(client, "<!-- Error: no material-key for material-name=\"%s\" -->", material_name);
+      else
+        html_printf(client, "<!-- Error: no material-key or material-name for materials-col-database[%d] -->", j + 1);
+    }
+    html_printf(client, "</select></td></tr>\n");
+  }
+
+  html_printf(client, "<tr><td></td><td><input type=\"submit\" value=\"Update Materials\"></td></tr></table></form>\n");
+  html_footer(client);
+
+  return (1);
+}
+
+
+/*
+ * 'show_media()' - Show media load state.
+ */
+
+static int				/* O - 1 on success, 0 on failure */
+show_media(server_client_t  *client,	/* I - Client connection */
+           server_printer_t *printer,	/* I - Printer to show */
+           const char       *encoding)	/* I - Content-Encoding */
+{
+  int			i, j,		/* Looping vars */
+                        num_ready,	/* Number of ready media */
+                        num_sizes,	/* Number of media sizes */
+			num_sources,	/* Number of media sources */
+                        num_types;	/* Number of media types */
+  ipp_attribute_t	*media_col_ready,/* media-col-ready attribute */
+                        *media_ready,	/* media-ready attribute */
+                        *media_sizes,	/* media-supported attribute */
+                        *media_sources,	/* media-source-supported attribute */
+                        *media_types,	/* media-type-supported attribute */
+                        *input_tray;	/* printer-input-tray attribute */
+//                        *attr;		/* Other attribute */
+  ipp_t			*media_col;	/* media-col value */
+  const char            *media_size,	/* media value */
+                        *media_source,	/* media-source value */
+                        *media_type,	/* media-type value */
+                        *ready_size,	/* media-col-ready media-size[-name] value */
+                        *ready_source,	/* media-col-ready media-source value */
+                        *ready_tray,	/* printer-input-tray value */
+                        *ready_type;	/* media-col-ready media-type value */
+  char			tray_str[1024],	/* printer-input-tray string value */
+			*tray_ptr;	/* Pointer into value */
+  int			tray_len;	/* Length of printer-input-tray value */
+  int			ready_sheets;	/* printer-input-tray sheets value */
+  int			num_options;	/* Number of form options */
+  cups_option_t		*options;	/* Form options */
+  static const int	sheets[] =	/* Number of sheets */
+  {
+    250,
+    100,
+    25,
+    5,
+    0
+  };
+
+
+  if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
+    return (0);
+
+  html_header(client, printer->name);
+
+  html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource);
+  html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Media</h1>\n", printer->resource, printer->dnssd_name);
+
+  if ((media_col_ready = ippFindAttribute(printer->attrs, "media-col-ready", IPP_TAG_BEGIN_COLLECTION)) == NULL)
+  {
+    html_printf(client, "<p>Error: No media-col-ready defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  media_ready = ippFindAttribute(printer->attrs, "media-ready", IPP_TAG_ZERO);
+
+  if ((media_sizes = ippFindAttribute(printer->attrs, "media-supported", IPP_TAG_ZERO)) == NULL)
+  {
+    html_printf(client, "<p>Error: No media-supported defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  if ((media_sources = ippFindAttribute(printer->attrs, "media-source-supported", IPP_TAG_ZERO)) == NULL)
+  {
+    html_printf(client, "<p>Error: No media-source-supported defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  if ((media_types = ippFindAttribute(printer->attrs, "media-type-supported", IPP_TAG_ZERO)) == NULL)
+  {
+    html_printf(client, "<p>Error: No media-type-supported defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  if ((input_tray = ippFindAttribute(printer->attrs, "printer-input-tray", IPP_TAG_STRING)) == NULL)
+  {
+    html_printf(client, "<p>Error: No printer-input-tray defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  num_ready   = ippGetCount(media_col_ready);
+  num_sizes   = ippGetCount(media_sizes);
+  num_sources = ippGetCount(media_sources);
+  num_types   = ippGetCount(media_types);
+
+  if (num_sources != ippGetCount(input_tray))
+  {
+    html_printf(client, "<p>Error: Different number of trays in media-source-supported and printer-input-tray defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+ /*
+  * Process form data if present...
+  */
+
+  if ((num_options = parse_options(client, &options)) > 0)
+  {
+   /*
+    * WARNING: A real printer/server implementation MUST NOT implement
+    * media updates via a GET request - GET requests are supposed to be
+    * idempotent (without side-effects) and we obviously are not
+    * authenticating access here.  This form is provided solely to
+    * enable testing and development!
+    */
+
+    char	name[255];		/* Form name */
+    const char	*val;			/* Form value */
+    pwg_media_t	*media;			/* Media info */
+
+    _cupsRWLockWrite(&printer->rwlock);
+
+    ippDeleteAttribute(printer->attrs, input_tray);
+    input_tray = NULL;
+
+    ippDeleteAttribute(printer->attrs, media_col_ready);
+    media_col_ready = NULL;
+
+    if (media_ready)
+    {
+      ippDeleteAttribute(printer->attrs, media_ready);
+      media_ready = NULL;
+    }
+
+    printer->state_reasons &= (server_preason_t)~(SERVER_PREASON_MEDIA_LOW | SERVER_PREASON_MEDIA_EMPTY | SERVER_PREASON_MEDIA_NEEDED);
+
+    for (i = 0; i < num_sources; i ++)
+    {
+      media_source = ippGetString(media_sources, i, NULL);
+
+      snprintf(name, sizeof(name), "size%d", i);
+      if ((media_size = cupsGetOption(name, num_options, options)) != NULL && (media = pwgMediaForPWG(media_size)) != NULL)
+      {
+        char	media_key[128];		/* media-key value */
+        ipp_t	*media_size_col;	/* media-size collection */
+
+        snprintf(name, sizeof(name), "type%d", i);
+        media_type = cupsGetOption(name, num_options, options);
+
+        if (media_ready)
+          ippSetString(printer->attrs, &media_ready, ippGetCount(media_ready), media_size);
+        else
+          media_ready = ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-ready", NULL, media_size);
+
+        if (media_type && *media_type)
+          snprintf(media_key, sizeof(media_key), "%s_%s_%s", media_size, media_source, media_type);
+        else
+          snprintf(media_key, sizeof(media_key), "%s_%s", media_size, media_source);
+
+        media_size_col = ippNew();
+        ippAddInteger(media_size_col, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "x-dimension", media->width);
+        ippAddInteger(media_size_col, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "y-dimension", media->length);
+
+        media_col = ippNew();
+        ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-key", NULL, media_key);
+        ippAddCollection(media_col, IPP_TAG_PRINTER, "media-size", media_size_col);
+        ippDelete(media_size_col);
+        ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-size-name", NULL, media_size);
+        ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-source", NULL, media_source);
+        if (media_type && *media_type)
+          ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-type", NULL, media_type);
+
+        if (media_col_ready)
+          ippSetCollection(printer->attrs, &media_col_ready, ippGetCount(media_col_ready), media_col);
+        else
+          media_col_ready = ippAddCollection(printer->attrs, IPP_TAG_PRINTER, "media-col-ready", media_col);
+        ippDelete(media_col);
+      }
+      else
+        media = NULL;
+
+      snprintf(name, sizeof(name), "level%d", i);
+      if ((val = cupsGetOption(name, num_options, options)) != NULL)
+        ready_sheets = atoi(val);
+      else
+        ready_sheets = 0;
+
+      snprintf(tray_str, sizeof(tray_str), "type=sheetFeedAutoRemovableTray;mediafeed=%d;mediaxfeed=%d;maxcapacity=250;level=%d;status=0;name=%s;", media ? media->length : 0, media ? media->width : 0, ready_sheets, media_source);
+
+      if (input_tray)
+        ippSetOctetString(printer->attrs, &input_tray, ippGetCount(input_tray), tray_str, (int)strlen(tray_str));
+      else
+        input_tray = ippAddOctetString(printer->attrs, IPP_TAG_PRINTER, "printer-input-tray", tray_str, (int)strlen(tray_str));
+
+      if (ready_sheets == 0)
+      {
+        printer->state_reasons |= SERVER_PREASON_MEDIA_EMPTY;
+        if (printer->processing_job)
+          printer->state_reasons |= SERVER_PREASON_MEDIA_NEEDED;
+      }
+      else if (ready_sheets < 25)
+        printer->state_reasons |= SERVER_PREASON_MEDIA_LOW;
+    }
+
+    if (!media_col_ready)
+      media_col_ready = ippAddOutOfBand(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "media-col-ready");
+
+    if (!media_ready)
+      media_ready = ippAddOutOfBand(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "media-ready");
+
+    _cupsRWUnlock(&printer->rwlock);
+
+    html_printf(client, "<blockquote>Media updated.</blockquote>\n");
+  }
+
+  html_printf(client, "<form method=\"GET\" action=\"%s/media\">\n", printer->resource);
+
+  html_printf(client, "<table class=\"form\" summary=\"Media\">\n");
+  for (i = 0; i < num_sources; i ++)
+  {
+    media_source = ippGetString(media_sources, i, NULL);
+
+    for (j = 0, ready_size = NULL, ready_type = NULL; j < num_ready; j ++)
+    {
+      media_col    = ippGetCollection(media_col_ready, j);
+      ready_size   = ippGetString(ippFindAttribute(media_col, "media-size-name", IPP_TAG_ZERO), 0, NULL);
+      ready_source = ippGetString(ippFindAttribute(media_col, "media-source", IPP_TAG_ZERO), 0, NULL);
+      ready_type   = ippGetString(ippFindAttribute(media_col, "media-type", IPP_TAG_ZERO), 0, NULL);
+
+      if (ready_source && !strcmp(ready_source, media_source))
+        break;
+
+      ready_source = NULL;
+      ready_size   = NULL;
+      ready_type   = NULL;
+    }
+
+   /*
+    * Media size...
+    */
+
+    html_printf(client, "<tr><th>%s:</th><td><select name=\"size%d\"><option value=\"\">None</option>", media_source, i);
+    for (j = 0; j < num_sizes; j ++)
+    {
+      media_size = ippGetString(media_sizes, j, NULL);
+
+      html_printf(client, "<option%s>%s</option>", (ready_size && !strcmp(ready_size, media_size)) ? " selected" : "", media_size);
+    }
+    html_printf(client, "</select>\n");
+
+   /*
+    * Media type...
+    */
+
+    html_printf(client, "<select name=\"type%d\"><option value=\"\">None</option>", i);
+    for (j = 0; j < num_types; j ++)
+    {
+      media_type = ippGetString(media_types, j, NULL);
+
+      html_printf(client, "<option%s>%s</option>", (ready_type && !strcmp(ready_type, media_type)) ? " selected" : "", media_type);
+    }
+    html_printf(client, "</select>\n");
+
+   /*
+    * Level/sheets loaded...
+    */
+
+    if ((ready_tray = ippGetOctetString(input_tray, i, &tray_len)) != NULL)
+    {
+      if (tray_len > (sizeof(tray_str) - 1))
+        tray_len = sizeof(tray_str) - 1;
+      memcpy(tray_str, ready_tray, (size_t)tray_len);
+      tray_str[tray_len] = '\0';
+
+      if ((tray_ptr = strstr(tray_str, "level=")) != NULL)
+        ready_sheets = atoi(tray_ptr + 6);
+      else
+        ready_sheets = 0;
+    }
+    else
+      ready_sheets = 0;
+
+    html_printf(client, "<select name=\"level%d\">", i);
+    for (j = 0; j < (int)(sizeof(sheets) / sizeof(sheets[0])); j ++)
+      html_printf(client, "<option value=\"%d\"%s>%d sheets</option>", sheets[j], sheets[j] == ready_sheets ? " selected" : "", sheets[j]);
+    html_printf(client, "</select></td></tr>\n");
+  }
+
+  html_printf(client, "<tr><td></td><td><input type=\"submit\" value=\"Update Media\"></td></tr></table></form>\n");
+  html_footer(client);
+
+  return (1);
+}
+
+
+/*
+ * 'show_status()' - Show printer/system state.
+ */
+
+static int				/* O - 1 on success, 0 on failure */
+show_status(server_client_t  *client,	/* I - Client connection */
+            server_printer_t *printer,	/* I - Printer to show or NULL for system */
+            const char       *encoding)	/* I - Content-Encoding to use */
+{
+  server_job_t		*job;		/* Current job */
+  int			i, j;		/* Looping vars */
+  server_preason_t	reason;		/* Current reason */
+  static const char * const reasons[] =	/* Reason strings */
+  {
+    "Other",
+    "Cover Open",
+    "Input Tray Missing",
+    "Marker Supply Empty",
+    "Marker Supply Low",
+    "Marker Waste Almost Full",
+    "Marker Waste Full",
+    "Media Empty",
+    "Media Jam",
+    "Media Low",
+    "Media Needed",
+    "Moving to Paused",
+    "Paused",
+    "Spool Area Full",
+    "Toner Empty",
+    "Toner Low"
+  };
+
+
+  if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
+    return (0);
+
+  if (printer)
+  {
+    html_header(client, printer->dnssd_name);
+    if (!strncmp(printer->resource, "/ipp/print3d", 12))
+      html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s/materials\">Show Materials</a>\n", printer->resource);
+    else
+      html_printf(client, "<p class=\"buttons\"><p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s/media\">Show Media</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource);
+    html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Jobs</h1>\n", printer->resource, printer->dnssd_name);
+    html_printf(client, "<p>%s, %d job(s).", printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
+    for (i = 0, reason = 1; i < (int)(sizeof(reasons) / sizeof(reasons[0])); i ++, reason <<= 1)
+      if (printer->state_reasons & reason)
+        html_printf(client, "\n<br>&nbsp;&nbsp;&nbsp;&nbsp;%s", reasons[i]);
+    html_printf(client, "</p>\n");
+
+    if (cupsArrayCount(printer->jobs) > 0)
+    {
+      _cupsRWLockRead(&(printer->rwlock));
+
+      html_printf(client, "<table class=\"striped\" summary=\"Jobs\"><thead><tr><th>Job #</th><th>Name</th><th>Owner</th><th>When</th></tr></thead><tbody>\n");
+      for (job = (server_job_t *)cupsArrayFirst(printer->jobs); job; job = (server_job_t *)cupsArrayNext(printer->jobs))
+      {
+        char	when[256],		/* When job queued/started/finished */
+                hhmmss[64];		/* Time HH:MM:SS */
+
+        switch (job->state)
+        {
+          case IPP_JSTATE_PENDING :
+          case IPP_JSTATE_HELD :
+              snprintf(when, sizeof(when), "Queued at %s", serverTimeString(job->created, hhmmss, sizeof(hhmmss)));
+              break;
+          case IPP_JSTATE_PROCESSING :
+          case IPP_JSTATE_STOPPED :
+              snprintf(when, sizeof(when), "Started at %s", serverTimeString(job->processing, hhmmss, sizeof(hhmmss)));
+              break;
+          case IPP_JSTATE_ABORTED :
+              snprintf(when, sizeof(when), "Aborted at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
+              break;
+          case IPP_JSTATE_CANCELED :
+              snprintf(when, sizeof(when), "Canceled at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
+              break;
+          case IPP_JSTATE_COMPLETED :
+              snprintf(when, sizeof(when), "Completed at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
+              break;
+        }
+
+        html_printf(client, "<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td></tr>\n", job->id, job->name, job->username, when);
+      }
+      html_printf(client, "</tbody></table>\n");
+
+      _cupsRWUnlock(&(printer->rwlock));
+    }
+  }
+  else
+  {
+    html_header(client, CUPS_SVERSION);
+    for (i = 0, printer = (server_printer_t *)cupsArrayFirst(Printers); printer; i ++, printer = (server_printer_t *)cupsArrayNext(Printers))
+    {
+      html_printf(client, "<div class=\"%s\">\n", (i & 1) ? "odd" : "even");
+      html_printf(client, "  <h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s</h1>\n", printer->resource, printer->dnssd_name);
+      html_printf(client, "  <p>%s, %d job(s).", printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
+      for (j = 0, reason = 1; j < (int)(sizeof(reasons) / sizeof(reasons[0])); j ++, reason <<= 1)
+        if (printer->state_reasons & reason)
+          html_printf(client, "\n<br>&nbsp;&nbsp;&nbsp;&nbsp;%s", reasons[j]);
+      html_printf(client, "</p>\n");
+      if (!strncmp(printer->resource, "/ipp/print3d", 12))
+        html_printf(client, "  <p class=\"buttons\"><a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/materials\">Show Materials</a></p>\n", printer->resource, printer->resource);
+      else
+        html_printf(client, "  <p class=\"buttons\"><a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/media\">Show Media</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource, printer->resource);
+      html_printf(client, "</div>\n");
+    }
+  }
+  html_footer(client);
+
+  return (1);
+}
+
+
+/*
+ * 'show_supplies()' - Show printer supplies.
+ */
+
+static int				/* O - 1 on success, 0 on failure */
+show_supplies(
+    server_client_t  *client,		/* I - Client connection */
+    server_printer_t *printer,		/* I - Printer to show */
+    const char       *encoding)		/* I - Content-Encoding to use */
+{
+  int		i,			/* Looping var */
+		num_supply;		/* Number of supplies */
+  ipp_attribute_t *supply,		/* printer-supply attribute */
+		*supply_desc;		/* printer-supply-description attribute */
+  int		num_options;		/* Number of form options */
+  cups_option_t	*options;		/* Form options */
+  int		supply_len,		/* Length of supply value */
+		level;			/* Supply level */
+  const char	*supply_value;		/* Supply value */
+  char		supply_text[1024],	/* Supply string */
+		*supply_ptr;		/* Pointer into supply string */
+  static const char * const printer_supply[] =
+  {					/* printer-supply values */
+    "index=1;class=receptacleThatIsFilled;type=wasteToner;unit=percent;"
+        "maxcapacity=100;level=%d;colorantname=unknown;",
+    "index=2;class=supplyThatIsConsumed;type=toner;unit=percent;"
+        "maxcapacity=100;level=%d;colorantname=black;",
+    "index=3;class=supplyThatIsConsumed;type=toner;unit=percent;"
+        "maxcapacity=100;level=%d;colorantname=cyan;",
+    "index=4;class=supplyThatIsConsumed;type=toner;unit=percent;"
+        "maxcapacity=100;level=%d;colorantname=magenta;",
+    "index=5;class=supplyThatIsConsumed;type=toner;unit=percent;"
+        "maxcapacity=100;level=%d;colorantname=yellow;"
+  };
+  static const char * const colors[] =	/* Colors for the supply-level bars */
+  {
+    "#777 linear-gradient(#333,#777)",
+    "#000 linear-gradient(#666,#000)",
+    "#0FF linear-gradient(#6FF,#0FF)",
+    "#F0F linear-gradient(#F6F,#F0F)",
+    "#CC0 linear-gradient(#EE6,#EE0)"
+  };
+
+
+  if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
+    return (0);
+
+  html_header(client, printer->name);
+
+  html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/media\">Show Media</a></p>\n", printer->resource, printer->resource);
+  html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Media</h1>\n", printer->resource, printer->dnssd_name);
+
+  if ((supply = ippFindAttribute(printer->attrs, "printer-supply", IPP_TAG_STRING)) == NULL)
+  {
+    html_printf(client, "<p>Error: No printer-supply defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  num_supply = ippGetCount(supply);
+
+  if ((supply_desc = ippFindAttribute(printer->attrs, "printer-supply-description", IPP_TAG_TEXT)) == NULL)
+  {
+    html_printf(client, "<p>Error: No printer-supply-description defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  if (num_supply != ippGetCount(supply_desc))
+  {
+    html_printf(client, "<p>Error: Different number of values for printer-supply and printer-supply-description defined for printer.</p>\n");
+    html_footer(client);
+    return (1);
+  }
+
+  if ((num_options = parse_options(client, &options)) > 0)
+  {
+   /*
+    * WARNING: A real printer/server implementation MUST NOT implement
+    * supply updates via a GET request - GET requests are supposed to be
+    * idempotent (without side-effects) and we obviously are not
+    * authenticating access here.  This form is provided solely to
+    * enable testing and development!
+    */
+
+    char	name[64];		/* Form field */
+    const char	*val;			/* Form value */
+
+    _cupsRWLockWrite(&printer->rwlock);
+
+    ippDeleteAttribute(printer->attrs, supply);
+    supply = NULL;
+
+    printer->state_reasons &= (server_preason_t)~(SERVER_PREASON_MARKER_SUPPLY_EMPTY | SERVER_PREASON_MARKER_SUPPLY_LOW | SERVER_PREASON_MARKER_WASTE_ALMOST_FULL | SERVER_PREASON_MARKER_WASTE_FULL | SERVER_PREASON_TONER_EMPTY | SERVER_PREASON_TONER_LOW);
+
+    for (i = 0; i < num_supply; i ++)
+    {
+      snprintf(name, sizeof(name), "supply%d", i);
+      if ((val = cupsGetOption(name, num_options, options)) != NULL)
+      {
+        level = atoi(val);      /* New level */
+
+        snprintf(supply_text, sizeof(supply_text), printer_supply[i], level);
+        if (supply)
+          ippSetOctetString(printer->attrs, &supply, ippGetCount(supply), supply_text, (int)strlen(supply_text));
+        else
+          supply = ippAddOctetString(printer->attrs, IPP_TAG_PRINTER, "printer-supply", supply_text, (int)strlen(supply_text));
+
+        if (i == 0)
+        {
+          if (level == 100)
+            printer->state_reasons |= SERVER_PREASON_MARKER_WASTE_FULL;
+          else if (level > 90)
+            printer->state_reasons |= SERVER_PREASON_MARKER_WASTE_ALMOST_FULL;
+        }
+        else
+        {
+          if (level == 0)
+            printer->state_reasons |= SERVER_PREASON_TONER_EMPTY;
+          else if (level < 10)
+            printer->state_reasons |= SERVER_PREASON_TONER_LOW;
+        }
+      }
+    }
+
+    _cupsRWUnlock(&printer->rwlock);
+
+    html_printf(client, "<blockquote>Supplies updated.</blockquote>\n");
+  }
+
+  html_printf(client, "<form method=\"GET\" action=\"%s/supplies\">\n", printer->resource);
+
+  html_printf(client, "<table class=\"form\" summary=\"Supplies\">\n");
+  for (i = 0; i < num_supply; i ++)
+  {
+    supply_value = ippGetOctetString(supply, i, &supply_len);
+    if (supply_len > (sizeof(supply_text) - 1))
+      supply_len = sizeof(supply_text) - 1;
+
+    memcpy(supply_text, supply_value, (size_t)supply_len);
+    supply_text[supply_len] = '\0';
+
+    if ((supply_ptr = strstr(supply_text, "level=")) != NULL)
+      level = atoi(supply_ptr + 6);
+    else
+      level = 50;
+
+    html_printf(client, "<tr><th>%s:</th><td><input name=\"supply%d\" size=\"3\" value=\"%d\"><span class=\"bar\" style=\"background: %s; width: %dpx;\"></span></td></tr>\n", ippGetString(supply_desc, i, NULL), i, level, colors[i], level * 2);
+  }
+  html_printf(client, "<tr><td></td><td><input type=\"submit\" value=\"Update Supplies\"></td></tr>\n</table>\n</form>\n");
+  html_footer(client);
+
+  return (1);
+}

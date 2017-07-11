@@ -1,7 +1,7 @@
 .\"
 .\" ipptransform3d man page.
 .\"
-.\" Copyright 2016 by Apple Inc.
+.\" Copyright 2016-2017 by Apple Inc.
 .\"
 .\" These coded instructions, statements, and computer programs are the
 .\" property of Apple Inc. and are protected by Federal copyright
@@ -9,7 +9,7 @@
 .\" which should have been included with this file.  If this file is
 .\" file is missing or damaged, see the license at "http://www.cups.org/".
 .\"
-.TH ipptransform3d 1 "ippsample" "8 July 2016" "Apple Inc."
+.TH ipptransform3d 1 "ippsample" "12 May 2017" "Apple Inc."
 .SH NAME
 ipptransform3d \- convert 3d document data to alternate formats
 .SH SYNOPSIS
@@ -24,7 +24,7 @@ ipptransform3d \- convert 3d document data to alternate formats
 .I input/format
 ] [
 .B \-m
-.I output/format
+.I output/format;machine=name
 ] [
 .B \-o
 .I "name=value [... name=value]"
@@ -54,13 +54,14 @@ Currently only the "usbserial" URI scheme is supported, for example "usbserial:/
 Specifies the MIME media type of the input file.
 Currently the "model/3mf" (3MF) and "application/sla" (STL) MIME media types are supported.
 .TP 5
-.BI \-m \ output/format
+.BI \-m \ output/format;machine=name
 Specifies the MIME media type of the output file.
-Currently the "application/g-code" (G-code) MIME media type is supported.
+Currently only the "application/g-code" (G-code) MIME media type is supported.
+The "machine=name" parameter specifies a machine-specific variant such as "ultimaker2".
 .TP 5
 .BI \-o \ "name=value [... name=value]"
 Specifies one or more named options for the conversion.
-Currently the "materials-col", "print-accuracy", "print-quality", "print-rafts", "print-supports", and "printer-bed-temperatures" options are supported.
+Currently the "materials-col", "platform-temperature", "print-accuracy", "print-base", "print-quality", and "print-supports" options are supported.
 See the NAMED OPTIONS section for more information.
 .TP 5
 .B \-v
@@ -73,16 +74,19 @@ Specifies the material(s) to use.
 Each value is surrounded by curley braces and contains a list of material properties and their values, e.g., '{material-diameter=285 material-type="pla" ...}'.
 The "material-diameter", "material-fill-density", "material-purpose", "material-rate", "material-rate-units", "material-shell-thickness", "material-temperature", and "material-type" properties are supported.
 .TP 5
+.B platform-temperature
+Specifies the temperature of the build platform in degrees Celsius.
+.TP 5
 .B print-accuracy
 Specifies the dimensional accuracy requirements for the print.
 For example, a horizontal accuracy of 0.1mm and vertical accuracy of 0.05mm is '{x-accuracy=100 y-accuracy=100 z-accuracy=50 accuracy-units=um}'.
 .TP 5
+.B print-base
+Specifies whether brims, rafts, or skirts should be printed.
+The values 'none', 'brim', 'raft', and 'skirt' are supported.
+.TP 5
 .B print-quality
 Specifies the print quality with value 3 (draft), 4 (normal), or 5 (high/best).
-.TP 5
-.B print-rafts
-Specifies whether rafts should be printed.
-The values 'none', 'brim', 'raft', 'skirt', and 'standard' are supported.
 .TP 5
 .B print-supports
 Specifies whether supports are printed.
@@ -130,4 +134,4 @@ Print a 3MF file to a G-code printer connected via USB on Linux using the defaul
         filename.3mf
 .fi
 .SH COPYRIGHT
-Copyright \[co] 2016 by Apple Inc.
+Copyright \[co] 2016-2017 by Apple Inc.

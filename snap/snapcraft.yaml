@@ -1,0 +1,52 @@
+
+name: ipp
+version: 1.0b1
+summary: IPP Sample Implementation
+description: |
+  The ippsample project provides sample implementations of an IPP Client, Proxy,
+  Server, and other tools. It is based on the CUPS source code and is maintained
+  by the PWG IPP workgroup.
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: devmode # use 'strict' once you have the right plugs and slots
+icon: server/printer.png
+
+apps:
+    server:
+        command: sbin/ippserver
+        plugs: [avahi-observe, home, network, network-bind]
+    find:
+        command: bin/ippfind
+        plugs: [avahi-observe, home, network]
+    proxy:
+        command: sbin/ippproxy
+        plugs: [avahi-observe, home, network]
+    tool:
+        command: bin/ipptool
+        plugs: [avahi-observe, home, network]
+    transform:
+        command: bin/ipptransform
+        plugs: [avahi-observe, home, network]
+    transform3d:
+        command: bin/ipptransform3d
+        plugs: [avahi-observe, home, network]
+
+parts:
+    mupdf:
+        plugin: make
+        make-install-var: prefix
+        make-parameters: [HAVE_X11=no, HAVE_GLFW=no]
+        source: https://mupdf.com/downloads/mupdf-1.11-source.tar.gz
+        prime:
+            - -bin/mu*
+            - -include/mu*
+            - -lib/libmu*
+            - -share/doc/mupdf
+            - -share/man/man1/mu*
+    main:
+        after: [mupdf]
+        plugin: autotools
+        source: .
+
+build-packages: [cura-engine, libavahi-client-dev, libgnutls28-dev, libjpeg-dev, libpng-dev, zlib1g-dev]
+

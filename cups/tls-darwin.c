@@ -21,7 +21,7 @@
 
 #include <spawn.h>
 
-extern char **environ;
+extern char **environ; /* @private@ */
 
 
 /*
@@ -41,6 +41,8 @@ static int		tls_auto_create = 0;
 static char		*tls_common_name = NULL;
 					/* Default common name */
 #ifdef HAVE_SECKEYCHAINOPEN
+static int		tls_cups_keychain = 0;
+					/* Opened the CUPS keychain? */
 static SecKeychainRef	tls_keychain = NULL;
 					/* Server cert keychain */
 #else
@@ -1322,7 +1324,6 @@ _httpTLSStart(http_t *http)		/* I - HTTP connection */
           case TLS_DHE_RSA_WITH_AES_256_CBC_SHA :
           case TLS_DH_DSS_WITH_3DES_EDE_CBC_SHA :
           case TLS_DH_RSA_WITH_3DES_EDE_CBC_SHA :
-//          case TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA :
           case TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA :
           case TLS_DH_DSS_WITH_AES_128_CBC_SHA256 :
           case TLS_DH_RSA_WITH_AES_128_CBC_SHA256 :
@@ -1335,6 +1336,14 @@ _httpTLSStart(http_t *http)		/* I - HTTP connection */
           case TLS_DHE_PSK_WITH_3DES_EDE_CBC_SHA :
           case TLS_DHE_PSK_WITH_AES_128_CBC_SHA :
           case TLS_DHE_PSK_WITH_AES_256_CBC_SHA :
+          case TLS_DHE_PSK_WITH_AES_128_CBC_SHA256 :
+          case TLS_DHE_PSK_WITH_AES_256_CBC_SHA384 :
+	      if (tls_options & _HTTP_TLS_DENY_CBC)
+	      {
+	        DEBUG_printf(("4_httpTLSStart: Excluding CBC cipher suite %d", supported[i]));
+	        break;
+	      }
+
 //          case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 :
 //          case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
           case TLS_DH_RSA_WITH_AES_128_GCM_SHA256 :
@@ -1345,15 +1354,28 @@ _httpTLSStart(http_t *http)		/* I - HTTP connection */
           case TLS_DH_DSS_WITH_AES_256_GCM_SHA384 :
           case TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 :
           case TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 :
-          case TLS_DHE_PSK_WITH_AES_128_CBC_SHA256 :
-          case TLS_DHE_PSK_WITH_AES_256_CBC_SHA384 :
               if (tls_options & _HTTP_TLS_ALLOW_DH)
 	        enabled[num_enabled ++] = supported[i];
 	      else
 		DEBUG_printf(("4_httpTLSStart: Excluding DH/DHE cipher suite %d", supported[i]));
               break;
 
-          /* Anything else we'll assume is secure */
+          case TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA :
+          case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 :
+          case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 :
+          case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 :
+          case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 :
+          case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 :
+          case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 :
+          case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 :
+          case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384 :
+              if (tls_options & _HTTP_TLS_DENY_CBC)
+	      {
+	        DEBUG_printf(("4_httpTLSStart: Excluding CBC cipher suite %d", supported[i]));
+	        break;
+	      }
+
+          /* Anything else we'll assume is "secure" */
           default :
 	      enabled[num_enabled ++] = supported[i];
 	      break;
@@ -1747,6 +1769,7 @@ http_cdsa_copy_server(
   CFMutableDictionaryRef query = NULL;	/* Query qualifiers */
   CFArrayRef		list = NULL;	/* Keychain list */
   SecKeychainRef	syschain = NULL;/* System keychain */
+  SecKeychainStatus	status = 0;	/* Keychain status */
 
 
   DEBUG_printf(("3http_cdsa_copy_server(common_name=\"%s\")", common_name));
@@ -1768,6 +1791,11 @@ http_cdsa_copy_server(
   }
 
   _cupsMutexLock(&tls_mutex);
+
+  err = SecKeychainGetStatus(tls_keychain, &status);
+
+  if (err == noErr && !(status & kSecUnlockStateStatus) && tls_cups_keychain)
+    SecKeychainUnlock(tls_keychain, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, TRUE);
 
   CFDictionaryAddValue(query, kSecClass, kSecClassIdentity);
   CFDictionaryAddValue(query, kSecMatchPolicy, policy);
@@ -1901,9 +1929,15 @@ http_cdsa_open_keychain(
   */
 
   if (!path)
+  {
     path = http_cdsa_default_path(filename, filesize);
+    tls_cups_keychain = 1;
+  }
   else
+  {
     strlcpy(filename, path, filesize);
+    tls_cups_keychain = 0;
+  }
 
  /*
   * Save the interaction setting and disable while we open the keychain...
@@ -1912,7 +1946,7 @@ http_cdsa_open_keychain(
   SecKeychainGetUserInteractionAllowed(&interaction);
   SecKeychainSetUserInteractionAllowed(FALSE);
 
-  if (access(path, R_OK))
+  if (access(path, R_OK) && tls_cups_keychain)
   {
    /*
     * Create a new keychain at the given path...
@@ -1931,7 +1965,7 @@ http_cdsa_open_keychain(
     if (err == noErr)
       err = SecKeychainGetStatus(keychain, &status);
 
-    if (err == noErr && !(status & kSecUnlockStateStatus))
+    if (err == noErr && !(status & kSecUnlockStateStatus) && tls_cups_keychain)
       err = SecKeychainUnlock(keychain, _CUPS_CDSA_PASSLEN, _CUPS_CDSA_PASSWORD, TRUE);
   }
 

@@ -1,7 +1,7 @@
 /*
  * Main entry for IPP Infrastructure Printer sample implementation.
  *
- * Copyright 2010-2016 by Apple Inc.
+ * Copyright 2010-2017 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -37,6 +37,7 @@ main(int  argc,				/* I - Number of command-line args */
 		*confdir = NULL,	/* Configuration directory */
                 *command = NULL,	/* Command to run with job files */
 		*device_uri = NULL,	/* Device URI */
+		*output_format = NULL,	/* Output format */
 		*name = NULL,		/* Printer name */
 		*location = NULL,	/* Location of printer */
 		*make = NULL,		/* Manufacturer */
@@ -50,6 +51,7 @@ main(int  argc,				/* I - Number of command-line args */
   char		*proxy_user = NULL;	/* Proxy username */
   server_printer_t *printer;		/* Printer object */
   ipp_t		*attrs = NULL;		/* Extra printer attributes */
+  cups_array_t	*strings = NULL;	/* Localization files */
 
 
  /*
@@ -103,7 +105,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-	      attrs = serverLoadAttributes(argv[i], &authtype, &command, &device_uri, &make, &model, &proxy_user);
+	      attrs = serverLoadAttributes(argv[i], &authtype, &command, &device_uri, &output_format, &make, &model, &proxy_user, &strings);
 	      break;
 
           case 'c' : /* -c command */
@@ -269,7 +271,7 @@ main(int  argc,				/* I - Number of command-line args */
     if (!serverFinalizeConfiguration())
       return (1);
 
-    if ((printer = serverCreatePrinter("/ipp/print", name, location, make, model, icon, formats, ppm, ppm_color, duplex, pin, attrs, command, device_uri, proxy_user)) == NULL)
+    if ((printer = serverCreatePrinter("/ipp/print", name, location, make, model, icon, formats, ppm, ppm_color, duplex, pin, attrs, command, device_uri, output_format, proxy_user, strings)) == NULL)
       return (1);
 
     Printers = cupsArrayNew(NULL, NULL);
@@ -295,7 +297,7 @@ usage(int status)			/* O - Exit status */
 {
   if (!status)
   {
-    puts(CUPS_SVERSION " - Copyright 2010-2016 by Apple Inc. All rights reserved.");
+    puts(CUPS_SVERSION " - Copyright 2010-2017 by Apple Inc. All rights reserved.");
     puts("");
   }
 

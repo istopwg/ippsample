@@ -188,11 +188,35 @@ APISOURCES =	\
 
 apihelp:
 	echo Generating CUPS API help files...
-	mxmldoc --section "Programming" \
-		--title "CUPS API Programming Guide" \
-		--css api.css \
-		--header api.header --intro api.shtml \
+	mxmldoc --title "CUPS API Programming Guide" \
+		--author "Michael R Sweet" \
+		--copyright "Copyright 2007-2017 by Apple Inc." \
+		--docversion $(IPPSAMPLE_VERSION) \
+		--intro api.intro \
 		api.xml $(APISOURCES) >../doc/api.html
+	mxmldoc --title "CUPS API Programming Guide" \
+		--author "Michael R Sweet" \
+		--copyright "Copyright 2007-2017 by Apple Inc." \
+		--docversion $(IPPSAMPLE_VERSION) \
+		--intro api.intro \
+		--epub ../doc/api.epub \
+		api.xml
+	if test `uname` = Darwin; then \
+		mxmldoc --title "CUPS API Programming Guide" \
+			--author "Michael R Sweet" \
+			--copyright "Copyright 2007-2017 by Apple Inc." \
+			--docversion $(IPPSAMPLE_VERSION) \
+			--intro api.intro \
+			--docset org.pwg.ippsample.docset \
+			--feedname org.pwg.ippsample \
+			--feedurl https://istopwg.github.io/ippsample/org.pwg.ippsample.atom \
+			api.xml; \
+		$(RM) org.pwg.ippsample.atom; \
+		xcrun docsetutil package --output org.pwg.ippsample.xar \
+			--atom org.pwg.ippsample.atom \
+			--download-url https://istopwg.github.io/ippsample/org.pwg.ippsample.xar \
+			org.pwg.ippsample.docset || exit 1; \
+	fi
 	$(RM) api.xml
 
 

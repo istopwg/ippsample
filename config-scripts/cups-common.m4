@@ -1,7 +1,7 @@
 dnl
 dnl Common configuration stuff for CUPS.
 dnl
-dnl Copyright 2007-2016 by Apple Inc.
+dnl Copyright 2007-2017 by Apple Inc.
 dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
 dnl
 dnl These coded instructions, statements, and computer programs are the
@@ -209,14 +209,10 @@ AC_SUBST(IPPTRANSFORM3D_BIN)
 AC_SUBST(IPPTRANSFORM3D_HTML)
 AC_SUBST(IPPTRANSFORM3D_MAN)
 
-if test -x /Applications/Cura/Cura.app/Contents/Resources/CuraEngine; then
-	AC_MSG_CHECKING(for CuraEngine)
-	CURAENGINE="/Applications/Cura/Cura.app/Contents/Resources/CuraEngine"
-	AC_MSG_RESULT($CURAENGINE)
-	AC_SUBST(CURAENGINE)
-else
-	AC_PATH_PROG(CURAENGINE,CuraEngine)
-fi
+SAVEPATH="$PATH"
+PATH="$PATH:/Applications/Cura/Cura.app/Contents/Resources:/Applications/Cura.app/Contents/MacOS"
+AC_PATH_PROG(CURAENGINE,CuraEngine)
+PATH="$SAVEPATH"
 
 if test "x$CURAENGINE" != x; then
 	IPPTRANSFORM3D_BIN="ipptransform3d"

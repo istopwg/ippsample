@@ -127,7 +127,7 @@ srcdir		=	@srcdir@
 sysconfdir	=	@sysconfdir@
 top_srcdir	=	@top_srcdir@
 
-BUILDROOT	=	$(DSTROOT)
+BUILDROOT	=	$(DSTROOT)$(DESTDIR)
 
 
 #
