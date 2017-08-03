@@ -61,7 +61,8 @@
 #endif /* __APPLE__ */
 
 #if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
-#  define _CUPS_DNSSD_MAXTIME	500	/* Milliseconds for maximum quantum of time */
+#  define _CUPS_DNSSD_GET_DESTS 250     /* Milliseconds for cupsGetDests */
+#  define _CUPS_DNSSD_MAXTIME	50	/* Milliseconds for maximum quantum of time */
 #endif /* HAVE_DNSSD || HAVE_AVAHI */
 
 
@@ -1015,6 +1016,8 @@ cupsEnumDests(
 #endif /* HAVE_DNSSD || HAVE_AVAHI */
 
 
+  DEBUG_printf(("cupsEnumDests(flags=%x, msec=%d, cancel=%p, type=%x, mask=%x, cb=%p, user_data=%p)", flags, msec, (void *)cancel, type, mask, (void *)cb, (void *)user_data));
+
  /*
   * Range check input...
   */
@@ -1022,7 +1025,10 @@ cupsEnumDests(
   (void)flags;
 
   if (!cb)
+  {
+    DEBUG_puts("1cupsEnumDests: No callback, returning 0.");
     return (0);
+  }
 
  /*
   * Get ready to enumerate...
@@ -1141,39 +1147,52 @@ cupsEnumDests(
 
 #  ifdef HAVE_DNSSD
   if (DNSServiceCreateConnection(&data.main_ref) != kDNSServiceErr_NoError)
+  {
+    DEBUG_puts("1cupsEnumDests: Unable to create service browser, returning 0.");
     return (0);
+  }
 
   main_fd = DNSServiceRefSockFD(data.main_ref);
 
   ipp_ref = data.main_ref;
-  DNSServiceBrowse(&ipp_ref, kDNSServiceFlagsShareConnection, 0,
-                   "_ipp._tcp", NULL,
-                   (DNSServiceBrowseReply)cups_dnssd_browse_cb, &data);
+  if (DNSServiceBrowse(&ipp_ref, kDNSServiceFlagsShareConnection, 0, "_ipp._tcp", NULL, (DNSServiceBrowseReply)cups_dnssd_browse_cb, &data) != kDNSServiceErr_NoError)
+  {
+    DEBUG_puts("1cupsEnumDests: Unable to create IPP browser, returning 0.");
+    DNSServiceRefDeallocate(data.main_ref);
+    return (0);
+  }
 
   local_ipp_ref = data.main_ref;
-  DNSServiceBrowse(&local_ipp_ref, kDNSServiceFlagsShareConnection,
-                   kDNSServiceInterfaceIndexLocalOnly,
-                   "_ipp._tcp", NULL,
-                   (DNSServiceBrowseReply)cups_dnssd_local_cb, &data);
+  if (DNSServiceBrowse(&local_ipp_ref, kDNSServiceFlagsShareConnection, kDNSServiceInterfaceIndexLocalOnly, "_ipp._tcp", NULL, (DNSServiceBrowseReply)cups_dnssd_local_cb, &data) != kDNSServiceErr_NoError)
+  {
+    DEBUG_puts("1cupsEnumDests: Unable to create local IPP browser, returning 0.");
+    DNSServiceRefDeallocate(data.main_ref);
+    return (0);
+  }
 
 #    ifdef HAVE_SSL
   ipps_ref = data.main_ref;
-  DNSServiceBrowse(&ipps_ref, kDNSServiceFlagsShareConnection, 0,
-                   "_ipps._tcp", NULL,
-                   (DNSServiceBrowseReply)cups_dnssd_browse_cb, &data);
+  if (DNSServiceBrowse(&ipps_ref, kDNSServiceFlagsShareConnection, 0, "_ipps._tcp", NULL, (DNSServiceBrowseReply)cups_dnssd_browse_cb, &data) != kDNSServiceErr_NoError)
+  {
+    DEBUG_puts("1cupsEnumDests: Unable to create IPPS browser, returning 0.");
+    DNSServiceRefDeallocate(data.main_ref);
+    return (0);
+  }
 
   local_ipps_ref = data.main_ref;
-  DNSServiceBrowse(&local_ipps_ref, kDNSServiceFlagsShareConnection,
-                   kDNSServiceInterfaceIndexLocalOnly,
-                   "_ipps._tcp", NULL,
-                   (DNSServiceBrowseReply)cups_dnssd_local_cb, &data);
+  if (DNSServiceBrowse(&local_ipps_ref, kDNSServiceFlagsShareConnection, kDNSServiceInterfaceIndexLocalOnly, "_ipps._tcp", NULL, (DNSServiceBrowseReply)cups_dnssd_local_cb, &data) != kDNSServiceErr_NoError)
+  {
+    DEBUG_puts("1cupsEnumDests: Unable to create local IPPS browser, returning 0.");
+    DNSServiceRefDeallocate(data.main_ref);
+    return (0);
+  }
 #    endif /* HAVE_SSL */
 
 #  else /* HAVE_AVAHI */
   if ((data.simple_poll = avahi_simple_poll_new()) == NULL)
   {
-    DEBUG_puts("cupsEnumDests: Unable to create Avahi simple poll object.");
-    return (1);
+    DEBUG_puts("1cupsEnumDests: Unable to create Avahi poll, returning 0.");
+    return (0);
   }
 
   avahi_simple_poll_set_func(data.simple_poll, cups_dnssd_poll_cb, &data);
@@ -1183,17 +1202,32 @@ cupsEnumDests(
 				 &error);
   if (!data.client)
   {
-    DEBUG_puts("cupsEnumDests: Unable to create Avahi client.");
+    DEBUG_puts("1cupsEnumDests: Unable to create Avahi client, returning 0.");
     avahi_simple_poll_free(data.simple_poll);
-    return (1);
+    return (0);
   }
 
   data.browsers = 1;
-  ipp_ref = avahi_service_browser_new(data.client, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, "_ipp._tcp", NULL, 0, cups_dnssd_browse_cb, &data);
+  if ((ipp_ref = avahi_service_browser_new(data.client, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, "_ipp._tcp", NULL, 0, cups_dnssd_browse_cb, &data)) == NULL)
+  {
+    DEBUG_puts("1cupsEnumDests: Unable to create Avahi IPP browser, returning 0.");
+
+    avahi_client_free(data.client);
+    avahi_simple_poll_free(data.simple_poll);
+    return (0);
+  }
 
 #    ifdef HAVE_SSL
   data.browsers ++;
-  ipps_ref = avahi_service_browser_new(data.client, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, "_ipps._tcp", NULL, 0, cups_dnssd_browse_cb, &data);
+  if ((ipps_ref = avahi_service_browser_new(data.client, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, "_ipps._tcp", NULL, 0, cups_dnssd_browse_cb, &data)) == NULL)
+  {
+    DEBUG_puts("1cupsEnumDests: Unable to create Avahi IPPS browser, returning 0.");
+
+    avahi_service_browser_free(ipp_ref);
+    avahi_client_free(data.client);
+    avahi_simple_poll_free(data.simple_poll);
+    return (0);
+  }
 #    endif /* HAVE_SSL */
 #  endif /* HAVE_DNSSD */
 
@@ -1231,6 +1265,8 @@ cupsEnumDests(
 
     if (nfds > 0)
       DNSServiceProcessResult(data.main_ref);
+    else if (nfds < 0 && errno != EINTR && errno != EAGAIN)
+      break;
 
 #  else /* HAVE_AVAHI */
     data.got_data = 0;
@@ -1373,6 +1409,8 @@ cupsEnumDests(
     avahi_simple_poll_free(data.simple_poll);
 #  endif /* HAVE_DNSSD */
 #endif /* HAVE_DNSSD || HAVE_AVAHI */
+
+  DEBUG_puts("1cupsEnumDests: Returning 1.");
 
   return (1);
 }
@@ -2040,13 +2078,16 @@ cupsGetDests2(http_t      *http,	/* I - Connection to server or @code CUPS_HTTP_
   _cups_globals_t *cg = _cupsGlobals();	/* Pointer to library globals */
 
 
- /*
+  DEBUG_printf(("cupsGetDests2(http=%p, dests=%p)", (void *)http, (void *)dests));
+
+/*
   * Range check the input...
   */
 
   if (!dests)
   {
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Bad NULL dests pointer"), 1);
+    DEBUG_puts("1cupsGetDests2: NULL dests pointer, returning 0.");
     return (0);
   }
 
@@ -2057,16 +2098,7 @@ cupsGetDests2(http_t      *http,	/* I - Connection to server or @code CUPS_HTTP_
   data.num_dests = 0;
   data.dests     = NULL;
 
-  cupsEnumDests(0, 1000, NULL, 0, 0, (cups_dest_cb_t)cups_get_cb, &data);
-
-  if (cupsLastError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
-  {
-    cupsFreeDests(data.num_dests, data.dests);
-
-    *dests = (cups_dest_t *)0;
-
-    return (0);
-  }
+  cupsEnumDests(0, _CUPS_DNSSD_GET_DESTS, NULL, 0, 0, (cups_dest_cb_t)cups_get_cb, &data);
 
  /*
   * Make a copy of the "real" queues for a later sanity check...
@@ -2178,6 +2210,8 @@ cupsGetDests2(http_t      *http,	/* I - Connection to server or @code CUPS_HTTP_
   if (data.num_dests > 0)
     _cupsSetError(IPP_STATUS_OK, NULL, 0);
 
+  DEBUG_printf(("1cupsGetDests2: Returning %d destinations.", data.num_dests));
+
   return (data.num_dests);
 }
 
@@ -2255,7 +2289,7 @@ cupsGetNamedDest(http_t     *http,	/* I - Connection to server or @code CUPS_HTT
       dest_name = cups_get_default(filename, defname, sizeof(defname), &instance);
     }
 
-    if (!name)
+    if (!dest_name)
     {
      /*
       * Still not there?  Try the system lpoptions file...
