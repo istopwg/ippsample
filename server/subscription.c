@@ -32,9 +32,14 @@ serverAddEvent(server_printer_t *printer,	/* I - Printer */
   va_list	ap;			/* Argument pointer */
 
 
-  va_start(ap, message);
-  vsnprintf(text, sizeof(text), message, ap);
-  va_end(ap);
+  if (message)
+  {
+    va_start(ap, message);
+    vsnprintf(text, sizeof(text), message, ap);
+    va_end(ap);
+  }
+  else
+    text[0] = '\0';
 
   for (sub = (server_subscription_t *)cupsArrayFirst(printer->subscriptions);
        sub;
