@@ -292,12 +292,20 @@ serverLoadAttributes(
         goto load_error;
       }
 
+        if ( !
+            (value == IPP_TAG_UNSUPPORTED_VALUE ||
+            value == IPP_TAG_DEFAULT ||
+            value == IPP_TAG_UNKNOWN ||
+            value == IPP_TAG_NOVALUE ||
+            value == IPP_TAG_NOTSETTABLE)
+            )
+        {
       if (!get_token(fp, token, sizeof(token), &linenum))
       {
 	serverLog(SERVER_LOGLEVEL_ERROR, "Missing ATTR value on line %d of \"%s\".", linenum, filename);
         goto load_error;
       }
-
+        }
       attrptr = NULL;
 
       switch (value)
@@ -433,12 +441,14 @@ serverLoadAttributes(
 	    {
 	      ipp_t	*col;			/* Collection value */
 	      long	pos = cupsFileTell(fp);	/* Save position of file */
+	      int originalLinenum = linenum;
 
 	      if (!get_token(fp, token, sizeof(token), &linenum))
 		break;
 
 	      if (strcmp(token, ","))
 	      {
+		linenum = originalLinenum;
 		cupsFileSeek(fp, pos);
 		break;
 	      }
@@ -462,7 +472,7 @@ serverLoadAttributes(
 	    break;
 
 	default :
-	    serverLog(SERVER_LOGLEVEL_ERROR, "Unsupported ATTR value tag %s on line %d of \"%s\".", ippTagString(value), linenum, filename);
+	    serverLog(SERVER_LOGLEVEL_ERROR, "Unsupported ATTR value tag \"%s\" on line %d of \"%s\".", ippTagString(value), linenum, filename);
             goto load_error;
 
 	case IPP_TAG_TEXTLANG :
@@ -1143,10 +1153,13 @@ get_token(cups_file_t *fp,		/* I  - File to read from */
       */
 
       while ((ch = cupsFileGetChar(fp)) != EOF)
-	if (ch == '\n')
-          break;
-
-      (*linenum) ++;
+	  {
+		if (ch == '\n')
+		{
+			(*linenum) ++;
+			break;
+		}
+	  }
     }
     else if (ch == '{' || ch == '}' || ch == ',')
     {
@@ -1185,7 +1198,11 @@ get_token(cups_file_t *fp,		/* I  - File to read from */
         }
       }
       else if (ch == '\n')
-        (*linenum) ++;
+      {
+		  // go back 1 char so that the \n is handled the next time through
+		  // to preserve the correct line number for the returned token
+		  cupsFileSeek(fp, cupsFileTell(fp) - 1);
+      }
 
       *bufptr = '\0';
 
