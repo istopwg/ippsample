@@ -6077,6 +6077,40 @@ with_value(cups_file_t     *outfile,	/* I - Output file */
 	}
 	else if (ippGetValueTag(attr) == IPP_TAG_URI)
 	{
+        
+        if (flags & _CUPS_WITH_HOSTNAME)
+        {
+            /*
+             * "value" is a host name, and the attribute is 1+ URIs
+             * See if the hostname portion of the URI(s) match "value"
+             * in a case insensitive comparison...
+             */
+            
+            for (i = 0; i < attr->num_values; i ++)
+            {
+                if (!strcasecmp(value, get_string(attr, i, flags, temp, sizeof(temp))))
+                {
+                    if (!matchbuf[0])
+                        strlcpy(matchbuf,
+                                get_string(attr, i, flags, temp, sizeof(temp)),
+                                matchlen);
+                    
+                    if (!(flags & _CUPS_WITH_ALL))
+                    {
+                        match = 1;
+                        break;
+                    }
+                }
+                else if (flags & _CUPS_WITH_ALL)
+                {
+                    match = 0;
+                    break;
+                }
+            }
+        }
+        else
+        {
+        
 	 /*
 	  * Value is a literal URI string, see if the value(s) match...
 	  */
@@ -6103,6 +6137,7 @@ with_value(cups_file_t     *outfile,	/* I - Output file */
 	    }
 	  }
 	}
+    }
 	else
 	{
 	 /*
