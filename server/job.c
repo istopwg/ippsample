@@ -434,7 +434,7 @@ serverProcessJob(server_job_t *job)		/* I - Job */
     * Sleep for a random amount of time to simulate job processing.
     */
 
-    sleep((unsigned)(5 + (CUPS_RAND() % 11)));
+    sleep((unsigned)(1 + (CUPS_RAND() % 4)));
   }
 
   if (job->cancel)
