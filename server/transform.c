@@ -57,7 +57,8 @@ serverTransformJob(
   int		mystdout[2] = {-1, -1},	/* Pipe for stdout */
 		mystderr[2] = {-1, -1};	/* Pipe for stderr */
   struct pollfd	polldata[2];		/* Poll data */
-  int		pollcount;		/* Number of pipes to poll */
+  int		pollcount,		/* Number of pipes to poll */
+                pollret;                /* Return value from poll() */
   char		data[32768],		/* Data from stdout */
 		line[2048],		/* Line from stderr */
                 *ptr,			/* Pointer into line */
@@ -273,8 +274,10 @@ serverTransformJob(
     pollcount ++;
   }
 
-  while (poll(polldata, (nfds_t)pollcount, -1))
+  while ((pollret = poll(polldata, (nfds_t)pollcount, -1)) > 0)
   {
+    serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "poll() returned %d, polldata[0].revents=%d, polldata[1].revents=%d", pollret, polldata[0].revents, polldata[1].revents);
+
     if (polldata[0].revents & POLLIN)
     {
       if ((bytes = read(mystderr[0], endptr, sizeof(line) - (size_t)(endptr - line) - 1)) > 0)
@@ -318,6 +321,9 @@ serverTransformJob(
       if ((bytes = read(mystdout[0], data, sizeof(data))) > 0)
 	httpWrite2(client->http, data, (size_t)bytes);
     }
+
+    if (polldata[0].revents & POLLHUP)
+      break;
   }
 
   if (mystdout[0] >= 0)
