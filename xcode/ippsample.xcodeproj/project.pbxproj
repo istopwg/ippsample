@@ -535,8 +535,8 @@
 			isa = PBXGroup;
 			children = (
 				72B402A11C0CE3AC00139783 /* config.h */,
-				72B4022D1C0CE21C00139783 /* ippserver */,
 				72B4022A1C0CE16200139783 /* libcups */,
+				72B4022D1C0CE21C00139783 /* ippserver */,
 				72B4022E1C0CE22300139783 /* tools */,
 				72B402E11C0CE64000139783 /* Documentation */,
 				72B403051C0DE49600139783 /* Frameworks */,

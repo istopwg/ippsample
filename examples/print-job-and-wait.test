@@ -25,9 +25,15 @@
 
 	# What attributes do we expect?
 	EXPECT job-id
+	EXPECT job-state
+	EXPECT job-state-reasons
 	EXPECT job-uri
+	DISPLAY job-id
+	DISPLAY job-state
+	DISPLAY job-state-reasons
 }
 {
+	DELAY 0,0.5
 	NAME "Wait for job to complete..."
 	OPERATION Get-Job-Attributes
 	GROUP operation-attributes-tag
