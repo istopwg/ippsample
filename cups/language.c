@@ -692,6 +692,15 @@ cupsLangGet(const char *language)	/* I - Language or locale */
           *ptr++ = (char)toupper(*language & 255);
 
       *ptr = '\0';
+
+     /*
+      * Map Chinese region codes to legacy country codes.
+      */
+
+      if (!strcmp(country, "HANS"))
+        strlcpy(country, "CN", sizeof(country));
+      if (!strcmp(country, "HANT"))
+        strlcpy(country, "TW", sizeof(country));
     }
 
     if (*language == '.' && !charset[0])
@@ -1468,8 +1477,8 @@ appleMessageLoad(const char *locale)	/* I - Locale ID */
       */
 
       strlcpy(baselang, locale, sizeof(baselang));
-      if (baselang[3] == '-' || baselang[3] == '_')
-        baselang[3] = '\0';
+      if (baselang[2] == '-' || baselang[2] == '_')
+        baselang[2] = '\0';
 
       locale = baselang;
     }
