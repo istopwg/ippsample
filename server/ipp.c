@@ -1152,6 +1152,7 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
   cups_array_t		*ra;		/* Requested attributes array */
 
 
+
  /*
   * See if the "which-jobs" attribute have been specified...
   */

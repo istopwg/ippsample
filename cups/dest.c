@@ -63,6 +63,8 @@
 #if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
 #  define _CUPS_DNSSD_GET_DESTS 250     /* Milliseconds for cupsGetDests */
 #  define _CUPS_DNSSD_MAXTIME	50	/* Milliseconds for maximum quantum of time */
+#else
+#  define _CUPS_DNSSD_GET_DESTS 0       /* Milliseconds for cupsGetDests */
 #endif /* HAVE_DNSSD || HAVE_AVAHI */
 
 
@@ -1818,6 +1820,7 @@ _cupsGetDests(http_t       *http,	/* I  - Connection to server or
   */
 
   appleGetPaperSize(media_default, sizeof(media_default));
+  DEBUG_printf(("1_cupsGetDests: Default media is '%s'.", media_default));
 #endif /* __APPLE__ */
 
  /*
@@ -1926,7 +1929,7 @@ _cupsGetDests(http_t       *http,	/* I  - Connection to server or
 				      num_options, &options);
 	}
 #ifdef __APPLE__
-	else if (!strcmp(attr->name, "media-supported"))
+	else if (!strcmp(attr->name, "media-supported") && media_default[0])
 	{
 	 /*
 	  * See if we can set a default media size...
@@ -1937,8 +1940,8 @@ _cupsGetDests(http_t       *http,	/* I  - Connection to server or
 	  for (i = 0; i < attr->num_values; i ++)
 	    if (!_cups_strcasecmp(media_default, attr->values[i].string.text))
 	    {
-	      num_options = cupsAddOption("media", media_default, num_options,
-	                                  &options);
+              DEBUG_printf(("1_cupsGetDests: Setting media to '%s'.", media_default));
+	      num_options = cupsAddOption("media", media_default, num_options, &options);
               break;
 	    }
 	}
@@ -1947,7 +1950,8 @@ _cupsGetDests(http_t       *http,	/* I  - Connection to server or
 	         attr->value_tag == IPP_TAG_NAME)
 	  printer_name = attr->values[0].string.text;
         else if (strncmp(attr->name, "notify-", 7) &&
-	         (attr->value_tag == IPP_TAG_BOOLEAN ||
+                 strncmp(attr->name, "print-quality-", 14) &&
+                 (attr->value_tag == IPP_TAG_BOOLEAN ||
 		  attr->value_tag == IPP_TAG_ENUM ||
 		  attr->value_tag == IPP_TAG_INTEGER ||
 		  attr->value_tag == IPP_TAG_KEYWORD ||
@@ -1962,12 +1966,8 @@ _cupsGetDests(http_t       *http,	/* I  - Connection to server or
           strlcpy(optname, attr->name, sizeof(optname));
 	  optname[ptr - attr->name] = '\0';
 
-	  if (_cups_strcasecmp(optname, "media") ||
-	      !cupsGetOption("media", num_options, options))
-	    num_options = cupsAddOption(optname,
-					cups_make_string(attr, value,
-							 sizeof(value)),
-					num_options, &options);
+	  if (_cups_strcasecmp(optname, "media") || !cupsGetOption("media", num_options, options))
+	    num_options = cupsAddOption(optname, cups_make_string(attr, value, sizeof(value)), num_options, &options);
 	}
       }
 

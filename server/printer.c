@@ -1104,6 +1104,9 @@ serverCreatePrinter(
     ippDelete(xri_col);
   }
 
+  cupsArrayDelete(uris);
+  free(uriptrs);
+
   /* pwg-raster-document-xxx-supported */
   for (i = 0; i < num_formats; i ++)
     if (!strcasecmp(formats[i], "image/pwg-raster"))
@@ -1210,8 +1213,10 @@ serverDeletePrinter(server_printer_t *printer)	/* I - Printer */
     DNSServiceRefDeallocate(printer->printer_ref);
   if (printer->ipp_ref)
     DNSServiceRefDeallocate(printer->ipp_ref);
+#  ifdef HAVE_SSL
   if (printer->ipps_ref)
     DNSServiceRefDeallocate(printer->ipps_ref);
+#  endif /* HAVE_SSL */
   if (printer->http_ref)
     DNSServiceRefDeallocate(printer->http_ref);
 

@@ -60,20 +60,27 @@ serverCleanJobs(server_printer_t *printer)	/* I - Printer */
   time_t	cleantime;		/* Clean time */
 
 
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Cleaning jobs, %d jobs in memory...", cupsArrayCount(printer->jobs));
+
   if (cupsArrayCount(printer->jobs) == 0)
     return;
 
   cleantime = time(NULL) - 60;
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Clean time is %ld.", (long)cleantime);
 
   _cupsRWLockWrite(&(printer->rwlock));
-  for (job = (server_job_t *)cupsArrayFirst(printer->jobs);
+  for (job = (server_job_t *)cupsArrayFirst(printer->completed_jobs);
        job;
-       job = (server_job_t *)cupsArrayNext(printer->jobs))
+       job = (server_job_t *)cupsArrayNext(printer->completed_jobs))
     if (job->completed && job->completed < cleantime)
     {
-      cupsArrayRemove(printer->jobs, job);
-      serverDeleteJob(job);
+      serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Cleaning job #%d.", job->id);
+      cupsArrayRemove(printer->active_jobs, job);
+      cupsArrayRemove(printer->completed_jobs, job);
+      cupsArrayRemove(printer->jobs, job); /* Last since removing a job from here calls serverDeleteJob() */
     }
+    else if (job->completed)
+      serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Not cleaning job #%d - completed on %ld.", job->id, (long)job->completed);
     else
       break;
   _cupsRWUnlock(&(printer->rwlock));
@@ -300,6 +307,7 @@ serverDeleteJob(server_job_t *job)		/* I - Job */
   _cupsRWLockWrite(&job->rwlock);
 
   ippDelete(job->attrs);
+  job->attrs = NULL;
 
   if (job->filename)
   {
@@ -307,6 +315,7 @@ serverDeleteJob(server_job_t *job)		/* I - Job */
       unlink(job->filename);
 
     free(job->filename);
+    job->filename = NULL;
   }
 
   _cupsRWDeinit(&job->rwlock);
@@ -434,7 +443,7 @@ serverProcessJob(server_job_t *job)		/* I - Job */
     * Sleep for a random amount of time to simulate job processing.
     */
 
-    sleep((unsigned)(5 + (CUPS_RAND() % 11)));
+    sleep((unsigned)(1 + (CUPS_RAND() % 4)));
   }
 
   if (job->cancel)
@@ -445,6 +454,11 @@ serverProcessJob(server_job_t *job)		/* I - Job */
   job->completed               = time(NULL);
   job->printer->state          = IPP_PSTATE_IDLE;
   job->printer->processing_job = NULL;
+
+  _cupsRWLockWrite(&job->printer->rwlock);
+  cupsArrayAdd(job->printer->completed_jobs, job);
+  cupsArrayRemove(job->printer->active_jobs, job);
+  _cupsRWUnlock(&job->printer->rwlock);
 
   serverAddEvent(job->printer, job, SERVER_EVENT_JOB_STATE_CHANGED, "Job fetchable.");
 
