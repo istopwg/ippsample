@@ -819,6 +819,7 @@ serverRun(void)
   struct timeval	timeout;	/* Timeout for poll() */
   server_listener_t	*lis;		/* Listener */
   server_client_t	*client;	/* New client */
+  time_t                next_clean = 0; /* Next time to clean old jobs */
 
 
   serverLog(SERVER_LOGLEVEL_DEBUG, "serverRun: %d printers configured.", cupsArrayCount(Printers));
@@ -885,13 +886,12 @@ serverRun(void)
     }
 #endif /* HAVE_DNSSD */
 
-#if 0
-   /*
-    * Clean out old jobs...
-    */
+    if (time(NULL) >= next_clean)
+    {
+      serverCleanAllJobs();
 
-    serverCleanJobs(printer);
-#endif // 0
+      next_clean = time(NULL) + 30;
+    }
   }
 }
 

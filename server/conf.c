@@ -42,6 +42,27 @@ static int		load_system(const char *conf);
 
 
 /*
+ * 'serverCleanAllJobs()' - Clean old jobs for all printers...
+ */
+
+void
+serverCleanAllJobs(void)
+{
+  server_printer_t  *printer;             /* Current printer */
+
+
+  serverLog(SERVER_LOGLEVEL_DEBUG, "Cleaning old jobs.");
+
+  _cupsMutexLock(&printer_mutex);
+
+  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+    serverCleanJobs(printer);
+
+  _cupsMutexUnlock(&printer_mutex);
+}
+
+
+/*
  * 'serverDNSSDInit()' - Initialize DNS-SD registrations.
  */
 

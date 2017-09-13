@@ -522,6 +522,7 @@ VAR _cups_cond_t	SubscriptionCondition VALUE(_CUPS_COND_INITIALIZER);
 
 extern void		serverAddEvent(server_printer_t *printer, server_job_t *job, server_event_t event, const char *message, ...) __attribute__((__format__(__printf__, 4, 5)));
 extern void		serverCheckJobs(server_printer_t *printer);
+extern void             serverCleanAllJobs(void);
 extern void		serverCleanJobs(server_printer_t *printer);
 extern void		serverCopyAttributes(ipp_t *to, ipp_t *from, cups_array_t *ra, ipp_tag_t group_tag, int quickcopy);
 extern void		serverCopyJobStateReasons(ipp_t *ipp, ipp_tag_t group_tag, server_job_t *job);
