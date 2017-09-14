@@ -43,6 +43,9 @@
 		2778EBB01D2FF64300DE72EC /* ipptransform3d.c in Sources */ = {isa = PBXBuildFile; fileRef = 2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */; };
 		27E2CC681C99C69400D203EC /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
 		27E2CC691C99C6A000D203EC /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EB1C0CE81900139783 /* SystemConfiguration.framework */; };
+		3B44A1811F4E32F60013950D /* print in CopyFiles */ = {isa = PBXBuildFile; fileRef = 3B44A17E1F4E32E80013950D /* print */; };
+		3B44A1821F4E32F60013950D /* spool in CopyFiles */ = {isa = PBXBuildFile; fileRef = 3B44A17F1F4E32E80013950D /* spool */; };
+		3B44A1831F4E32F60013950D /* system.conf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 3B44A1801F4E32E80013950D /* system.conf */; };
 		725C87B61C7664DE00FB3AD5 /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
 		725C87B71C7664DE00FB3AD5 /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
 		725C87B81C7664DE00FB3AD5 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
@@ -267,6 +270,18 @@
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
+		3B44A1791F4E317E0013950D /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 16;
+			files = (
+				3B44A1811F4E32F60013950D /* print in CopyFiles */,
+				3B44A1821F4E32F60013950D /* spool in CopyFiles */,
+				3B44A1831F4E32F60013950D /* system.conf in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		725C87BC1C7664DE00FB3AD5 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -329,6 +344,9 @@
 		279C01D71D1B0F9700F06A84 /* PI.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = PI.md; path = ../PI.md; sourceTree = "<group>"; };
 		27FDC5F61D7F497500246F95 /* ipptransform3d.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = ipptransform3d.html; path = ../doc/ipptransform3d.html; sourceTree = "<group>"; };
 		27FDC5F71D7F497500246F95 /* ipptransform3d.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ipptransform3d.man; path = ../doc/ipptransform3d.man; sourceTree = "<group>"; };
+		3B44A17E1F4E32E80013950D /* print */ = {isa = PBXFileReference; lastKnownFileType = folder; name = print; path = ../test/print; sourceTree = "<group>"; };
+		3B44A17F1F4E32E80013950D /* spool */ = {isa = PBXFileReference; lastKnownFileType = folder; name = spool; path = ../test/spool; sourceTree = "<group>"; };
+		3B44A1801F4E32E80013950D /* system.conf */ = {isa = PBXFileReference; lastKnownFileType = text; name = system.conf; path = ../test/system.conf; sourceTree = "<group>"; };
 		723D66D41C723CB70078B537 /* CONTRIBUTING.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = CONTRIBUTING.md; path = ../CONTRIBUTING.md; sourceTree = "<group>"; };
 		723D66D51C723CB70078B537 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
 		723D66D81C723CC20078B537 /* DESIGN.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = DESIGN.md; path = ../server/DESIGN.md; sourceTree = "<group>"; };
@@ -531,9 +549,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		3B44A17D1F4E32AA0013950D /* test */ = {
+			isa = PBXGroup;
+			children = (
+				3B44A17E1F4E32E80013950D /* print */,
+				3B44A17F1F4E32E80013950D /* spool */,
+				3B44A1801F4E32E80013950D /* system.conf */,
+			);
+			name = test;
+			sourceTree = "<group>";
+		};
 		72B4020F1C0CDFB400139783 = {
 			isa = PBXGroup;
 			children = (
+				3B44A17D1F4E32AA0013950D /* test */,
 				72B402A11C0CE3AC00139783 /* config.h */,
 				72B4022A1C0CE16200139783 /* libcups */,
 				72B4022D1C0CE21C00139783 /* ippserver */,
@@ -781,6 +810,7 @@
 				72B402141C0CDFB400139783 /* Sources */,
 				72B402151C0CDFB400139783 /* Frameworks */,
 				72B402161C0CDFB400139783 /* CopyFiles */,
+				3B44A1791F4E317E0013950D /* CopyFiles */,
 			);
 			buildRules = (
 			);
