@@ -499,7 +499,8 @@ VAR char		*KeychainPath	VALUE(NULL);
 VAR cups_array_t	*Listeners	VALUE(NULL);
 VAR char		*LogFile	VALUE(NULL);
 VAR server_loglevel_t	LogLevel	VALUE(SERVER_LOGLEVEL_ERROR);
-VAR int			MaxJobs		VALUE(100);
+VAR int			MaxJobs		VALUE(100),
+                        MaxCompletedJobs VALUE(100);
 VAR cups_array_t	*Printers	VALUE(NULL);
 VAR char		*ServerName	VALUE(NULL);
 VAR char		*SpoolDirectory	VALUE(NULL);

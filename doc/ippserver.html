@@ -175,6 +175,10 @@ The path "stderr" causes all log messages to be directed to the standard error f
 "Debug" is the most verbose level, logging all messages.
 "Info" provides basic progress and status messages.
 "Error" provides only error messages.
+<dt><b>MaxCompletedJobs </b><i>number</i>
+<dd style="margin-left: 5.0em">Specifies the maximum number of completed jobs that are retained for job history.
+The value 0 specifies there is no limit.
+Note: <b>ippserver</b> currently removes completed jobs from the job history after 60 seconds.
 <dt><b>MaxJobs </b><i>number</i>
 <dd style="margin-left: 5.0em">Specifies the maximum number of pending and active jobs that can be queued at any given time.
 The value 0 specifies there is no limit.

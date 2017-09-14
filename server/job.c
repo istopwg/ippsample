@@ -148,6 +148,12 @@ serverCreateJob(server_client_t *client)	/* I - Client */
 
   _cupsRWLockWrite(&(client->printer->rwlock));
 
+  if (MaxJobs > 0 && cupsArrayCount(client->printer->active_jobs) >= MaxJobs)
+  {
+    _cupsRWUnlock(&(client->printer->rwlock));
+    return (NULL);
+  }
+
  /*
   * Allocate and initialize the job object...
   */
@@ -465,17 +471,24 @@ serverProcessJob(server_job_t *job)		/* I - Job */
   cupsArrayAdd(job->printer->completed_jobs, job);
   cupsArrayRemove(job->printer->active_jobs, job);
 
-  /* TODO: Make the maximum number of completed jobs configurable... */
-  while (cupsArrayCount(job->printer->completed_jobs) > 5)
+  if (MaxCompletedJobs > 0)
   {
-    server_job_t *tjob = (server_job_t *)cupsArrayFirst(job->printer->completed_jobs);
+   /*
+    * Make sure the job history doesn't go over the limit...
+    */
 
-    if (tjob == job)
-      tjob = (server_job_t *)cupsArrayNext(job->printer->completed_jobs);
+    while (cupsArrayCount(job->printer->completed_jobs) > MaxCompletedJobs)
+    {
+      server_job_t *tjob = (server_job_t *)cupsArrayFirst(job->printer->completed_jobs);
 
-    cupsArrayRemove(job->printer->completed_jobs, tjob);
-    cupsArrayRemove(job->printer->jobs, tjob); /* Removing here calls serverDeleteJob */
+      if (tjob == job)
+        tjob = (server_job_t *)cupsArrayNext(job->printer->completed_jobs);
+
+      cupsArrayRemove(job->printer->completed_jobs, tjob);
+      cupsArrayRemove(job->printer->jobs, tjob); /* Removing here calls serverDeleteJob */
+    }
   }
+
   _cupsRWUnlock(&job->printer->rwlock);
 
   serverAddEvent(job->printer, job, SERVER_EVENT_JOB_STATE_CHANGED, "Job fetchable.");

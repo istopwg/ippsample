@@ -1651,8 +1651,7 @@ ipp_print_job(server_client_t *client)	/* I - Client */
 
   if ((job = serverCreateJob(client)) == NULL)
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_BUSY,
-                "Currently printing another job.");
+    serverRespondIPP(client, IPP_STATUS_ERROR_TOO_MANY_JOBS, "Too many jobs are queued.");
     return;
   }
 
@@ -1869,8 +1868,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
 
   if ((job = serverCreateJob(client)) == NULL)
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_BUSY,
-                "Currently printing another job.");
+    serverRespondIPP(client, IPP_STATUS_ERROR_TOO_MANY_JOBS, "Too many jobs are queued.");
     return;
   }
 
