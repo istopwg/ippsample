@@ -35,7 +35,13 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
   {
     if (job->state == IPP_JSTATE_PENDING)
     {
-      if (!_cupsThreadCreate((_cups_thread_func_t)serverProcessJob, job))
+      _cups_thread_t t = _cupsThreadCreate((_cups_thread_func_t)serverProcessJob, job);
+
+      if (t)
+      {
+        _cupsThreadDetach(t);
+      }
+      else
       {
         job->state     = IPP_JSTATE_ABORTED;
 	job->completed = time(NULL);
@@ -60,12 +66,13 @@ serverCleanJobs(server_printer_t *printer)	/* I - Printer */
   time_t	cleantime;		/* Clean time */
 
 
-  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Cleaning jobs, %d jobs in memory...", cupsArrayCount(printer->jobs));
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Cleaning jobs, %d completed jobs in memory...", cupsArrayCount(printer->completed_jobs));
 
-  if (cupsArrayCount(printer->jobs) == 0)
+  if (cupsArrayCount(printer->completed_jobs) == 0)
     return;
 
   cleantime = time(NULL) - 60;
+
   serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Clean time is %ld.", (long)cleantime);
 
   _cupsRWLockWrite(&(printer->rwlock));
@@ -75,7 +82,6 @@ serverCleanJobs(server_printer_t *printer)	/* I - Printer */
     if (job->completed && job->completed < cleantime)
     {
       serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Cleaning job #%d.", job->id);
-      cupsArrayRemove(printer->active_jobs, job);
       cupsArrayRemove(printer->completed_jobs, job);
       cupsArrayRemove(printer->jobs, job); /* Last since removing a job from here calls serverDeleteJob() */
     }
@@ -141,6 +147,12 @@ serverCreateJob(server_client_t *client)	/* I - Client */
 
 
   _cupsRWLockWrite(&(client->printer->rwlock));
+
+  if (MaxJobs > 0 && cupsArrayCount(client->printer->active_jobs) >= MaxJobs)
+  {
+    _cupsRWUnlock(&(client->printer->rwlock));
+    return (NULL);
+  }
 
  /*
   * Allocate and initialize the job object...
@@ -458,6 +470,25 @@ serverProcessJob(server_job_t *job)		/* I - Job */
   _cupsRWLockWrite(&job->printer->rwlock);
   cupsArrayAdd(job->printer->completed_jobs, job);
   cupsArrayRemove(job->printer->active_jobs, job);
+
+  if (MaxCompletedJobs > 0)
+  {
+   /*
+    * Make sure the job history doesn't go over the limit...
+    */
+
+    while (cupsArrayCount(job->printer->completed_jobs) > MaxCompletedJobs)
+    {
+      server_job_t *tjob = (server_job_t *)cupsArrayFirst(job->printer->completed_jobs);
+
+      if (tjob == job)
+        tjob = (server_job_t *)cupsArrayNext(job->printer->completed_jobs);
+
+      cupsArrayRemove(job->printer->completed_jobs, tjob);
+      cupsArrayRemove(job->printer->jobs, tjob); /* Removing here calls serverDeleteJob */
+    }
+  }
+
   _cupsRWUnlock(&job->printer->rwlock);
 
   serverAddEvent(job->printer, job, SERVER_EVENT_JOB_STATE_CHANGED, "Job fetchable.");

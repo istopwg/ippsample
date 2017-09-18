@@ -869,7 +869,13 @@ serverRun(void)
 
         if ((client = serverCreateClient(lis->fd)) != NULL)
         {
-          if (!_cupsThreadCreate((_cups_thread_func_t)serverProcessClient, client))
+          _cups_thread_t t = _cupsThreadCreate((_cups_thread_func_t)serverProcessClient, client);
+
+          if (t)
+          {
+            _cupsThreadDetach(t);
+          }
+          else
           {
             serverLog(SERVER_LOGLEVEL_ERROR, "Unable to create client thread (%s)", strerror(errno));
             serverDeleteClient(client);

@@ -1333,6 +1333,17 @@ load_system(const char *conf)		/* I - Configuration file */
         break;
       }
     }
+    else if (!_cups_strcasecmp(line, "MaxCompletedJobs"))
+    {
+      if (!isdigit(*value & 255))
+      {
+        fprintf(stderr, "ippserver: Bad MaxCompletedJobs value \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
+        status = 0;
+        break;
+      }
+
+      MaxCompletedJobs = atoi(value);
+    }
     else if (!_cups_strcasecmp(line, "MaxJobs"))
     {
       if (!isdigit(*value & 255))
