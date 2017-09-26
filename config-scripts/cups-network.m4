@@ -1,6 +1,4 @@
 dnl
-dnl "$Id: cups-network.m4 12324 2014-12-09 20:28:39Z msweet $"
-dnl
 dnl Networking stuff for CUPS.
 dnl
 dnl Copyright 2007-2016 by Apple Inc.
@@ -70,7 +68,3 @@ fi
 
 AC_SUBST(CUPS_DEFAULT_DOMAINSOCKET)
 AC_SUBST(CUPS_LISTEN_DOMAINSOCKET)
-
-dnl
-dnl End of "$Id: cups-network.m4 12324 2014-12-09 20:28:39Z msweet $".
-dnl
