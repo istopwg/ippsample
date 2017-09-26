@@ -4268,10 +4268,8 @@ get_token(cups_file_t *fp,		/* I  - File to read from */
 	else if (bufptr < bufend)
           *bufptr++ = (char)ch;
 
-      if (ch == '#')
+      if (ch == '#' || ch == '\n')
         cupsFileSeek(fp, cupsFileTell(fp) - 1);
-      else if (ch == '\n')
-        (*linenum) ++;
 
       *bufptr = '\0';
 
