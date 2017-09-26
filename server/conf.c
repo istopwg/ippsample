@@ -453,14 +453,20 @@ serverLoadAttributes(
 	    do
 	    {
 	      ipp_t	*col;			/* Collection value */
-	      long	pos = cupsFileTell(fp);	/* Save position of file */
+	      long	spos = cupsFileTell(fp);/* Save position of file */
+              int       slinenum = linenum;     /* Save line number in file */
 
 	      if (!get_token(fp, token, sizeof(token), &linenum))
 		break;
 
 	      if (strcmp(token, ","))
 	      {
-		cupsFileSeek(fp, pos);
+               /*
+                * Restore file position and line number...
+                */
+
+		cupsFileSeek(fp, spos);
+                linenum = slinenum;
 		break;
 	      }
 
@@ -483,7 +489,7 @@ serverLoadAttributes(
 	    break;
 
 	default :
-	    serverLog(SERVER_LOGLEVEL_ERROR, "Unsupported ATTR value tag %s on line %d of \"%s\".", ippTagString(value), linenum, filename);
+	    serverLog(SERVER_LOGLEVEL_ERROR, "Unsupported ATTR value tag \"%s\" on line %d of \"%s\".", ippTagString(value), linenum, filename);
             goto load_error;
 
 	case IPP_TAG_TEXTLANG :
@@ -1164,10 +1170,13 @@ get_token(cups_file_t *fp,		/* I  - File to read from */
       */
 
       while ((ch = cupsFileGetChar(fp)) != EOF)
+      {
 	if (ch == '\n')
+	{
+          (*linenum) ++;
           break;
-
-      (*linenum) ++;
+        }
+      }
     }
     else if (ch == '{' || ch == '}' || ch == ',')
     {
@@ -1206,7 +1215,14 @@ get_token(cups_file_t *fp,		/* I  - File to read from */
         }
       }
       else if (ch == '\n')
-        (*linenum) ++;
+      {
+       /*
+        * Rewind 1 character so that the "\n" is handled on the next call,
+        * otherwise the line number for this token will be incorrect.
+        */
+
+        cupsFileSeek(fp, cupsFileTell(fp) - 1);
+      }
 
       *bufptr = '\0';
 
