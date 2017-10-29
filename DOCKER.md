@@ -9,13 +9,15 @@ To run IPP sample code on Docker:
 
    docker build -t ippsample .
 
-You now can run the container with a bash or later on with one of the compiled IPP sample binaries.
+You now can run the container with a bash terminal and go to the /root/ippsample folder manually.
 
    docker run -it ippsample bash
 
+You can also run one of the IPP binaries instead of the bash terminal.
+
 To start the IPP server:
 
-1. In the ippserver container run:
+1. Run the IPP server with all its arguments:
 
     docker run -it ippsample ippserver -M byMyself -l rightHere -m coolPrinter -n myHost -p 631 -s 72 -vvvv myPrintService
 
@@ -26,11 +28,13 @@ To start the IPP server:
 
 Run the IPP Client:
 
-1. From the bash command prompt on the IPP client container and in the /root/ippsample/examples directory with the IPP Server running, run:
+1. First find all IPP printers from other Docker containers:
 
     docker run --rm ippsample ippfind
 
     (Note the URL returned, e.g., ipp://f8a365cfc7ec.local:631/ipp/print)
+
+2. Now run the IPP tool in a new container in the /root/ippsample/examples directory with the IPP Server running, run:
 
     docker run --rm -it -w /root/ippsample/examples ippsample ipptool [URL returned] identify-printer-display.test
 
