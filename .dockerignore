@@ -1,0 +1,7 @@
+data
+.git
+config.status
+config.log
+Makedefs
+*.o
+config.h
