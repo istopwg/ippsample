@@ -5,6 +5,7 @@ config.log
 config.status
 cups/libcups.a
 cups/org.pwg.ippsample.*
+data
 doc/mantohtml
 parts
 prime
