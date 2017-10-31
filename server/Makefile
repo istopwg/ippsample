@@ -68,7 +68,7 @@ depend:
 
 install:	all
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(sbindir)
-	$(INSTALL_BIN) ippserver $(BUILDROOT)$(sbindir)
+	$(INSTALL_BIN) ippserver $(BUILDROOT)$(sbindir)/$(IPP)server
 
 
 #

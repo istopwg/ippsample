@@ -623,6 +623,7 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+IPP
 IPPFIND_MAN
 IPPFIND_HTML
 IPPFIND_BIN
@@ -737,6 +738,7 @@ enable_avahi
 enable_dnssd
 with_dnssd_libs
 with_dnssd_includes
+with_name_prefix
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1378,6 +1380,7 @@ Optional Packages:
   --with-domainsocket     set unix domain socket name
   --with-dnssd-libs       set directory for DNS Service Discovery library
   --with-dnssd-includes   set directory for DNS Service Discovery includes
+  --with-name-prefix=...  set prefix on command names (default is "ipp")
 
 Some influential environment variables:
   CC          C compiler command
@@ -6434,6 +6437,15 @@ fi
 
 
 
+
+
+IPP="ipp"
+
+
+# Check whether --with-name-prefix was given.
+if test "${with_name_prefix+set}" = set; then :
+  withval=$with_name_prefix; IPP="$withval"
+fi
 
 
 ac_config_files="$ac_config_files Makedefs"

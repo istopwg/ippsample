@@ -1,7 +1,7 @@
 #
 # IPP tools makefile.
 #
-# Copyright 2007-2016 by Apple Inc.
+# Copyright 2007-2017 by Apple Inc.
 # Copyright 1997-2006 by Easy Software Products, all rights reserved.
 #
 # These coded instructions, statements, and computer programs are the
@@ -62,11 +62,13 @@ depend:
 install:	all
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(bindir)
 	for file in $(BIN_TARGETS); do \
-		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir); \
+		destfile=`echo $$file | sed -e '1,$$s/^ipp/$IPP/'`; \
+		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir)/$$destfile; \
 	done
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(sbindir)
 	for file in $(SBIN_TARGETS); do \
-		$(INSTALL_BIN) $$file $(BUILDROOT)$(sbindir); \
+		destfile=`echo $$file | sed -e '1,$$s/^ipp/$IPP/'`; \
+		$(INSTALL_BIN) $$file $(BUILDROOT)$(sbindir)/$$destfile; \
 	done
 
 

@@ -1,7 +1,7 @@
 dnl
 dnl Configuration script for the IPP sample code.
 dnl
-dnl Copyright 2007-2016 by Apple Inc.
+dnl Copyright 2007-2017 by Apple Inc.
 dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
 dnl
 dnl These coded instructions, statements, and computer programs are the
@@ -27,6 +27,12 @@ sinclude(config-scripts/cups-threads.m4)
 sinclude(config-scripts/cups-ssl.m4)
 sinclude(config-scripts/cups-largefile.m4)
 sinclude(config-scripts/cups-dnssd.m4)
+
+dnl IPP Sample-specific options
+IPP="ipp"
+AC_SUBST(IPP)
+AC_ARG_WITH(name-prefix, [  --with-name-prefix=...  set prefix on command names (default is "ipp")],
+    IPP="$withval",)
 
 dnl Generate a bunch of files...
 AC_OUTPUT(Makedefs)
