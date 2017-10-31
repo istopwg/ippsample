@@ -1,0 +1,42 @@
+language: cpp
+compiler: gcc
+sudo: require
+dist: trusty
+
+install:
+    - sudo apt-get -y install autoconf build-essential avahi-daemon avahi-utils libavahi-client-dev libgnutls28-dev libjpeg-dev libnss-mdns libpng-dev zlib1g-dev
+
+script:
+  - ./configure --prefix=/usr
+  - make -j$(nproc)
+  - make BUILDROOT=$(readlink -f appdir) install ; find appdir/
+  - rm -rf appdir/usr/include/cups/ # Do not bundle developer stuff
+  - sudo mv  ./appdir/usr/sbin/* ./appdir/usr/bin/ ; rm -rf ./appdir/usr/sbin/ # AppRun does not put usr/sbin/ on $PATH
+  - mkdir -p ./appdir/usr/share/applications/ ; cp appimage/ippserver.desktop ./appdir/usr/share/applications/
+  - mkdir -p ./appdir/usr/share/icons/hicolor/256x256/apps/ ; cp appimage/printer.png ./appdir/usr/share/icons/hicolor/256x256/apps/
+  - wget -c "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
+  - chmod a+x linuxdeployqt*.AppImage
+  - ./linuxdeployqt*.AppImage --appimage-version
+  - ./linuxdeployqt*.AppImage ./appdir/usr/share/applications/*.desktop -bundle-non-qt-libs
+  - # In addition to the main executable, we have additional ones to process
+  - ./linuxdeployqt*.AppImage ./appdir/usr/bin/ippfind -bundle-non-qt-libs
+  - ./linuxdeployqt*.AppImage ./appdir/usr/bin/ippproxy -bundle-non-qt-libs
+  - ./linuxdeployqt*.AppImage ./appdir/usr/bin/ipptool -bundle-non-qt-libs
+  - # Bundle tests from CUPS
+  - git init cups
+  - cd cups
+  - git remote add origin https://github.com/ezeep/cups.git
+  - git config core.sparsecheckout true
+  - echo "test/*" >> .git/info/sparse-checkout
+  - git pull --depth=1 origin branch-2.0
+  - cd ..
+  - mkdir -p ./appdir/usr/share/cups/ipptool/
+  - mv cups/test/*.test ./appdir/usr/share/cups/ipptool/
+  - # Generate AppImage
+  - ./linuxdeployqt*.AppImage --appimage-extract
+  - rm ./appdir/AppRun ; cp appimage/AppRun appdir/ ; chmod a+x ./appdir/AppRun # Replace symlink with custom script
+  - PATH=./squashfs-root/usr/bin:$PATH ./squashfs-root/usr/bin/appimagetool ./appdir/
+
+after_success:
+  - find ./appdir -executable -type f -exec ldd {} \; | grep " => /usr" | cut -d " " -f 2-3 | sort | uniq
+  - curl --upload-file ./ippserver*.AppImage https://transfer.sh/ippsample-git.$(git rev-parse --short HEAD)-x86_64.AppImage
