@@ -22,8 +22,8 @@ script:
   - ./linuxdeployqt*.AppImage ./appdir/usr/bin/ippfind -bundle-non-qt-libs
   - ./linuxdeployqt*.AppImage ./appdir/usr/bin/ippproxy -bundle-non-qt-libs
   - ./linuxdeployqt*.AppImage ./appdir/usr/bin/ipptool -bundle-non-qt-libs
-  - # Bundle examples
-  - mkdir -p ./appdir/usr/share/cups/ipptool/ ; cp -r examples/* ./appdir/usr/share/cups/ipptool/
+  - # Bundle examples/ and test/
+  - mkdir -p ./appdir/usr/share/cups/ipptool/ ; cp -r examples/* test/* ./appdir/usr/share/cups/ipptool/
   - # Generate AppImage
   - ./linuxdeployqt*.AppImage --appimage-extract
   - rm ./appdir/AppRun ; cp appimage/AppRun appdir/ ; chmod a+x ./appdir/AppRun # Replace symlink with custom script
