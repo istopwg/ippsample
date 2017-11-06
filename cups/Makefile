@@ -157,7 +157,7 @@ libcups2.def: $(OBJS) Makefile
 
 APISOURCES =	\
 		auth.c \
-                cups.h \
+		cups.h \
 		dest.c \
 		dest-job.c \
 		dest-localization.c \
@@ -167,20 +167,20 @@ APISOURCES =	\
 		getputfile.c \
 		hash.c \
 		http.c \
-                http.h \
+		http.h \
 		http-addr.c \
 		http-addrlist.c \
 		http-support.c \
 		ipp.c \
-                ipp.h \
+		ipp.h \
 		ipp-support.c \
 		md5passwd.c \
 		notify.c \
 		options.c \
-                pwg.h \
+		pwg.h \
 		pwg-media.c \
 		raster.c \
-                raster.h \
+		raster.h \
 		request.c \
 		tls.c \
 		usersys.c \

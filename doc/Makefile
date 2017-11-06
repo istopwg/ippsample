@@ -78,17 +78,17 @@ depend:
 install:
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(mandir)/man1
 	for file in $(MAN1); do \
-		man="`basename $$file .man`.1"; \
+		man="`basename $$file .man | sed -e '1,$$s/^ipp/$(IPP)/'`.1"; \
 		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man1/$$man; \
 	done
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(mandir)/man5
 	for file in $(MAN5); do \
-		man="`basename $$file .man`.5"; \
+		man="`basename $$file .man | sed -e '1,$$s/^ipp/$(IPP)/'`.5"; \
 		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man5/$$man; \
 	done
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(mandir)/man8
 	for file in $(MAN8); do \
-		man="`basename $$file .man`.8"; \
+		man="`basename $$file .man | sed -e '1,$$s/^ipp/$(IPP)/'`.8"; \
 		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man8/$$man; \
 	done
 

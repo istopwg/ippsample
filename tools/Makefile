@@ -62,12 +62,12 @@ depend:
 install:	all
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(bindir)
 	for file in $(BIN_TARGETS); do \
-		destfile=`echo $$file | sed -e '1,$$s/^ipp/$IPP/'`; \
+		destfile=`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`; \
 		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir)/$$destfile; \
 	done
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(sbindir)
 	for file in $(SBIN_TARGETS); do \
-		destfile=`echo $$file | sed -e '1,$$s/^ipp/$IPP/'`; \
+		destfile=`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`; \
 		$(INSTALL_BIN) $$file $(BUILDROOT)$(sbindir)/$$destfile; \
 	done
 
