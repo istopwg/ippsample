@@ -13,22 +13,22 @@ icon: server/printer.png
 
 apps:
     server:
-        command: sbin/ippserver
+        command: sbin/server
         plugs: [avahi-observe, home, network, network-bind]
     find:
-        command: bin/ippfind
+        command: bin/find
         plugs: [avahi-observe, home, network]
     proxy:
-        command: sbin/ippproxy
+        command: sbin/proxy
         plugs: [avahi-observe, home, network]
     tool:
-        command: bin/ipptool
+        command: bin/tool
         plugs: [avahi-observe, home, network]
     transform:
-        command: bin/ipptransform
+        command: bin/transform
         plugs: [avahi-observe, home, network]
     transform3d:
-        command: bin/ipptransform3d
+        command: bin/transform3d
         plugs: [avahi-observe, home, network]
 
 parts:
