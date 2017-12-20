@@ -4,13 +4,7 @@
  * Copyright 2007-2017 by Apple Inc.
  * Copyright 1997-2007 by Easy Software Products, all rights reserved.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
  */
 
 #ifndef _CUPS_HTTP_H_
@@ -248,10 +242,11 @@ typedef enum http_status_e		/**** HTTP status codes ****/
 
   HTTP_STATUS_MULTIPLE_CHOICES = 300,	/* Multiple files match request */
   HTTP_STATUS_MOVED_PERMANENTLY,	/* Document has moved permanently */
-  HTTP_STATUS_MOVED_TEMPORARILY,	/* Document has moved temporarily */
-  HTTP_STATUS_SEE_OTHER,		/* See this other link... */
+  HTTP_STATUS_FOUND,			/* Document was found at a different URI */
+  HTTP_STATUS_SEE_OTHER,		/* See this other link */
   HTTP_STATUS_NOT_MODIFIED,		/* File not modified */
   HTTP_STATUS_USE_PROXY,		/* Must use a proxy to access this URI */
+  HTTP_STATUS_TEMPORARY_REDIRECT = 307,	/* Temporary redirection */
 
   HTTP_STATUS_BAD_REQUEST = 400,	/* Bad request */
   HTTP_STATUS_UNAUTHORIZED,		/* Unauthorized to access host */
@@ -284,6 +279,8 @@ typedef enum http_status_e		/**** HTTP status codes ****/
 					/* User canceled authorization @since CUPS 1.4@ */
   HTTP_STATUS_CUPS_PKI_ERROR,		/* Error negotiating a secure connection @since CUPS 1.5/macOS 10.7@ */
   HTTP_STATUS_CUPS_WEBIF_DISABLED	/* Web interface is disabled @private@ */
+
+#  define HTTP_STATUS_MOVED_TEMPORARILY HTTP_STATUS_FOUND /* Renamed in RFC 7231 */
 
 #  ifndef _CUPS_NO_DEPRECATED
 /* Old names for this enumeration */
@@ -494,10 +491,10 @@ extern char		*httpEncode64(char *out, const char *in) _CUPS_DEPRECATED_MSG("Use 
 extern char		*httpDecode64(char *out, const char *in) _CUPS_DEPRECATED_MSG("Use httpDecode64_2 instead.");
 extern int		httpGetLength(http_t *http) _CUPS_DEPRECATED_MSG("Use httpGetLength2 instead.");
 extern char		*httpMD5(const char *, const char *, const char *,
-			         char [33]);
+			         char [33]) _CUPS_DEPRECATED_MSG("Use cupsDoAuth or cupsHashData instead.");
 extern char		*httpMD5Final(const char *, const char *, const char *,
-			              char [33]);
-extern char		*httpMD5String(const unsigned char *, char [33]);
+			              char [33]) _CUPS_DEPRECATED_MSG("Use cupsDoAuth or cupsHashData instead.");
+extern char		*httpMD5String(const unsigned char *, char [33]) _CUPS_DEPRECATED_MSG("Use cupsHashString instead.");
 
 /**** New in CUPS 1.1.19 ****/
 extern void		httpClearCookie(http_t *http) _CUPS_API_1_1_19;

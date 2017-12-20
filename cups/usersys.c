@@ -4,13 +4,7 @@
  * Copyright 2007-2017 by Apple Inc.
  * Copyright 1997-2006 by Easy Software Products.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
  */
 
 /*
@@ -54,7 +48,9 @@
 typedef struct _cups_client_conf_s	/**** client.conf config data ****/
 {
 #ifdef HAVE_SSL
-  int			ssl_options;	/* SSLOptions values */
+  int			ssl_options,	/* SSLOptions values */
+			ssl_min_version,/* Minimum SSL/TLS version */
+			ssl_max_version;/* Maximum SSL/TLS version */
 #endif /* HAVE_SSL */
   int			trust_first,	/* Trust on first use? */
 			any_root,	/* Allow any (e.g., self-signed) root */
@@ -957,7 +953,7 @@ _cupsSetDefaults(void)
     cg->validate_certs = cc.validate_certs;
 
 #ifdef HAVE_SSL
-  _httpTLSSetOptions(cc.ssl_options | _HTTP_TLS_SET_DEFAULT);
+  _httpTLSSetOptions(cc.ssl_options | _HTTP_TLS_SET_DEFAULT, cc.ssl_min_version, cc.ssl_max_version);
 #endif /* HAVE_SSL */
 }
 
@@ -1164,11 +1160,13 @@ cups_init_client_conf(
 
   memset(cc, 0, sizeof(_cups_client_conf_t));
 
-  cc->encryption     = (http_encryption_t)-1;
-  cc->trust_first    = -1;
-  cc->any_root       = -1;
-  cc->expired_certs  = -1;
-  cc->validate_certs = -1;
+  cc->ssl_min_version = _HTTP_TLS_1_0;
+  cc->ssl_max_version = _HTTP_TLS_MAX;
+  cc->encryption      = (http_encryption_t)-1;
+  cc->trust_first     = -1;
+  cc->any_root        = -1;
+  cc->expired_certs   = -1;
+  cc->validate_certs  = -1;
 
  /*
   * Load settings from the org.cups.PrintingPrefs plist (which trump
@@ -1336,7 +1334,9 @@ cups_set_ssl_options(
   * SSLOptions [AllowRC4] [AllowSSL3] [AllowDH] [DenyTLS1.0] [None]
   */
 
-  int	options = _HTTP_TLS_NONE;	/* SSL/TLS options */
+  int	options = _HTTP_TLS_NONE,	/* SSL/TLS options */
+	min_version = _HTTP_TLS_1_0,	/* Minimum SSL/TLS version */
+	max_version = _HTTP_TLS_MAX;	/* Maximum SSL/TLS version */
   char	temp[256],			/* Copy of value */
 	*start,				/* Start of option */
 	*end;				/* End of option */
@@ -1364,20 +1364,38 @@ cups_set_ssl_options(
     if (!_cups_strcasecmp(start, "AllowRC4"))
       options |= _HTTP_TLS_ALLOW_RC4;
     else if (!_cups_strcasecmp(start, "AllowSSL3"))
-      options |= _HTTP_TLS_ALLOW_SSL3;
+      min_version = _HTTP_TLS_SSL3;
     else if (!_cups_strcasecmp(start, "AllowDH"))
       options |= _HTTP_TLS_ALLOW_DH;
     else if (!_cups_strcasecmp(start, "DenyCBC"))
       options |= _HTTP_TLS_DENY_CBC;
     else if (!_cups_strcasecmp(start, "DenyTLS1.0"))
-      options |= _HTTP_TLS_DENY_TLS10;
+      min_version = _HTTP_TLS_1_1;
+    else if (!_cups_strcasecmp(start, "MaxTLS1.0"))
+      max_version = _HTTP_TLS_1_0;
+    else if (!_cups_strcasecmp(start, "MaxTLS1.1"))
+      max_version = _HTTP_TLS_1_1;
+    else if (!_cups_strcasecmp(start, "MaxTLS1.2"))
+      max_version = _HTTP_TLS_1_2;
+    else if (!_cups_strcasecmp(start, "MaxTLS1.3"))
+      max_version = _HTTP_TLS_1_3;
+    else if (!_cups_strcasecmp(start, "MinTLS1.0"))
+      min_version = _HTTP_TLS_1_0;
+    else if (!_cups_strcasecmp(start, "MinTLS1.1"))
+      min_version = _HTTP_TLS_1_1;
+    else if (!_cups_strcasecmp(start, "MinTLS1.2"))
+      min_version = _HTTP_TLS_1_2;
+    else if (!_cups_strcasecmp(start, "MinTLS1.3"))
+      min_version = _HTTP_TLS_1_3;
     else if (!_cups_strcasecmp(start, "None"))
       options = _HTTP_TLS_NONE;
   }
 
-  cc->ssl_options = options;
+  cc->ssl_options     = options;
+  cc->ssl_max_version = max_version;
+  cc->ssl_min_version = min_version;
 
-  DEBUG_printf(("4cups_set_ssl_options(cc=%p, value=\"%s\") options=%x", (void *)cc, value, options));
+  DEBUG_printf(("4cups_set_ssl_options(cc=%p, value=\"%s\") options=%x, min_version=%d, max_version=%d", (void *)cc, value, options, min_version, max_version));
 }
 #endif /* HAVE_SSL */
 

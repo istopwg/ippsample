@@ -1,7 +1,11 @@
 /*
  * IPP Proxy implementation for HP PCL and IPP Everywhere printers.
  *
- * Copyright 2014-2016 by Apple Inc.
+ * Copyright 2016-2017 by the IEEE-ISTO Printer Working Group.
+ * Copyright 2014-2017 by Apple Inc.
+ *
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more
+ * information.
  */
 
 #include <stdio.h>

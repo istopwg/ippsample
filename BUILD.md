@@ -1,7 +1,7 @@
 Build Instructions for the IPP Sample Code
 ==========================================
 
-This file describes how to compile and install the IPP source code. For more
+This file describes how to compile and install the IPP sample code. For more
 information on the IPP sample code see the file called `README.md`.  Changes are
 summarized in the file `CHANGES.md`.
 

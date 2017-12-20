@@ -1,15 +1,10 @@
 /*
  * ipptransform3d utility for converting 3MF and STL files to G-code.
  *
- * Copyright 2016-2017 by Apple Inc.
+ * Copyright 2016-2017 by the IEEE-ISTO Printer Working Group.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more
+ * information.
  */
 
 #include <config.h>

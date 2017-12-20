@@ -3,13 +3,7 @@
  *
  * Copyright 2009-2017 by Apple Inc.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
  */
 
 /*
@@ -844,18 +838,22 @@ pwgMediaForPWG(const char *pwg)		/* I - PWG size name */
    /*
     * Try decoding the self-describing name of the form:
     *
-    * class_name_WWWxHHHin
-    * class_name_WWWxHHHmm
+    * class_name_WWWxHHHin[_something]
+    * class_name_WWWxHHHmm[_something]
     */
 
     int		w, l;			/* Width and length of page */
     int		numer;			/* Scale factor for units */
-    const char	*units = ptr + strlen(ptr) - 2;
-					/* Units from size */
+    const char	*units;			/* Units from size */
 
-    ptr ++;
+     if ((units = strchr(ptr + 1, '_')) != NULL)
+       units -= 2;
+     else
+       units = ptr + strlen(ptr) - 2;
 
-    if (units >= ptr && !strcmp(units, "in"))
+     ptr ++;
+
+    if (units >= ptr && (!strcmp(units, "in") || !strncmp(units, "in_", 3)))
       numer = 2540;
     else
       numer = 100;

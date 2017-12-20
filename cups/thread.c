@@ -3,13 +3,7 @@
  *
  * Copyright 2009-2017 by Apple Inc.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
  */
 
 /*
@@ -513,13 +507,23 @@ _cupsThreadCreate(
     _cups_thread_func_t func,		/* I - Entry point */
     void                *arg)		/* I - Entry point context */
 {
-  fputs("DEBUG: CUPS was compiled without threading support, no thread "
-        "created.\n", stderr);
+  fputs("DEBUG: CUPS was compiled without threading support, no thread created.\n", stderr);
 
   (void)func;
   (void)arg;
 
   return (0);
+}
+
+
+/*
+ * '_cupsThreadDetach()' - Tell the OS that the thread is running independently.
+ */
+
+void
+_cupsThreadDetach(_cups_thread_t thread)/* I - Thread ID */
+{
+  (void)thread;
 }
 
 

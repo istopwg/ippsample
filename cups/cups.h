@@ -4,13 +4,7 @@
  * Copyright 2007-2017 by Apple Inc.
  * Copyright 1997-2007 by Easy Software Products.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
  */
 
 #ifndef _CUPS_CUPS_H_
@@ -47,10 +41,10 @@ extern "C" {
  * Constants...
  */
 
-#  define CUPS_VERSION			2.0206
+#  define CUPS_VERSION			2.0300
 #  define CUPS_VERSION_MAJOR		2
-#  define CUPS_VERSION_MINOR		2
-#  define CUPS_VERSION_PATCH		6
+#  define CUPS_VERSION_MINOR		3
+#  define CUPS_VERSION_PATCH		0
 
 #  define CUPS_BC_FD			3
 					/* Back-channel file descriptor for
@@ -605,6 +599,10 @@ extern ssize_t		cupsHashData(const char *algorithm, const void *data, size_t dat
 /* New in CUPS 2.2.4 */
 extern int		cupsAddIntegerOption(const char *name, int value, int num_options, cups_option_t **options) _CUPS_API_2_2_4;
 extern int		cupsGetIntegerOption(const char *name, int num_options, cups_option_t *options) _CUPS_API_2_2_4;
+
+/* New in CUPS 2.3 */
+extern int		cupsAddDestMediaOptions(http_t *http, cups_dest_t *dest, cups_dinfo_t *dinfo, unsigned flags, cups_size_t *size, int num_options, cups_option_t **options);
+extern const char	*cupsHashString(const unsigned char *hash, size_t hashsize, char *buffer, size_t bufsize) _CUPS_API_2_3;
 
 #  ifdef __cplusplus
 }
