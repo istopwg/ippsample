@@ -1,6 +1,7 @@
 /*
  * Client code for sample IPP server implementation.
  *
+ * Copyright 2014-2017 by the IEEE-ISTO Printer Working Group
  * Copyright 2010-2017 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
@@ -286,8 +287,8 @@ serverProcessHTTP(
 
   if (http_state == HTTP_STATE_ERROR)
   {
-    if (httpError(client->http) == EPIPE || httpError(client->http) == 0)
-      serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Client closed connection.");
+    if (httpError(client->http) == EPIPE || httpError(client->http) == ETIMEDOUT || httpError(client->http) == 0)
+      serverLogClient(SERVER_LOGLEVEL_INFO, client, "Client closed connection.");
     else
       serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Bad request line (%s).", strerror(httpError(client->http)));
 

@@ -1,6 +1,7 @@
 /*
  * Printer object code for sample IPP server implementation.
  *
+ * Copyright 2014-2017 by the IEEE-ISTO Printer Working Group
  * Copyright 2010-2017 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
@@ -514,9 +515,9 @@ serverCreatePrinter(
   httpAssembleURI(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), webscheme, NULL, lis->host, lis->port, resource);
   httpAssembleURIf(HTTP_URI_CODING_ALL, supplyurl, sizeof(supplyurl), webscheme, NULL, lis->host, lis->port, "%s/supplies", resource);
 
+  serverLogPrinter(SERVER_LOGLEVEL_INFO, printer, "printer-uri=\"%s\"", (char *)cupsArrayFirst(uris));
   serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-more-info=\"%s\"", adminurl);
   serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-supply-info-uri=\"%s\"", supplyurl);
-  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-uri=\"%s\"", (char *)cupsArrayFirst(uris));
 
   if (docformats)
   {
