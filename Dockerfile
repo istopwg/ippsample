@@ -1,6 +1,9 @@
 FROM ubuntu:latest
 
-RUN apt-get -y update && apt-get install -y net-tools iputils-ping vim gcc git make libavahi-client-dev avahi-daemon gdb tcpdump man curl
+RUN apt-get update && apt-get install -y autoconf build-essential avahi-daemon avahi-utils \
+    libavahi-client-dev libgnutls28-dev libjpeg-dev libnss-mdns libpng-dev \
+    zlib1g-dev \
+    net-tools iputils-ping vim avahi-daemon tcpdump man curl
 RUN /bin/echo 'colorscheme blue' > ~/.vimrc
 RUN /bin/echo "LS_COLORS=\$LS_COLORS:'di=0;31:' ; export LS_COLORS" >> /root/.bashrc
 # Make changes necessary to run bonjour
