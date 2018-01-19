@@ -36,8 +36,8 @@ The ipptransform program is a generic file conversion utility that is used prima
 
 # Legal Stuff
 
-Copyright © 2014-2017 by the IEEE-ISTO Printer Working Group.
-Copyright © 2007-2017 by Apple Inc.
+Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
+Copyright © 2007-2018 by Apple Inc.
 Copyright © 1997-2007 by Easy Software Products.
 
 CUPS is provided under the terms of the Apache License, Version 2.0.  A copy of
