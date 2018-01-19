@@ -1,7 +1,8 @@
 /*
  * Configuration file support for sample IPP server implementation.
  *
- * Copyright 2015-2017 by Apple Inc.
+ * Copyright © 2015-2018 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2015-2018 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -243,6 +244,7 @@ serverFindPrinter(const char *resource)	/* I - Resource path */
  * Syntax is based on ipptool format:
  *
  *    ATTR value-tag name value
+ *    ATTR value-tag name value,value,...
  *    AUTHTYPE "scheme"
  *    COMMAND "/path/to/command"
  *    DEVICE-URI "uri"
@@ -333,7 +335,9 @@ serverLoadAttributes(
 	case IPP_TAG_INTEGER :
 	case IPP_TAG_ENUM :
 	    if (!strchr(token, ','))
+	    {
 	      attrptr = ippAddInteger(attrs, IPP_TAG_PRINTER, value, attr, (int)strtol(token, &tokenptr, 0));
+	    }
 	    else
 	    {
 	      int	values[100],	/* Values */
@@ -413,11 +417,7 @@ serverLoadAttributes(
 			num_vals;	/* Number of values */
 
 
-	      num_vals = sscanf(token, "%d-%d,%d-%d,%d-%d,%d-%d",
-				lowers + 0, uppers + 0,
-				lowers + 1, uppers + 1,
-				lowers + 2, uppers + 2,
-				lowers + 3, uppers + 3);
+	      num_vals = sscanf(token, "%d-%d,%d-%d,%d-%d,%d-%d", lowers + 0, uppers + 0, lowers + 1, uppers + 1, lowers + 2, uppers + 2, lowers + 3, uppers + 3);
 
 	      if ((num_vals & 1) || num_vals == 0)
 	      {
@@ -425,8 +425,7 @@ serverLoadAttributes(
                 goto load_error;
 	      }
 
-	      attrptr = ippAddRanges(attrs, IPP_TAG_PRINTER, attr, num_vals / 2, lowers,
-				     uppers);
+	      attrptr = ippAddRanges(attrs, IPP_TAG_PRINTER, attr, num_vals / 2, lowers, uppers);
 	    }
 	    break;
 
@@ -503,7 +502,9 @@ serverLoadAttributes(
 	case IPP_TAG_LANGUAGE :
 	case IPP_TAG_MIMETYPE :
 	    if (!strchr(token, ','))
+	    {
 	      attrptr = ippAddString(attrs, IPP_TAG_PRINTER, value, attr, NULL, token);
+	    }
 	    else
 	    {
 	     /*
@@ -537,9 +538,90 @@ serverLoadAttributes(
 	    break;
       }
 
-      if (!attrptr)
+      if (attrptr)
       {
-        serverLog(SERVER_LOGLEVEL_ERROR, "Unable to add attribute on line %d of \"%s\": %s", linenum, filename, cupsLastErrorString());
+        int i;				/* Looping var */
+        static const char * const ignored[] =
+        {				/* Ignored attributes */
+          "attributes-charset",
+          "attributes-natural-language",
+          "charset-configured",
+          "charset-supported",
+          "device-service-count",
+          "device-uuid",
+          "document-format-varying-attributes",
+          "job-settable-attributes-supported",
+          "pages-per-minute",
+          "pages-per-minute-color",
+          "printer-alert",
+          "printer-alert-description",
+          "printer-camera-image-uri",
+          "printer-charge-info",
+          "printer-charge-info-uri",
+          "printer-config-change-date-time",
+          "printer-config-change-time",
+          "printer-current-time",
+          "printer-detailed-status-messages",
+          "printer-dns-sd-name",
+          "printer-fax-log-uri",
+          "printer-finisher",
+          "printer-finisher-description",
+          "printer-finisher-supplies",
+          "printer-finisher-supplies-description",
+          "printer-get-attributes-supported",
+          "printer-icons",
+          "printer-id",
+          "printer-input-tray",
+          "printer-is-accepting-jobs",
+          "printer-message-date-time",
+          "printer-message-from-operator",
+          "printer-message-time",
+          "printer-more-info",
+          "printer-output-tray",
+          "printer-service-type",
+          "printer-settable-attributes-supported",
+          "printer-state",
+          "printer-state-message",
+          "printer-state-reasons",
+          "printer-static-resource-directory-uri",
+          "printer-static-resource-k-octets-free",
+          "printer-static-resource-k-octets-supported",
+          "printer-strings-languages-supported",
+          "printer-strings-uri",
+          "printer-supply",
+          "printer-supply-description",
+          "printer-supply-info-uri",
+          "printer-up-time",
+          "printer-uri-supported",
+          "printer-uuid",
+          "printer-xri-supported",
+          "queued-job-count",
+          "uri-authentication-supported",
+          "uri-security-supported",
+          "xri-authentication-supported",
+          "xri-security-supported",
+          "xri-uri-scheme-supported"
+        };
+
+        for (i = 0; i < (int)(sizeof(ignored) / sizeof(ignored[0])); i ++)
+        {
+          if (!strcmp(attr, ignored[i]))
+	  {
+	   /*
+	    * Remove attributes that have to point to this server...
+	    */
+
+	    serverLog(SERVER_LOGLEVEL_DEBUG, "Ignoring attribute \"%s\" on line %d of \"%s\".", attr, linenum, filename);
+
+	    ippDeleteAttribute(attrs, attrptr);
+	    attrptr = NULL;
+	    break;
+	  }
+	}
+      }
+      else
+      {
+        serverLog(SERVER_LOGLEVEL_ERROR, "Unable to add attribute \"%s\" on line %d of \"%s\": %s", attr, linenum, filename, cupsLastErrorString());
         goto load_error;
       }
     }
