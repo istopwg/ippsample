@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 47;
+	objectVersion = 48;
 	objects = {
 
 /* Begin PBXAggregateTarget section */
@@ -325,7 +325,7 @@
 		275C6BAA1C87D907000D2DE7 /* dither.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dither.h; path = ../tools/dither.h; sourceTree = "<group>"; };
 		2778EBAD1D2FF60E00DE72EC /* ipptransform3d */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ipptransform3d; sourceTree = BUILT_PRODUCTS_DIR; };
 		2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ipptransform3d.c; path = ../tools/ipptransform3d.c; sourceTree = "<group>"; };
-		279C01D61D1B0F9700F06A84 /* LICENSE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = LICENSE.md; path = ../LICENSE.md; sourceTree = "<group>"; };
+		279C01D61D1B0F9700F06A84 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; name = LICENSE; path = ../LICENSE; sourceTree = "<group>"; };
 		279C01D71D1B0F9700F06A84 /* PI.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = PI.md; path = ../PI.md; sourceTree = "<group>"; };
 		27FDC5F61D7F497500246F95 /* ipptransform3d.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = ipptransform3d.html; path = ../doc/ipptransform3d.html; sourceTree = "<group>"; };
 		27FDC5F71D7F497500246F95 /* ipptransform3d.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ipptransform3d.man; path = ../doc/ipptransform3d.man; sourceTree = "<group>"; };
@@ -340,6 +340,7 @@
 		72737CF21C24BA4F007CBEF6 /* dest.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = dest.c; path = ../cups/dest.c; sourceTree = "<group>"; };
 		72737CF41C24BA4F007CBEF6 /* notify.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = notify.c; path = ../cups/notify.c; sourceTree = "<group>"; };
 		72737CF51C24BA4F007CBEF6 /* util.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = util.c; path = ../cups/util.c; sourceTree = "<group>"; };
+		729181C42011828E005E7560 /* NOTICE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = NOTICE; path = ../NOTICE; sourceTree = "<group>"; };
 		72A0D4521E6864EB0092958D /* printer3d-png.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "printer3d-png.h"; path = "../server/printer3d-png.h"; sourceTree = "<group>"; };
 		72B402181C0CDFB400139783 /* ippserver */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ippserver; sourceTree = BUILT_PRODUCTS_DIR; };
 		72B402261C0CE0E100139783 /* libcups_static.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libcups_static.a; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -666,9 +667,6 @@
 			children = (
 				723D66D41C723CB70078B537 /* CONTRIBUTING.md */,
 				723D66D81C723CC20078B537 /* DESIGN.md */,
-				279C01D61D1B0F9700F06A84 /* LICENSE.md */,
-				279C01D71D1B0F9700F06A84 /* PI.md */,
-				723D66D51C723CB70078B537 /* README.md */,
 				72B402E21C0CE66200139783 /* ippfind.html */,
 				72E006081C5C0BA8006CF057 /* ippfind.man */,
 				72E0060B1C5C0BE3006CF057 /* ippproxy.html */,
@@ -683,6 +681,10 @@
 				275C6BA31C878A65000D2DE7 /* ipptransform.man */,
 				27FDC5F61D7F497500246F95 /* ipptransform3d.html */,
 				27FDC5F71D7F497500246F95 /* ipptransform3d.man */,
+				279C01D61D1B0F9700F06A84 /* LICENSE */,
+				729181C42011828E005E7560 /* NOTICE */,
+				279C01D71D1B0F9700F06A84 /* PI.md */,
+				723D66D51C723CB70078B537 /* README.md */,
 			);
 			name = Documentation;
 			sourceTree = "<group>";
@@ -870,7 +872,7 @@
 		72B402101C0CDFB400139783 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0900;
+				LastUpgradeCheck = 0930;
 				ORGANIZATIONNAME = "IEEE-ISTO Printer Working Group";
 				TargetAttributes = {
 					72B402171C0CDFB400139783 = {
@@ -891,7 +893,7 @@
 				};
 			};
 			buildConfigurationList = 72B402131C0CDFB400139783 /* Build configuration list for PBXProject "ippsample" */;
-			compatibilityVersion = "Xcode 6.3";
+			compatibilityVersion = "Xcode 8.0";
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -1090,6 +1092,7 @@
 		2778EBAB1D2FF60E00DE72EC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1099,6 +1102,7 @@
 		2778EBAC1D2FF60E00DE72EC /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1108,6 +1112,7 @@
 		725C87BE1C7664DE00FB3AD5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1117,6 +1122,7 @@
 		725C87BF1C7664DE00FB3AD5 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1182,7 +1188,7 @@
 					.,
 					..,
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.10;
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				RUN_CLANG_STATIC_ANALYZER = YES;
@@ -1244,7 +1250,7 @@
 					.,
 					..,
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.10;
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
@@ -1255,6 +1261,7 @@
 		72B402201C0CDFB400139783 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -1262,6 +1269,7 @@
 		72B402211C0CDFB400139783 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -1269,6 +1277,7 @@
 		72B402281C0CE0E100139783 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				COMBINE_HIDPI_IMAGES = YES;
 				EXECUTABLE_PREFIX = "";
 				PRIVATE_HEADERS_FOLDER_PATH = /usr/local/include/cups;
@@ -1280,6 +1289,7 @@
 		72B402291C0CE0E100139783 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				COMBINE_HIDPI_IMAGES = YES;
 				EXECUTABLE_PREFIX = "";
 				PRIVATE_HEADERS_FOLDER_PATH = /usr/local/include/cups;
@@ -1291,6 +1301,7 @@
 		72B402CE1C0CE5EC00139783 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1300,6 +1311,7 @@
 		72B402CF1C0CE5EC00139783 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1309,6 +1321,7 @@
 		72B402DE1C0CE61D00139783 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1318,6 +1331,7 @@
 		72B402DF1C0CE61D00139783 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1327,6 +1341,7 @@
 		72E006001C5C0B10006CF057 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1336,6 +1351,7 @@
 		72E006011C5C0B10006CF057 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1345,6 +1361,7 @@
 		72E0060F1C5C0C48006CF057 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -1352,6 +1369,7 @@
 		72E006101C5C0C48006CF057 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
