@@ -1,7 +1,7 @@
 /*
  * ipptransform utility for converting PDF and JPEG files to raster data or HP PCL.
  *
- * Copyright 2016-2017 by the IEEE-ISTO Printer Working Group.
+ * Copyright 2016-2018 by the IEEE-ISTO Printer Working Group.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -2073,10 +2073,10 @@ xform_document(
     ras.band_height = ras.header.cupsHeight;
 
   /* TODO: Update code to not use RGBA/GrayA pixmap now that MuPDF supports it */
-  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth, (int)ras.band_height, 1);
-  pixmap->interpolate = 0;
-  pixmap->xres        = (int)ras.header.HWResolution[0];
-  pixmap->yres        = (int)ras.header.HWResolution[1];
+  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth, (int)ras.band_height, NULL, 1);
+  pixmap->flags = 0;
+  pixmap->xres  = (int)ras.header.HWResolution[0];
+  pixmap->yres  = (int)ras.header.HWResolution[1];
 
   xscale = ras.header.HWResolution[0] / 72.0;
   yscale = ras.header.HWResolution[1] / 72.0;
