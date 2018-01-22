@@ -8,7 +8,7 @@ description: |
   by the PWG IPP workgroup.
 
 grade: devel # must be 'stable' to release into candidate/stable channels
-confinement: devmode # use 'strict' once you have the right plugs and slots
+confinement: strict
 icon: server/printer.png
 
 apps:
@@ -36,7 +36,7 @@ parts:
         plugin: make
         make-install-var: prefix
         make-parameters: [HAVE_X11=no, HAVE_GLFW=no]
-        source: https://mupdf.com/downloads/mupdf-1.11-source.tar.gz
+        source: https://mupdf.com/downloads/mupdf-1.12.0-source.tar.gz
         prime:
             - -bin/mu*
             - -include/mu*
