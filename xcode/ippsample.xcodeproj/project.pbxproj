@@ -43,6 +43,8 @@
 		2778EBB01D2FF64300DE72EC /* ipptransform3d.c in Sources */ = {isa = PBXBuildFile; fileRef = 2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */; };
 		27E2CC681C99C69400D203EC /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
 		27E2CC691C99C6A000D203EC /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EB1C0CE81900139783 /* SystemConfiguration.framework */; };
+		72530E352028BCF30035FF65 /* ipp-file.c in Sources */ = {isa = PBXBuildFile; fileRef = 72530E332028BCF20035FF65 /* ipp-file.c */; };
+		72530E362028BCF30035FF65 /* ipp-vars.c in Sources */ = {isa = PBXBuildFile; fileRef = 72530E342028BCF30035FF65 /* ipp-vars.c */; };
 		725C87B61C7664DE00FB3AD5 /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
 		725C87B71C7664DE00FB3AD5 /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
 		725C87B81C7664DE00FB3AD5 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
@@ -332,6 +334,8 @@
 		723D66D41C723CB70078B537 /* CONTRIBUTING.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = CONTRIBUTING.md; path = ../CONTRIBUTING.md; sourceTree = "<group>"; };
 		723D66D51C723CB70078B537 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
 		723D66D81C723CC20078B537 /* DESIGN.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = DESIGN.md; path = ../server/DESIGN.md; sourceTree = "<group>"; };
+		72530E332028BCF20035FF65 /* ipp-file.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ipp-file.c"; path = "../cups/ipp-file.c"; sourceTree = "<group>"; };
+		72530E342028BCF30035FF65 /* ipp-vars.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ipp-vars.c"; path = "../cups/ipp-vars.c"; sourceTree = "<group>"; };
 		725C87C01C7664DE00FB3AD5 /* ipptransform */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ipptransform; sourceTree = BUILT_PRODUCTS_DIR; };
 		725C87C31C767CF800FB3AD5 /* ipptransform.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ipptransform.c; path = ../tools/ipptransform.c; sourceTree = "<group>"; };
 		72737CEF1C24BA4F007CBEF6 /* dest-job.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "dest-job.c"; path = "../cups/dest-job.c"; sourceTree = "<group>"; };
@@ -590,8 +594,10 @@
 				72B402441C0CE27800139783 /* http-support.c */,
 				72B402451C0CE27800139783 /* http.c */,
 				72B402461C0CE27800139783 /* http.h */,
+				72530E332028BCF20035FF65 /* ipp-file.c */,
 				72B402471C0CE27800139783 /* ipp-private.h */,
 				72B402481C0CE27800139783 /* ipp-support.c */,
+				72530E342028BCF30035FF65 /* ipp-vars.c */,
 				72B402491C0CE27800139783 /* ipp.c */,
 				72B4024A1C0CE27800139783 /* ipp.h */,
 				72B4024B1C0CE27800139783 /* langprintf.c */,
@@ -974,6 +980,7 @@
 				72B402691C0CE27900139783 /* array.c in Sources */,
 				72B402721C0CE27900139783 /* encode.c in Sources */,
 				72737CF71C24BA4F007CBEF6 /* dest-localization.c in Sources */,
+				72530E362028BCF30035FF65 /* ipp-vars.c in Sources */,
 				72B4029D1C0CE27900139783 /* transcode.c in Sources */,
 				72737CFC1C24BA4F007CBEF6 /* util.c in Sources */,
 				72737CF61C24BA4F007CBEF6 /* dest-job.c in Sources */,
@@ -987,6 +994,7 @@
 				72737CFB1C24BA4F007CBEF6 /* notify.c in Sources */,
 				72B4028C1C0CE27900139783 /* pwg-media.c in Sources */,
 				72B402981C0CE27900139783 /* thread.c in Sources */,
+				72530E352028BCF30035FF65 /* ipp-file.c in Sources */,
 				72B4026B1C0CE27900139783 /* auth.c in Sources */,
 				72B4029F1C0CE27900139783 /* usersys.c in Sources */,
 				72737CF81C24BA4F007CBEF6 /* dest-options.c in Sources */,
@@ -1094,7 +1102,6 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -1104,7 +1111,6 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -1114,7 +1120,6 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -1124,7 +1129,6 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -1303,7 +1307,6 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -1313,7 +1316,6 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -1323,7 +1325,6 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -1333,7 +1334,6 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -1343,7 +1343,6 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -1353,7 +1352,6 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
