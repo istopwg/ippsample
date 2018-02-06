@@ -32,12 +32,6 @@ main(int  argc,				/* I - Number of command-line args */
 		*confdir = NULL,	/* Configuration directory */
 		*name = NULL;		/* Printer name */
   server_pinfo_t pinfo;			/* Printer information */
-#if 0
-  int		duplex = 0,		/* Duplex mode */
-		ppm = 0,		/* Pages per minute for mono */
-		ppm_color = 0,		/* Pages per minute for color */
-		pin = 0;		/* PIN printing mode? */
-#endif // 0
   server_printer_t *printer;		/* Printer object */
 
 
