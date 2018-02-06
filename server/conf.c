@@ -26,6 +26,7 @@ static _cups_mutex_t	printer_mutex = _CUPS_MUTEX_INITIALIZER;
  * Local functions...
  */
 
+static int		attr_cb(_ipp_file_t *f, server_pinfo_t *pinfo, const char *attr);
 static int		compare_lang(server_lang_t *a, server_lang_t *b);
 static int		compare_printers(server_printer_t *a, server_printer_t *b);
 static server_lang_t	*copy_lang(server_lang_t *a);
@@ -263,75 +264,11 @@ serverLoadAttributes(
   _ipp_vars_t	vars;			/* IPP variables */
 
 
-  _ippVarsInit(&vars);
+  _ippVarsInit(&vars, (_ipp_fattr_cb_t)attr_cb, (_ipp_ferror_cb_t)error_cb, (_ipp_ftoken_cb_t)token_cb);
 
-  pinfo->attrs = _ippFileParse(&vars, filename, (_ipp_ftoken_cb_t)token_cb, (_ipp_ferror_cb_t)error_cb, (void *)pinfo);
+  pinfo->attrs = _ippFileParse(&vars, filename, (void *)pinfo);
 
   _ippVarsDeinit(&vars);
-
-#if 0
-  static const char * const ignored[] =
-  {					/* Ignored attributes */
-    "attributes-charset",
-    "attributes-natural-language",
-    "charset-configured",
-    "charset-supported",
-    "device-service-count",
-    "device-uuid",
-    "document-format-varying-attributes",
-    "job-settable-attributes-supported",
-    "pages-per-minute",
-    "pages-per-minute-color",
-    "printer-alert",
-    "printer-alert-description",
-    "printer-camera-image-uri",
-    "printer-charge-info",
-    "printer-charge-info-uri",
-    "printer-config-change-date-time",
-    "printer-config-change-time",
-    "printer-current-time",
-    "printer-detailed-status-messages",
-    "printer-dns-sd-name",
-    "printer-fax-log-uri",
-    "printer-finisher",
-    "printer-finisher-description",
-    "printer-finisher-supplies",
-    "printer-finisher-supplies-description",
-    "printer-get-attributes-supported",
-    "printer-icons",
-    "printer-id",
-    "printer-input-tray",
-    "printer-is-accepting-jobs",
-    "printer-message-date-time",
-    "printer-message-from-operator",
-    "printer-message-time",
-    "printer-more-info",
-    "printer-output-tray",
-    "printer-service-type",
-    "printer-settable-attributes-supported",
-    "printer-state",
-    "printer-state-message",
-    "printer-state-reasons",
-    "printer-static-resource-directory-uri",
-    "printer-static-resource-k-octets-free",
-    "printer-static-resource-k-octets-supported",
-    "printer-strings-languages-supported",
-    "printer-strings-uri",
-    "printer-supply",
-    "printer-supply-description",
-    "printer-supply-info-uri",
-    "printer-up-time",
-    "printer-uri-supported",
-    "printer-uuid",
-    "printer-xri-supported",
-    "queued-job-count",
-    "uri-authentication-supported",
-    "uri-security-supported",
-    "xri-authentication-supported",
-    "xri-security-supported",
-    "xri-uri-scheme-supported"
-  };
-#endif /* 0 */
 
   return (pinfo->attrs != NULL);
 }
@@ -463,6 +400,93 @@ serverLoadConfiguration(
   }
 
   return (1);
+}
+
+
+/*
+ * 'attr_cb()' - Determine whether an attribute should be loaded.
+ */
+
+static int				/* O - 1 to use, 0 to ignore */
+attr_cb(_ipp_file_t    *f,		/* I - IPP file */
+        server_pinfo_t *pinfo,		/* I - Printer information */
+        const char     *attr)		/* I - Attribute name */
+{
+  int		i,			/* Current element */
+		result;			/* Result of comparison */
+  static const char * const ignored[] =
+  {					/* Ignored attributes */
+    "attributes-charset",
+    "attributes-natural-language",
+    "charset-configured",
+    "charset-supported",
+    "device-service-count",
+    "device-uuid",
+    "document-format-varying-attributes",
+    "job-settable-attributes-supported",
+    "pages-per-minute",
+    "pages-per-minute-color",
+    "printer-alert",
+    "printer-alert-description",
+    "printer-camera-image-uri",
+    "printer-charge-info",
+    "printer-charge-info-uri",
+    "printer-config-change-date-time",
+    "printer-config-change-time",
+    "printer-current-time",
+    "printer-detailed-status-messages",
+    "printer-dns-sd-name",
+    "printer-fax-log-uri",
+    "printer-finisher",
+    "printer-finisher-description",
+    "printer-finisher-supplies",
+    "printer-finisher-supplies-description",
+    "printer-get-attributes-supported",
+    "printer-icons",
+    "printer-id",
+    "printer-input-tray",
+    "printer-is-accepting-jobs",
+    "printer-message-date-time",
+    "printer-message-from-operator",
+    "printer-message-time",
+    "printer-more-info",
+    "printer-output-tray",
+    "printer-service-type",
+    "printer-settable-attributes-supported",
+    "printer-state",
+    "printer-state-message",
+    "printer-state-reasons",
+    "printer-static-resource-directory-uri",
+    "printer-static-resource-k-octets-free",
+    "printer-static-resource-k-octets-supported",
+    "printer-strings-languages-supported",
+    "printer-strings-uri",
+    "printer-supply",
+    "printer-supply-description",
+    "printer-supply-info-uri",
+    "printer-up-time",
+    "printer-uri-supported",
+    "printer-uuid",
+    "printer-xri-supported",
+    "queued-job-count",
+    "uri-authentication-supported",
+    "uri-security-supported",
+    "xri-authentication-supported",
+    "xri-security-supported",
+    "xri-uri-scheme-supported"
+  };
+
+
+  (void)f;
+  (void)pinfo;
+
+  for (i = 0, result = 1; i < (int)(sizeof(ignored) / sizeof(ignored[0])); i ++)
+  {
+    if ((result = strcmp(attr, ignored[i])) <= 0)
+      break;
+  }
+
+  return (result != 0);
 }
 
 
