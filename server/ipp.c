@@ -1,15 +1,11 @@
 /*
  * IPP processing code for sample IPP server implementation.
  *
- * Copyright 2010-2017 by Apple Inc.
+ * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2010-2018 by Apple Inc.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more
+ * information.
  */
 
 #include "ippserver.h"
@@ -1411,7 +1407,7 @@ ipp_get_printer_attributes(
 
   _cupsRWLockRead(&(printer->rwlock));
 
-  serverCopyAttributes(client->response, printer->attrs, ra, IPP_TAG_ZERO,
+  serverCopyAttributes(client->response, printer->pinfo.attrs, ra, IPP_TAG_ZERO,
 		  IPP_TAG_CUPS_CONST);
   serverCopyAttributes(client->response, printer->dev_attrs, ra, IPP_TAG_ZERO, IPP_TAG_ZERO);
 
@@ -1447,7 +1443,7 @@ ipp_get_printer_attributes(
   if (!ra || cupsArrayFind(ra, "printer-state-reasons"))
     serverCopyPrinterStateReasons(client->response, IPP_TAG_PRINTER, printer);
 
-  if (printer->strings && (!ra || cupsArrayFind(ra, "printer-strings-uri")))
+  if (printer->pinfo.strings && (!ra || cupsArrayFind(ra, "printer-strings-uri")))
   {
    /*
     * See if we have a localization that matches the request language.
@@ -1461,14 +1457,14 @@ ipp_get_printer_attributes(
     attr = ippNextAttribute(client->request);
     strlcpy(lang, ippGetString(attr, 0, NULL), sizeof(lang));
     key.lang = lang;
-    if ((match = cupsArrayFind(printer->strings, &key)) == NULL && lang[2])
+    if ((match = cupsArrayFind(printer->pinfo.strings, &key)) == NULL && lang[2])
     {
      /*
       * Try base language...
       */
 
       lang[2] = '\0';
-      match = cupsArrayFind(printer->strings, &key);
+      match = cupsArrayFind(printer->pinfo.strings, &key);
     }
 
     if (match)
@@ -1516,7 +1512,7 @@ ipp_get_printer_supported_values(
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  serverCopyAttributes(client->response, client->printer->attrs, ra, IPP_TAG_PRINTER, 1);
+  serverCopyAttributes(client->response, client->printer->pinfo.attrs, ra, IPP_TAG_PRINTER, 1);
 
   cupsArrayDelete(ra);
 }
@@ -3464,7 +3460,7 @@ valid_doc_attributes(
     */
 
     compression = ippGetString(attr, 0, NULL);
-    supported   = ippFindAttribute(client->printer->attrs,
+    supported   = ippFindAttribute(client->printer->pinfo.attrs,
                                    "compression-supported", IPP_TAG_KEYWORD);
 
     if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_KEYWORD ||
@@ -3510,7 +3506,7 @@ valid_doc_attributes(
   }
   else
   {
-    format = ippGetString(ippFindAttribute(client->printer->attrs, "document-format-default", IPP_TAG_MIMETYPE), 0, NULL);
+    format = ippGetString(ippFindAttribute(client->printer->pinfo.attrs, "document-format-default", IPP_TAG_MIMETYPE), 0, NULL);
     if (!format)
       format = "application/octet-stream"; /* Should never happen */
 
@@ -3551,7 +3547,7 @@ valid_doc_attributes(
     }
   }
 
-  if ((op == IPP_OP_PRINT_JOB || op == IPP_OP_SEND_DOCUMENT) && (supported = ippFindAttribute(client->printer->attrs, "document-format-supported", IPP_TAG_MIMETYPE)) != NULL && !ippContainsString(supported, format) && attr && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
+  if ((op == IPP_OP_PRINT_JOB || op == IPP_OP_SEND_DOCUMENT) && (supported = ippFindAttribute(client->printer->pinfo.attrs, "document-format-supported", IPP_TAG_MIMETYPE)) != NULL && !ippContainsString(supported, format) && attr && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
   {
     serverRespondUnsupported(client, attr);
     valid = 0;
@@ -3687,7 +3683,7 @@ valid_job_attributes(
     }
     else
     {
-      supported = ippFindAttribute(client->printer->attrs, "media-supported", IPP_TAG_KEYWORD);
+      supported = ippFindAttribute(client->printer->pinfo.attrs, "media-supported", IPP_TAG_KEYWORD);
 
       if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
       {
@@ -3728,7 +3724,7 @@ valid_job_attributes(
       }
       else
       {
-	supported = ippFindAttribute(client->printer->attrs, "media-supported", IPP_TAG_KEYWORD);
+	supported = ippFindAttribute(client->printer->pinfo.attrs, "media-supported", IPP_TAG_KEYWORD);
 
 	if (!ippContainsString(supported, ippGetString(member, 0, NULL)))
 	{
@@ -3754,7 +3750,7 @@ valid_job_attributes(
 	  serverRespondUnsupported(client, attr);
 	  valid = 0;
 	}
-	else if ((supported = ippFindAttribute(client->printer->attrs, "media-size-supported", IPP_TAG_BEGIN_COLLECTION)) != NULL)
+	else if ((supported = ippFindAttribute(client->printer->pinfo.attrs, "media-size-supported", IPP_TAG_BEGIN_COLLECTION)) != NULL)
 	{
 	  x_value   = ippGetInteger(x_dim, 0);
 	  y_value   = ippGetInteger(y_dim, 0);

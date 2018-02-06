@@ -1,15 +1,11 @@
 /*
  * Job object code for sample IPP server implementation.
  *
- * Copyright 2010-2017 by Apple Inc.
+ * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2010-2018 by Apple Inc.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more
+ * information.
  */
 
 #include "ippserver.h"
@@ -441,13 +437,13 @@ serverProcessJob(server_job_t *job)		/* I - Job */
 
   job->printer->state_reasons &= (server_preason_t)~SERVER_PREASON_MEDIA_NEEDED;
 
-  if (job->printer->command)
+  if (job->printer->pinfo.command)
   {
    /*
     * Execute a command with the job spool file and wait for it to complete...
     */
 
-    serverTransformJob(NULL, job, job->printer->command, job->printer->output_format, SERVER_TRANSFORM_COMMAND);
+    serverTransformJob(NULL, job, job->printer->pinfo.command, job->printer->pinfo.output_format, SERVER_TRANSFORM_COMMAND);
   }
   else
   {

@@ -4,19 +4,15 @@
  * Copyright © 2015-2018 by the IEEE-ISTO Printer Working Group
  * Copyright © 2015-2018 by Apple Inc.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more
+ * information.
  */
 
 #include "ippserver.h"
 #include <cups/file.h>
 #include <cups/dir.h>
 #include <fnmatch.h>
+#include <cups/ipp-private.h>
 
 
 /*
@@ -36,10 +32,10 @@ static server_lang_t	*copy_lang(server_lang_t *a);
 #ifdef HAVE_AVAHI
 static void		dnssd_client_cb(AvahiClient *c, AvahiClientState state, void *userdata);
 #endif /* HAVE_AVAHI */
+static int		error_cb(_ipp_file_t *f, server_pinfo_t *pinfo, const char *error);
 static void		free_lang(server_lang_t *a);
-static ipp_t		*get_collection(cups_file_t *fp, const char *filename, int *linenum);
-static char		*get_token(cups_file_t *fp, char *buf, int buflen, int *linenum);
 static int		load_system(const char *conf);
+static int		token_cb(_ipp_file_t *f, _ipp_vars_t *vars, server_pinfo_t *pinfo, const char *token);
 
 
 /*
@@ -259,491 +255,85 @@ serverFindPrinter(const char *resource)	/* I - Resource path */
  * DEVICE-URI values can be "socket", "ipp", or "ipps" URIs.
  */
 
-ipp_t *					/* O - Attributes */
+int					/* O - 1 on success, 0 on failure */
 serverLoadAttributes(
-    const char   *filename,		/* I - File to load */
-    char         **authtype,		/* O - Authentication type, if any */
-    char         **command,		/* O - Command to run, if any */
-    char         **device_uri,		/* O - Device URI, if any */
-    char         **output_format,	/* O - Output format, if any */
-    char         **make,		/* O - Manufacturer */
-    char         **model,		/* O - Model */
-    char         **proxy_user,		/* O - Proxy user, if any */
-    cups_array_t **strings)		/* O - Localizations, if any */
+    const char     *filename,		/* I - File to load */
+    server_pinfo_t *pinfo)		/* I - Printer information */
 {
-  ipp_t		*attrs;			/* Attributes to return */
-  cups_file_t	*fp;			/* File */
-  int		linenum = 1;		/* Current line number */
-  char		attr[128],		/* Attribute name */
-		token[1024],		/* Token from file */
-		*tokenptr;		/* Pointer into token */
-  ipp_tag_t	value;			/* Current value type */
-  ipp_attribute_t *attrptr;		/* Attribute pointer */
-
-
-  if ((fp = cupsFileOpen(filename, "r")) == NULL)
-  {
-    serverLog(SERVER_LOGLEVEL_ERROR, "Unable to open \"%s\": %s", filename, strerror(errno));
-    return (NULL);
-  }
-
-  attrs = ippNew();
-
-  while (get_token(fp, token, sizeof(token), &linenum) != NULL)
-  {
-    if (!_cups_strcasecmp(token, "ATTR"))
-    {
-     /*
-      * Attribute...
-      */
-
-      if (!get_token(fp, token, sizeof(token), &linenum))
-      {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing ATTR value tag on line %d of \"%s\".", linenum, filename);
-        goto load_error;
-      }
-
-      if ((value = ippTagValue(token)) == IPP_TAG_ZERO)
-      {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Bad ATTR value tag \"%s\" on line %d of \"%s\".", token, linenum, filename);
-        goto load_error;
-      }
-
-      if (!get_token(fp, attr, sizeof(attr), &linenum))
-      {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing ATTR name on line %d of \"%s\".", linenum, filename);
-        goto load_error;
-      }
-
-      if (!get_token(fp, token, sizeof(token), &linenum))
-      {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing ATTR value on line %d of \"%s\".", linenum, filename);
-        goto load_error;
-      }
-
-      attrptr = NULL;
-
-      switch (value)
-      {
-	case IPP_TAG_BOOLEAN :
-	    if (!_cups_strcasecmp(token, "true"))
-	      attrptr = ippAddBoolean(attrs, IPP_TAG_PRINTER, attr, 1);
-	    else
-	      attrptr = ippAddBoolean(attrs, IPP_TAG_PRINTER, attr, (char)atoi(token));
-	    break;
-
-	case IPP_TAG_INTEGER :
-	case IPP_TAG_ENUM :
-	    if (!strchr(token, ','))
-	    {
-	      attrptr = ippAddInteger(attrs, IPP_TAG_PRINTER, value, attr, (int)strtol(token, &tokenptr, 0));
-	    }
-	    else
-	    {
-	      int	values[100],	/* Values */
-			num_values = 1;	/* Number of values */
-
-	      values[0] = (int)strtol(token, &tokenptr, 10);
-	      while (tokenptr && *tokenptr &&
-		     num_values < (int)(sizeof(values) / sizeof(values[0])))
-	      {
-		if (*tokenptr == ',')
-		  tokenptr ++;
-		else if (!isdigit(*tokenptr & 255) && *tokenptr != '-')
-		  break;
-
-		values[num_values] = (int)strtol(tokenptr, &tokenptr, 0);
-		num_values ++;
-	      }
-
-	      attrptr = ippAddIntegers(attrs, IPP_TAG_PRINTER, value, attr, num_values, values);
-	    }
-
-	    if (!tokenptr || *tokenptr)
-	    {
-	      serverLog(SERVER_LOGLEVEL_ERROR, "Bad %s value \"%s\" on line %d of \"%s\".", ippTagString(value), token, linenum, filename);
-              goto load_error;
-	    }
-	    break;
-
-	case IPP_TAG_RESOLUTION :
-	    {
-	      int	xres,		/* X resolution */
-			yres;		/* Y resolution */
-	      ipp_res_t	units;		/* Units */
-	      char	*start,		/* Start of value */
-			*ptr,		/* Pointer into value */
-			*next = NULL;	/* Next value */
-
-	      for (start = token; start; start = next)
-	      {
-		xres = yres = (int)strtol(start, (char **)&ptr, 10);
-		if (ptr > start && xres > 0)
-		{
-		  if (*ptr == 'x')
-		    yres = (int)strtol(ptr + 1, (char **)&ptr, 10);
-		}
-
-		if (ptr && (next = strchr(ptr, ',')) != NULL)
-		  *next++ = '\0';
-
-		if (ptr <= start || xres <= 0 || yres <= 0 || !ptr ||
-		    (_cups_strcasecmp(ptr, "dpi") &&
-		     _cups_strcasecmp(ptr, "dpc") &&
-		     _cups_strcasecmp(ptr, "dpcm") &&
-		     _cups_strcasecmp(ptr, "other")))
-		{
-		  serverLog(SERVER_LOGLEVEL_ERROR, "Bad resolution value \"%s\" on line %d of \"%s\".", token, linenum, filename);
-                  goto load_error;
-		}
-
-		if (!_cups_strcasecmp(ptr, "dpc") || !_cups_strcasecmp(ptr, "dpcm"))
-		  units = IPP_RES_PER_CM;
-		else
-		  units = IPP_RES_PER_INCH;
-
-                if (attrptr)
-		  ippSetResolution(attrs, &attrptr, ippGetCount(attrptr), units, xres, yres);
-		else
-		  attrptr = ippAddResolution(attrs, IPP_TAG_PRINTER, attr, units, xres, yres);
-	      }
-	    }
-	    break;
-
-	case IPP_TAG_RANGE :
-	    {
-	      int	lowers[4],	/* Lower value */
-			uppers[4],	/* Upper values */
-			num_vals;	/* Number of values */
-
-
-	      num_vals = sscanf(token, "%d-%d,%d-%d,%d-%d,%d-%d", lowers + 0, uppers + 0, lowers + 1, uppers + 1, lowers + 2, uppers + 2, lowers + 3, uppers + 3);
-
-	      if ((num_vals & 1) || num_vals == 0)
-	      {
-		serverLog(SERVER_LOGLEVEL_ERROR, "Bad rangeOfInteger value \"%s\" on line %d of \"%s\".", token, linenum, filename);
-                goto load_error;
-	      }
-
-	      attrptr = ippAddRanges(attrs, IPP_TAG_PRINTER, attr, num_vals / 2, lowers, uppers);
-	    }
-	    break;
-
-	case IPP_TAG_BEGIN_COLLECTION :
-	    if (!strcmp(token, "{"))
-	    {
-	      ipp_t	*col = get_collection(fp, filename, &linenum);
-				    /* Collection value */
-
-	      if (col)
-	      {
-		attrptr = ippAddCollection(attrs, IPP_TAG_PRINTER, attr, col);
-		ippDelete(col);
-	      }
-	      else
-		exit(1);
-	    }
-	    else
-	    {
-	      serverLog(SERVER_LOGLEVEL_ERROR, "Bad ATTR collection value on line %d of \"%s\".", linenum, filename);
-              goto load_error;
-	    }
-
-	    do
-	    {
-	      ipp_t	*col;			/* Collection value */
-	      long	spos = cupsFileTell(fp);/* Save position of file */
-              int       slinenum = linenum;     /* Save line number in file */
-
-	      if (!get_token(fp, token, sizeof(token), &linenum))
-		break;
-
-	      if (strcmp(token, ","))
-	      {
-               /*
-                * Restore file position and line number...
-                */
-
-		cupsFileSeek(fp, spos);
-                linenum = slinenum;
-		break;
-	      }
-
-	      if (!get_token(fp, token, sizeof(token), &linenum) || strcmp(token, "{"))
-	      {
-		serverLog(SERVER_LOGLEVEL_ERROR, "Unexpected \"%s\" on line %d of \"%s\".", token, linenum, filename);
-                goto load_error;
-	      }
-
-	      if ((col = get_collection(fp, filename, &linenum)) == NULL)
-		break;
-
-	      ippSetCollection(attrs, &attrptr, ippGetCount(attrptr), col);
-	    }
-	    while (!strcmp(token, "{"));
-	    break;
-
-	case IPP_TAG_STRING :
-	    attrptr = ippAddOctetString(attrs, IPP_TAG_PRINTER, attr, token, (int)strlen(token));
-	    break;
-
-	default :
-	    serverLog(SERVER_LOGLEVEL_ERROR, "Unsupported ATTR value tag \"%s\" on line %d of \"%s\".", ippTagString(value), linenum, filename);
-            goto load_error;
-
-	case IPP_TAG_TEXTLANG :
-	case IPP_TAG_NAMELANG :
-	case IPP_TAG_TEXT :
-	case IPP_TAG_NAME :
-	case IPP_TAG_KEYWORD :
-	case IPP_TAG_URI :
-	case IPP_TAG_URISCHEME :
-	case IPP_TAG_CHARSET :
-	case IPP_TAG_LANGUAGE :
-	case IPP_TAG_MIMETYPE :
-	    if (!strchr(token, ','))
-	    {
-	      attrptr = ippAddString(attrs, IPP_TAG_PRINTER, value, attr, NULL, token);
-	    }
-	    else
-	    {
-	     /*
-	      * Multiple string values...
-	      */
-
-	      int	num_values;	/* Number of values */
-	      char	*values[100],	/* Values */
-			*ptr;		/* Pointer to next value */
-
-
-	      values[0]  = token;
-	      num_values = 1;
-
-	      for (ptr = strchr(token, ','); ptr; ptr = strchr(ptr, ','))
-	      {
-		if (ptr > token && ptr[-1] == '\\')
-		  _cups_strcpy(ptr - 1, ptr);
-		else
-		{
-		  *ptr++ = '\0';
-		  values[num_values] = ptr;
-		  num_values ++;
-		  if (num_values >= (int)(sizeof(values) / sizeof(values[0])))
-		    break;
-		}
-	      }
-
-	      attrptr = ippAddStrings(attrs, IPP_TAG_PRINTER, value, attr, num_values, NULL, (const char **)values);
-	    }
-	    break;
-      }
-
-      if (attrptr)
-      {
-        int i;				/* Looping var */
-        static const char * const ignored[] =
-        {				/* Ignored attributes */
-          "attributes-charset",
-          "attributes-natural-language",
-          "charset-configured",
-          "charset-supported",
-          "device-service-count",
-          "device-uuid",
-          "document-format-varying-attributes",
-          "job-settable-attributes-supported",
-          "pages-per-minute",
-          "pages-per-minute-color",
-          "printer-alert",
-          "printer-alert-description",
-          "printer-camera-image-uri",
-          "printer-charge-info",
-          "printer-charge-info-uri",
-          "printer-config-change-date-time",
-          "printer-config-change-time",
-          "printer-current-time",
-          "printer-detailed-status-messages",
-          "printer-dns-sd-name",
-          "printer-fax-log-uri",
-          "printer-finisher",
-          "printer-finisher-description",
-          "printer-finisher-supplies",
-          "printer-finisher-supplies-description",
-          "printer-get-attributes-supported",
-          "printer-icons",
-          "printer-id",
-          "printer-input-tray",
-          "printer-is-accepting-jobs",
-          "printer-message-date-time",
-          "printer-message-from-operator",
-          "printer-message-time",
-          "printer-more-info",
-          "printer-output-tray",
-          "printer-service-type",
-          "printer-settable-attributes-supported",
-          "printer-state",
-          "printer-state-message",
-          "printer-state-reasons",
-          "printer-static-resource-directory-uri",
-          "printer-static-resource-k-octets-free",
-          "printer-static-resource-k-octets-supported",
-          "printer-strings-languages-supported",
-          "printer-strings-uri",
-          "printer-supply",
-          "printer-supply-description",
-          "printer-supply-info-uri",
-          "printer-up-time",
-          "printer-uri-supported",
-          "printer-uuid",
-          "printer-xri-supported",
-          "queued-job-count",
-          "uri-authentication-supported",
-          "uri-security-supported",
-          "xri-authentication-supported",
-          "xri-security-supported",
-          "xri-uri-scheme-supported"
-        };
-
-        for (i = 0; i < (int)(sizeof(ignored) / sizeof(ignored[0])); i ++)
-        {
-          if (!strcmp(attr, ignored[i]))
-	  {
-	   /*
-	    * Remove attributes that have to point to this server...
-	    */
-
-	    serverLog(SERVER_LOGLEVEL_DEBUG, "Ignoring attribute \"%s\" on line %d of \"%s\".", attr, linenum, filename);
-
-	    ippDeleteAttribute(attrs, attrptr);
-	    attrptr = NULL;
-	    break;
-	  }
-	}
-      }
-      else
-      {
-        serverLog(SERVER_LOGLEVEL_ERROR, "Unable to add attribute \"%s\" on line %d of \"%s\": %s", attr, linenum, filename, cupsLastErrorString());
-        goto load_error;
-      }
-    }
-    else if (!_cups_strcasecmp(token, "AUTHTYPE") && authtype)
-    {
-      if (!get_token(fp, token, sizeof(token), &linenum))
-      {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing AuthType value on line %d of \"%s\".", linenum, filename);
-        goto load_error;
-      }
-
-      *authtype = strdup(token);
-    }
-    else if (!_cups_strcasecmp(token, "COMMAND") && command)
-    {
-      if (!get_token(fp, token, sizeof(token), &linenum))
-      {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing Command value on line %d of \"%s\".", linenum, filename);
-        goto load_error;
-      }
-
-      *command = strdup(token);
-    }
-    else if (!_cups_strcasecmp(token, "DEVICEURI") && device_uri)
-    {
-      if (!get_token(fp, token, sizeof(token), &linenum))
-      {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing DeviceURI value on line %d of \"%s\".", linenum, filename);
-        goto load_error;
-      }
-
-      *device_uri = strdup(token);
-    }
-    else if (!_cups_strcasecmp(token, "OUTPUTFORMAT") && device_uri)
-    {
-      if (!get_token(fp, token, sizeof(token), &linenum))
-      {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing OutputFormat value on line %d of \"%s\".", linenum, filename);
-        goto load_error;
-      }
-
-      *output_format = strdup(token);
-    }
-    else if (!_cups_strcasecmp(token, "MAKE") && make)
-    {
-      if (!get_token(fp, token, sizeof(token), &linenum))
-      {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing Make value on line %d of \"%s\".", linenum, filename);
-        goto load_error;
-      }
-
-      *make = strdup(token);
-    }
-    else if (!_cups_strcasecmp(token, "MODEL") && model)
-    {
-      if (!get_token(fp, token, sizeof(token), &linenum))
-      {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing Model value on line %d of \"%s\".", linenum, filename);
-        goto load_error;
-      }
-
-      *model = strdup(token);
-    }
-    else if (!_cups_strcasecmp(token, "PROXYUSER") && proxy_user)
-    {
-      if (!get_token(fp, token, sizeof(token), &linenum))
-      {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing ProxyUser value on line %d of \"%s\".", linenum, filename);
-        goto load_error;
-      }
-
-      *proxy_user = strdup(token);
-    }
-    else if (!_cups_strcasecmp(token, "STRINGS") && strings)
-    {
-      server_lang_t	lang;			/* New localization */
-      char		stringsfile[1024];	/* Strings filename */
-
-      if (!get_token(fp, token, sizeof(token), &linenum))
-      {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing STRINGS language on line %d of \"%s\".", linenum, filename);
-        goto load_error;
-      }
-
-      if (!get_token(fp, stringsfile, sizeof(stringsfile), &linenum))
-      {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Missing STRINGS filename on line %d of \"%s\".", linenum, filename);
-        goto load_error;
-      }
-
-      lang.lang     = token;
-      lang.filename = stringsfile;
-
-      if (!*strings)
-        *strings = cupsArrayNew3((cups_array_func_t)compare_lang, NULL, NULL, 0, (cups_acopy_func_t)copy_lang, (cups_afree_func_t)free_lang);
-
-      cupsArrayAdd(*strings, &lang);
-
-      serverLog(SERVER_LOGLEVEL_DEBUG, "Added strings file \"%s\" for language \"%s\".", stringsfile, token);
-    }
-    else
-    {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Unknown directive \"%s\" on line %d of \"%s\".", token, linenum, filename);
-      goto load_error;
-    }
-  }
-
-  cupsFileClose(fp);
-
-  return (attrs);
-
- /*
-  * If we get here something bad happened...
-  */
-
-  load_error:
-
-  cupsFileClose(fp);
-
-  ippDelete(attrs);
-
-  return (NULL);
+  _ipp_vars_t	vars;			/* IPP variables */
+
+
+  _ippVarsInit(&vars);
+
+  pinfo->attrs = _ippFileParse(&vars, filename, (_ipp_ftoken_cb_t)token_cb, (_ipp_ferror_cb_t)error_cb, (void *)pinfo);
+
+  _ippVarsDeinit(&vars);
+
+#if 0
+  static const char * const ignored[] =
+  {					/* Ignored attributes */
+    "attributes-charset",
+    "attributes-natural-language",
+    "charset-configured",
+    "charset-supported",
+    "device-service-count",
+    "device-uuid",
+    "document-format-varying-attributes",
+    "job-settable-attributes-supported",
+    "pages-per-minute",
+    "pages-per-minute-color",
+    "printer-alert",
+    "printer-alert-description",
+    "printer-camera-image-uri",
+    "printer-charge-info",
+    "printer-charge-info-uri",
+    "printer-config-change-date-time",
+    "printer-config-change-time",
+    "printer-current-time",
+    "printer-detailed-status-messages",
+    "printer-dns-sd-name",
+    "printer-fax-log-uri",
+    "printer-finisher",
+    "printer-finisher-description",
+    "printer-finisher-supplies",
+    "printer-finisher-supplies-description",
+    "printer-get-attributes-supported",
+    "printer-icons",
+    "printer-id",
+    "printer-input-tray",
+    "printer-is-accepting-jobs",
+    "printer-message-date-time",
+    "printer-message-from-operator",
+    "printer-message-time",
+    "printer-more-info",
+    "printer-output-tray",
+    "printer-service-type",
+    "printer-settable-attributes-supported",
+    "printer-state",
+    "printer-state-message",
+    "printer-state-reasons",
+    "printer-static-resource-directory-uri",
+    "printer-static-resource-k-octets-free",
+    "printer-static-resource-k-octets-supported",
+    "printer-strings-languages-supported",
+    "printer-strings-uri",
+    "printer-supply",
+    "printer-supply-description",
+    "printer-supply-info-uri",
+    "printer-up-time",
+    "printer-uri-supported",
+    "printer-uuid",
+    "printer-xri-supported",
+    "queued-job-count",
+    "uri-authentication-supported",
+    "uri-security-supported",
+    "xri-authentication-supported",
+    "xri-security-supported",
+    "xri-uri-scheme-supported"
+  };
+#endif /* 0 */
+
+  return (pinfo->attrs != NULL);
 }
 
 
@@ -762,15 +352,7 @@ serverLoadConfiguration(
 		resource[1024],		/* Resource path */
                 *ptr;			/* Pointer into filename */
   server_printer_t *printer;		/* Printer */
-  ipp_t		*attrs;			/* Printer attributes */
-  char		*authtype,		/* AuthType value, if any */
-		*command,		/* Command value, if any */
-		*device_uri,		/* DeviceURI value, if any */
-		*output_format,		/* OutputFormat value, if any */
-		*make,			/* Make value, if any */
-		*model,			/* Model value, if any */
-		*proxy_user;		/* ProxyUser value, if any */
-  cups_array_t	*strings;		/* Strings files, if any */
+  server_pinfo_t pinfo;			/* Printer information */
 
 
  /*
@@ -805,16 +387,18 @@ serverLoadConfiguration(
 
         snprintf(filename, sizeof(filename), "%s/print/%s", directory, dent->filename);
         *ptr = '\0';
+
+        memset(&pinfo, 0, sizeof(pinfo));
+
         snprintf(iconname, sizeof(iconname), "%s/print/%s.png", directory, dent->filename);
+        if (!access(iconname, R_OK))
+          pinfo.icon = strdup(iconname);
 
-        authtype = command = device_uri = output_format = make = model = proxy_user = NULL;
-        strings  = NULL;
-
-        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &output_format, &make, &model, &proxy_user, &strings)) != NULL)
+        if (serverLoadAttributes(filename, &pinfo))
 	{
           snprintf(resource, sizeof(resource), "/ipp/print/%s", dent->filename);
 
-	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, output_format, proxy_user, strings)) == NULL)
+	  if ((printer = serverCreatePrinter(resource, dent->filename, &pinfo)) == NULL)
             continue;
 
 	  if (!Printers)
@@ -825,7 +409,6 @@ serverLoadConfiguration(
       }
       else if (!strstr(dent->filename, ".png"))
         serverLog(SERVER_LOGLEVEL_INFO, "Skipping \"%s\".", dent->filename);
-
     }
 
     cupsDirClose(dir);
@@ -852,16 +435,18 @@ serverLoadConfiguration(
 
         snprintf(filename, sizeof(filename), "%s/print3d/%s", directory, dent->filename);
         *ptr = '\0';
+
+        memset(&pinfo, 0, sizeof(pinfo));
+
         snprintf(iconname, sizeof(iconname), "%s/print3d/%s.png", directory, dent->filename);
+        if (!access(iconname, R_OK))
+          pinfo.icon = strdup(iconname);
 
-        authtype = command = device_uri = output_format = make = model = proxy_user = NULL;
-        strings  = NULL;
-
-        if ((attrs = serverLoadAttributes(filename, &authtype, &command, &device_uri, &output_format, &make, &model, &proxy_user, &strings)) != NULL)
+        if (serverLoadAttributes(filename, &pinfo))
 	{
           snprintf(resource, sizeof(resource), "/ipp/print3d/%s", dent->filename);
 
-	  if ((printer = serverCreatePrinter(resource, dent->filename, NULL, make, model, access(iconname, R_OK) ? NULL : iconname, NULL, 0, 0, 0, 0, attrs, command, device_uri, output_format, proxy_user, strings)) == NULL)
+	  if ((printer = serverCreatePrinter(resource, dent->filename, &pinfo)) == NULL)
           continue;
 
 	  if (!Printers)
@@ -872,7 +457,6 @@ serverLoadConfiguration(
       }
       else if (!strstr(dent->filename, ".png"))
         serverLog(SERVER_LOGLEVEL_INFO, "Skipping \"%s\".", dent->filename);
-
     }
 
     cupsDirClose(dir);
@@ -963,6 +547,24 @@ dnssd_client_cb(
 
 
 /*
+ * 'error_cb()' - Log an error message.
+ */
+
+static int				/* O - 1 to continue, 0 to stop */
+error_cb(_ipp_file_t    *f,		/* I - IPP file data */
+         server_pinfo_t *pinfo,		/* I - Printer information */
+         const char     *error)		/* I - Error message */
+{
+  (void)f;
+  (void)pinfo;
+
+  serverLog(SERVER_LOGLEVEL_ERROR, "%s", error);
+
+  return (1);
+}
+
+
+/*
  * 'free_lang()' - Free a localization.
  */
 
@@ -972,345 +574,6 @@ free_lang(server_lang_t *a)		/* I - Localization */
   free(a->lang);
   free(a->filename);
   free(a);
-}
-
-
-/*
- * 'get_collection()' - Get a collection value from a file.
- */
-
-static ipp_t *				/* O  - Collection value */
-get_collection(cups_file_t *fp,		/* I  - File to read from */
-               const char  *filename,	/* I  - Attributes filename */
-	       int         *linenum)	/* IO - Line number */
-{
-  char		token[1024],		/* Token from file */
-		attr[128];		/* Attribute name */
-  ipp_tag_t	value;			/* Current value type */
-  ipp_t		*col = ippNew();	/* Collection value */
-  ipp_attribute_t *lastcol = NULL;	/* Last collection attribute */
-
-
-  while (get_token(fp, token, sizeof(token), linenum) != NULL)
-  {
-    if (!strcmp(token, "}"))
-      break;
-    else if (!strcmp(token, "{") && lastcol)
-    {
-     /*
-      * Another collection value
-      */
-
-      ipp_t	*subcol = get_collection(fp, filename, linenum);
-					/* Collection value */
-
-      if (subcol)
-        ippSetCollection(col, &lastcol, ippGetCount(lastcol), subcol);
-      else
-	goto col_error;
-    }
-    else if (!_cups_strcasecmp(token, "MEMBER"))
-    {
-     /*
-      * Attribute...
-      */
-
-      lastcol = NULL;
-
-      if (!get_token(fp, token, sizeof(token), linenum))
-      {
-	fprintf(stderr, "ippserver: Missing MEMBER value tag on line %d of \"%s\".\n", *linenum, filename);
-	goto col_error;
-      }
-
-      if ((value = ippTagValue(token)) == IPP_TAG_ZERO)
-      {
-	fprintf(stderr, "ippserver: Bad MEMBER value tag \"%s\" on line %d of \"%s\".\n", token, *linenum, filename);
-	goto col_error;
-      }
-
-      if (!get_token(fp, attr, sizeof(attr), linenum))
-      {
-	fprintf(stderr, "ippserver: Missing MEMBER name on line %d of \"%s\".\n", *linenum, filename);
-	goto col_error;
-      }
-
-      if (!get_token(fp, token, sizeof(token), linenum))
-      {
-	fprintf(stderr, "ippserver: Missing MEMBER value on line %d of \"%s\".\n", *linenum, filename);
-	goto col_error;
-      }
-
-      switch (value)
-      {
-	case IPP_TAG_BOOLEAN :
-	    if (!_cups_strcasecmp(token, "true"))
-	      ippAddBoolean(col, IPP_TAG_ZERO, attr, 1);
-	    else
-	      ippAddBoolean(col, IPP_TAG_ZERO, attr, (char)atoi(token));
-	    break;
-
-	case IPP_TAG_INTEGER :
-	case IPP_TAG_ENUM :
-	    ippAddInteger(col, IPP_TAG_ZERO, value, attr, atoi(token));
-	    break;
-
-	case IPP_TAG_RESOLUTION :
-	    {
-	      int	xres,		/* X resolution */
-			yres;		/* Y resolution */
-	      char	units[6];	/* Units */
-
-	      if (sscanf(token, "%dx%d%5s", &xres, &yres, units) != 3 ||
-		  (_cups_strcasecmp(units, "dpi") &&
-		   _cups_strcasecmp(units, "dpc") &&
-		   _cups_strcasecmp(units, "dpcm") &&
-		   _cups_strcasecmp(units, "other")))
-	      {
-		fprintf(stderr, "ippserver: Bad resolution value \"%s\" on line %d of \"%s\".\n", token, *linenum, filename);
-		goto col_error;
-	      }
-
-	      if (!_cups_strcasecmp(units, "dpi"))
-		ippAddResolution(col, IPP_TAG_ZERO, attr, IPP_RES_PER_INCH, xres, yres);
-	      else if (!_cups_strcasecmp(units, "dpc") ||
-	               !_cups_strcasecmp(units, "dpcm"))
-		ippAddResolution(col, IPP_TAG_ZERO, attr, IPP_RES_PER_CM, xres, yres);
-	      else
-		ippAddResolution(col, IPP_TAG_ZERO, attr, (ipp_res_t)0, xres, yres);
-	    }
-	    break;
-
-	case IPP_TAG_RANGE :
-	    {
-	      int	lowers[4],	/* Lower value */
-			uppers[4],	/* Upper values */
-			num_vals;	/* Number of values */
-
-
-	      num_vals = sscanf(token, "%d-%d,%d-%d,%d-%d,%d-%d",
-				lowers + 0, uppers + 0,
-				lowers + 1, uppers + 1,
-				lowers + 2, uppers + 2,
-				lowers + 3, uppers + 3);
-
-	      if ((num_vals & 1) || num_vals == 0)
-	      {
-		fprintf(stderr, "ippserver: Bad rangeOfInteger value \"%s\" on line %d of \"%s\".\n", token, *linenum, filename);
-		goto col_error;
-	      }
-
-	      ippAddRanges(col, IPP_TAG_ZERO, attr, num_vals / 2, lowers,
-			   uppers);
-	    }
-	    break;
-
-	case IPP_TAG_BEGIN_COLLECTION :
-	    if (!strcmp(token, "{"))
-	    {
-	      ipp_t	*subcol = get_collection(fp, filename, linenum);
-				      /* Collection value */
-
-	      if (subcol)
-	      {
-		lastcol = ippAddCollection(col, IPP_TAG_ZERO, attr, subcol);
-		ippDelete(subcol);
-	      }
-	      else
-		goto col_error;
-	    }
-	    else
-	    {
-	      fprintf(stderr, "ippserver: Bad collection value on line %d of \"%s\".\n", *linenum, filename);
-	      goto col_error;
-	    }
-	    break;
-	case IPP_TAG_STRING :
-	    ippAddOctetString(col, IPP_TAG_ZERO, attr, token, (int)strlen(token));
-	    break;
-
-	default :
-	    if (!strchr(token, ','))
-	      ippAddString(col, IPP_TAG_ZERO, value, attr, NULL, token);
-	    else
-	    {
-	     /*
-	      * Multiple string values...
-	      */
-
-	      int	num_values;	/* Number of values */
-	      char	*values[100],	/* Values */
-			*ptr;		/* Pointer to next value */
-
-
-	      values[0]  = token;
-	      num_values = 1;
-
-	      for (ptr = strchr(token, ','); ptr; ptr = strchr(ptr, ','))
-	      {
-		*ptr++ = '\0';
-		values[num_values] = ptr;
-		num_values ++;
-		if (num_values >= (int)(sizeof(values) / sizeof(values[0])))
-		  break;
-	      }
-
-	      ippAddStrings(col, IPP_TAG_ZERO, value, attr, num_values,
-			    NULL, (const char **)values);
-	    }
-	    break;
-      }
-    }
-  }
-
-  return (col);
-
- /*
-  * If we get here there was a parse error; free memory and return.
-  */
-
-  col_error:
-
-  ippDelete(col);
-
-  return (NULL);
-}
-
-
-/*
- * 'get_token()' - Get a token from a file.
- */
-
-static char *				/* O  - Token from file or NULL on EOF */
-get_token(cups_file_t *fp,		/* I  - File to read from */
-          char        *buf,		/* I  - Buffer to read into */
-	  int         buflen,		/* I  - Length of buffer */
-	  int         *linenum)		/* IO - Current line number */
-{
-  int	ch,				/* Character from file */
-	quote;				/* Quoting character */
-  char	*bufptr,			/* Pointer into buffer */
-	*bufend;			/* End of buffer */
-
-
-  for (;;)
-  {
-   /*
-    * Skip whitespace...
-    */
-
-    while (isspace(ch = cupsFileGetChar(fp)))
-    {
-      if (ch == '\n')
-        (*linenum) ++;
-    }
-
-   /*
-    * Read a token...
-    */
-
-    if (ch == EOF)
-      return (NULL);
-    else if (ch == '\'' || ch == '\"')
-    {
-     /*
-      * Quoted text or regular expression...
-      */
-
-      quote  = ch;
-      bufptr = buf;
-      bufend = buf + buflen - 1;
-
-      while ((ch = cupsFileGetChar(fp)) != EOF)
-      {
-        if (ch == '\\')
-	{
-	 /*
-	  * Escape next character...
-	  */
-
-	  if (bufptr < bufend)
-	    *bufptr++ = (char)ch;
-
-	  if ((ch = cupsFileGetChar(fp)) != EOF && bufptr < bufend)
-	    *bufptr++ = (char)ch;
-	}
-	else if (ch == quote)
-          break;
-	else if (bufptr < bufend)
-          *bufptr++ = (char)ch;
-      }
-
-      *bufptr = '\0';
-
-      return (buf);
-    }
-    else if (ch == '#')
-    {
-     /*
-      * Comment...
-      */
-
-      while ((ch = cupsFileGetChar(fp)) != EOF)
-      {
-	if (ch == '\n')
-	{
-          (*linenum) ++;
-          break;
-        }
-      }
-    }
-    else if (ch == '{' || ch == '}' || ch == ',')
-    {
-      buf[0] = (char)ch;
-      buf[1] = '\0';
-
-      return (buf);
-    }
-    else
-    {
-     /*
-      * Whitespace delimited text...
-      */
-
-      bufptr = buf;
-      bufend = buf + buflen - 1;
-
-      do
-      {
-	if (isspace(ch) || ch == '#')
-          break;
-	else if (bufptr < bufend)
-          *bufptr++ = (char)ch;
-      }
-      while ((ch = cupsFileGetChar(fp)) != EOF);
-
-      if (ch == '#')
-      {
-        while ((ch = cupsFileGetChar(fp)) != EOF)
-        {
-          if (ch == '\n')
-          {
-            (*linenum) ++;
-            break;
-          }
-        }
-      }
-      else if (ch == '\n')
-      {
-       /*
-        * Rewind 1 character so that the "\n" is handled on the next call,
-        * otherwise the line number for this token will be incorrect.
-        */
-
-        cupsFileSeek(fp, cupsFileTell(fp) - 1);
-      }
-
-      *bufptr = '\0';
-
-      return (buf);
-    }
-  }
 }
 
 
@@ -1473,4 +736,154 @@ load_system(const char *conf)		/* I - Configuration file */
   cupsFileClose(fp);
 
   return (status);
+}
+
+
+/*
+ * 'token_cb()' - Process ippserver-specific config file tokens.
+ */
+
+static int				/* O - 1 to continue, 0 to stop */
+token_cb(_ipp_file_t    *f,		/* I - IPP file data */
+         _ipp_vars_t    *vars,		/* I - IPP variables */
+         server_pinfo_t *pinfo,		/* I - Printer information */
+         const char     *token)		/* I - Current token */
+{
+  char	temp[1024],			/* Temporary string */
+	value[1024];			/* Value string */
+
+
+  if (!token)
+  {
+   /*
+    * NULL token means do the initial setup - create an empty IPP message and
+    * return...
+    */
+
+    f->attrs = ippNew();
+
+    return (1);
+  }
+  else if (!_cups_strcasecmp(token, "AUTHTYPE"))
+  {
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing AuthType value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    _ippVarsExpand(vars, value, temp, sizeof(value));
+
+    pinfo->auth_type = strdup(value);
+  }
+  else if (!_cups_strcasecmp(token, "COMMAND"))
+  {
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Command value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    _ippVarsExpand(vars, value, temp, sizeof(value));
+
+    pinfo->command = strdup(value);
+  }
+  else if (!_cups_strcasecmp(token, "DEVICEURI"))
+  {
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing DeviceURI value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    _ippVarsExpand(vars, value, temp, sizeof(value));
+
+    pinfo->device_uri = strdup(value);
+  }
+  else if (!_cups_strcasecmp(token, "OUTPUTFORMAT"))
+  {
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing OutputFormat value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    _ippVarsExpand(vars, value, temp, sizeof(value));
+
+    pinfo->output_format = strdup(value);
+  }
+  else if (!_cups_strcasecmp(token, "MAKE"))
+  {
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Make value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    _ippVarsExpand(vars, value, temp, sizeof(value));
+
+    pinfo->make = strdup(value);
+  }
+  else if (!_cups_strcasecmp(token, "MODEL"))
+  {
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Model value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    _ippVarsExpand(vars, value, temp, sizeof(value));
+
+    pinfo->model = strdup(value);
+  }
+  else if (!_cups_strcasecmp(token, "PROXYUSER"))
+  {
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing ProxyUser value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    _ippVarsExpand(vars, value, temp, sizeof(value));
+
+    pinfo->proxy_user = strdup(value);
+  }
+  else if (!_cups_strcasecmp(token, "STRINGS"))
+  {
+    server_lang_t	lang;			/* New localization */
+    char		stringsfile[1024];	/* Strings filename */
+
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing STRINGS language on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    _ippVarsExpand(vars, value, temp, sizeof(value));
+
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing STRINGS filename on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    _ippVarsExpand(vars, stringsfile, temp, sizeof(stringsfile));
+
+    lang.lang     = value;
+    lang.filename = stringsfile;
+
+    if (!pinfo->strings)
+      pinfo->strings = cupsArrayNew3((cups_array_func_t)compare_lang, NULL, NULL, 0, (cups_acopy_func_t)copy_lang, (cups_afree_func_t)free_lang);
+
+    cupsArrayAdd(pinfo->strings, &lang);
+
+    serverLog(SERVER_LOGLEVEL_DEBUG, "Added strings file \"%s\" for language \"%s\".", stringsfile, value);
+  }
+  else
+  {
+    serverLog(SERVER_LOGLEVEL_ERROR, "Unknown directive \"%s\" on line %d of \"%s\".", token, f->linenum, f->filename);
+    return (0);
+  }
+
+  return (1);
 }

@@ -1,16 +1,11 @@
 /*
  * Header file for sample IPP server implementation.
  *
- * Copyright 2014-2017 by the IEEE-ISTO Printer Working Group
- * Copyright 2010-2017 by Apple Inc.
+ * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2010-2018 by Apple Inc.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more
+ * information.
  */
 
 /*
@@ -368,6 +363,26 @@ typedef struct server_lang_s		/**** Localization data ****/
 			*filename;	/* Strings file */
 } server_lang_t;
 
+typedef struct server_pinfo_s		/**** Printer information ****/
+{
+  char		*icon,			/* Icon file */
+		*location,		/* Location of printer */
+		*make,			/* Manufacturer */
+		*model,			/* Model */
+		*document_formats,	/* Supported input formats */
+		*command,		/* Command to run with job files */
+		*device_uri,		/* Device URI */
+		*output_format,		/* Output format */
+		*auth_type,		/* Type of authentication */
+		*proxy_user;		/* Proxy user, if any */
+  int		duplex,			/* Duplex mode */
+		pin,			/* PIN printing mode? */
+		ppm,			/* Pages per minute for mono */
+		ppm_color;		/* Pages per minute for color */
+  ipp_t		*attrs;			/* Printer attributes */
+  cups_array_t	*strings;		/* Strings files */
+} server_pinfo_t;
+
 typedef struct server_printer_s		/**** Printer data ****/
 {
   _cups_rwlock_t	rwlock;		/* Printer lock */
@@ -379,18 +394,12 @@ typedef struct server_printer_s		/**** Printer data ****/
 			printer_ref;	/* Bonjour LPD service */
   server_loc_t		geo_ref;	/* Bonjour geo-location */
   char			*default_uri,	/* Default/first URI */
-			*resource,	/* Resource path */
-                        *dnssd_name,	/* printer-dnssd-name */
+			*dnssd_name,	/* printer-dnssd-name */
 			*name,		/* printer-name */
-                        *icon,		/* Icon file */
-                        *command,	/* Command to run for job processing, if any */
-                        *device_uri,	/* Output device URI, if any */
-			*output_format,	/* Output format, if any */
-			*proxy_user;	/* Proxy username, if any */
-  cups_array_t		*strings;	/* Strings files for various languages */
+			*resource;	/* Resource path */
   size_t		resourcelen;	/* Length of resource path */
+  server_pinfo_t	pinfo;		/* Printer information */
   cups_array_t		*devices;	/* Associated devices */
-  ipp_t			*attrs;		/* Static attributes */
   ipp_t			*dev_attrs;	/* Current device attributes */
   time_t		start_time;	/* Startup time */
   time_t		config_time;	/* printer-config-change-time */
@@ -534,7 +543,7 @@ extern server_device_t	*serverCreateDevice(server_client_t *client);
 extern server_job_t	*serverCreateJob(server_client_t *client);
 extern void		serverCreateJobFilename(server_printer_t *printer, server_job_t *job, const char *format, char *fname, size_t fnamesize);
 extern int		serverCreateListeners(const char *host, int port);
-extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, const char *location, const char *make, const char *model, const char *icon, const char *docformats, int ppm, int ppm_color, int duplex, int pin, ipp_t *attrs, const char *command, const char *device_uri, const char *output_format, const char *proxy_user, cups_array_t *strings);
+extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, server_pinfo_t *pinfo);
 extern server_subscription_t *serverCreateSubcription(server_printer_t *printer, server_job_t *job, int interval, int lease, const char *username, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
 extern void		serverDeleteClient(server_client_t *client);
 extern void		serverDeleteDevice(server_device_t *device);
@@ -551,7 +560,7 @@ extern server_jreason_t	serverGetJobStateReasonsBits(ipp_attribute_t *attr);
 extern server_event_t	serverGetNotifyEventsBits(ipp_attribute_t *attr);
 extern const char	*serverGetNotifySubscribedEvent(server_event_t event);
 extern server_preason_t	serverGetPrinterStateReasonsBits(ipp_attribute_t *attr);
-extern ipp_t		*serverLoadAttributes(const char *filename, char **authtype, char **command, char **device_uri, char **output_format, char **make, char **model, char **proxy_user, cups_array_t **strings);
+extern int		serverLoadAttributes(const char *filename, server_pinfo_t *pinfo);
 extern int		serverLoadConfiguration(const char *directory);
 extern void		serverLog(server_loglevel_t level, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
 extern void		serverLogAttributes(server_client_t *client, const char *title, ipp_t *ipp, int type);

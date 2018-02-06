@@ -1,15 +1,11 @@
 /*
  * Transform code for sample IPP server implementation.
  *
- * Copyright 2015-2017 by Apple Inc.
+ * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2015-2018 by Apple Inc.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more
+ * information.
  */
 
 #include "ippserver.h"
@@ -95,7 +91,7 @@ serverTransformJob(
   if (asprintf(myenvp + myenvc, "CONTENT_TYPE=%s", job->format) > 0)
     myenvc ++;
 
-  if (job->printer->device_uri && asprintf(myenvp + myenvc, "DEVICE_URI=%s", job->printer->device_uri) > 0)
+  if (job->printer->pinfo.device_uri && asprintf(myenvp + myenvc, "DEVICE_URI=%s", job->printer->pinfo.device_uri) > 0)
     myenvc ++;
 
   if ((attr = ippFindAttribute(job->attrs, "document-name", IPP_TAG_NAME)) != NULL && asprintf(myenvp + myenvc, "DOCUMENT_NAME=%s", ippGetString(attr, 0, NULL)) > 0)
@@ -106,7 +102,7 @@ serverTransformJob(
   if (format && asprintf(myenvp + myenvc, "OUTPUT_TYPE=%s", format) > 0)
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->attrs, "materials-col-default", IPP_TAG_BEGIN_COLLECTION)) != NULL)
+  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "materials-col-default", IPP_TAG_BEGIN_COLLECTION)) != NULL)
   {
     ippAttributeString(attr, val, sizeof(val));
 
@@ -114,31 +110,31 @@ serverTransformJob(
       myenvc ++;
   }
 
-  if ((attr = ippFindAttribute(job->printer->attrs, "media-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_MEDIA_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "media-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_MEDIA_DEFAULT=%s", ippGetString(attr, 0, NULL)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->attrs, "platform-temperature-default", IPP_TAG_INTEGER)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PLATFORM_TEMPERATURE_DEFAULT=%d", ippGetInteger(attr, 0)))
+  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "platform-temperature-default", IPP_TAG_INTEGER)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PLATFORM_TEMPERATURE_DEFAULT=%d", ippGetInteger(attr, 0)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->attrs, "print-base-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PRINT_BASE_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "print-base-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PRINT_BASE_DEFAULT=%s", ippGetString(attr, 0, NULL)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->attrs, "print-quality-default", IPP_TAG_ENUM)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PRINT_QUALITY_DEFAULT=%d", ippGetInteger(attr, 0)))
+  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "print-quality-default", IPP_TAG_ENUM)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PRINT_QUALITY_DEFAULT=%d", ippGetInteger(attr, 0)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->attrs, "print-supports-default", IPP_TAG_INTEGER)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PPRINT_SUPPORTS_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "print-supports-default", IPP_TAG_INTEGER)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PPRINT_SUPPORTS_DEFAULT=%s", ippGetString(attr, 0, NULL)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->attrs, "sides-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_SIDES_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "sides-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_SIDES_DEFAULT=%s", ippGetString(attr, 0, NULL)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->attrs, "pwg-raster-document-resolution-supported", IPP_TAG_RESOLUTION)) != NULL && ippAttributeString(attr, val, sizeof(val)) > 0 && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED=%s", val) > 0)
+  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "pwg-raster-document-resolution-supported", IPP_TAG_RESOLUTION)) != NULL && ippAttributeString(attr, val, sizeof(val)) > 0 && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED=%s", val) > 0)
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->attrs, "pwg-raster-document-sheet-back", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_SHEET_BACK=%s", ippGetString(attr, 0, NULL)) > 0)
+  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "pwg-raster-document-sheet-back", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_SHEET_BACK=%s", ippGetString(attr, 0, NULL)) > 0)
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->attrs, "pwg-raster-document-type-supported", IPP_TAG_RESOLUTION)) != NULL && ippAttributeString(attr, val, sizeof(val)) > 0 && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_TYPE_SUPPORTED=%s", val) > 0)
+  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "pwg-raster-document-type-supported", IPP_TAG_RESOLUTION)) != NULL && ippAttributeString(attr, val, sizeof(val)) > 0 && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_TYPE_SUPPORTED=%s", val) > 0)
     myenvc ++;
 
   if (LogLevel == SERVER_LOGLEVEL_INFO)
