@@ -1,8 +1,8 @@
 #
 # Makefile for sample IPP server implementation.
 #
-# Copyright 2014-2017 by the IEEE-ISTO Printer Working Group.
-# Copyright 2015-2017 by Apple Inc.
+# Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
+# Copyright © 2015-2018 by Apple Inc.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
 # information.
@@ -65,6 +65,13 @@ depend:
 install:	all
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(sbindir)
 	$(INSTALL_BIN) ippserver $(BUILDROOT)$(sbindir)/$(IPP)server
+
+
+#
+# Test the server.
+#
+
+test:
 
 
 #

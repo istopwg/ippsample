@@ -1,5 +1,5 @@
 #
-# API library Makefile for CUPS.
+# API library Makefile for the CUPS library.
 #
 # Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
 # Copyright © 2007-2018 by Apple Inc.
@@ -122,6 +122,13 @@ install:	all
 
 
 #
+# Test the library.
+#
+
+test:
+
+
+#
 # libcups.a
 #
 
@@ -144,7 +151,7 @@ libcups2.def: $(OBJS) Makefile
 	(nm $(OBJS) 2>/dev/null | grep "T _" | awk '{print $$3}'; \
 	 echo __cups_strcpy; echo __cups_strlcat; echo __cups_strlcpy) | \
 		grep -v -E \
-		    -e 'cups_debug|Apple|BackChannel|Backend|FileCheck|Filter|GSSService|SetNegotiate|SideChannel' \
+		    -e 'cups_debug|Apple|GSSService|SetNegotiate' \
 		    -e 'Block$$' | \
 		sed -e '1,$$s/^_//' | sort >>libcups2.def
 
