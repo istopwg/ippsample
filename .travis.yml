@@ -1,0 +1,25 @@
+#
+# Travis CI configuration file for the IPP sample project.
+#
+# Copyright © 2018 by the IEEE-ISTO Printer Working Group.
+#
+# Licensed under Apache License v2.0.  See the file "LICENSE" for more
+# information.
+#
+
+language: c
+
+matrix:
+  include:
+    # Linux-specific build stuff
+    - os: linux
+      compiler:
+        - clang
+        - gcc
+      before_install:
+        - sudo apt-get -qq update
+        - sudo apt-get install -y avahi-daemon avahi-utils libavahi-client-dev libgnutls28-dev libjpeg-dev libnss-mdns libpng-dev zlib1g-dev
+
+    # macOS-specific build stuff
+    - os: osx
+      osx_image: xcode9.2
