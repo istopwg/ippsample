@@ -1,5 +1,7 @@
 # IPP Sample Implementations
 
+[![Snap Status](https://build.snapcraft.io/badge/istopwg/ippsample.svg)](https://build.snapcraft.io/user/istopwg/ippsample)
+
 This code provides sample implementations of IPP Clients, Printers, and Proxies.
 It is largely based upon the [CUPS](https://www.cups.org/) software, with
 substantial changes to the ippproxy and ippserver implementations to make them
