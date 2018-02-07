@@ -229,7 +229,7 @@ server_log_to_file(
     * When logging to a file, use the syslog format...
     */
 
-    snprintf(buffer, sizeof(buffer), "%s1 %04d-%02d-%02dT%02d:%02d:%02d.%03dZ %s ippserver %d -  ", pris[level], curdate->tm_year + 1900, curdate->tm_mon + 1, curdate->tm_mday, curdate->tm_hour, curdate->tm_min, curdate->tm_sec, curtime.tv_usec / 1000, ServerName, getpid());
+    snprintf(buffer, sizeof(buffer), "%s1 %04d-%02d-%02dT%02d:%02d:%02d.%03dZ %s ippserver %d -  ", pris[level], curdate->tm_year + 1900, curdate->tm_mon + 1, curdate->tm_mday, curdate->tm_hour, curdate->tm_min, curdate->tm_sec, (int)curtime.tv_usec / 1000, ServerName, getpid());
   }
   else
   {
@@ -237,7 +237,7 @@ server_log_to_file(
     * Otherwise just include the date and time for convenience...
     */
 
-    snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ  ", curdate->tm_year + 1900, curdate->tm_mon + 1, curdate->tm_mday, curdate->tm_hour, curdate->tm_min, curdate->tm_sec, curtime.tv_usec / 1000);
+    snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ  ", curdate->tm_year + 1900, curdate->tm_mon + 1, curdate->tm_mday, curdate->tm_hour, curdate->tm_min, curdate->tm_sec, (int)curtime.tv_usec / 1000);
   }
 
   bufptr = buffer + strlen(buffer);
