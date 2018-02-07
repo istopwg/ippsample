@@ -1829,9 +1829,9 @@ register_printer(
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "product=(%s)", printer->pinfo.model);
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "Color=%s", printer->pinfo.ppm_color ? "T" : "F");
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "Duplex=%s", printer->pinfo.duplex ? "T" : "F");
-    if (make)
+    if (printer->pinfo.make)
       ipp_txt = avahi_string_list_add_printf(ipp_txt, "usb_MFG=%s", printer->pinfo.make);
-    if (model)
+    if (printer->pinfo.model)
       ipp_txt = avahi_string_list_add_printf(ipp_txt, "usb_MDL=%s", printer->pinfo.model);
   }
 
