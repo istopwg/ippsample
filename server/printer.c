@@ -1800,10 +1800,10 @@ register_printer(
 
   ipp_txt = NULL;
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "rp=%s", printer->resource + 1);
-  ipp_txt = avahi_string_list_add_printf(ipp_txt, "ty=%s %s", make, model);
+  ipp_txt = avahi_string_list_add_printf(ipp_txt, "ty=%s %s", printer->pinfo.make, printer->pinfo.model);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "adminurl=%s", adminurl);
-  if (location && *location)
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "note=%s", location);
+  if (printer->pinfo.location && *(printer->pinfo.location))
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "note=%s", printer->pinfo.location);
   if (format_sup)
   {
     for (i = 0, count = ippGetCount(format_sup), ptr = temp; i < count; i ++)
@@ -1826,13 +1826,13 @@ register_printer(
 
   if (!is_print3d)
   {
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "product=(%s)", model);
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "Color=%s", color ? "T" : "F");
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "Duplex=%s", duplex ? "T" : "F");
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "product=(%s)", printer->pinfo.model);
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "Color=%s", printer->pinfo.ppm_color ? "T" : "F");
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "Duplex=%s", printer->pinfo.duplex ? "T" : "F");
     if (make)
-      ipp_txt = avahi_string_list_add_printf(ipp_txt, "usb_MFG=%s", make);
+      ipp_txt = avahi_string_list_add_printf(ipp_txt, "usb_MFG=%s", printer->pinfo.make);
     if (model)
-      ipp_txt = avahi_string_list_add_printf(ipp_txt, "usb_MDL=%s", model);
+      ipp_txt = avahi_string_list_add_printf(ipp_txt, "usb_MDL=%s", printer->pinfo.model);
   }
 
   uuidval = ippGetString(uuid, 0, NULL);
