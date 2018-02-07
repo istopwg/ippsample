@@ -5,6 +5,16 @@ config.log
 config.status
 cups/libcups.a
 cups/org.pwg.ippsample.*
+cups/test.raster
+cups/testarray
+cups/testclient
+cups/testdest
+cups/testfile
+cups/testhttp
+cups/testi18n
+cups/testipp
+cups/testoptions
+cups/testraster
 doc/mantohtml
 parts
 prime

@@ -23,7 +23,7 @@ OPTIONS	=	-D_CUPS_NO_DEPRECATED=1
 # Object files...
 #
 
-OBJS	=	\
+LIBOBJS	=	\
 		array.o \
 		auth.o \
 		debug.o \
@@ -63,6 +63,19 @@ OBJS	=	\
 		transcode.o \
 		usersys.o \
 		util.o
+TESTOBJS =	\
+		testarray.o \
+		testclient.o \
+		testdest.o \
+		testfile.o \
+		testhttp.o \
+		testi18n.o \
+		testipp.o \
+		testoptions.o \
+		testraster.o
+OBJS	=	\
+		$(LIBOBJS) \
+		$(TESTOBJS)
 HEADERS =       \
                 array.h \
                 cups.h \
@@ -82,6 +95,7 @@ HEADERS =       \
 #
 
 TARGETS =	libcups.a
+TESTS	=	$(TESTOBJS:.o=)
 
 
 #
@@ -96,7 +110,7 @@ all:		$(TARGETS)
 #
 
 clean:
-	$(RM) $(OBJS) $(TARGETS)
+	$(RM) $(OBJS) $(TARGETS) $(TESTS)
 
 
 #
@@ -125,17 +139,23 @@ install:	all
 # Test the library.
 #
 
-test:
+test:	$(TESTS)
+	echo Running unit tests...
+	for test in $(TESTS); do \
+		echo ""; \
+		echo Running $$test...; \
+		./$$test || exit 1; \
+	done
 
 
 #
 # libcups.a
 #
 
-libcups.a:	$(OBJS)
+libcups.a:	$(LIBOBJS)
 	echo Archiving $@...
 	$(RM) $@
-	$(AR) $(ARFLAGS) $@ $(OBJS)
+	$(AR) $(ARFLAGS) $@ $(LIBOBJS)
 	$(RANLIB) $@
 
 
@@ -154,6 +174,39 @@ libcups2.def: $(OBJS) Makefile
 		    -e 'cups_debug|Apple|GSSService|SetNegotiate' \
 		    -e 'Block$$' | \
 		sed -e '1,$$s/^_//' | sort >>libcups2.def
+
+
+#
+# Unit tests
+#
+
+testarray: testarray.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testarray.o $(LIBS)
+testclient: testclient.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testclient.o $(LIBS)
+testdest: testdest.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testdest.o $(LIBS)
+testfile: testfile.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testfile.o $(LIBS)
+testhttp: testhttp.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testhttp.o $(LIBS)
+testi18n: testi18n.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testi18n.o $(LIBS)
+testipp: testipp.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testipp.o $(LIBS)
+testoptions: testoptions.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testoptions.o $(LIBS)
+testraster: testraster.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testraster.o $(LIBS)
 
 
 #
