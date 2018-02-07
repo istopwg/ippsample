@@ -5,6 +5,10 @@ It is largely based upon the [CUPS](https://www.cups.org/) software, with
 substantial changes to the ippproxy and ippserver implementations to make them
 more general-purpose and configurable.
 
+[![Travis Build Status](https://travis-ci.org/istopwg/ippsample.svg?branch=master)](https://travis-ci.org/istopwg/ippsample)
+[![Snap Status](https://build.snapcraft.io/badge/istopwg/ippsample.svg)](https://build.snapcraft.io/user/istopwg/ippsample)
+
+
 ## ippfind
 
 The ippfind program implements Bonjour/DNS-SD discovery of IPP printers and can
@@ -40,9 +44,9 @@ Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
 Copyright © 2007-2018 by Apple Inc.
 Copyright © 1997-2007 by Easy Software Products.
 
-CUPS is provided under the terms of the Apache License, Version 2.0.  A copy of
-this license can be found in the file `LICENSE`.  Additional legal information
-is provided in the file `NOTICE`.
+This software is provided under the terms of the Apache License, Version 2.0.
+A copy of this license can be found in the file `LICENSE`.  Additional legal
+information is provided in the file `NOTICE`.
 
 Unless required by applicable law or agreed to in writing, software distributed
 under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
