@@ -50,7 +50,6 @@ main(int  argc,				/* I - Number of command-line arguments */
 
   if (!strcmp(argv[1], "--get"))
   {
-    int		i;			/* Looping var */
     cups_dest_t	*dests;			/* Destinations */
     int		num_dests = cupsGetDests2(CUPS_HTTP_DEFAULT, &dests);
 					/* Number of destinations */
@@ -63,7 +62,6 @@ main(int  argc,				/* I - Number of command-line arguments */
   }
   else if (!strcmp(argv[1], "--enum"))
   {
-    int			i;		/* Looping var */
     cups_ptype_t	type = 0,	/* Printer type filter */
 			mask = 0;	/* Printer type mask */
 
