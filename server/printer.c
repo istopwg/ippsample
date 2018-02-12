@@ -1606,6 +1606,8 @@ register_printer(
   * Build the TXT record for IPP...
   */
 
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Building TXT record...");
+
   snprintf(make_model, sizeof(make_model), "%s %s", printer->pinfo.make, printer->pinfo.model);
   snprintf(product, sizeof(product), "(%s)", printer->pinfo.model);
 
@@ -1686,6 +1688,8 @@ register_printer(
   * defend our service name but not actually support LPD...
   */
 
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Registering LPD...");
+
   printer->printer_ref = DNSSDMaster;
 
   if ((error = DNSServiceRegister(&(printer->printer_ref),
@@ -1708,6 +1712,8 @@ register_printer(
 
   if (!is_print3d)
   {
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Registering IPP...");
+
     printer->ipp_ref = DNSSDMaster;
 
     if (subtype && *subtype)
@@ -1733,6 +1739,8 @@ register_printer(
 #  ifdef HAVE_SSL
   if (Encryption != HTTP_ENCRYPTION_NEVER)
   {
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Registering IPPS...");
+
     printer->ipps_ref = DNSSDMaster;
 
     if (is_print3d)
@@ -1763,12 +1771,20 @@ register_printer(
   }
 #  endif /* HAVE_SSL */
 
+ /*
+  * Register the geolocation of the service...
+  */
+
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Registering geolocation...");
+
   register_geo(printer);
 
  /*
   * Similarly, register the _http._tcp,_printer (HTTP) service type with the
   * real port number to advertise our IPP printer...
   */
+
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Registering web interface...");
 
   printer->http_ref = DNSSDMaster;
 
@@ -1797,6 +1813,8 @@ register_printer(
  /*
   * Create the TXT record...
   */
+
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Building TXT record...");
 
   ipp_txt = NULL;
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "rp=%s", printer->resource + 1);
@@ -1873,6 +1891,8 @@ register_printer(
 
   avahi_threaded_poll_lock(DNSSDMaster);
 
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Registering LPD...");
+
   printer->ipp_ref = avahi_entry_group_new(DNSSDClient, dnssd_callback, NULL);
 
   avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_printer._tcp", NULL, NULL, 0, NULL);
@@ -1883,6 +1903,8 @@ register_printer(
 
   if (!is_print3d)
   {
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Registering IPP...");
+
     avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPP_TYPE, NULL, NULL, lis->port, ipp_txt);
     if (subtype && *subtype)
     {
@@ -1894,6 +1916,8 @@ register_printer(
 #  ifdef HAVE_SSL
   if (Encryption != HTTP_ENCRYPTION_NEVER)
   {
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Registering IPPS...");
+
     if (is_print3d)
     {
       avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPPS_3D_TYPE, NULL, NULL, lis->port, ipp_txt);
@@ -1915,11 +1939,19 @@ register_printer(
   }
 #  endif /* HAVE_SSL */
 
+ /*
+  * Register the geolocation of the service...
+  */
+
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Registering geolocation...");
+
   register_geo(printer);
 
  /*
   * Finally _http.tcp (HTTP) for the web interface...
   */
+
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Registering web interface...");
 
   avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_WEB_TYPE, NULL, NULL, lis->port, NULL);
   avahi_entry_group_add_service_subtype(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_WEB_TYPE, NULL, "_printer._sub." SERVER_WEB_TYPE);
@@ -1933,6 +1965,8 @@ register_printer(
 
   avahi_string_list_free(ipp_txt);
 #endif /* HAVE_DNSSD */
+
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Done registering printer...");
 
   return (1);
 }
