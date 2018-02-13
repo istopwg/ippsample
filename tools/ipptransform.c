@@ -2073,10 +2073,15 @@ xform_document(
     ras.band_height = ras.header.cupsHeight;
 
   /* TODO: Update code to not use RGBA/GrayA pixmap now that MuPDF supports it */
-  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth, (int)ras.band_height, NULL, 1);
+#  if HAVE_FZ_NEW_PIXMAP_5_ARG
+  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth,  (int)ras.band_height, 1);
+#  else
+  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth,  (int)ras.band_height, NULL, 1);
   pixmap->flags = 0;
-  pixmap->xres  = (int)ras.header.HWResolution[0];
-  pixmap->yres  = (int)ras.header.HWResolution[1];
+#  endif /* HAVE_FZ_NEW_PIXMAP_5_ARG */
+
+  pixmap->xres = (int)ras.header.HWResolution[0];
+  pixmap->yres = (int)ras.header.HWResolution[1];
 
   xscale = ras.header.HWResolution[0] / 72.0;
   yscale = ras.header.HWResolution[1] / 72.0;

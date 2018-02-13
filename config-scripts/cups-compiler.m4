@@ -1,8 +1,8 @@
 dnl
 dnl Compiler stuff for the IPP sample code.
 dnl
-dnl Copyright 2007-2016 by Apple Inc.
-dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
+dnl Copyright © 2007-2018 by Apple Inc.
+dnl Copyright © 1997-2007 by Easy Software Products, all rights reserved.
 dnl
 dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
 dnl information.
@@ -136,6 +136,15 @@ if test -n "$GCC"; then
 	if test "x$with_optim" = x; then
 		# Add useful warning options for tracking down problems...
 		OPTIM="-Wall -Wno-format-y2k -Wunused $OPTIM"
+
+		AC_MSG_CHECKING(whether compiler supports -Wno-format-truncation)
+		OLDCFLAGS="$CFLAGS"
+		CFLAGS="$CFLAGS -Werror -Wno-format-truncation"
+		AC_TRY_COMPILE(,,
+			[OPTIM="$OPTIM -Wno-format-truncation"
+			AC_MSG_RESULT(yes)],
+			AC_MSG_RESULT(no))
+		CFLAGS="$OLDCFLAGS"
 
 		AC_MSG_CHECKING(whether compiler supports -Wno-unused-result)
 		OLDCFLAGS="$CFLAGS"

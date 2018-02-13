@@ -698,6 +698,7 @@ infodir
 docdir
 oldincludedir
 includedir
+runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -787,6 +788,7 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
+runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1039,6 +1041,15 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
+  -runstatedir | --runstatedir | --runstatedi | --runstated \
+  | --runstate | --runstat | --runsta | --runst | --runs \
+  | --run | --ru | --r)
+    ac_prev=runstatedir ;;
+  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
+  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
+  | --run=* | --ru=* | --r=*)
+    runstatedir=$ac_optarg ;;
+
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1176,7 +1187,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir
+		libdir localedir mandir runstatedir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1329,6 +1340,7 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -4527,6 +4539,230 @@ if test "$ac_res" != no; then :
 
 fi
 
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing jbig2_ctx_new" >&5
+$as_echo_n "checking for library containing jbig2_ctx_new... " >&6; }
+if ${ac_cv_search_jbig2_ctx_new+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char jbig2_ctx_new ();
+int
+main ()
+{
+return jbig2_ctx_new ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' mupdfthird jbig2dec; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_jbig2_ctx_new=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_jbig2_ctx_new+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_jbig2_ctx_new+:} false; then :
+
+else
+  ac_cv_search_jbig2_ctx_new=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_jbig2_ctx_new" >&5
+$as_echo "$ac_cv_search_jbig2_ctx_new" >&6; }
+ac_res=$ac_cv_search_jbig2_ctx_new
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing opj_create_decompress" >&5
+$as_echo_n "checking for library containing opj_create_decompress... " >&6; }
+if ${ac_cv_search_opj_create_decompress+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char opj_create_decompress ();
+int
+main ()
+{
+return opj_create_decompress ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' mupdfthird openjp2; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_opj_create_decompress=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_opj_create_decompress+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_opj_create_decompress+:} false; then :
+
+else
+  ac_cv_search_opj_create_decompress=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_opj_create_decompress" >&5
+$as_echo "$ac_cv_search_opj_create_decompress" >&6; }
+ac_res=$ac_cv_search_opj_create_decompress
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing js_getcontext" >&5
+$as_echo_n "checking for library containing js_getcontext... " >&6; }
+if ${ac_cv_search_js_getcontext+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char js_getcontext ();
+int
+main ()
+{
+return js_getcontext ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' mupdfthird; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_js_getcontext=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_js_getcontext+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_js_getcontext+:} false; then :
+
+else
+  ac_cv_search_js_getcontext=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_js_getcontext" >&5
+$as_echo "$ac_cv_search_js_getcontext" >&6; }
+ac_res=$ac_cv_search_js_getcontext
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing hb_buffer_create" >&5
+$as_echo_n "checking for library containing hb_buffer_create... " >&6; }
+if ${ac_cv_search_hb_buffer_create+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char hb_buffer_create ();
+int
+main ()
+{
+return hb_buffer_create ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' mupdfthird harfbuzz; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_hb_buffer_create=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_hb_buffer_create+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_hb_buffer_create+:} false; then :
+
+else
+  ac_cv_search_hb_buffer_create=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_hb_buffer_create" >&5
+$as_echo "$ac_cv_search_hb_buffer_create" >&6; }
+ac_res=$ac_cv_search_hb_buffer_create
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for fz_drop_document in -lmupdf" >&5
 $as_echo_n "checking for fz_drop_document in -lmupdf... " >&6; }
 if ${ac_cv_lib_mupdf_fz_drop_document+:} false; then :
@@ -4571,6 +4807,30 @@ if test "x$ac_cv_lib_mupdf_fz_drop_document" = xyes; then :
 			IPPTRANSFORM_BIN="ipptransform"
 			IPPTRANSFORM_HTML="ipptransform.html"
 			IPPTRANSFORM_MAN="ipptransform.man"
+                        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for version of fz_new_pixmap function" >&5
+$as_echo_n "checking for version of fz_new_pixmap function... " >&6; }
+                        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <mupdf/fitz.h>
+int
+main ()
+{
+
+                                fz_pixmap *p = fz_new_pixmap(0,0,100,100,1);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: 5 argument" >&5
+$as_echo "5 argument" >&6; }
+	                         $as_echo "#define HAVE_FZ_NEW_PIXMAP_5_ARG 1" >>confdefs.h
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: 6 argument" >&5
+$as_echo "6 argument" >&6; }
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
 fi
 
@@ -4847,6 +5107,32 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 	if test "x$with_optim" = x; then
 		# Add useful warning options for tracking down problems...
 		OPTIM="-Wall -Wno-format-y2k -Wunused $OPTIM"
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether compiler supports -Wno-format-truncation" >&5
+$as_echo_n "checking whether compiler supports -Wno-format-truncation... " >&6; }
+		OLDCFLAGS="$CFLAGS"
+		CFLAGS="$CFLAGS -Werror -Wno-format-truncation"
+		cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  OPTIM="$OPTIM -Wno-format-truncation"
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+		CFLAGS="$OLDCFLAGS"
 
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether compiler supports -Wno-unused-result" >&5
 $as_echo_n "checking whether compiler supports -Wno-unused-result... " >&6; }
@@ -6094,7 +6380,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6140,7 +6426,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6164,7 +6450,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6209,7 +6495,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6233,7 +6519,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];

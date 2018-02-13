@@ -1,9 +1,9 @@
 dnl
 dnl Configuration script for the IPP sample code.
 dnl
-dnl Copyright 2014-2017 by the IEEE-ISTO Printer Working Group
-dnl Copyright 2007-2017 by Apple Inc.
-dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
+dnl Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
+dnl Copyright © 2007-2018 by Apple Inc.
+dnl Copyright © 1997-2007 by Easy Software Products, all rights reserved.
 dnl
 dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
 dnl information.

@@ -1,8 +1,9 @@
 dnl
 dnl Common configuration stuff for CUPS.
 dnl
-dnl Copyright 2007-2017 by Apple Inc.
-dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
+dnl Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
+dnl Copyright © 2007-2018 by Apple Inc.
+dnl Copyright © 1997-2007 by Easy Software Products, all rights reserved.
 dnl
 dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
 dnl information.
@@ -188,12 +189,22 @@ case $uname in
 	*)
 		AC_SEARCH_LIBS(FT_Init_FreeType, mupdfthird freetype)
 		AC_SEARCH_LIBS(jpeg_destroy_decompress, mupdfthird jpeg)
+		AC_SEARCH_LIBS(jbig2_ctx_new, mupdfthird jbig2dec)
+		AC_SEARCH_LIBS(opj_create_decompress, mupdfthird openjp2)
+		AC_SEARCH_LIBS(js_getcontext, mupdfthird)
+		AC_SEARCH_LIBS(hb_buffer_create, mupdfthird harfbuzz)
 		AC_CHECK_LIB(mupdf, fz_drop_document,[
 			AC_DEFINE(HAVE_MUPDF)
 			LIBS="-lmupdf $LIBS"
 			IPPTRANSFORM_BIN="ipptransform"
 			IPPTRANSFORM_HTML="ipptransform.html"
 			IPPTRANSFORM_MAN="ipptransform.man"
+                        AC_MSG_CHECKING(for version of fz_new_pixmap function)
+                        AC_TRY_COMPILE([#include <mupdf/fitz.h>],[
+                                fz_pixmap *p = fz_new_pixmap(0,0,100,100,1);],
+                             	[AC_MSG_RESULT(5 argument)
+	                         AC_DEFINE(HAVE_FZ_NEW_PIXMAP_5_ARG)],
+	                        [AC_MSG_RESULT(6 argument)])
 		])
 		;;
 esac
