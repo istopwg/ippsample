@@ -1,31 +1,32 @@
 # Raspberry Pi Build/Usage Instructions
 
 All of this sample code will build on a Raspberry Pi, which can then be used
-as an inexpensive print server or as part of an automated test framework.
+as an inexpensive print server or as part of an automated test framework.  All
+of the commands in this file assume you are using the Raspbian OS.
 
 
 ## Prerequisites
 
 Run the following command to install the core software you'll need to build and
-use the ippsample code:
+use all of the ippsample code:
 
-    sudo apt-get install libnss-mdns avahi-daemon avahi-utils \
-        libavahi-client-dev libgnutls28-dev zlib1g-dev
+    sudo apt-get install build-essential autoconf avahi-daemon avahi-utils \
+        cura-engine libavahi-client-dev libfreetype6-dev libgnutls28-dev \
+        libharfbuzz-dev libjbig2dec0-dev libjpeg-dev libmupdf-dev libnss-mdns \
+        libopenjp2-7-dev libpng-dev zlib1g-dev
 
-If you want to support local conversions of PDF and JPEG files to Apple/PWG
-Raster or HP PCL, you'll also need version 1.11 of the MuPDF software and *not*
-the much older version that has been packaged for Raspbian.  You can download
-the MuPDF 1.11 software from:
+Prerequisites for just 2D printing:
 
-    http://www.mupdf.com
+    sudo apt-get install build-essential autoconf avahi-daemon avahi-utils \
+        libavahi-client-dev libfreetype6-dev libgnutls28-dev libharfbuzz-dev \
+        libjbig2dec0-dev libjpeg-dev libmupdf-dev libnss-mdns libopenjp2-7-dev \
+        libpng-dev zlib1g-dev
 
-For 3D support you'll need CuraEngine (part of Cura).  The easiest way to build
-this is to head over to the Ultimaker Cura-build project:
+Prerequisites for just 3D printing:
 
-    https://github.com/Ultimaker/cura-build
-
-and mostly follow the Ubuntu/Linux instructions, doing a `make install` at the
-end instead of `make package`.
+    sudo apt-get install build-essential autoconf avahi-daemon avahi-utils \
+        cura-engine libavahi-client-dev libgnutls28-dev libnss-mdns \
+        zlib1g-dev
 
 
 ## Building the IPP Sample Code

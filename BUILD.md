@@ -21,20 +21,22 @@ support "include".
 
 Besides these tools you'll want the following libraries:
 
-- Avahi or mDNSResponder for Bonjour (DNS-SD) support
+- Avahi (Linux) or mDNSResponder (all others) for Bonjour (DNS-SD) support
 - CuraEngine for 3D support
 - GNU TLS for encryption support on platforms other than iOS, macOS, or Windows
 - LIBJPEG for JPEG support
 - LIBPNG for PNG support
-- MuPDF for PDF support
+- MuPDF (1.11 or later) for PDF support on Linux
 - ZLIB for compression support
 
-On a stock Ubuntu install, the following command will install the required
-prerequisites:
+On a stock Debian/Ubuntu install, the following command will install most of the
+required prerequisites:
 
-    sudo apt-get install autoconf build-essential avahi-daemon avahi-utils \
-        libavahi-client-dev libgnutls28-dev libjpeg-dev libnss-mdns libpng-dev \
-        zlib1g-dev
+    sudo apt-get install build-essential autoconf avahi-daemon avahi-utils \
+        cura-engine libavahi-client-dev libfreetype6-dev libgnutls28-dev \
+        libharfbuzz-dev libjbig2dec0-dev libjpeg-dev libmupdf-dev libnss-mdns \
+        libopenjp2-7-dev libpng-dev zlib1g-dev
+
 
 
 Configuration
