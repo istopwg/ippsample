@@ -126,8 +126,10 @@ main(int  argc,				/* I - Number of command-line arguments */
     dest = cupsGetNamedDest(CUPS_HTTP_DEFAULT, NULL, NULL);
     if (dest && dest->instance)
       printf("default is \"%s/%s\".\n", dest->name, dest->instance);
-    else
+    else if (dest)
       printf("default is \"%s\".\n", dest->name);
+    else
+      puts("no default destination.");
   }
   else
     dest = cupsGetNamedDest(CUPS_HTTP_DEFAULT, argv[i], NULL);

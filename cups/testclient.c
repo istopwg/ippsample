@@ -621,6 +621,7 @@ make_raster_file(ipp_t      *response,  /* I - Printer attributes */
   if ((fd = cupsTempFd(tempname, (int)tempsize)) < 0)
   {
     printf("Unable to create temporary print file: %s\n", strerror(errno));
+    free(line);
     return (NULL);
   }
 
@@ -628,6 +629,7 @@ make_raster_file(ipp_t      *response,  /* I - Printer attributes */
   {
     printf("Unable to open raster stream: %s\n", cupsRasterErrorString());
     close(fd);
+    free(line);
     return (NULL);
   }
 
