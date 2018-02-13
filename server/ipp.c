@@ -580,10 +580,7 @@ ipp_create_job(server_client_t *client)	/* I - Client */
   */
 
   if (!valid_job_attributes(client))
-  {
-    httpFlush(client->http);
     return;
-  }
 
  /*
   * Do we have a file to print?
@@ -1626,10 +1623,7 @@ ipp_print_job(server_client_t *client)	/* I - Client */
   */
 
   if (!valid_job_attributes(client))
-  {
-    httpFlush(client->http);
     return;
-  }
 
  /*
   * Do we have a file to print?
