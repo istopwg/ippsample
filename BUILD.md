@@ -38,7 +38,6 @@ required prerequisites:
         libopenjp2-7-dev libpng-dev zlib1g-dev
 
 
-
 Configuration
 -------------
 
