@@ -3654,7 +3654,8 @@ valid_job_attributes(
     }
     else
     {
-      supported = ippFindAttribute(client->printer->pinfo.attrs, "media-supported", IPP_TAG_KEYWORD);
+      if ((supported = ippFindAttribute(client->printer->dev_attrs, "media-supported", IPP_TAG_KEYWORD)) == NULL)
+        supported = ippFindAttribute(client->printer->pinfo.attrs, "media-supported", IPP_TAG_KEYWORD);
 
       if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
       {
@@ -3695,7 +3696,8 @@ valid_job_attributes(
       }
       else
       {
-	supported = ippFindAttribute(client->printer->pinfo.attrs, "media-supported", IPP_TAG_KEYWORD);
+        if ((supported = ippFindAttribute(client->printer->dev_attrs, "media-supported", IPP_TAG_KEYWORD)) == NULL)
+	  supported = ippFindAttribute(client->printer->pinfo.attrs, "media-supported", IPP_TAG_KEYWORD);
 
 	if (!ippContainsString(supported, ippGetString(member, 0, NULL)))
 	{
@@ -3715,13 +3717,16 @@ valid_job_attributes(
       {
 	size = ippGetCollection(member, 0);
 
+	if ((supported = ippFindAttribute(client->printer->dev_attrs, "media-size-supported", IPP_TAG_BEGIN_COLLECTION)) == NULL)
+	  supported = ippFindAttribute(client->printer->pinfo.attrs, "media-size-supported", IPP_TAG_BEGIN_COLLECTION);
+
 	if ((x_dim = ippFindAttribute(size, "x-dimension", IPP_TAG_INTEGER)) == NULL || ippGetCount(x_dim) != 1 ||
 	    (y_dim = ippFindAttribute(size, "y-dimension", IPP_TAG_INTEGER)) == NULL || ippGetCount(y_dim) != 1)
 	{
 	  serverRespondUnsupported(client, attr);
 	  valid = 0;
 	}
-	else if ((supported = ippFindAttribute(client->printer->pinfo.attrs, "media-size-supported", IPP_TAG_BEGIN_COLLECTION)) != NULL)
+	else if (supported)
 	{
 	  x_value   = ippGetInteger(x_dim, 0);
 	  y_value   = ippGetInteger(y_dim, 0);
@@ -3793,7 +3798,8 @@ valid_job_attributes(
 
   if ((attr = ippFindAttribute(client->request, "printer-resolution", IPP_TAG_ZERO)) != NULL)
   {
-    supported = ippFindAttribute(client->printer->dev_attrs, "printer-resolution-supported", IPP_TAG_RESOLUTION);
+    if ((supported = ippFindAttribute(client->printer->dev_attrs, "printer-resolution-supported", IPP_TAG_RESOLUTION)) == NULL)
+      supported = ippFindAttribute(client->printer->pinfo.attrs, "printer-resolution-supported", IPP_TAG_RESOLUTION);
 
     if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_RESOLUTION ||
         !supported)
@@ -3831,23 +3837,21 @@ valid_job_attributes(
     const char *sides = ippGetString(attr, 0, NULL);
 					/* "sides" value... */
 
+    if ((supported = ippFindAttribute(client->printer->dev_attrs, "sides-supported", IPP_TAG_KEYWORD)) == NULL)
+      supported = ippFindAttribute(client->printer->pinfo.attrs, "sides-supported", IPP_TAG_KEYWORD);
+
     if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_KEYWORD)
     {
       serverRespondUnsupported(client, attr);
       valid = 0;
     }
-    else if ((supported = ippFindAttribute(client->printer->dev_attrs, "sides-supported", IPP_TAG_KEYWORD)) != NULL)
+    else if (!ippContainsString(supported, sides) && strcmp(sides, "one-sided"))
     {
       if (!ippContainsString(supported, sides))
       {
 	serverRespondUnsupported(client, attr);
 	valid = 0;
       }
-    }
-    else if (strcmp(sides, "one-sided"))
-    {
-      serverRespondUnsupported(client, attr);
-      valid = 0;
     }
   }
 
