@@ -939,8 +939,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	ATTR name requesting-user-name $user
 	ATTR name job-name $filename
 	ATTR boolean ipp-attribute-fidelity false
-	ATTR name document-name $filename
-	ATTR keyword compression none
+	ATTR name document-name $document-uri
 	ATTR uri document-uri $document-uri
 
 	STATUS successful-ok

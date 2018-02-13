@@ -14,6 +14,7 @@
 	ATTR language attributes-natural-language en
 	ATTR uri printer-uri $uri
 	ATTR name requesting-user-name $user
+	ATTR name document-name $document-uri
 	ATTR uri document-uri $document-uri
 
 	GROUP job-attributes-tag
