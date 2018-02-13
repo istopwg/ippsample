@@ -2095,8 +2095,11 @@ xform_document(
 
   device = fz_new_draw_device(context, &base_transform, pixmap);
 
+#  ifndef HAVE_FZ_NEW_PIXMAP_5_ARG /* Bug in MuPDF 1.11 */
   /* Don't anti-alias or interpolate when creating raster data */
   fz_set_aa_level(context, 0);
+#  endif /* !HAVE_FZ_NEW_PIXMAP_5_ARG */
+
   fz_enable_device_hints(context, device, FZ_DONT_INTERPOLATE_IMAGES);
 
  /*
