@@ -1795,10 +1795,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
   */
 
   if (!valid_job_attributes(client))
-  {
-    httpFlush(client->http);
     return;
-  }
 
  /*
   * Do we have a file to print?
@@ -1815,8 +1812,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
   * Do we have a document URI?
   */
 
-  if ((uri = ippFindAttribute(client->request, "document-uri",
-                              IPP_TAG_URI)) == NULL)
+  if ((uri = ippFindAttribute(client->request, "document-uri", IPP_TAG_URI)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing document-uri.");
     return;
@@ -1824,19 +1820,14 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
 
   if (ippGetCount(uri) != 1)
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST,
-                "Too many document-uri values.");
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Too many document-uri values.");
     return;
   }
 
-  uri_status = httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(uri, 0, NULL),
-                               scheme, sizeof(scheme), userpass,
-                               sizeof(userpass), hostname, sizeof(hostname),
-                               &port, resource, sizeof(resource));
+  uri_status = httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(uri, 0, NULL), scheme, sizeof(scheme), userpass, sizeof(userpass), hostname, sizeof(hostname), &port, resource, sizeof(resource));
   if (uri_status < HTTP_URI_STATUS_OK)
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Bad document-uri: %s",
-                uri_status_strings[uri_status - HTTP_URI_STATUS_OVERFLOW]);
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Bad document-uri: %s", uri_status_strings[uri_status - HTTP_URI_STATUS_OVERFLOW]);
     return;
   }
 
@@ -1846,15 +1837,13 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
 #endif /* HAVE_SSL */
       strcmp(scheme, "http"))
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_URI_SCHEME,
-                "URI scheme \"%s\" not supported.", scheme);
+    serverRespondIPP(client, IPP_STATUS_ERROR_URI_SCHEME, "URI scheme \"%s\" not supported.", scheme);
     return;
   }
 
   if (!strcmp(scheme, "file") && access(resource, R_OK))
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS,
-                "Unable to access URI: %s", strerror(errno));
+    serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to access URI: %s", strerror(errno));
     return;
   }
 
@@ -1887,8 +1876,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
   {
     job->state = IPP_JSTATE_ABORTED;
 
-    serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL,
-                "Unable to create print file: %s", strerror(errno));
+    serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to create print file: %s", strerror(errno));
     return;
   }
 
@@ -1896,15 +1884,13 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
   {
     if ((infile = open(resource, O_RDONLY)) < 0)
     {
-      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS,
-                  "Unable to access URI: %s", strerror(errno));
+      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to access URI: %s", strerror(errno));
       return;
     }
 
     do
     {
-      if ((bytes = read(infile, buffer, sizeof(buffer))) < 0 &&
-          (errno == EAGAIN || errno == EINTR))
+      if ((bytes = read(infile, buffer, sizeof(buffer))) < 0 && (errno == EAGAIN || errno == EINTR))
         bytes = 1;
       else if (bytes > 0 && write(job->fd, buffer, (size_t)bytes) < bytes)
       {
@@ -1918,8 +1904,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
 	unlink(filename);
 	close(infile);
 
-	serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL,
-		    "Unable to write print file: %s", strerror(error));
+	serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to write print file: %s", strerror(error));
 	return;
       }
     }
@@ -1936,12 +1921,9 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
 #endif /* HAVE_SSL */
     encryption = HTTP_ENCRYPTION_IF_REQUESTED;
 
-    if ((http = httpConnect2(hostname, port, NULL, AF_UNSPEC, encryption,
-                             1, 30000, NULL)) == NULL)
+    if ((http = httpConnect2(hostname, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
     {
-      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS,
-                  "Unable to connect to %s: %s", hostname,
-		  cupsLastErrorString());
+      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to connect to %s: %s", hostname, cupsLastErrorString());
       job->state = IPP_JSTATE_ABORTED;
 
       close(job->fd);
@@ -1955,8 +1937,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
     httpSetField(http, HTTP_FIELD_ACCEPT_LANGUAGE, "en");
     if (httpGet(http, resource))
     {
-      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS,
-                  "Unable to GET URI: %s", strerror(errno));
+      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to GET URI: %s", strerror(errno));
 
       job->state = IPP_JSTATE_ABORTED;
 
@@ -1972,8 +1953,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
 
     if (status != HTTP_STATUS_OK)
     {
-      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS,
-                  "Unable to GET URI: %s", httpStatus(status));
+      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to GET URI: %s", httpStatus(status));
 
       job->state = IPP_JSTATE_ABORTED;
 
@@ -1999,8 +1979,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
 	unlink(filename);
 	httpClose(http);
 
-	serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL,
-		    "Unable to write print file: %s", strerror(error));
+	serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to write print file: %s", strerror(error));
 	return;
       }
     }
@@ -2017,8 +1996,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
 
     unlink(filename);
 
-    serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL,
-                "Unable to write print file: %s", strerror(error));
+    serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to write print file: %s", strerror(error));
     return;
   }
 
@@ -2026,7 +2004,6 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
   job->filename = strdup(filename);
   job->state    = IPP_JSTATE_PENDING;
 
-  /* TODO: Do something different here - only process if the printer is idle */
  /*
   * Process the job...
   */
