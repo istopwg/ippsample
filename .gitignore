@@ -16,6 +16,7 @@ cups/testipp
 cups/testoptions
 cups/testraster
 doc/mantohtml
+examples/pwg-raster-samples*
 parts
 prime
 server/ippserver
