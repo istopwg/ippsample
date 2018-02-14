@@ -437,17 +437,17 @@ serverProcessHTTP(
     case HTTP_STATE_HEAD :
         if (!strncmp(client->uri, "/ipp/print/", 11))
         {
-          if ((uriptr = strchr(client->uri + 11, '/')) != NULL)
-            *uriptr++ = '\0';
-          else
-            uriptr = client->uri + strlen(client->uri);
+          if ((uriptr = strchr(client->uri + 11, '/')) == NULL)
+            uriptr = client->uri + 10;
+
+	  *uriptr++ = '\0';
         }
         else if (!strncmp(client->uri, "/ipp/print3d/", 13))
         {
-          if ((uriptr = strchr(client->uri + 13, '/')) != NULL)
-            *uriptr++ = '\0';
-          else
-            uriptr = client->uri + strlen(client->uri);
+          if ((uriptr = strchr(client->uri + 13, '/')) == NULL)
+            uriptr = client->uri + 12;
+
+	  *uriptr++ = '\0';
         }
         else if (!strcmp(client->uri, "/ipp/print"))
           uriptr = client->uri + strlen(client->uri);
@@ -488,17 +488,17 @@ serverProcessHTTP(
     case HTTP_STATE_GET :
         if (!strncmp(client->uri, "/ipp/print/", 11))
         {
-          if ((uriptr = strchr(client->uri + 11, '/')) != NULL)
-            *uriptr++ = '\0';
-          else
-            uriptr = client->uri + strlen(client->uri);
+          if ((uriptr = strchr(client->uri + 11, '/')) == NULL)
+            uriptr = client->uri + 10;
+
+	  *uriptr++ = '\0';
         }
         else if (!strncmp(client->uri, "/ipp/print3d/", 13))
         {
-          if ((uriptr = strchr(client->uri + 13, '/')) != NULL)
-            *uriptr++ = '\0';
-          else
-            uriptr = client->uri + strlen(client->uri);
+          if ((uriptr = strchr(client->uri + 13, '/')) == NULL)
+            uriptr = client->uri + 12;
+
+	  *uriptr++ = '\0';
         }
         else if (!strcmp(client->uri, "/ipp/print"))
           uriptr = client->uri + strlen(client->uri);
