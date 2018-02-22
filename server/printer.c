@@ -452,6 +452,12 @@ serverCreatePrinter(
     serverLog(SERVER_LOGLEVEL_DEBUG, "Using ppm_color=%d", printer->pinfo.ppm_color);
   }
 
+  if ((attr = ippFindAttribute(printer->pinfo.attrs, "sides-supported", IPP_TAG_KEYWORD)) != NULL)
+  {
+    printer->pinfo.duplex = ippContainsString(attr, "two-sided-long-edge");
+    serverLog(SERVER_LOGLEVEL_DEBUG, "Using duplex=%d", printer->pinfo.duplex);
+  }
+
   _cupsRWInit(&(printer->rwlock));
 
  /*

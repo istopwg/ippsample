@@ -21,7 +21,7 @@
  * Local functions...
  */
 
-static void	process_attr_message(server_job_t *job, char *message);
+static void	process_attr_message(server_job_t *job, char *message, server_transform_t mode);
 static void	process_state_message(server_job_t *job, char *message);
 static double	time_seconds(void);
 
@@ -299,7 +299,7 @@ serverTransformJob(
 	    * Process job/printer attribute update.
 	    */
 
-	    process_attr_message(job, line);
+	    process_attr_message(job, line, mode);
 	  }
 	  else
 	    serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "%s: %s", command, line);
@@ -385,11 +385,75 @@ serverTransformJob(
 
 static void
 process_attr_message(
-    server_job_t *job,			/* I - Job */
-    char         *message)		/* I - Message */
+    server_job_t       *job,		/* I - Job */
+    char               *message,	/* I - Message */
+    server_transform_t mode)		/* I - Transform mode */
 {
-  (void)job;
-  (void)message;
+  int		i,			/* Looping var */
+		num_options = 0;	/* Number of name=value pairs */
+  cups_option_t	*options = NULL,	/* name=value pairs from message */
+		*option;		/* Current option */
+  ipp_attribute_t *attr;		/* Current attribute */
+
+
+ /*
+  * Grab attributes from the message line...
+  */
+
+  num_options = cupsParseOptions(message + 5, num_options, &options);
+
+ /*
+  * Loop through the options and record them in the printer or job objects...
+  */
+
+  for (i = num_options, option = options; i > 0; i --, option ++)
+  {
+    if (!strcmp(option->name, "job-impressions") || !strcmp(option->name, "job-impressions-col") || !strcmp(option->name, "job-media-sheets") || !strcmp(option->name, "job-media-sheets-col") ||
+        (mode == SERVER_TRANSFORM_COMMAND && (!strcmp(option->name, "job-impressions-completed") || !strcmp(option->name, "job-impressions-completed-col") || !strcmp(option->name, "job-media-sheets-completed") || !strcmp(option->name, "job-media-sheets-completed-col"))))
+    {
+     /*
+      * Update Job Status attribute...
+      */
+
+      serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Setting Job Status attribute \"%s\" to \"%s\".", option->name, option->value);
+
+      _cupsRWLockWrite(&job->rwlock);
+
+      if ((attr = ippFindAttribute(job->attrs, option->name, IPP_TAG_ZERO)) != NULL)
+        ippDeleteAttribute(job->attrs, attr);
+
+      cupsEncodeOption(job->attrs, IPP_TAG_JOB, option->name, option->value);
+
+      _cupsRWUnlock(&job->rwlock);
+    }
+    else if (!strncmp(option->name, "marker-", 7) || !strcmp(option->name, "printer-alert") || !strcmp(option->name, "printer-supply") || !strcmp(option->name, "printer-supply-description"))
+    {
+     /*
+      * Update Printer Status attribute...
+      */
+
+      serverLogPrinter(SERVER_LOGLEVEL_DEBUG, job->printer, "Setting Printer Status attribute \"%s\" to \"%s\".", option->name, option->value);
+
+      _cupsRWLockWrite(&job->printer->rwlock);
+
+      if ((attr = ippFindAttribute(job->printer->pinfo.attrs, option->name, IPP_TAG_ZERO)) != NULL)
+        ippDeleteAttribute(job->printer->pinfo.attrs, attr);
+
+      cupsEncodeOption(job->printer->pinfo.attrs, IPP_TAG_PRINTER, option->name, option->value);
+
+      _cupsRWUnlock(&job->printer->rwlock);
+    }
+    else
+    {
+     /*
+      * Something else that isn't currently supported...
+      */
+
+      serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Ignoring attribute \"%s\" with value \"%s\".", option->name, option->value);
+    }
+  }
+
+  cupsFreeOptions(num_options, options);
 }
 
 
