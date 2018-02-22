@@ -1,7 +1,7 @@
 /*
- * ipptransform utility for converting PDF and JPEG files to raster data or HP PCL.
+ * Utility for converting PDF and JPEG files to raster data or HP PCL.
  *
- * Copyright 2016-2018 by the IEEE-ISTO Printer Working Group.
+ * Copyright © 2016-2018 by the IEEE-ISTO Printer Working Group.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -648,7 +648,7 @@ monitor_ipp(const char *device_uri)	/* I - Device URI */
         if (!strcmp(name, "printer-state-reasons"))
 	  fprintf(stderr, "STATE: %s\n", value);
 	else
-	  fprintf(stderr, "ATTR: %s=%s\n", name, value);
+	  fprintf(stderr, "ATTR: %s='%s'\n", name, value);
 
         strlcpy(pvalues[i], value, sizeof(pvalues[i]));
       }
