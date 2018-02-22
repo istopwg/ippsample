@@ -584,8 +584,8 @@ monitor_ipp(const char *device_uri)	/* I - Device URI */
     "marker-high-levels",
     "marker-names",
     "marker-types",
-    "printer-state-reasons",
     "printer-alert",
+    "printer-state-reasons",
     "printer-supply",
     "printer-supply-description"
   };

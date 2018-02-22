@@ -296,7 +296,7 @@ serverTransformJob(
 	  else if (!strncmp(line, "ATTR:", 5))
 	  {
 	   /*
-	    * Process printer attribute update.
+	    * Process job/printer attribute update.
 	    */
 
 	    process_attr_message(job, line);
