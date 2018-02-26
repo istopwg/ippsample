@@ -901,12 +901,12 @@ run_printer(
       {
         if (!strcmp(event, "job-fetchable") && job_id)
 	{
-	  /* TODO: queue up fetches */
+	  /* TODO: queue up fetches (Issue #80) */
 	  fetch_job(http, printer_uri, resource, job_id, device_uri, device_uuid, device_attrs);
 	}
 	else if (!strcmp(event, "job-state-changed") && job_id)
 	{
-	  /* TODO: Support cancellation */
+	  /* TODO: Support cancellation (Issue #81) */
 	  if (job_state == IPP_JSTATE_CANCELED || job_state == IPP_JSTATE_ABORTED)
 	  {
 	    /* Cancel job locally if it is printing... */

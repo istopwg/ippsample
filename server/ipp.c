@@ -351,7 +351,7 @@ static void
 ipp_acknowledge_identify_printer(
     server_client_t *client)		/* I - Client */
 {
-  // TODO: Implement this!
+  // TODO: Implement Acknowledge-Identify-Printer operation (Issue #85)
   serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Need to implement this.");
 }
 
@@ -479,7 +479,7 @@ static void
 ipp_cancel_my_jobs(
     server_client_t *client)		/* I - Client */
 {
-  // TODO: Implement this!
+  // TODO: Implement Cancel-My-Jobs operation (Issue #86)
   serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Need to implement this.");
 }
 
@@ -1079,7 +1079,7 @@ static void
 ipp_get_document_attributes(
     server_client_t *client)		/* I - Client */
 {
-  // TODO: Implement this!
+  // TODO: Implement Get-Document-Attributes operation (Issue #87)
   serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Need to implement this.");
 }
 
@@ -1094,7 +1094,7 @@ ipp_get_document_attributes(
 static void
 ipp_get_documents(server_client_t *client)/* I - Client */
 {
-  // TODO: Implement this!
+  // TODO: Implement Get-Documents operation (Issue #83)
   serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Need to implement this.");
 }
 
@@ -1376,7 +1376,7 @@ static void
 ipp_get_output_device_attributes(
     server_client_t *client)		/* I - Client */
 {
-  // TODO: Implement this!
+  // TODO: Implement Get-Output-Device-Attributes operation (Issue #84)
   serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Need to implement this.");
 }
 
@@ -2893,7 +2893,7 @@ ipp_update_output_device_attributes(
 
     if ((dotptr = strrchr(attrname, '.')) != NULL && isdigit(dotptr[1] & 255))
     {
-#if 0
+#if 0 /* TODO: Support sparse updates (Issue #82) */
      /*
       * Sparse representation: name.NNN or name.NNN-NNN
       */

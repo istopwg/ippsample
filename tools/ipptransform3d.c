@@ -616,7 +616,6 @@ open_device(const char *device_uri)	/* I - Device URI */
   ioctl(device_fd, TCSETS2, &opts);
 
 #else					/* Other platforms default to POSIX termios */
-  /* TODO: Add support for older platforms where B9600 != 9600, etc. */
   cfsetispeed(&opts, baud);
   cfsetospeed(&opts, baud);
 
@@ -784,7 +783,7 @@ xform_document(
 
   if (val && (ptr = strstr(val, "material-temperature=")) != NULL)
   {
-    /* TODO: Support multiple materials */
+    /* TODO: Support multiple materials (Issue #90) */
     material = atoi(ptr + 21);
     snprintf(material_temp, sizeof(material_temp), "material_print_temperature=%d", platform);
 
@@ -797,7 +796,7 @@ xform_document(
   * Get the print accuracy settings...
   */
 
-  /* TODO: Support print-accuracy */
+  /* TODO: Support print-accuracy (Issue #91) */
 
  /*
   * Get the print quality settings...
@@ -810,7 +809,7 @@ xform_document(
   else
     quality = 4; /* Normal */
 
- /* TODO: Sigh, fix all of the print quality settings since the latest CuraEngine has renamed them all... */
+ /* TODO: Sigh, fix all of the print quality settings since the latest CuraEngine has renamed them all... (Issue #92) */
   switch (quality)
   {
     case 3 : /* Draft */
@@ -916,7 +915,7 @@ xform_document(
     * Print a brim...
     */
 
-    /* TODO: Add brim settings */
+    /* TODO: Add brim settings (Issue #92) */
   }
   else if (!strcmp(base, "raft"))
   {
@@ -961,7 +960,7 @@ xform_document(
     * Print a skirt...
     */
 
-    /* TODO: Add skirt settings */
+    /* TODO: Add skirt settings (Issue #92) */
   }
 
   if ((supports = cupsGetOption("print-supports", num_options, options)) == NULL)

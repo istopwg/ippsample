@@ -107,7 +107,7 @@ serverUpdateDeviceAttributesNoLock(
   ipp_t			*dev_attrs;	/* Device attributes */
 
 
- /* TODO: Support multiple output devices, icons, etc... */
+ /* TODO: Support multiple output devices, icons, etc... (Issue #89) */
   device    = (server_device_t *)cupsArrayFirst(printer->devices);
   dev_attrs = ippNew();
 
@@ -135,7 +135,7 @@ serverUpdateDeviceStateNoLock(
   ipp_attribute_t	*attr;		/* Current attribute */
 
 
- /* TODO: Support multiple output devices, icons, etc... */
+ /* TODO: Support multiple output devices, icons, etc... (Issue #89) */
   device = (server_device_t *)cupsArrayFirst(printer->devices);
 
   if ((attr = ippFindAttribute(device->attrs, "printer-state", IPP_TAG_ENUM)) != NULL)

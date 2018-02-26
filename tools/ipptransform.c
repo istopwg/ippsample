@@ -2048,7 +2048,7 @@ xform_document(
     * Grayscale output...
     */
 
-    ras.band_bpp = 2; /* TODO: Update when alpha is disabled */
+    ras.band_bpp = 2; /* TODO: Update to not use alpha (Issue #93) */
     cs           = fz_device_gray(context);
   }
   else
@@ -2057,7 +2057,7 @@ xform_document(
     * Color (sRGB) output...
     */
 
-    ras.band_bpp = 4; /* TODO: Update when alpha is disabled */
+    ras.band_bpp = 4; /* TODO: Update to not use alpha (Issue #93) */
     cs           = fz_device_rgb(context);
   }
 
@@ -2072,7 +2072,7 @@ xform_document(
   else if (ras.band_height > ras.header.cupsHeight)
     ras.band_height = ras.header.cupsHeight;
 
-  /* TODO: Update code to not use RGBA/GrayA pixmap now that MuPDF supports it */
+  /* TODO: Update code to not use RGBA/GrayA pixmap now that MuPDF supports it (Issue #93) */
 #  if HAVE_FZ_NEW_PIXMAP_5_ARG
   pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth,  (int)ras.band_height, 1);
 #  else
