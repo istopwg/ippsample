@@ -1,13 +1,11 @@
 .\"
 .\" ippfind man page.
 .\"
+.\" Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
 .\" Copyright © 2013-2018 by Apple Inc.
 .\"
-.\" These coded instructions, statements, and computer programs are the
-.\" property of Apple Inc. and are protected by Federal copyright
-.\" law.  Distribution and use rights are outlined in the file "LICENSE.txt"
-.\" which should have been included with this file.  If this file is
-.\" file is missing or damaged, see the license at "http://www.cups.org/".
+.\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
+.\" information.
 .\"
 .TH ippfind 1 "ippsample" "14 February 2018" "Apple Inc."
 .SH NAME
@@ -258,4 +256,5 @@ Similarly, to send a PostScript test page to every PostScript printer, run:
 .SH SEE ALSO
 .BR ipptool (1)
 .SH COPYRIGHT
+Copyright \[co] 2014-2018 by the IEEE-ISTO Printer Working Group.
 Copyright \[co] 2013-2018 by Apple Inc.

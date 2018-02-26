@@ -1,15 +1,13 @@
 .\"
 .\" ippserver man page.
 .\"
-.\" Copyright 2014-2017 by Apple Inc.
+.\" Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
+.\" Copyright © 2014-2018 by Apple Inc.
 .\"
-.\" These coded instructions, statements, and computer programs are the
-.\" property of Apple Inc. and are protected by Federal copyright
-.\" law.  Distribution and use rights are outlined in the file "LICENSE.txt"
-.\" which should have been included with this file.  If this file is
-.\" file is missing or damaged, see the license at "http://www.cups.org/".
+.\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
+.\" information.
 .\"
-.TH ippserver 8 "ippsample" "14 September 2017" "Apple Inc."
+.TH ippserver 8 "ippsample" "26 February 2018" "Apple Inc."
 .SH NAME
 ippserver \- a simple ipp server
 .SH SYNOPSIS
@@ -69,6 +67,12 @@ ippserver \- a simple ipp server
 .I username:password
 ] [
 .B \-v[vvv]
+] [
+-B \-\-help
+] [
+-B \-\-relaxed
+] [
+-B \-\-version
 ]
 .I "service name"
 .SH DESCRIPTION
@@ -108,6 +112,8 @@ The default is a directory under the user's current temporary directory.
 Specifies the list of supported MIME media types.
 .TP 5
 .B \-h
+.TP 5
+.B \-\-help
 Shows program help.
 .TP 5
 \fB\-i \fIiconfile.png\fR
@@ -136,6 +142,9 @@ The default is a user-specific number from 8000 to 8999.
 Specifies the Bonjour subtype to advertise for the printer.
 The default subtype is "_print".
 .TP 5
+.B \-\-relaxed
+Runs the server in relaxed conformance mode, which allows certain harmless IPP conformance issues to be ignored.
+.TP 5
 \fB\-s \fIspeed[,color-speed]\fR
 Specifies the printer speed in pages-per-minute.
 .TP 5
@@ -144,6 +153,9 @@ Specifies the username and password for the IPP proxy.
 .TP 5
 .B \-v[vvv]
 Be (very) verbose when logging activity to the standard output.
+.TP 5
+.B \-\-version
+Show the software version number.
 .SH EXIT STATUS
 The
 .B ippserver
@@ -254,4 +266,5 @@ The icon for each 2D print service is stored in the \fIprint/name.png\fR  file. 
 .SH SEE ALSO
 ISTO PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp)
 .SH COPYRIGHT
-Copyright \[co] 2007-2016 by Apple Inc.
+Copyright \[co] 2014-2018 by the IEEE-ISTO Printer Working Group.
+Copyright \[co] 2007-2018 by Apple Inc.

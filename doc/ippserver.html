@@ -66,6 +66,12 @@ ippserver - a simple ipp server
 <i>username:password</i>
 ] [
 <b>-v[vvv]</b>
+] [
+-B --help
+] [
+-B --relaxed
+] [
+-B --version
 ]
 <i>"service name"</i>
 <h2 class="title"><a name="DESCRIPTION">Description</a></h2>
@@ -96,6 +102,7 @@ The default is a directory under the user's current temporary directory.
 <dt><b>-f </b><i>type/subtype,[...]</i>
 <dd style="margin-left: 5.0em">Specifies the list of supported MIME media types.
 <dt><b>-h</b>
+<dd style="margin-left: 5.0em"><dt><b>--help</b>
 <dd style="margin-left: 5.0em">Shows program help.
 <dt><b>-i </b><i>iconfile.png</i>
 <dd style="margin-left: 5.0em">Specifies a PNG file for the printer icon.
@@ -116,12 +123,16 @@ The default is a user-specific number from 8000 to 8999.
 <dt><b>-r </b><i>subtype</i>
 <dd style="margin-left: 5.0em">Specifies the Bonjour subtype to advertise for the printer.
 The default subtype is "_print".
+<dt><b>--relaxed</b>
+<dd style="margin-left: 5.0em">Runs the server in relaxed conformance mode, which allows certain harmless IPP conformance issues to be ignored.
 <dt><b>-s </b><i>speed[,color-speed]</i>
 <dd style="margin-left: 5.0em">Specifies the printer speed in pages-per-minute.
 <dt><b>-u </b><i>username:password</i>
 <dd style="margin-left: 5.0em">Specifies the username and password for the IPP proxy.
 <dt><b>-v[vvv]</b>
 <dd style="margin-left: 5.0em">Be (very) verbose when logging activity to the standard output.
+<dt><b>--version</b>
+<dd style="margin-left: 5.0em">Show the software version number.
 </dl>
 <h2 class="title"><a name="EXIT_STATUS">Exit Status</a></h2>
 The
@@ -219,7 +230,8 @@ The icon for each 2D print service is stored in the <i>print/name.png</i>  file.
 <h2 class="title"><a name="SEE_ALSO">See Also</a></h2>
 ISTO PWG Internet Printing Protocol Workgroup (<a href="http://www.pwg.org/ipp">http://www.pwg.org/ipp</a>)
 <h2 class="title"><a name="COPYRIGHT">Copyright</a></h2>
-Copyright &copy; 2007-2016 by Apple Inc.
+Copyright &copy; 2014-2018 by the IEEE-ISTO Printer Working Group.
+Copyright &copy; 2007-2018 by Apple Inc.
 
 </body>
 </html>
