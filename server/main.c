@@ -43,7 +43,24 @@ main(int  argc,				/* I - Number of command-line args */
 
   for (i = 1; i < argc; i ++)
   {
-    if (argv[i][0] == '-')
+    if (!strcmp(argv[i], "--help"))
+    {
+      usage(0);
+    }
+    else if (!strcmp(argv[i], "--relaxed"))
+    {
+      RelaxedConformance = 1;
+    }
+    else if (!strcmp(argv[i], "--version"))
+    {
+      puts(CUPS_SVERSION);
+    }
+    else if (!strncmp(argv[i], "--", 2))
+    {
+      fprintf(stderr, "ippserver: Unknown option \"%s\".\n", argv[i]);
+      usage(1);
+    }
+    else if (argv[i][0] == '-')
     {
       for (opt = argv[i] + 1; *opt; opt ++)
       {
@@ -302,13 +319,18 @@ usage(int status)			/* O - Exit status */
 {
   if (!status)
   {
-    puts(CUPS_SVERSION " - Copyright 2010-2017 by Apple Inc. All rights reserved.");
+    puts(CUPS_SVERSION);
+    puts("Copyright (c) 2014-2018 by the IEEE-ISTO Printer Working Group.");
+    puts("Copyright (c) 2010-2018 by Apple Inc.");
     puts("");
   }
 
   puts("Usage: ippserver [options] \"name\"");
   puts("");
   puts("Options:");
+  puts("--help                  Show program help.");
+  puts("--relaxed               Run in relaxed conformance mode.");
+  puts("--version               Show program version.");
   puts("-2                      Supports 2-sided printing (default=1-sided)");
   puts("-C config-directory     Load settings and printers from the specified directory.");
 #ifdef HAVE_SSL

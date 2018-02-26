@@ -3062,6 +3062,7 @@ serverProcessIPP(
       attr = ippFirstAttribute(client->request);
       name = ippGetName(attr);
       if (attr && name && !strcmp(name, "attributes-charset") &&
+          ippGetGroupTag(attr) == IPP_TAG_OPERATION &&
 	  ippGetValueTag(attr) == IPP_TAG_CHARSET)
 	charset = attr;
       else
@@ -3071,19 +3072,37 @@ serverProcessIPP(
       name = ippGetName(attr);
 
       if (attr && name && !strcmp(name, "attributes-natural-language") &&
+          ippGetGroupTag(attr) == IPP_TAG_OPERATION &&
 	  ippGetValueTag(attr) == IPP_TAG_LANGUAGE)
 	language = attr;
       else
 	language = NULL;
 
-      if ((attr = ippFindAttribute(client->request, "printer-uri",
-                                   IPP_TAG_URI)) != NULL)
-	uri = attr;
-      else if ((attr = ippFindAttribute(client->request, "job-uri",
-                                        IPP_TAG_URI)) != NULL)
+      attr = ippNextAttribute(client->request);
+      name = ippGetName(attr);
+
+      if (attr && name && (!strcmp(name, "printer-uri") || !strcmp(name, "job-uri")) &&
+          ippGetGroupTag(attr) == IPP_TAG_OPERATION &&
+	  ippGetValueTag(attr) == IPP_TAG_URI)
 	uri = attr;
       else
 	uri = NULL;
+
+      if (!uri && RelaxedConformance)
+      {
+       /*
+        * The target URI isn't where it is supposed to be.  See if it is
+        * elsewhere in the request...
+        */
+
+	if ((attr = ippFindAttribute(client->request, "printer-uri", IPP_TAG_URI)) != NULL && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
+	  uri = attr;
+	else if ((attr = ippFindAttribute(client->request, "job-uri", IPP_TAG_URI)) != NULL && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
+	  uri = attr;
+
+        if (uri)
+	  serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Target URI not the third attribute in the request (section 4.1.5 of RFC 8011).");
+      }
 
       if (charset &&
           strcasecmp(ippGetString(charset, 0, NULL), "us-ascii") &&
@@ -3106,7 +3125,7 @@ serverProcessIPP(
 	*/
 
 	serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST,
-	            "Missing required attributes.");
+	            "Missing required attributes in request.");
       }
       else
       {

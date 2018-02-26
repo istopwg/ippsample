@@ -512,6 +512,7 @@ VAR server_loglevel_t	LogLevel	VALUE(SERVER_LOGLEVEL_ERROR);
 VAR int			MaxJobs		VALUE(100),
                         MaxCompletedJobs VALUE(100);
 VAR cups_array_t	*Printers	VALUE(NULL);
+VAR int			RelaxedConformance VALUE(0);
 VAR char		*ServerName	VALUE(NULL);
 VAR char		*SpoolDirectory	VALUE(NULL);
 
