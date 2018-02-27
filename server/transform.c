@@ -414,8 +414,36 @@ process_attr_message(
   {
     serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "options[%d].name=\"%s\", .value=\"%s\"", num_options - i, option->name, option->value);
 
-    if (!strcmp(option->name, "job-impressions") || !strcmp(option->name, "job-impressions-col") || !strcmp(option->name, "job-media-sheets") || !strcmp(option->name, "job-media-sheets-col") ||
-        (mode == SERVER_TRANSFORM_COMMAND && (!strcmp(option->name, "job-impressions-completed") || !strcmp(option->name, "job-impressions-completed-col") || !strcmp(option->name, "job-media-sheets-completed") || !strcmp(option->name, "job-media-sheets-completed-col"))))
+    if (!strcmp(option->name, "job-impressions"))
+    {
+     /*
+      * Update job-impressions attribute...
+      */
+
+      serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Setting Job Status attribute \"%s\" to \"%s\".", option->name, option->value);
+
+      _cupsRWLockWrite(&job->rwlock);
+
+      job->impressions = atoi(option->value);
+
+      _cupsRWUnlock(&job->rwlock);
+    }
+    else if (mode == SERVER_TRANSFORM_COMMAND && !strcmp(option->name, "job-impressions-completed"))
+    {
+     /*
+      * Update job-impressions-completed attribute...
+      */
+
+      serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Setting Job Status attribute \"%s\" to \"%s\".", option->name, option->value);
+
+      _cupsRWLockWrite(&job->rwlock);
+
+      job->impcompleted = atoi(option->value);
+
+      _cupsRWUnlock(&job->rwlock);
+    }
+    else if (!strcmp(option->name, "job-impressions-col") || !strcmp(option->name, "job-media-sheets") || !strcmp(option->name, "job-media-sheets-col") ||
+        (mode == SERVER_TRANSFORM_COMMAND && (!strcmp(option->name, "job-impressions-completed-col") || !strcmp(option->name, "job-media-sheets-completed") || !strcmp(option->name, "job-media-sheets-completed-col"))))
     {
      /*
       * Update Job Status attribute...
