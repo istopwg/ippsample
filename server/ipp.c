@@ -610,8 +610,138 @@ static void
 ipp_cancel_my_jobs(
     server_client_t *client)		/* I - Client */
 {
-  // TODO: Implement Cancel-My-Jobs operation (Issue #86)
-  serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Need to implement this.");
+  ipp_attribute_t	*attr,		/* Current attribute */
+			*job_ids,	/* List of job-id's to cancel */
+			*bad_job_ids = NULL;
+					/* List of bad job-id values */
+  const char		*username;	/* Username */
+  server_job_t		*job;		/* Current job pointer */
+  cups_array_t		*to_cancel;	/* Jobs to cancel */
+
+
+ /*
+  * See which user is canceling jobs...
+  */
+
+  if ((attr = ippFindAttribute(client->request, "requesting-user-name", IPP_TAG_NAME)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Need requesting-user-name with Cancel-My-Jobs.");
+    return;
+  }
+
+  username = ippGetString(attr, 0, NULL);
+
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Cancel-My-Jobs requesting-user-name='%s'", username);
+
+ /*
+  * and then see if a list of jobs was provided...
+  */
+
+  job_ids = ippFindAttribute(client->request, "job-ids", IPP_TAG_INTEGER);
+
+ /*
+  * OK, cancel jobs on this printer...
+  */
+
+  _cupsRWLockRead(&(client->printer->rwlock));
+
+  to_cancel = cupsArrayNew(NULL, NULL);
+
+  if (job_ids)
+  {
+   /*
+    * Look for the specified jobs...
+    */
+
+    int			i,		/* Looping var */
+			count;		/* Number of job-ids values */
+    server_job_t	key;		/* Search key for jobs */
+
+    for (i = 0, count = ippGetCount(job_ids); i < count; i ++)
+    {
+      key.id = ippGetInteger(job_ids, i);
+
+      if ((job = (server_job_t *)cupsArrayFind(client->printer->jobs, &key)) != NULL)
+      {
+       /*
+	* Validate this job...
+	*/
+
+	if (_cups_strcasecmp(username, job->username))
+	{
+	  if (!bad_job_ids)
+	  {
+	    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Job #%d is owned by another user.", job->id);
+
+	    bad_job_ids = ippAddInteger(client->response, IPP_TAG_UNSUPPORTED_GROUP, IPP_TAG_INTEGER, "job-ids", job->id);
+	  }
+	  else
+	    ippSetInteger(client->response, &bad_job_ids, ippGetCount(bad_job_ids), job->id);
+	}
+	else if (job->state >= IPP_JSTATE_CANCELED)
+	{
+	  if (!bad_job_ids)
+	  {
+	    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Job #%d cannot be canceled.", job->id);
+
+	    bad_job_ids = ippAddInteger(client->response, IPP_TAG_UNSUPPORTED_GROUP, IPP_TAG_INTEGER, "job-ids", job->id);
+	  }
+	  else
+	    ippSetInteger(client->response, &bad_job_ids, ippGetCount(bad_job_ids), job->id);
+	}
+	else
+	  cupsArrayAdd(to_cancel, job);
+      }
+      else if (!bad_job_ids)
+      {
+	serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Job #%d does not exist.", key.id);
+
+	bad_job_ids = ippAddInteger(client->response, IPP_TAG_UNSUPPORTED_GROUP, IPP_TAG_INTEGER, "job-ids", key.id);
+      }
+      else
+	ippSetInteger(client->response, &bad_job_ids, ippGetCount(bad_job_ids), key.id);
+    }
+  }
+  else
+  {
+   /*
+    * Look for jobs belonging to the requesting user...
+    */
+
+    for (job = (server_job_t *)cupsArrayFirst(client->printer->jobs); job; job = (server_job_t *)cupsArrayNext(client->printer->jobs))
+    {
+      if (!_cups_strcasecmp(username, job->username) && job->state < IPP_JSTATE_CANCELED)
+        cupsArrayAdd(to_cancel, job);
+    }
+  }
+
+  if (!bad_job_ids)
+  {
+   /*
+    * If we got this far then we have a valid list of jobs to cancel...
+    */
+
+    for (job = (server_job_t *)cupsArrayFirst(to_cancel); job; job = (server_job_t *)cupsArrayNext(to_cancel))
+    {
+      if (job->state == IPP_JSTATE_PROCESSING || (job->state == IPP_JSTATE_HELD && job->fd >= 0))
+      {
+	job->cancel = 1;
+      }
+      else
+      {
+	job->state     = IPP_JSTATE_CANCELED;
+	job->completed = time(NULL);
+      }
+
+      serverAddEvent(client->printer, job, SERVER_EVENT_JOB_COMPLETED, NULL);
+    }
+
+    serverRespondIPP(client, IPP_STATUS_OK, NULL);
+  }
+
+  cupsArrayDelete(to_cancel);
+
+  _cupsRWUnlock(&(client->printer->rwlock));
 }
 
 
