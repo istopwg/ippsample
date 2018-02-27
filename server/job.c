@@ -100,13 +100,19 @@ serverCopyJobStateReasons(
     server_job_t *job)			/* I - Printer */
 {
   server_jreason_t	creasons;	/* Combined job-state-reasons */
+  const char		*name;		/* Attribute name */
 
+
+  if (group_tag == IPP_TAG_DOCUMENT)
+    name = "document-state-reasons";
+  else
+    name = "job-state-reasons";
 
   creasons = job->state_reasons | job->dev_state_reasons;
 
   if (!creasons)
   {
-    ippAddString(ipp, group_tag, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-state-reasons", NULL, "none");
+    ippAddString(ipp, group_tag, IPP_CONST_TAG(IPP_TAG_KEYWORD), name, NULL, "none");
   }
   else
   {
@@ -121,7 +127,7 @@ serverCopyJobStateReasons(
         reasons[num_reasons ++] = server_jreasons[i];
     }
 
-    ippAddStrings(ipp, group_tag, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-state-reasons", num_reasons, NULL, reasons);
+    ippAddStrings(ipp, group_tag, IPP_CONST_TAG(IPP_TAG_KEYWORD), name, num_reasons, NULL, reasons);
   }
 }
 
