@@ -1607,13 +1607,15 @@ ipp_get_notifications(
 {
   ipp_attribute_t	*sub_ids,	/* notify-subscription-ids */
 			*seq_nums;	/* notify-sequence-numbers */
-//  ipp_attribute_t	*notify_wait;	/* Wait for events? */
+  int			notify_wait;	/* Wait for events? */
   int			i,		/* Looping vars */
 			count,		/* Number of IDs */
 			first = 1,	/* First event? */
 			seq_num;	/* Sequence number */
   server_subscription_t	*sub;		/* Current subscription */
   ipp_t			*event;		/* Current event */
+  int			num_events = 0;	/* Number of events returned */
+  const char		*username;	/* Requesting user */
 
 
   if ((sub_ids = ippFindAttribute(client->request, "notify-subscription-ids", IPP_TAG_INTEGER)) == NULL)
@@ -1624,7 +1626,14 @@ ipp_get_notifications(
 
   count       = ippGetCount(sub_ids);
   seq_nums    = ippFindAttribute(client->request, "notify-sequence-numbers", IPP_TAG_INTEGER);
-//  notify_wait = ippFindAttribute(client->request, "notify-wait", IPP_TAG_BOOLEAN);
+  notify_wait = ippGetBoolean(ippFindAttribute(client->request, "notify-wait", IPP_TAG_BOOLEAN), 0);
+  username    = ippGetString(ippFindAttribute(client->request, "requesting-user-name", IPP_TAG_NAME), 0, NULL);
+
+  if (!username)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing requesting-user-name attribute and no authentication.");
+    return;
+  }
 
   if (seq_nums && count != ippGetCount(seq_nums))
   {
@@ -1632,33 +1641,70 @@ ipp_get_notifications(
     return;
   }
 
-  serverRespondIPP(client, IPP_STATUS_OK, NULL);
-  ippAddInteger(client->response, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "notify-get-interval", 30);
-
-  for (i = 0; i < count; i ++)
+  do
   {
-    if ((sub = serverFindSubscription(client, ippGetInteger(sub_ids, i))) == NULL)
-      continue;
-
-    seq_num = ippGetInteger(seq_nums, i);
-    if (seq_num < sub->first_sequence)
-      seq_num = sub->first_sequence;
-
-    if (seq_num > sub->last_sequence)
-      continue;
-
-    for (event = (ipp_t *)cupsArrayIndex(sub->events, seq_num - sub->first_sequence);
-         event;
-	 event = (ipp_t *)cupsArrayNext(sub->events))
+    for (i = 0; i < count; i ++)
     {
-      if (first)
-        first = 0;
-      else
-        ippAddSeparator(client->response);
+      if ((sub = serverFindSubscription(client, ippGetInteger(sub_ids, i))) == NULL)
+      {
+        serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Subscription #%d was not found.", ippGetInteger(sub_ids, i));
+        ippAddInteger(client->response, IPP_TAG_UNSUPPORTED_GROUP, IPP_TAG_INTEGER, "notify-subscription-ids", ippGetInteger(sub_ids, i));
+	break;
+      }
 
-      ippCopyAttributes(client->response, event, 0, NULL, NULL);
+      if (username && _cups_strcasecmp(username, sub->username))
+      {
+        serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "You do not have access to subscription #%d.", ippGetInteger(sub_ids, i));
+        ippAddInteger(client->response, IPP_TAG_UNSUPPORTED_GROUP, IPP_TAG_INTEGER, "notify-subscription-ids", ippGetInteger(sub_ids, i));
+	break;
+      }
+
+      _cupsRWLockRead(&sub->rwlock);
+
+      seq_num = ippGetInteger(seq_nums, i);
+      if (seq_num < sub->first_sequence)
+	seq_num = sub->first_sequence;
+
+      if (seq_num > sub->last_sequence)
+      {
+        _cupsRWUnlock(&sub->rwlock);
+	continue;
+      }
+
+      for (event = (ipp_t *)cupsArrayIndex(sub->events, seq_num - sub->first_sequence);
+	   event;
+	   event = (ipp_t *)cupsArrayNext(sub->events))
+      {
+	if (first)
+	{
+	  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+	  ippAddInteger(client->response, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "notify-get-interval", 30);
+	  first = 0;
+	}
+	else
+	  ippAddSeparator(client->response);
+
+	ippCopyAttributes(client->response, event, 0, NULL, NULL);
+	num_events ++;
+      }
+
+      _cupsRWUnlock(&sub->rwlock);
+    }
+
+    if (i < count)
+      break;
+    else if (num_events == 0 && notify_wait)
+    {
+     /*
+      * Wait for more events...
+      */
+
+      _cupsMutexLock(&SubscriptionMutex);
+      _cupsCondWait(&SubscriptionCondition, &SubscriptionMutex, 30.0);
+      _cupsMutexUnlock(&SubscriptionMutex);
     }
   }
+  while (num_events == 0 && notify_wait);
 }
 
 

@@ -524,7 +524,7 @@ VAR AvahiClient		*DNSSDClient	VALUE(NULL);
 #endif /* HAVE_DNSSD */
 VAR char		*DNSSDSubType	VALUE(NULL);
 
-//VAR _cups_mutex_t	SubscriptionMutex VALUE(_CUPS_MUTEX_INITIALIZER);
+VAR _cups_mutex_t	SubscriptionMutex VALUE(_CUPS_MUTEX_INITIALIZER);
 VAR _cups_cond_t	SubscriptionCondition VALUE(_CUPS_COND_INITIALIZER);
 
 
