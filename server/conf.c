@@ -12,6 +12,7 @@
 #include <cups/file.h>
 #include <cups/dir.h>
 #include <fnmatch.h>
+#include <grp.h>
 #include <cups/ipp-private.h>
 
 
@@ -36,6 +37,9 @@ static void		dnssd_client_cb(AvahiClient *c, AvahiClientState state, void *userd
 static int		error_cb(_ipp_file_t *f, server_pinfo_t *pinfo, const char *error);
 static void		free_lang(server_lang_t *a);
 static int		load_system(const char *conf);
+static void		set_document_privacy(const char *value);
+static void		set_job_privacy(const char *value);
+static void		set_subscription_privacy(const char *value);
 static int		token_cb(_ipp_file_t *f, _ipp_vars_t *vars, server_pinfo_t *pinfo, const char *token);
 
 
@@ -101,7 +105,7 @@ serverDNSSDInit(void)
 int					/* O - 1 on success, 0 on failure */
 serverFinalizeConfiguration(void)
 {
-  char			local[1024];	/* Local hostname */
+  char	local[1024];			/* Local hostname */
 
 
  /*
@@ -160,6 +164,42 @@ serverFinalizeConfiguration(void)
     SpoolDirectory = strdup(DataDirectory);
 
     serverLog(SERVER_LOGLEVEL_INFO, "Using default spool directory \"%s\".", DataDirectory);
+  }
+
+ /*
+  * Authentication/authorization support...
+  */
+
+  if (Authentication)
+  {
+    if (!AuthService && !AuthTestPassword)
+      AuthService = strdup(DEFAULT_PAM_SERVICE);
+
+    if (!DocumentPrivacyScope)
+      DocumentPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
+    if (!DocumentPrivacyAttributes)
+      set_document_privacy("default");
+
+    if (!JobPrivacyScope)
+      JobPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
+    if (!JobPrivacyAttributes)
+      set_job_privacy("default");
+
+    if (!SubscriptionPrivacyScope)
+      SubscriptionPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
+    if (!SubscriptionPrivacyAttributes)
+      set_subscription_privacy("default");
+  }
+  else
+  {
+    if (!DocumentPrivacyScope)
+      DocumentPrivacyScope = strdup(SERVER_SCOPE_ALL);
+
+    if (!JobPrivacyScope)
+      JobPrivacyScope = strdup(SERVER_SCOPE_ALL);
+
+    if (!SubscriptionPrivacyScope)
+      SubscriptionPrivacyScope = strdup(SERVER_SCOPE_ALL);
   }
 
  /*
@@ -602,6 +642,7 @@ load_system(const char *conf)		/* I - Configuration file */
 		linenum = 0;		/* Current line number */
   char		line[1024],		/* Line from file */
 		*value;			/* Pointer to value on line */
+  struct group	*group;			/* Group information */
 
 
   if ((fp = cupsFileOpen(conf, "r")) == NULL)
@@ -616,7 +657,54 @@ load_system(const char *conf)		/* I - Configuration file */
       break;
     }
 
-    if (!_cups_strcasecmp(line, "DataDirectory"))
+    if (!_cups_strcasecmp(line, "Authentication"))
+    {
+      if (!_cups_strcasecmp(value, "on") || !_cups_strcasecmp(value, "yes"))
+      {
+        Authentication = 1;
+      }
+      else if (!_cups_strcasecmp(value, "off") || !_cups_strcasecmp(value, "no"))
+      {
+        Authentication = 0;
+      }
+      else
+      {
+        fprintf(stderr, "ippserver: Unknown Authentication \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
+        status = 0;
+        break;
+      }
+    }
+    else if (!_cups_strcasecmp(line, "AuthAdminGroup"))
+    {
+      if ((group = getgrnam(value)) == NULL)
+      {
+        fprintf(stderr, "ippserver: Unable to find AuthAdminGroup \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
+        status = 0;
+        break;
+      }
+
+      AuthAdminGroup = group->gr_gid;
+    }
+    else if (!_cups_strcasecmp(line, "AuthOperatorGroup"))
+    {
+      if ((group = getgrnam(value)) == NULL)
+      {
+        fprintf(stderr, "ippserver: Unable to find AuthOperatorGroup \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
+        status = 0;
+        break;
+      }
+
+      AuthOperatorGroup = group->gr_gid;
+    }
+    else if (!_cups_strcasecmp(line, "AuthService"))
+    {
+      AuthService = strdup(value);
+    }
+    else if (!_cups_strcasecmp(line, "AuthTestPassword"))
+    {
+      AuthTestPassword = strdup(value);
+    }
+    else if (!_cups_strcasecmp(line, "DataDirectory"))
     {
       if (access(value, R_OK))
       {
@@ -638,6 +726,28 @@ load_system(const char *conf)		/* I - Configuration file */
 
       DefaultPrinter = strdup(value);
     }
+    else if (!_cups_strcasecmp(line, "DocumentPrivacyAttributes"))
+    {
+      if (DocumentPrivacyAttributes)
+      {
+        fprintf(stderr, "ippserver: Extra DocumentPrivacyAttributes seen on line %d of \"%s\".\n", linenum, conf);
+        status = 0;
+        break;
+      }
+
+      set_document_privacy(value);
+    }
+    else if (!_cups_strcasecmp(line, "DocumentPrivacyScope"))
+    {
+      if (DocumentPrivacyScope)
+      {
+        fprintf(stderr, "ippserver: Extra DocumentPrivacyScope seen on line %d of \"%s\".\n", linenum, conf);
+        status = 0;
+        break;
+      }
+
+      DocumentPrivacyScope = strdup(value);
+    }
     else if (!_cups_strcasecmp(line, "Encryption"))
     {
       if (!_cups_strcasecmp(value, "always"))
@@ -654,6 +764,28 @@ load_system(const char *conf)		/* I - Configuration file */
         status = 0;
         break;
       }
+    }
+    else if (!_cups_strcasecmp(line, "JobPrivacyAttributes"))
+    {
+      if (JobPrivacyAttributes)
+      {
+        fprintf(stderr, "ippserver: Extra JobPrivacyAttributes seen on line %d of \"%s\".\n", linenum, conf);
+        status = 0;
+        break;
+      }
+
+      set_job_privacy(value);
+    }
+    else if (!_cups_strcasecmp(line, "JobPrivacyScope"))
+    {
+      if (JobPrivacyScope)
+      {
+        fprintf(stderr, "ippserver: Extra JobPrivacyScope seen on line %d of \"%s\".\n", linenum, conf);
+        status = 0;
+        break;
+      }
+
+      JobPrivacyScope = strdup(value);
     }
     else if (!_cups_strcasecmp(line, "KeepFiles"))
     {
@@ -740,6 +872,28 @@ load_system(const char *conf)		/* I - Configuration file */
 
       SpoolDirectory = strdup(value);
     }
+    else if (!_cups_strcasecmp(line, "SubscriptionPrivacyAttributes"))
+    {
+      if (SubscriptionPrivacyAttributes)
+      {
+        fprintf(stderr, "ippserver: Extra SubscriptionPrivacyAttributes seen on line %d of \"%s\".\n", linenum, conf);
+        status = 0;
+        break;
+      }
+
+      set_subscription_privacy(value);
+    }
+    else if (!_cups_strcasecmp(line, "SubscriptionPrivacyScope"))
+    {
+      if (SubscriptionPrivacyScope)
+      {
+        fprintf(stderr, "ippserver: Extra SubscriptionPrivacyScope seen on line %d of \"%s\".\n", linenum, conf);
+        status = 0;
+        break;
+      }
+
+      SubscriptionPrivacyScope = strdup(value);
+    }
     else
     {
       fprintf(stderr, "ippserver: Unknown directive \"%s\" on line %d.\n", line, linenum);
@@ -749,6 +903,310 @@ load_system(const char *conf)		/* I - Configuration file */
   cupsFileClose(fp);
 
   return (status);
+}
+
+
+/*
+ * 'set_document_privacy()' - Set document privacy attributes.
+ */
+
+static void
+set_document_privacy(const char *value)	/* I - Privacy attribute value */
+{
+  int		i;			/* Looping var */
+  char		temp[1024],		/* Temporary copy of value */
+		*start,			/* Start of value */
+		*ptr;			/* Pointer into value */
+  ipp_attribute_t *privattrs = NULL;	/* document-privacy-attributes */
+  static const char * const description[] =
+  {					/* document-description attributes */
+    "document-name",
+    "document-state",
+    "document-state-message",
+    "document-state-reasons"
+  };
+  static const char * const template[] =
+  {					/* document-template attributes */
+    "copies",
+    "finishings",
+    "finishings-col",
+    "materials-col",
+    "media",
+    "media-col",
+    "number-up",
+    "orientation-requested",
+    "page-ranges",
+    "platform-temperatures",
+    "print-accuracy",
+    "print-base",
+    "print-color-mode",
+    "print-content-optimize",
+    "print-quality",
+    "print-supports",
+    "sides"
+  };
+
+
+  DocumentPrivacyAttributes = strdup(value);
+
+  if (!PrivacyAttributes)
+    PrivacyAttributes = ippNew();
+
+  if (!strcmp(value, "none"))
+  {
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-attributes", NULL, "none");
+    return;
+  }
+  else if (!strcmp(value, "all"))
+  {
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-attributes", NULL, "all");
+    return;
+  }
+
+  DocumentPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+
+  strlcpy(temp, value, sizeof(temp));
+
+  ptr = temp;
+  while (*ptr)
+  {
+    start = ptr;
+    while (*ptr && *ptr != ',')
+      ptr ++;
+    if (*ptr == ',')
+      *ptr++ = '\0';
+
+    if (!strcmp(start, "all") || !strcmp(start, "none"))
+      continue;
+
+    if (!privattrs)
+      privattrs = ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "document-privacy-attributes", NULL, start);
+    else
+      ippSetString(PrivacyAttributes, &privattrs, ippGetCount(privattrs), start);
+
+    if (!strcmp(start, "default"))
+    {
+      for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
+        cupsArrayAdd(DocumentPrivacyArray, (void *)description[i]);
+      for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
+        cupsArrayAdd(DocumentPrivacyArray, (void *)template[i]);
+    }
+    else if (!strcmp(start, "document-description"))
+    {
+      for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
+        cupsArrayAdd(DocumentPrivacyArray, (void *)description[i]);
+    }
+    else if (!strcmp(start, "document-template"))
+    {
+      for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
+        cupsArrayAdd(DocumentPrivacyArray, (void *)template[i]);
+    }
+    else
+    {
+      cupsArrayAdd(DocumentPrivacyArray, (void *)start);
+    }
+  }
+}
+
+
+/*
+ * 'set_job_privacy()' - Set job privacy attributes.
+ */
+
+static void
+set_job_privacy(const char *value)	/* I - Privacy attribute value */
+{
+  int		i;			/* Looping var */
+  char		temp[1024],		/* Temporary copy of value */
+		*start,			/* Start of value */
+		*ptr;			/* Pointer into value */
+  ipp_attribute_t *privattrs = NULL;	/* job-privacy-attributes */
+  static const char * const description[] =
+  {					/* job-description attributes */
+    "job-name",
+    "job-originating-user-name",
+    "job-priority",
+    "job-state",
+    "job-state-message",
+    "job-state-reasons"
+  };
+  static const char * const template[] =
+  {					/* job-template attributes */
+    "copies",
+    "finishings",
+    "finishings-col",
+    "materials-col",
+    "media",
+    "media-col",
+    "multiple-document-handling",
+    "number-up",
+    "orientation-requested",
+    "page-ranges",
+    "platform-temperatures",
+    "print-accuracy",
+    "print-base",
+    "print-color-mode",
+    "print-content-optimize",
+    "print-quality",
+    "print-supports",
+    "sides"
+  };
+
+
+  JobPrivacyAttributes = strdup(value);
+
+  if (!PrivacyAttributes)
+    PrivacyAttributes = ippNew();
+
+  if (!strcmp(value, "none"))
+  {
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-attributes", NULL, "none");
+    return;
+  }
+  else if (!strcmp(value, "all"))
+  {
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-attributes", NULL, "all");
+    return;
+  }
+
+  JobPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+
+  strlcpy(temp, value, sizeof(temp));
+
+  ptr = temp;
+  while (*ptr)
+  {
+    start = ptr;
+    while (*ptr && *ptr != ',')
+      ptr ++;
+    if (*ptr == ',')
+      *ptr++ = '\0';
+
+    if (!strcmp(start, "all") || !strcmp(start, "none"))
+      continue;
+
+    if (!privattrs)
+      privattrs = ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "job-privacy-attributes", NULL, start);
+    else
+      ippSetString(PrivacyAttributes, &privattrs, ippGetCount(privattrs), start);
+
+    if (!strcmp(start, "default"))
+    {
+      for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
+        cupsArrayAdd(JobPrivacyArray, (void *)description[i]);
+      for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
+        cupsArrayAdd(JobPrivacyArray, (void *)template[i]);
+    }
+    else if (!strcmp(start, "job-description"))
+    {
+      for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
+        cupsArrayAdd(JobPrivacyArray, (void *)description[i]);
+    }
+    else if (!strcmp(start, "job-template"))
+    {
+      for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
+        cupsArrayAdd(JobPrivacyArray, (void *)template[i]);
+    }
+    else
+    {
+      cupsArrayAdd(JobPrivacyArray, (void *)start);
+    }
+  }
+}
+
+
+/*
+ * 'set_subscription_privacy()' - Set subscription privacy attributes.
+ */
+
+static void
+set_subscription_privacy(
+    const char *value)			/* I - Privacy attribute value */
+{
+  int		i;			/* Looping var */
+  char		temp[1024],		/* Temporary copy of value */
+		*start,			/* Start of value */
+		*ptr;			/* Pointer into value */
+  ipp_attribute_t *privattrs = NULL;	/* job-privacy-attributes */
+  static const char * const description[] =
+  {					/* subscription-description attributes */
+    "notify-lease-expiration-time",
+    "notify-sequence-number",
+    "notify-subscriber-user-name"
+  };
+  static const char * const template[] =
+  {					/* subscription-template attributes */
+    "notify-attributes",
+    "notify-charset",
+    "notify-events",
+    "notify-lease-duration",
+    "notify-natural-language",
+    "notify-pull-method",
+    "notify-recipient-uri",
+    "notify-time-interval",
+    "notify-user-data"
+  };
+
+
+  SubscriptionPrivacyAttributes = strdup(value);
+
+  if (!PrivacyAttributes)
+    PrivacyAttributes = ippNew();
+
+  if (!strcmp(value, "none"))
+  {
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-attributes", NULL, "none");
+    return;
+  }
+  else if (!strcmp(value, "all"))
+  {
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-attributes", NULL, "all");
+    return;
+  }
+
+  SubscriptionPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+
+  strlcpy(temp, value, sizeof(temp));
+
+  ptr = temp;
+  while (*ptr)
+  {
+    start = ptr;
+    while (*ptr && *ptr != ',')
+      ptr ++;
+    if (*ptr == ',')
+      *ptr++ = '\0';
+
+    if (!strcmp(start, "all") || !strcmp(start, "none"))
+      continue;
+
+    if (!privattrs)
+      privattrs = ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "subscription-privacy-attributes", NULL, start);
+    else
+      ippSetString(PrivacyAttributes, &privattrs, ippGetCount(privattrs), start);
+
+    if (!strcmp(start, "default"))
+    {
+      for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
+        cupsArrayAdd(SubscriptionPrivacyArray, (void *)description[i]);
+      for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
+        cupsArrayAdd(SubscriptionPrivacyArray, (void *)template[i]);
+    }
+    else if (!strcmp(start, "subscription-description"))
+    {
+      for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
+        cupsArrayAdd(SubscriptionPrivacyArray, (void *)description[i]);
+    }
+    else if (!strcmp(start, "subscription-template"))
+    {
+      for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
+        cupsArrayAdd(SubscriptionPrivacyArray, (void *)template[i]);
+    }
+    else
+    {
+      cupsArrayAdd(SubscriptionPrivacyArray, (void *)start);
+    }
+  }
 }
 
 

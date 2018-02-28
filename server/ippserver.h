@@ -505,24 +505,24 @@ typedef struct server_listener_s	/**** Listener data ****/
  */
 
 VAR int			Authentication	VALUE(0);
-VAR gid_t		AuthAdminGID	VALUE((gid_t)-1);
-VAR char		*AuthAdminGroup	VALUE(NULL);
-VAR gid_t		AuthOperatorGID VALUE((gid_t)-1);
-VAR char		*AuthOperatorGroup VALUE(NULL);
+VAR gid_t		AuthAdminGroup	VALUE((gid_t)-1),
+			AuthOperatorGroup VALUE((gid_t)-1);
 VAR char		*AuthService	VALUE(NULL),
 			*AuthTestPassword VALUE(NULL);
 
-VAR char		*DocumentPrivacy VALUE(NULL),
-			*DocumentScope	VALUE(NULL);
-VAR cups_array_t	*DocumentPrivacyAttributes VALUE(NULL);
+VAR char		*DocumentPrivacyAttributes VALUE(NULL),
+			*DocumentPrivacyScope VALUE(NULL);
+VAR cups_array_t	*DocumentPrivacyArray VALUE(NULL);
 
-VAR char		*JobPrivacy	VALUE(NULL),
-			*JobScope	VALUE(NULL);
-VAR cups_array_t	*JobPrivacyAttributes VALUE(NULL);
+VAR char		*JobPrivacyAttributes VALUE(NULL),
+			*JobPrivacyScope VALUE(NULL);
+VAR cups_array_t	*JobPrivacyArray VALUE(NULL);
 
-VAR char		*SubscriptionPrivacy VALUE(NULL),
-			*SubscriptionScope VALUE(NULL);
-VAR cups_array_t	*SubscriptionPrivacyAttributes VALUE(NULL);
+VAR char		*SubscriptionPrivacyAttributes VALUE(NULL),
+			*SubscriptionPrivacyScope VALUE(NULL);
+VAR cups_array_t	*SubscriptionPrivacyArray VALUE(NULL);
+
+VAR ipp_t		*PrivacyAttributes VALUE(NULL);
 
 VAR char		*ConfigDirectory VALUE(NULL);
 VAR char		*DataDirectory	VALUE(NULL);

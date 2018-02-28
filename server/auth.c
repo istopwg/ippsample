@@ -301,7 +301,7 @@ serverAuthorizeUser(
     */
 
     for (i = 0; i < ngroups; i ++)
-      if ((gid_t)groups[i] == AuthAdminGID)
+      if ((gid_t)groups[i] == AuthAdminGroup)
         break;
   }
   else
@@ -311,13 +311,13 @@ serverAuthorizeUser(
     */
 
     for (i = 0; i < ngroups; i ++)
-      if ((gid_t)groups[i] == AuthAdminGID || (gid_t)groups[i] == AuthOperatorGID)
+      if ((gid_t)groups[i] == AuthAdminGroup || (gid_t)groups[i] == AuthOperatorGroup)
         break;
   }
 
   if (i < ngroups)
   {
-    if ((gid_t)groups[i] == AuthAdminGID)
+    if ((gid_t)groups[i] == AuthAdminGroup)
       serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" is authorized because they are an administrator.", client->username);
     else
       serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" is authorized because they are an operator.", client->username);
