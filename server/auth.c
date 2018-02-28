@@ -14,6 +14,7 @@
 
 #include "ippserver.h"
 
+#include <pwd.h>
 #ifdef HAVE_LIBPAM
 #  ifdef HAVE_PAM_PAM_APPL_H
 #    include <pam/pam_appl.h>
@@ -51,15 +52,12 @@ http_status_t				/* O - HTTP_STATUS_CONTINUE on success, other HTTP status on fa
 serverAuthenticateClient(
     server_client_t *client)		/* I - Client connection */
 {
+  http_status_t	status = HTTP_STATUS_CONTINUE;
+					/* Returned status */
   const char	*authorization;		/* Authorization header */
   server_authdata_t data;		/* Authorization data */
   int		userlen;		/* Username:password length */
   char		*password;		/* Pointer to password */
-#ifdef HAVE_LIBPAM
-  pam_handle_t	*pamh;			/* PAM authentication handle */
-  int		pamerr;			/* PAM error code */
-  struct pam_conv pamdata;		/* PAM conversation data */
-#endif /* HAVE_LIBPAM */
 
 
  /*
@@ -72,9 +70,9 @@ serverAuthenticateClient(
 
   if (!*authorization)
   {
-    return (HTTP_STATUS_CONTINUE);
+    status = HTTP_STATUS_UNAUTHORIZED;
   }
-  else if ((!AuthService && !AuthTestUser) || strncmp(authorization, "Basic ", 6))
+  else if ((!AuthService && !AuthTestPassword) || strncmp(authorization, "Basic ", 6))
   {
     char	scheme[32],		/* Scheme */
 		*schemeptr;		/* Pointer into scheme */
@@ -84,122 +82,253 @@ serverAuthenticateClient(
       *scheme = '\0';
 
     serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Unsupported authorization scheme \"%s\".", scheme);
-    return (HTTP_STATUS_BAD_REQUEST);
+    status = HTTP_STATUS_BAD_REQUEST;
   }
-
- /*
-  * OK, what remains is a Basic authorization value.  Parse it and authenticate.
-  */
-
-  authorization += 5;
-  while (_cups_isspace(*authorization & 255))
-    authorization ++;
-
-  userlen = sizeof(data.username);
-  httpDecode64_2(data.username, &userlen, authorization);
-
-  if ((password = strchr(data.username, ':')) == NULL)
+  else
   {
-    serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Missing password.");
-    return (HTTP_STATUS_UNAUTHORIZED);
-  }
+   /*
+    * OK, what remains is a Basic authorization value.  Parse it and
+    * authenticate.
+    */
 
-  *password++ = '\0';
+    authorization += 5;
+    while (_cups_isspace(*authorization & 255))
+      authorization ++;
 
-  if (!data.username[0])
-  {
-    serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Empty username.");
-    return (HTTP_STATUS_UNAUTHORIZED);
-  }
-  else if (!*password)
-  {
-    serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Empty password.");
-    return (HTTP_STATUS_UNAUTHORIZED);
-  }
+    userlen = sizeof(data.username);
+    httpDecode64_2(data.username, &userlen, authorization);
 
-  data.password = password;
-
-  if (!AuthService)
-  {
-    if (strcmp(data.username, AuthTestUser) || strcmp(data.password, AuthTestPassword))
+    if ((password = strchr(data.username, ':')) == NULL)
     {
-      serverLogClient(SERVER_LOGLEVEL_INFO, client, "Authentication failed.");
-      return (HTTP_STATUS_UNAUTHORIZED);
+      serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Missing password.");
+      status = HTTP_STATUS_UNAUTHORIZED;
     }
+    else
+    {
+      *password++ = '\0';
+      data.password = password;
 
-    goto auth_succeeded;
-  }
-
+      if (!data.username[0])
+      {
+	serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Empty username.");
+	status = HTTP_STATUS_UNAUTHORIZED;
+      }
+      else if (!*password)
+      {
+	serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Empty password.");
+	status = HTTP_STATUS_UNAUTHORIZED;
+      }
+      else if (!AuthService)
+      {
+	if (strcmp(data.password, AuthTestPassword))
+	{
+	  serverLogClient(SERVER_LOGLEVEL_INFO, client, "Authentication failed.");
+	  status = HTTP_STATUS_UNAUTHORIZED;
+	}
+      }
 #ifdef HAVE_LIBPAM
-  pamdata.conv        = (int (*)(int, const struct pam_message **,
-            struct pam_response **, void *))pam_func;
-  pamdata.appdata_ptr = &data;
+      else
+      {
+       /*
+	* Authenticate using PAM...
+	*/
 
-  if ((pamerr = pam_start(AuthService, data.username, &pamdata, &pamh)) != PAM_SUCCESS)
-  {
-    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "pam_start() returned %d (%s)", pamerr, pam_strerror(pamh, pamerr));
-    return (HTTP_STATUS_SERVER_ERROR);
-  }
+	pam_handle_t	*pamh;		/* PAM authentication handle */
+	int		pamerr;		/* PAM error code */
+	struct pam_conv pamdata;	/* PAM conversation data */
+
+	pamdata.conv        = (int (*)(int, const struct pam_message **, struct pam_response **, void *))pam_func;
+	pamdata.appdata_ptr = &data;
+	pamh                = NULL;
+
+	if ((pamerr = pam_start(AuthService, data.username, &pamdata, &pamh)) != PAM_SUCCESS)
+	{
+	  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "pam_start() returned %d (%s)", pamerr, pam_strerror(pamh, pamerr));
+	}
 
 #  ifdef PAM_RHOST
-  pam_set_item(pamh, PAM_RHOST, client->hostname);
+	else if ((pamerr = pam_set_item(pamh, PAM_RHOST, client->hostname)) != PAM_SUCCESS)
+	{
+	  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "pam_set_item(PAM_RHOST) returned %d (%s)", pamerr, pam_strerror(pamh, pamerr));
+	}
 #  endif /* PAM_RHOST */
 
 #  ifdef PAM_TTY
-  pam_set_item(pamh, PAM_TTY, "ippserver");
+	else if ((pamerr = pam_set_item(pamh, PAM_TTY, "ippserver")) != PAM_SUCCESS)
+	{
+	  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "pam_set_item(PAM_TTY) returned %d (%s)", pamerr, pam_strerror(pamh, pamerr));
+	}
 #  endif /* PAM_TTY */
 
-  if ((pamerr = pam_authenticate(pamh, PAM_SILENT)) != PAM_SUCCESS)
-  {
-    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "pam_authenticate() returned %d (%s)", pamerr, pam_strerror(pamh, pamerr));
-    goto auth_failed;
+	else if ((pamerr = pam_authenticate(pamh, PAM_SILENT)) != PAM_SUCCESS)
+	{
+	  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "pam_authenticate() returned %d (%s)", pamerr, pam_strerror(pamh, pamerr));
+	}
+	else if ((pamerr = pam_setcred(pamh, PAM_ESTABLISH_CRED | PAM_SILENT)) != PAM_SUCCESS)
+	{
+	  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "pam_setcred() returned %d (%s)", pamerr, pam_strerror(pamh, pamerr));
+	}
+	else if ((pamerr = pam_acct_mgmt(pamh, PAM_SILENT)) != PAM_SUCCESS)
+	{
+	  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "pam_acct_mgmt() returned %d (%s)", pamerr, pam_strerror(pamh, pamerr));
+	}
+
+	if (pamh)
+	  pam_end(pamh, PAM_SUCCESS);
+
+	if (pamerr == PAM_AUTH_ERR)
+	  status = HTTP_STATUS_UNAUTHORIZED;
+	else if (pamerr != PAM_SUCCESS)
+	  status = HTTP_STATUS_SERVER_ERROR;
+      }
+
+#else /* !HAVE_LIBPAM */
+      else
+      {
+       /*
+	* No other authentication methods...
+	*/
+
+	serverLogClient(SERVER_LOGLEVEL_INFO, client, "Authentication failed.");
+	status = HTTP_STATUS_SERVER_ERROR;
+      }
+#endif /* HAVE_LIBPAM */
+    }
   }
 
-  if ((pamerr = pam_setcred(pamh, PAM_ESTABLISH_CRED | PAM_SILENT)) != PAM_SUCCESS)
+  if (status == HTTP_STATUS_CONTINUE)
   {
-    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "pam_setcred() returned %d (%s)", pamerr, pam_strerror(pamh, pamerr));
-    goto auth_failed;
+   /*
+    * Authentication succeeded!
+    */
+
+    serverLogClient(SERVER_LOGLEVEL_INFO, client, "Authenticated as \"%s\".", data.username);
+
+    strlcpy(client->username, data.username, sizeof(client->username));
   }
 
-  if ((pamerr = pam_acct_mgmt(pamh, PAM_SILENT)) != PAM_SUCCESS)
-  {
-    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "pam_acct_mgmt() returned %d (%s)", pamerr, pam_strerror(pamh, pamerr));
-    goto auth_failed;
-  }
+  return (status);
+}
 
-  pam_end(pamh, PAM_SUCCESS);
 
+/*
+ * 'serverAuthorizeUser()' - Authorize access for an authenticated user.
+ */
+
+int					/* O - 1 if authorized, 0 otherwise */
+serverAuthorizeUser(
+    server_client_t *client,		/* I - Client connection */
+    const char      *owner,		/* I - Object owner or @code NULL@ if none/not applicable */
+    const char      *scope)		/* I - Access scope */
+{
+  struct passwd	*pw;			/* User account information */
+  int		i,			/* Looping var */
+		ngroups;		/* Number of groups for user */
+#ifdef __APPLE__
+  int		groups[2048];		/* Group list */
 #else
-  serverLogClient(SERVER_LOGLEVEL_INFO, client, "Authentication failed.");
+  gid_t		groups[2048];		/* Group list */
+#endif /* __APPLE__ */
 
-  return (HTTP_STATUS_UNAUTHORIZED);
-#endif /* HAVE_LIBPAM */
 
  /*
-  * If we get here then authentication succeeded...
+  * If the scope is "all" or "none", then we are authorized or not regardless
+  * of the authenticated user.
   */
 
-  auth_succeeded:
+  if (!strcmp(scope, SERVER_SCOPE_ALL))
+  {
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" is authorized because scope is \"all\".", client->username);
+    return (1);
+  }
+  else if (!strcmp(scope, SERVER_SCOPE_NONE))
+  {
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" not authorized because scope is \"none\".", client->username);
+    return (0);
+  }
 
-  serverLogClient(SERVER_LOGLEVEL_INFO, client, "Authenticated as \"%s\".", data.username);
-
-  strlcpy(client->username, data.username, sizeof(client->username));
-
-  return (HTTP_STATUS_CONTINUE);
-
-#ifdef HAVE_LIBPAM
  /*
-  * If we get here then authentication failed...
+  * If the request is not authenticated for any other scope, it cannot be
+  * authorized.
   */
 
-  auth_failed:
+  if (!client->username[0])
+  {
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "No authenticated user name, not authorized.");
+    return (0);
+  }
 
-  pam_end(pamh, 0);
+ /*
+  * The owner is always authorized...
+  */
 
-  serverLogClient(SERVER_LOGLEVEL_INFO, client, "Authentication failed.");
+  if (owner && !strcmp(client->username, owner) && strcmp(scope, SERVER_SCOPE_ADMIN))
+  {
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" is authorized because they are the owner.", client->username);
+    return (1);
+  }
 
-  return (pamerr == PAM_AUTH_ERR ? HTTP_STATUS_UNAUTHORIZED : HTTP_STATUS_SERVER_ERROR);
-#endif /* HAVE_LIBPAM */
+ /*
+  * If the user does not exist, it cannot be authorized against a group...
+  */
+
+  if ((pw = getpwnam(client->username)) == NULL)
+  {
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" does not have a local account.", client->username);
+    return (0);
+  }
+
+ /*
+  * Check group membership...
+  */
+
+  ngroups = (int)(sizeof(groups) / sizeof(groups[0]));
+
+#ifdef __APPLE__
+  if (getgrouplist(client->username, (int)pw->pw_gid, groups, &ngroups))
+#else
+  if (getgrouplist(client->username, pw->pw_gid, groups, &ngroups))
+#endif /* __APPLE__ */
+  {
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" not authorized because the group list could not be retrieved: %s", client->username, strerror(errno));
+    return (0);
+  }
+
+  if (!strcmp(scope, SERVER_SCOPE_ADMIN))
+  {
+   /*
+    * Authenticate as admin only...
+    */
+
+    for (i = 0; i < ngroups; i ++)
+      if ((gid_t)groups[i] == AuthAdminGID)
+        break;
+  }
+  else
+  {
+   /*
+    * Authenticate as admin or operator...
+    */
+
+    for (i = 0; i < ngroups; i ++)
+      if ((gid_t)groups[i] == AuthAdminGID || (gid_t)groups[i] == AuthOperatorGID)
+        break;
+  }
+
+  if (i < ngroups)
+  {
+    if ((gid_t)groups[i] == AuthAdminGID)
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" is authorized because they are an administrator.", client->username);
+    else
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" is authorized because they are an operator.", client->username);
+
+    return (1);
+  }
+  else
+  {
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" not authorized because they failed the group test.", client->username);
+    return (0);
+  }
 }
 
 

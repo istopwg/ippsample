@@ -112,6 +112,13 @@ extern char **environ;
 #  define SERVER_HTTP_SCHEME "http"
 #  define SERVER_HTTPS_SCHEME "https"
 
+/* Access scopes */
+#  define SERVER_SCOPE_ADMIN	"admin"
+#  define SERVER_SCOPE_ALL	"all"
+#  define SERVER_SCOPE_DEFAULT	"default"
+#  define SERVER_SCOPE_NONE	"none"
+#  define SERVER_SCOPE_OWNER	"owner"
+
 
 /*
  * LogLevel constants...
@@ -498,9 +505,24 @@ typedef struct server_listener_s	/**** Listener data ****/
  */
 
 VAR int			Authentication	VALUE(0);
+VAR gid_t		AuthAdminGID	VALUE((gid_t)-1);
+VAR char		*AuthAdminGroup	VALUE(NULL);
+VAR gid_t		AuthOperatorGID VALUE((gid_t)-1);
+VAR char		*AuthOperatorGroup VALUE(NULL);
 VAR char		*AuthService	VALUE(NULL),
-			*AuthTestUser	VALUE(NULL),
 			*AuthTestPassword VALUE(NULL);
+
+VAR char		*DocumentPrivacy VALUE(NULL),
+			*DocumentScope	VALUE(NULL);
+VAR cups_array_t	*DocumentPrivacyAttributes VALUE(NULL);
+
+VAR char		*JobPrivacy	VALUE(NULL),
+			*JobScope	VALUE(NULL);
+VAR cups_array_t	*JobPrivacyAttributes VALUE(NULL);
+
+VAR char		*SubscriptionPrivacy VALUE(NULL),
+			*SubscriptionScope VALUE(NULL);
+VAR cups_array_t	*SubscriptionPrivacyAttributes VALUE(NULL);
 
 VAR char		*ConfigDirectory VALUE(NULL);
 VAR char		*DataDirectory	VALUE(NULL);
@@ -539,6 +561,7 @@ VAR _cups_cond_t	SubscriptionCondition VALUE(_CUPS_COND_INITIALIZER);
 
 extern void		serverAddEvent(server_printer_t *printer, server_job_t *job, server_event_t event, const char *message, ...) __attribute__((__format__(__printf__, 4, 5)));
 extern http_status_t	serverAuthenticateClient(server_client_t *client);
+extern int		serverAuthorizeUser(server_client_t *client, const char *owner, const char *scope);
 extern void		serverCheckJobs(server_printer_t *printer);
 extern void             serverCleanAllJobs(void);
 extern void		serverCleanJobs(server_printer_t *printer);
