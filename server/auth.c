@@ -74,7 +74,7 @@ serverAuthenticateClient(
   {
     return (HTTP_STATUS_CONTINUE);
   }
-  else if (!Authorization || strncmp(authorization, "Basic ", 6))
+  else if ((!AuthService && !AuthTestUser) || strncmp(authorization, "Basic ", 6))
   {
     char	scheme[32],		/* Scheme */
 		*schemeptr;		/* Pointer into scheme */
@@ -119,11 +119,23 @@ serverAuthenticateClient(
 
   data.password = password;
 
+  if (!AuthService)
+  {
+    if (strcmp(data.username, AuthTestUser) || strcmp(data.password, AuthTestPassword))
+    {
+      serverLogClient(SERVER_LOGLEVEL_INFO, client, "Authentication failed.");
+      return (HTTP_STATUS_UNAUTHORIZED);
+    }
+
+    goto auth_succeeded;
+  }
+
 #ifdef HAVE_LIBPAM
-  pamdata.conv        = pam_func;
+  pamdata.conv        = (int (*)(int, const struct pam_message **,
+            struct pam_response **, void *))pam_func;
   pamdata.appdata_ptr = &data;
 
-  if ((pamerr = pam_start(Authorization, data.username, &pamdata, &pamh)) != PAM_SUCCESS)
+  if ((pamerr = pam_start(AuthService, data.username, &pamdata, &pamh)) != PAM_SUCCESS)
   {
     serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "pam_start() returned %d (%s)", pamerr, pam_strerror(pamh, pamerr));
     return (HTTP_STATUS_SERVER_ERROR);
@@ -158,12 +170,16 @@ serverAuthenticateClient(
   pam_end(pamh, PAM_SUCCESS);
 
 #else
-  if (strcmp(data.username, "test") || strcmp(data.password, "test123"))
-  {
-    serverLogClient(SERVER_LOGLEVEL_INFO, client, "Authentication failed.");
-    return (HTTP_STATUS_UNAUTHORIZED);
-  }
+  serverLogClient(SERVER_LOGLEVEL_INFO, client, "Authentication failed.");
+
+  return (HTTP_STATUS_UNAUTHORIZED);
 #endif /* HAVE_LIBPAM */
+
+ /*
+  * If we get here then authentication succeeded...
+  */
+
+  auth_succeeded:
 
   serverLogClient(SERVER_LOGLEVEL_INFO, client, "Authenticated as \"%s\".", data.username);
 
@@ -182,7 +198,7 @@ serverAuthenticateClient(
 
   serverLogClient(SERVER_LOGLEVEL_INFO, client, "Authentication failed.");
 
-  return (pamerr == PAM_AUTH_ERROR ? HTTP_STATUS_UNAUTHORIZED : HTTP_STATUS_SERVER_ERROR);
+  return (pamerr == PAM_AUTH_ERR ? HTTP_STATUS_UNAUTHORIZED : HTTP_STATUS_SERVER_ERROR);
 #endif /* HAVE_LIBPAM */
 }
 
@@ -201,13 +217,13 @@ pam_func(
 {
   int			i;		/* Looping var */
   struct pam_response	*replies;	/* Replies */
-  char
+
 
  /*
   * Allocate memory for the responses...
   */
 
-  if ((replies = malloc(sizeof(struct pam_response) * (size_t)num_msg)) == NULL)
+  if ((replies = calloc((size_t)num_msg, sizeof(struct pam_response))) == NULL)
     return (PAM_CONV_ERR);
 
  /*

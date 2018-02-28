@@ -497,7 +497,11 @@ typedef struct server_listener_s	/**** Listener data ****/
  * Globals...
  */
 
-VAR char		*Authorization	VALUE(NULL);
+VAR int			Authentication	VALUE(0);
+VAR char		*AuthService	VALUE(NULL),
+			*AuthTestUser	VALUE(NULL),
+			*AuthTestPassword VALUE(NULL);
+
 VAR char		*ConfigDirectory VALUE(NULL);
 VAR char		*DataDirectory	VALUE(NULL);
 VAR int			DefaultPort	VALUE(0);

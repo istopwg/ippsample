@@ -52,6 +52,9 @@
 		2778EBB01D2FF64300DE72EC /* ipptransform3d.c in Sources */ = {isa = PBXBuildFile; fileRef = 2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */; };
 		27E2CC681C99C69400D203EC /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
 		27E2CC691C99C6A000D203EC /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EB1C0CE81900139783 /* SystemConfiguration.framework */; };
+		27EB2B8F20463E4B0088BC2C /* auth.c in Sources */ = {isa = PBXBuildFile; fileRef = 27EB2B8E20463E4B0088BC2C /* auth.c */; };
+		27EB2B9120470BAF0088BC2C /* libpam.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 27EB2B9020470BAE0088BC2C /* libpam.tbd */; };
+		27EB2B9320470BBA0088BC2C /* libdl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 27EB2B9220470BBA0088BC2C /* libdl.tbd */; };
 		72368674202B657400973022 /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
 		72368675202B657400973022 /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
 		72368676202B657400973022 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
@@ -527,6 +530,9 @@
 		2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ipptransform3d.c; path = ../tools/ipptransform3d.c; sourceTree = "<group>"; };
 		279C01D61D1B0F9700F06A84 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; name = LICENSE; path = ../LICENSE; sourceTree = "<group>"; };
 		279C01D71D1B0F9700F06A84 /* PI.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = PI.md; path = ../PI.md; sourceTree = "<group>"; };
+		27EB2B8E20463E4B0088BC2C /* auth.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = auth.c; path = ../server/auth.c; sourceTree = "<group>"; };
+		27EB2B9020470BAE0088BC2C /* libpam.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libpam.tbd; path = usr/lib/libpam.tbd; sourceTree = SDKROOT; };
+		27EB2B9220470BBA0088BC2C /* libdl.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libdl.tbd; path = usr/lib/libdl.tbd; sourceTree = SDKROOT; };
 		27FDC5F61D7F497500246F95 /* ipptransform3d.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = ipptransform3d.html; path = ../doc/ipptransform3d.html; sourceTree = "<group>"; };
 		27FDC5F71D7F497500246F95 /* ipptransform3d.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ipptransform3d.man; path = ../doc/ipptransform3d.man; sourceTree = "<group>"; };
 		72368665202B652600973022 /* testi18n.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = testi18n.c; path = ../cups/testi18n.c; sourceTree = "<group>"; };
@@ -807,6 +813,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				27EB2B9320470BBA0088BC2C /* libdl.tbd in Frameworks */,
+				27EB2B9120470BAF0088BC2C /* libpam.tbd in Frameworks */,
 				72B403071C0DE7FC00139783 /* Security.framework in Frameworks */,
 				72B403021C0CE92400139783 /* libiconv.dylib in Frameworks */,
 				72B403031C0CE92400139783 /* libresolv.dylib in Frameworks */,
@@ -997,6 +1005,7 @@
 		72B4022D1C0CE21C00139783 /* ippserver */ = {
 			isa = PBXGroup;
 			children = (
+				27EB2B8E20463E4B0088BC2C /* auth.c */,
 				72B402A31C0CE43D00139783 /* client.c */,
 				72B402A41C0CE43D00139783 /* conf.c */,
 				72B402A51C0CE43D00139783 /* device.c */,
@@ -1057,6 +1066,8 @@
 		72B403051C0DE49600139783 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				27EB2B9220470BBA0088BC2C /* libdl.tbd */,
+				27EB2B9020470BAE0088BC2C /* libpam.tbd */,
 				72B403061C0DE7FC00139783 /* Security.framework */,
 				72B402FB1C0CE8CE00139783 /* libiconv.dylib */,
 				72B402FC1C0CE8CE00139783 /* libresolv.dylib */,
@@ -1537,6 +1548,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				72B402C01C0CE46800139783 /* log.c in Sources */,
+				27EB2B8F20463E4B0088BC2C /* auth.c in Sources */,
 				72B402C31C0CE46800139783 /* subscription.c in Sources */,
 				72B402C41C0CE46800139783 /* transform.c in Sources */,
 				72B402BD1C0CE45F00139783 /* device.c in Sources */,

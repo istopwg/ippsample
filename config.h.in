@@ -65,6 +65,16 @@
 
 
 /*
+ * Do we have PAM stuff?
+ */
+
+#undef HAVE_LIBPAM
+#undef HAVE_SECURITY_PAM_APPL_H
+#undef HAVE_PAM_PAM_APPL_H
+#define DEFAULT_PAM_SERVICE ""
+
+
+/*
  * Use <stdint.h>?
  */
 

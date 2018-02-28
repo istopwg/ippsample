@@ -637,6 +637,7 @@ CUPS_SERVERKEYCHAIN
 LIBGCRYPTCONFIG
 LIBGNUTLSCONFIG
 PTHREAD_FLAGS
+PAMLIBS
 CUPS_LISTEN_DOMAINSOCKET
 CUPS_DEFAULT_DOMAINSOCKET
 RELROFLAGS
@@ -698,7 +699,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -730,6 +730,7 @@ with_archflags
 with_ldarchflags
 enable_relro
 with_domainsocket
+enable_pam
 enable_threads
 enable_ssl
 enable_cdsassl
@@ -788,7 +789,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1041,15 +1041,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1187,7 +1178,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1340,7 +1331,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -1375,6 +1365,7 @@ Optional Features:
   --disable-debug-printfs  disable CUPS_DEBUG_LOG support
   --enable-unit-tests     build and run unit tests
   --enable-relro          build with the GCC relro option
+  --disable-pam           disable PAM support
   --disable-threads       disable multi-threading support
   --disable-ssl           disable SSL/TLS support
   --enable-cdsassl        use CDSA for SSL/TLS support, default=first
@@ -5909,6 +5900,160 @@ fi
 
 
 
+# Check whether --enable-pam was given.
+if test "${enable_pam+set}" = set; then :
+  enableval=$enable_pam;
+fi
+
+
+PAMLIBS=""
+
+if test x$enable_pam != xno; then
+	SAVELIBS="$LIBS"
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for dlopen in -ldl" >&5
+$as_echo_n "checking for dlopen in -ldl... " >&6; }
+if ${ac_cv_lib_dl_dlopen+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ldl  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char dlopen ();
+int
+main ()
+{
+return dlopen ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_dl_dlopen=yes
+else
+  ac_cv_lib_dl_dlopen=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_dl_dlopen" >&5
+$as_echo "$ac_cv_lib_dl_dlopen" >&6; }
+if test "x$ac_cv_lib_dl_dlopen" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBDL 1
+_ACEOF
+
+  LIBS="-ldl $LIBS"
+
+fi
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pam_start in -lpam" >&5
+$as_echo_n "checking for pam_start in -lpam... " >&6; }
+if ${ac_cv_lib_pam_pam_start+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpam  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char pam_start ();
+int
+main ()
+{
+return pam_start ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_pam_pam_start=yes
+else
+  ac_cv_lib_pam_pam_start=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_pam_pam_start" >&5
+$as_echo "$ac_cv_lib_pam_pam_start" >&6; }
+if test "x$ac_cv_lib_pam_pam_start" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBPAM 1
+_ACEOF
+
+  LIBS="-lpam $LIBS"
+
+fi
+
+	ac_fn_c_check_header_mongrel "$LINENO" "security/pam_appl.h" "ac_cv_header_security_pam_appl_h" "$ac_includes_default"
+if test "x$ac_cv_header_security_pam_appl_h" = xyes; then :
+  $as_echo "#define HAVE_SECURITY_PAM_APPL_H 1" >>confdefs.h
+
+fi
+
+
+	ac_fn_c_check_header_mongrel "$LINENO" "pam/pam_appl.h" "ac_cv_header_pam_pam_appl_h" "$ac_includes_default"
+if test "x$ac_cv_header_pam_pam_appl_h" = xyes; then :
+  $as_echo "#define HAVE_PAM_PAM_APPL_H 1" >>confdefs.h
+
+fi
+
+
+
+	if test x$ac_cv_lib_pam_pam_start != xno; then
+		# Set the necessary libraries for PAM...
+		if test x$ac_cv_lib_dl_dlopen != xno; then
+			PAMLIBS="-lpam -ldl"
+		else
+			PAMLIBS="-lpam"
+		fi
+
+		# Find the PAM configuration directory, if any...
+		for dir in /private/etc/pam.d /etc/pam.d; do
+			if test -d $dir; then
+				PAMDIR=$dir
+				break;
+			fi
+		done
+	fi
+
+	LIBS="$SAVELIBS"
+
+	case "$host_os_name" in
+		darwin*)
+			# Darwin/macOS
+			$as_echo "#define DEFAULT_PAM_SERVICE \"cups\"" >>confdefs.h
+
+			;;
+
+		*)
+			# All others; this test might need to be updated
+			# as Linux distributors move things around...
+			$as_echo "#define DEFAULT_PAM_SERVICE \"other\"" >>confdefs.h
+
+			;;
+	esac
+fi
+
+
+
+
 ac_fn_c_check_func "$LINENO" "poll" "ac_cv_func_poll"
 if test "x$ac_cv_func_poll" = xyes; then :
   $as_echo "#define HAVE_POLL 1" >>confdefs.h
@@ -6380,7 +6525,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6426,7 +6571,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6450,7 +6595,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6495,7 +6640,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6519,7 +6664,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
