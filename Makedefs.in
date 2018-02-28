@@ -1,9 +1,9 @@
 #
 # Common makefile definitions for the IPP sample code.
 #
-# Copyright 2014-2017 by the IEEE-ISTO Printer Working Group.
-# Copyright 2007-2017 by Apple Inc.
-# Copyright 1997-2007 by Easy Software Products, all rights reserved.
+# Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
+# Copyright © 2007-2018 by Apple Inc.
+# Copyright © 1997-2007 by Easy Software Products, all rights reserved.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
 # information.
@@ -87,6 +87,7 @@ LINKCUPS	=	../cups/libcups.a $(SSLLIBS) $(DNSSDLIBS) $(LIBZ)
 LIBS		=	$(LINKCUPS) $(COMMONLIBS)
 OPTIM		=	@OPTIM@
 OPTIONS		=
+PAMLIBS		=	@PAMLIBS@
 SSLFLAGS	=	@SSLFLAGS@
 SSLLIBS		=	@SSLLIBS@
 
