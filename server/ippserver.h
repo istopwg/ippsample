@@ -497,6 +497,7 @@ typedef struct server_listener_s	/**** Listener data ****/
  * Globals...
  */
 
+VAR char		*Authorization	VALUE(NULL);
 VAR char		*ConfigDirectory VALUE(NULL);
 VAR char		*DataDirectory	VALUE(NULL);
 VAR int			DefaultPort	VALUE(0);
@@ -533,6 +534,7 @@ VAR _cups_cond_t	SubscriptionCondition VALUE(_CUPS_COND_INITIALIZER);
  */
 
 extern void		serverAddEvent(server_printer_t *printer, server_job_t *job, server_event_t event, const char *message, ...) __attribute__((__format__(__printf__, 4, 5)));
+extern http_status_t	serverAuthenticateClient(server_client_t *client);
 extern void		serverCheckJobs(server_printer_t *printer);
 extern void             serverCleanAllJobs(void);
 extern void		serverCleanJobs(server_printer_t *printer);

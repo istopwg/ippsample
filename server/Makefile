@@ -15,7 +15,8 @@ include ../Makedefs
 # Object files...
 #
 
-OBJS =	\
+OBJS 	=	\
+		auth.o \
 		client.o \
 		conf.o \
 		device.o \
