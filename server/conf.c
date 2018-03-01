@@ -172,8 +172,17 @@ serverFinalizeConfiguration(void)
 
   if (Authentication)
   {
+    if (AuthAdminGroup == (gid_t)-1)
+      AuthAdminGroup = 0;
+    if (AuthOperatorGroup == (gid_t)-1)
+      AuthOperatorGroup = getgid();
+
+    if (!AuthName)
+      AuthName = strdup("Printing");
     if (!AuthService && !AuthTestPassword)
       AuthService = strdup(DEFAULT_PAM_SERVICE);
+    if (!AuthType)
+      AuthType = strdup("Basic");
 
     if (!DocumentPrivacyScope)
       DocumentPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
@@ -366,6 +375,7 @@ serverLoadConfiguration(
         *ptr = '\0';
 
         memset(&pinfo, 0, sizeof(pinfo));
+        pinfo.print_group = (gid_t)-1;
 
         snprintf(iconname, sizeof(iconname), "%s/print/%s.png", directory, dent->filename);
         if (!access(iconname, R_OK))
@@ -414,6 +424,7 @@ serverLoadConfiguration(
         *ptr = '\0';
 
         memset(&pinfo, 0, sizeof(pinfo));
+        pinfo.print_group = (gid_t)-1;
 
         snprintf(iconname, sizeof(iconname), "%s/print3d/%s.png", directory, dent->filename);
         if (!access(iconname, R_OK))
@@ -685,6 +696,10 @@ load_system(const char *conf)		/* I - Configuration file */
 
       AuthAdminGroup = group->gr_gid;
     }
+    else if (!_cups_strcasecmp(line, "AuthName"))
+    {
+      AuthName = strdup(value);
+    }
     else if (!_cups_strcasecmp(line, "AuthOperatorGroup"))
     {
       if ((group = getgrnam(value)) == NULL)
@@ -703,6 +718,10 @@ load_system(const char *conf)		/* I - Configuration file */
     else if (!_cups_strcasecmp(line, "AuthTestPassword"))
     {
       AuthTestPassword = strdup(value);
+    }
+    else if (!_cups_strcasecmp(line, "AuthType"))
+    {
+      AuthType = strdup(value);
     }
     else if (!_cups_strcasecmp(line, "DataDirectory"))
     {
@@ -1541,19 +1560,39 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     return (1);
   }
-  else if (!_cups_strcasecmp(token, "AUTHTYPE"))
+  else if (!_cups_strcasecmp(token, "AuthPrintGroup"))
   {
+    struct group	*group;		/* Group information */
+
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing AuthType value on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing AuthPrintGroup value on line %d of \"%s\".", f->linenum, f->filename);
       return (0);
     }
 
     _ippVarsExpand(vars, value, temp, sizeof(value));
 
-    pinfo->auth_type = strdup(value);
+    if ((group = getgrnam(value)) == NULL)
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Unknown AuthPrintGroup \"%s\" on line %d of \"%s\".", value, f->linenum, f->filename);
+      return (0);
+    }
+
+    pinfo->print_group = group->gr_gid;
   }
-  else if (!_cups_strcasecmp(token, "COMMAND"))
+  else if (!_cups_strcasecmp(token, "AuthProxyUser"))
+  {
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing AuthProxyUser value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    _ippVarsExpand(vars, value, temp, sizeof(value));
+
+    pinfo->proxy_user = strdup(value);
+  }
+  else if (!_cups_strcasecmp(token, "Command"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
@@ -1565,7 +1604,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->command = strdup(value);
   }
-  else if (!_cups_strcasecmp(token, "DEVICEURI"))
+  else if (!_cups_strcasecmp(token, "DeviceURI"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
@@ -1577,7 +1616,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->device_uri = strdup(value);
   }
-  else if (!_cups_strcasecmp(token, "OUTPUTFORMAT"))
+  else if (!_cups_strcasecmp(token, "OutputFormat"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
@@ -1589,7 +1628,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->output_format = strdup(value);
   }
-  else if (!_cups_strcasecmp(token, "MAKE"))
+  else if (!_cups_strcasecmp(token, "Make"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
@@ -1601,7 +1640,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->make = strdup(value);
   }
-  else if (!_cups_strcasecmp(token, "MODEL"))
+  else if (!_cups_strcasecmp(token, "Model"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
@@ -1613,19 +1652,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->model = strdup(value);
   }
-  else if (!_cups_strcasecmp(token, "PROXYUSER"))
-  {
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
-    {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing ProxyUser value on line %d of \"%s\".", f->linenum, f->filename);
-      return (0);
-    }
-
-    _ippVarsExpand(vars, value, temp, sizeof(value));
-
-    pinfo->proxy_user = strdup(value);
-  }
-  else if (!_cups_strcasecmp(token, "STRINGS"))
+  else if (!_cups_strcasecmp(token, "Strings"))
   {
     server_lang_t	lang;			/* New localization */
     char		stringsfile[1024];	/* Strings filename */

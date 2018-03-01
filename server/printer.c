@@ -52,7 +52,8 @@ serverCopyPrinterStateReasons(
   }
   else
   {
-    int			i,		/* Looping var */				num_reasons = 0;/* Number of reasons */
+    int			i,		/* Looping var */
+			num_reasons = 0;/* Number of reasons */
     server_preason_t	reason;		/* Current reason */
     const char		*reasons[32];	/* Reason strings */
 

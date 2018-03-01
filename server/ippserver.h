@@ -381,8 +381,8 @@ typedef struct server_pinfo_s		/**** Printer information ****/
 		*command,		/* Command to run with job files */
 		*device_uri,		/* Device URI */
 		*output_format,		/* Output format */
-		*auth_type,		/* Type of authentication */
 		*proxy_user;		/* Proxy user, if any */
+  gid_t		print_group;		/* Print group, if any */
   int		duplex,			/* Duplex mode */
 		pin,			/* PIN printing mode? */
 		ppm,			/* Pages per minute for mono */

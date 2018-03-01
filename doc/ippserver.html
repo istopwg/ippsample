@@ -162,16 +162,68 @@ Each line consists of a directive followed by its value(s).
 Comments start with the # character and continue to the end of the line.
 The following directives are supported:
 <dl class="man">
+<dt><b>Authentication </b><i>{On|Off|Yes|No}</i>
+<dd style="margin-left: 5.0em">Specifies whether authentication is required for requests other than Get-Printer-Attributes.
+The default is "No".
+<dt><b>AuthAdminGroup </b><i>group</i>
+<dd style="margin-left: 5.0em">Specifies the group of print administrators.
+The default administrator group is "wheel".
+<dt><b>AuthName </b><i>realm</i>
+<dd style="margin-left: 5.0em">Specifies the authentication realm name.
+The default realm name is "Printing".
+<dt><b>AuthOperatorGroup </b><i>group</i>
+<dd style="margin-left: 5.0em">Specifies the group of print operators.
+The default operator group is the primary group for the user running the server.
+<dt><b>AuthService </b><i>name</i>
+<dd style="margin-left: 5.0em">Specifies the PAM service name.
+The default is either "cups" or "other", depending on the platform.
+<dt><b>AuthTestPassword </b><i>password</i>
+<dd style="margin-left: 5.0em">Specifies a single password that can be used to authenticate against any user account.
+Note: This directive is provided for testing only and does not actually provide access to the "authenticated" user account.
+The default is to not have testing password enabled.
+<dt><b>AuthType </b><i>{None|Basic}</i>
+<dd style="margin-left: 5.0em">Specifies the type of authentication to require.
+"None" specifies that no authentication is required.
+"Basic" specifies that HTTP Basic authentication (username + password) is required.
+The default is "Basic".
 <dt><b>DataDirectory </b><i>directory</i>
 <dd style="margin-left: 5.0em">Specifies the location of server data files.
 <dt><b>DefaultPrinter </b><i>name</i>
 <dd style="margin-left: 5.0em">Specifies the default print service name.
+<dt><b>DocumentPrivacyAttributes </b><i>{all|default|none|list of attributes and groups}</i>
+<dd style="margin-left: 5.0em">Specifies which document object attribute values are considered private.
+"All" will hide all attributes except "document-job-id", "document-number", "document-printer-uri", and "document-uuid".
+"Default" hides all description and template attributes but not status attributes.
+"None" does not hide any attributes.
+A list of (space-delimited) attributes and groups names specific attributes, all description ("document-description"), and/or all template ("document-template") attributes.
+The default value is "default".
+<dt><b>DocumentPrivacyScope </b><i>{all|default|owner|none}</i>
+<dd style="margin-left: 5.0em">Specifies which users can query private document attribute values.
+"All" means that all users can query private document attribute values.
+"Default" means that the document owner and any administrator or operator can query private document attribute values.
+"Owner" means that only the document owner can query private document attribute values.
+"None" means that no user can query private document attribute values.
+The default is "default".
 <dt><b>Encryption </b><i>{Always|IfRequested|Never|Required}</i>
 <dd style="margin-left: 5.0em">Specifies when to use TLS encryption for client connections.
 "Always" means that all connections are encrypted when established (HTTPS).
 "IfRequested" means that connections are encrypted when an upgrade is requested by the client.
 "Never" means that encryption is not allowed or supported.
 "Required" means that all connections are encrypted, either when established (HTTPS) or immediately thereafter using HTTP Upgrade.
+<dt><b>JobPrivacyAttributes </b><i>{all|default|none|list of attributes and groups}</i>
+<dd style="margin-left: 5.0em">Specifies which job object attribute values are considered private.
+"All" will hide all attributes except "job-id", "job-printer-uri", and "job-uuid".
+"Default" hides all description and template attributes but not status attributes.
+"None" does not hide any attributes.
+A list of (space-delimited) attributes and groups names specific attributes, all description ("job-description"), and/or all template ("job-template") attributes.
+The default value is "default".
+<dt><b>JobPrivacyScope </b><i>{all|default|owner|none}</i>
+<dd style="margin-left: 5.0em">Specifies which users can query private job attribute values.
+"All" means that all users can query private job attribute values.
+"Default" means that the job owner and any administrator or operator can query private job attribute values.
+"Owner" means that only the job owner can query private job attribute values.
+"None" means that no user can query private job attribute values.
+The default is "default".
 <dt><b>KeepFiles </b><i>{No|Yes}</i>
 <dd style="margin-left: 5.0em">Specifies whether job data files are retained after processing.
 <dt><b>Listen </b><i>address[:port]</i>
@@ -195,6 +247,20 @@ Note: <b>ippserver</b> currently removes completed jobs from the job history aft
 The value 0 specifies there is no limit.
 <dt><b>SpoolDirectory </b><i>path</i>
 <dd style="margin-left: 5.0em">Specifies the location of print job spool files.
+<dt><b>SubscriptionPrivacyAttributes </b><i>{all|default|none|list of attributes and groups}</i>
+<dd style="margin-left: 5.0em">Specifies which subscription object attribute values are considered private.
+"All" will hide all attributes except "notify-job-id", "notify-printer-uri", "notify-subscription-id", and "notify-subscription-uuid".
+"Default" hides all description and template attributes but not status attributes.
+"None" does not hide any attributes.
+A list of (space-delimited) attributes and groups names specific attributes, all description ("subscription-description"), and/or all template ("subscription-template") attributes.
+The default value is "default".
+<dt><b>SubscriptionPrivacyScope </b><i>{all|default|owner|none}</i>
+<dd style="margin-left: 5.0em">Specifies which users can query private subscription attribute values.
+"All" means that all users can query private subscription attribute values.
+"Default" means that the subscription owner and any administrator or operator can query private subscription attribute values.
+"Owner" means that only the subscription owner can query private subscription attribute values.
+"None" means that no user can query private subscription attribute values.
+The default is "default".
 </dl>
 <h3><a name="PRINT_SERVICE_CONFIGURATION_FILES">Print Service Configuration Files</a></h3>
 Each 2D print service is configured by a <i>print/name.conf</i> configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print/name".
@@ -207,10 +273,10 @@ The following directives are supported:
 <dd style="margin-left: 5.0em">Specifies a Printer Description attribute.
 The format is further defined in
 <a href="man-ipptoolfile.html?TOPIC=Man+Pages"><b>ipptoolfile</b>(7).</a>
-<dt><b>AuthType </b><i>{None|Basic}</i>
-<dd style="margin-left: 5.0em">Specifies the type of authentication to require.
-"None" specifies that no authentication is required.
-"Basic" specifies that HTTP Basic authentication (username + password) is required.
+<dt><b>AuthPrintGroup </b><i>group</i>
+<dd style="margin-left: 5.0em">Specifies the group of users that is allowed to print.
+<dt><b>AuthProxyUser </b><i>user</i>
+<dd style="margin-left: 5.0em">Specifies the name of the proxy user for the printer.
 <dt><b>Command </b><i>command</i>
 <dd style="margin-left: 5.0em">Specifies the command to run when processing jobs.
 The
@@ -222,8 +288,6 @@ command can be used for many printers.
 <dd style="margin-left: 5.0em">Specifies the manufacturer name for the printer.
 <dt><b>Model </b><i>model</i>
 <dd style="margin-left: 5.0em">Specifies the model for the printer.
-<dt><b>ProxyUser </b><i>user</i>
-<dd style="margin-left: 5.0em">Specifies the name of the proxy user for the printer.
 </dl>
 <h3><a name="PRINT_SERVICE_ICON_FILES">Print Service Icon Files</a></h3>
 The icon for each 2D print service is stored in the <i>print/name.png</i>  file. Similarly, the icon for each 3D print service is stored in the <i>print3d/name.png</i> file.

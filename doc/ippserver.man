@@ -7,7 +7,7 @@
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ippserver 8 "ippsample" "26 February 2018" "Apple Inc."
+.TH ippserver 8 "ippsample" "1 March 2018" "Apple Inc."
 .SH NAME
 ippserver \- a simple ipp server
 .SH SYNOPSIS
@@ -185,11 +185,58 @@ Each line consists of a directive followed by its value(s).
 Comments start with the # character and continue to the end of the line.
 The following directives are supported:
 .TP 5
+\fBAuthentication \fI{On|Off|Yes|No}\fR
+Specifies whether authentication is required for requests other than Get-Printer-Attributes.
+The default is "No".
+.TP 5
+\fBAuthAdminGroup \fIgroup\fR
+Specifies the group of print administrators.
+The default administrator group is "wheel".
+.TP 5
+\fBAuthName \fIrealm\fR
+Specifies the authentication realm name.
+The default realm name is "Printing".
+.TP 5
+\fBAuthOperatorGroup \fIgroup\fR
+Specifies the group of print operators.
+The default operator group is the primary group for the user running the server.
+.TP 5
+\fBAuthService \fIname\fR
+Specifies the PAM service name.
+The default is either "cups" or "other", depending on the platform.
+.TP 5
+\fBAuthTestPassword \fIpassword\fR
+Specifies a single password that can be used to authenticate against any user account.
+Note: This directive is provided for testing only and does not actually provide access to the "authenticated" user account.
+The default is to not have testing password enabled.
+.TP 5
+\fBAuthType \fI{None|Basic}\fR
+Specifies the type of authentication to require.
+"None" specifies that no authentication is required.
+"Basic" specifies that HTTP Basic authentication (username + password) is required.
+The default is "Basic".
+.TP 5
 \fBDataDirectory \fIdirectory\fR
 Specifies the location of server data files.
 .TP 5
 \fBDefaultPrinter \fIname\fR
 Specifies the default print service name.
+.TP 5
+\fBDocumentPrivacyAttributes \fI{all|default|none|list of attributes and groups}\fR
+Specifies which document object attribute values are considered private.
+"All" will hide all attributes except "document-job-id", "document-number", "document-printer-uri", and "document-uuid".
+"Default" hides all description and template attributes but not status attributes.
+"None" does not hide any attributes.
+A list of (space-delimited) attributes and groups names specific attributes, all description ("document-description"), and/or all template ("document-template") attributes.
+The default value is "default".
+.TP 5
+\fBDocumentPrivacyScope \fI{all|default|owner|none}\fR
+Specifies which users can query private document attribute values.
+"All" means that all users can query private document attribute values.
+"Default" means that the document owner and any administrator or operator can query private document attribute values.
+"Owner" means that only the document owner can query private document attribute values.
+"None" means that no user can query private document attribute values.
+The default is "default".
 .TP 5
 \fBEncryption \fI{Always|IfRequested|Never|Required}\fR
 Specifies when to use TLS encryption for client connections.
@@ -197,6 +244,22 @@ Specifies when to use TLS encryption for client connections.
 "IfRequested" means that connections are encrypted when an upgrade is requested by the client.
 "Never" means that encryption is not allowed or supported.
 "Required" means that all connections are encrypted, either when established (HTTPS) or immediately thereafter using HTTP Upgrade.
+.TP 5
+\fBJobPrivacyAttributes \fI{all|default|none|list of attributes and groups}\fR
+Specifies which job object attribute values are considered private.
+"All" will hide all attributes except "job-id", "job-printer-uri", and "job-uuid".
+"Default" hides all description and template attributes but not status attributes.
+"None" does not hide any attributes.
+A list of (space-delimited) attributes and groups names specific attributes, all description ("job-description"), and/or all template ("job-template") attributes.
+The default value is "default".
+.TP 5
+\fBJobPrivacyScope \fI{all|default|owner|none}\fR
+Specifies which users can query private job attribute values.
+"All" means that all users can query private job attribute values.
+"Default" means that the job owner and any administrator or operator can query private job attribute values.
+"Owner" means that only the job owner can query private job attribute values.
+"None" means that no user can query private job attribute values.
+The default is "default".
 .TP 5
 \fBKeepFiles \fI{No|Yes}\fR
 Specifies whether job data files are retained after processing.
@@ -227,6 +290,22 @@ The value 0 specifies there is no limit.
 .TP 5
 \fBSpoolDirectory \fIpath\fR
 Specifies the location of print job spool files.
+.TP 5
+\fBSubscriptionPrivacyAttributes \fI{all|default|none|list of attributes and groups}\fR
+Specifies which subscription object attribute values are considered private.
+"All" will hide all attributes except "notify-job-id", "notify-printer-uri", "notify-subscription-id", and "notify-subscription-uuid".
+"Default" hides all description and template attributes but not status attributes.
+"None" does not hide any attributes.
+A list of (space-delimited) attributes and groups names specific attributes, all description ("subscription-description"), and/or all template ("subscription-template") attributes.
+The default value is "default".
+.TP 5
+\fBSubscriptionPrivacyScope \fI{all|default|owner|none}\fR
+Specifies which users can query private subscription attribute values.
+"All" means that all users can query private subscription attribute values.
+"Default" means that the subscription owner and any administrator or operator can query private subscription attribute values.
+"Owner" means that only the subscription owner can query private subscription attribute values.
+"None" means that no user can query private subscription attribute values.
+The default is "default".
 .SS PRINT SERVICE CONFIGURATION FILES
 Each 2D print service is configured by a \fIprint/name.conf\fR configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print/name".
 Each 3D print service is configured by a \fIprint3d/name.conf\fR configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print3d/name".
@@ -239,10 +318,11 @@ Specifies a Printer Description attribute.
 The format is further defined in
 .BR ipptoolfile (7).
 .TP 5
-\fBAuthType \fI{None|Basic}\fR
-Specifies the type of authentication to require.
-"None" specifies that no authentication is required.
-"Basic" specifies that HTTP Basic authentication (username + password) is required.
+\fBAuthPrintGroup \fIgroup\fR
+Specifies the group of users that is allowed to print.
+.TP 5
+\fBAuthProxyUser \fIuser\fR
+Specifies the name of the proxy user for the printer.
 .TP 5
 \fBCommand \fIcommand\fR
 Specifies the command to run when processing jobs.
@@ -258,9 +338,6 @@ Specifies the manufacturer name for the printer.
 .TP 5
 \fBModel \fImodel\fR
 Specifies the model for the printer.
-.TP 5
-\fBProxyUser \fIuser\fR
-Specifies the name of the proxy user for the printer.
 .SS PRINT SERVICE ICON FILES
 The icon for each 2D print service is stored in the \fIprint/name.png\fR  file. Similarly, the icon for each 3D print service is stored in the \fIprint3d/name.png\fR file.
 .SH SEE ALSO
