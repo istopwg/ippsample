@@ -112,7 +112,7 @@ serverUpdateDeviceAttributesNoLock(
   dev_attrs = ippNew();
 
   if (device)
-    serverCopyAttributes(dev_attrs, device->attrs, NULL, IPP_TAG_PRINTER, 0);
+    serverCopyAttributes(dev_attrs, device->attrs, NULL, NULL, IPP_TAG_PRINTER, 0);
 
   ippDelete(printer->dev_attrs);
   printer->dev_attrs = dev_attrs;

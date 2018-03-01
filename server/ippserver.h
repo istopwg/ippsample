@@ -349,6 +349,7 @@ typedef void *server_loc_t;		/* LOC record */
 typedef struct server_filter_s		/**** Attribute filter ****/
 {
   cups_array_t		*ra;		/* Requested attributes */
+  cups_array_t		*pa;		/* Private attributes */
   ipp_tag_t		group_tag;	/* Group to copy */
 } server_filter_t;
 
@@ -565,7 +566,7 @@ extern int		serverAuthorizeUser(server_client_t *client, const char *owner, cons
 extern void		serverCheckJobs(server_printer_t *printer);
 extern void             serverCleanAllJobs(void);
 extern void		serverCleanJobs(server_printer_t *printer);
-extern void		serverCopyAttributes(ipp_t *to, ipp_t *from, cups_array_t *ra, ipp_tag_t group_tag, int quickcopy);
+extern void		serverCopyAttributes(ipp_t *to, ipp_t *from, cups_array_t *ra, cups_array_t *pa, ipp_tag_t group_tag, int quickcopy);
 extern void		serverCopyJobStateReasons(ipp_t *ipp, ipp_tag_t group_tag, server_job_t *job);
 extern void		serverCopyPrinterStateReasons(ipp_t *ipp, ipp_tag_t group_tag, server_printer_t *printer);
 extern server_client_t	*serverCreateClient(int sock);

@@ -175,7 +175,7 @@ serverCreateJob(server_client_t *client)	/* I - Client */
   * Copy all of the job attributes...
   */
 
-  serverCopyAttributes(job->attrs, client->request, NULL, IPP_TAG_JOB, 0);
+  serverCopyAttributes(job->attrs, client->request, NULL, NULL, IPP_TAG_JOB, 0);
 
  /*
   * Get the requesting-user-name, document format, and priority...

@@ -15,9 +15,13 @@
  * Local functions...
  */
 
-static void		copy_doc_attributes(server_client_t *client, server_job_t *job, cups_array_t *ra);
-static void		copy_job_attributes(server_client_t *client, server_job_t *job, cups_array_t *ra);
-static void		copy_subscription_attributes(server_client_t *client, server_subscription_t *sub, cups_array_t *ra);
+static inline int	check_attribute(const char *name, cups_array_t *ra, cups_array_t *pa)
+{
+  return ((!pa || !cupsArrayFind(pa, (void *)name)) && (!ra || cupsArrayFind(ra, (void *)name)));
+}
+static void		copy_doc_attributes(server_client_t *client, server_job_t *job, cups_array_t *ra, cups_array_t *pa);
+static void		copy_job_attributes(server_client_t *client, server_job_t *job, cups_array_t *ra, cups_array_t *pa);
+static void		copy_subscription_attributes(server_client_t *client, server_subscription_t *sub, cups_array_t *ra, cups_array_t *pa);
 static int		filter_cb(server_filter_t *filter, ipp_t *dst, ipp_attribute_t *attr);
 static void		ipp_acknowledge_document(server_client_t *client);
 static void		ipp_acknowledge_identify_printer(server_client_t *client);
@@ -66,6 +70,7 @@ serverCopyAttributes(
     ipp_t        *to,			/* I - Destination request */
     ipp_t        *from,			/* I - Source request */
     cups_array_t *ra,			/* I - Requested attributes */
+    cups_array_t *pa,			/* I - Private attributes */
     ipp_tag_t    group_tag,		/* I - Group to copy */
     int          quickcopy)		/* I - Do a quick copy? */
 {
@@ -73,6 +78,7 @@ serverCopyAttributes(
 
 
   filter.ra        = ra;
+  filter.pa        = pa;
   filter.group_tag = group_tag;
 
   ippCopyAttributes(to, from, quickcopy, (ipp_copycb_t)filter_cb, &filter);
@@ -87,7 +93,8 @@ static void
 copy_doc_attributes(
     server_client_t *client,		/* I - Client */
     server_job_t    *job,		/* I - Job */
-    cups_array_t    *ra)		/* I - requested-attributes */
+    cups_array_t    *ra,		/* I - requested-attributes */
+    cups_array_t    *pa)		/* I - Private attributes */
 {
   const char		*name;		/* Attribute name */
   ipp_attribute_t	*srcattr;	/* Source attribute */
@@ -124,14 +131,14 @@ copy_doc_attributes(
   *   time-at-xxx
   */
 
-  serverCopyAttributes(client->response, job->attrs, ra, IPP_TAG_DOCUMENT, 0);
+  serverCopyAttributes(client->response, job->attrs, ra, pa, IPP_TAG_DOCUMENT, 0);
 
   for (srcattr = ippFirstAttribute(job->attrs); srcattr; srcattr = ippNextAttribute(job->attrs))
   {
     if (ippGetGroupTag(srcattr) != IPP_TAG_JOB || (name = ippGetName(srcattr)) == NULL)
       continue;
 
-    if ((!strncmp(name, "job-impressions", 15) || !strncmp(name, "job-k-octets", 12) || !strncmp(name, "job-media-sheets", 16) || !strncmp(name, "job-pages", 9)) && (!ra || cupsArrayFind(ra, (void *)(name + 4))))
+    if ((!strncmp(name, "job-impressions", 15) || !strncmp(name, "job-k-octets", 12) || !strncmp(name, "job-media-sheets", 16) || !strncmp(name, "job-pages", 9)) && check_attribute(name + 4, ra, pa))
     {
       name += 4;
 
@@ -140,22 +147,22 @@ copy_doc_attributes(
       else
         ippAddInteger(client->response, IPP_TAG_DOCUMENT, IPP_TAG_INTEGER, name, ippGetInteger(srcattr, 0));
     }
-    else if (!strcmp(name, "document-uri") && (!ra || cupsArrayFind(ra, (void *)"document-uri")))
+    else if (!strcmp(name, "document-uri") && check_attribute("document-uri", ra, pa))
       ippAddString(client->response, IPP_TAG_DOCUMENT, IPP_TAG_URI, "document-uri", NULL, ippGetString(srcattr, 0, NULL));
-    else if (!strcmp(name, "document-name") && (!ra || cupsArrayFind(ra, (void *)"document-name")))
+    else if (!strcmp(name, "document-name") && check_attribute("document-name", ra, pa))
       ippAddString(client->response, IPP_TAG_DOCUMENT, IPP_TAG_NAME, "document-name", NULL, ippGetString(srcattr, 0, NULL));
-    else if (!strcmp(name, "job-printer-uri") && (!ra || cupsArrayFind(ra, (void *)"document-printer-uri")))
+    else if (!strcmp(name, "job-printer-uri") && check_attribute("document-printer-uri", ra, pa))
       ippAddString(client->response, IPP_TAG_DOCUMENT, IPP_TAG_URI, "document-printer-uri", NULL, ippGetString(srcattr, 0, NULL));
-    else if (!strcmp(name, "job-uri") && (!ra || cupsArrayFind(ra, (void *)"document-job-uri")))
+    else if (!strcmp(name, "job-uri") && check_attribute("document-job-uri", ra, pa))
       ippAddString(client->response, IPP_TAG_DOCUMENT, IPP_TAG_URI, "document-job-uri", NULL, ippGetString(srcattr, 0, NULL));
-    else if (!strcmp(name, "job-uuid") && (!ra || cupsArrayFind(ra, (void *)"document-uuid")))
+    else if (!strcmp(name, "job-uuid") && check_attribute("document-uuid", ra, pa))
       ippAddString(client->response, IPP_TAG_DOCUMENT, IPP_TAG_URI, "document-uuid", NULL, ippGetString(srcattr, 0, NULL));
   }
 
-  if (!ra || cupsArrayFind(ra, "compression"))
+  if (check_attribute("compression", ra, pa))
     ippAddString(client->response, IPP_TAG_DOCUMENT, IPP_CONST_TAG(IPP_TAG_KEYWORD), "compression", NULL, "none");
 
-  if (!ra || cupsArrayFind(ra, "date-time-at-completed"))
+  if (check_attribute("date-time-at-completed", ra, pa))
   {
     if (job->completed)
       ippAddDate(client->response, IPP_TAG_DOCUMENT, "date-time-at-completed", ippTimeToDate(job->completed));
@@ -163,10 +170,10 @@ copy_doc_attributes(
       ippAddOutOfBand(client->response, IPP_TAG_DOCUMENT, IPP_TAG_NOVALUE, "date-time-at-completed");
   }
 
-  if (!ra || cupsArrayFind(ra, "date-time-at-created"))
+  if (check_attribute("date-time-at-created", ra, pa))
     ippAddDate(client->response, IPP_TAG_DOCUMENT, "date-time-at-created", ippTimeToDate(job->created));
 
-  if (!ra || cupsArrayFind(ra, "date-time-at-processing"))
+  if (check_attribute("date-time-at-processing", ra, pa))
   {
     if (job->processing)
       ippAddDate(client->response, IPP_TAG_DOCUMENT, "date-time-at-processing", ippTimeToDate(job->processing));
@@ -174,37 +181,37 @@ copy_doc_attributes(
       ippAddOutOfBand(client->response, IPP_TAG_DOCUMENT, IPP_TAG_NOVALUE, "date-time-at-processing");
   }
 
-  if (!ra || cupsArrayFind(ra, "document-format"))
+  if (check_attribute("document-format", ra, pa))
     ippAddString(client->response, IPP_TAG_DOCUMENT, IPP_TAG_MIMETYPE, "document-format", NULL, job->format);
 
-  if (!ra || cupsArrayFind(ra, "document-job-id"))
+  if (check_attribute("document-job-id", ra, pa))
     ippAddInteger(client->response, IPP_TAG_DOCUMENT, IPP_TAG_INTEGER, "document-job-id", job->id);
 
-  if (!ra || cupsArrayFind(ra, "document-number"))
+  if (check_attribute("document-number", ra, pa))
     ippAddInteger(client->response, IPP_TAG_DOCUMENT, IPP_TAG_INTEGER, "document-number", 1);
 
-  if (!ra || cupsArrayFind(ra, "document-state"))
+  if (check_attribute("document-state", ra, pa))
     ippAddInteger(client->response, IPP_TAG_DOCUMENT, IPP_TAG_ENUM, "document-state", job->state);
 
-  if (!ra || cupsArrayFind(ra, "document-state-reasons"))
+  if (check_attribute("document-state-reasons", ra, pa))
     serverCopyJobStateReasons(client->response, IPP_TAG_DOCUMENT, job);
 
-  if (!ra || cupsArrayFind(ra, "impressions"))
+  if (check_attribute("impressions", ra, pa))
     ippAddInteger(client->response, IPP_TAG_DOCUMENT, IPP_TAG_INTEGER, "job-impressions", job->impressions);
 
-  if (!ra || cupsArrayFind(ra, "impressions-completed"))
+  if (check_attribute("impressions-completed", ra, pa))
     ippAddInteger(client->response, IPP_TAG_DOCUMENT, IPP_TAG_INTEGER, "job-impressions-completed", job->impcompleted);
 
-  if (!ra || cupsArrayFind(ra, "last-document"))
+  if (check_attribute("last-document", ra, pa))
     ippAddBoolean(client->response, IPP_TAG_DOCUMENT, "last-document", 1);
 
-  if (!ra || cupsArrayFind(ra, "time-at-completed"))
+  if (check_attribute("time-at-completed", ra, pa))
     ippAddInteger(client->response, IPP_TAG_DOCUMENT, job->completed ? IPP_TAG_INTEGER : IPP_TAG_NOVALUE, "time-at-completed", (int)(job->completed - client->printer->start_time));
 
-  if (!ra || cupsArrayFind(ra, "time-at-created"))
+  if (check_attribute("time-at-created", ra, pa))
     ippAddInteger(client->response, IPP_TAG_DOCUMENT, IPP_TAG_INTEGER, "time-at-created", (int)(job->created - client->printer->start_time));
 
-  if (!ra || cupsArrayFind(ra, "time-at-processing"))
+  if (check_attribute("time-at-processing", ra, pa))
     ippAddInteger(client->response, IPP_TAG_DOCUMENT, job->processing ? IPP_TAG_INTEGER : IPP_TAG_NOVALUE, "time-at-processing", (int)(job->processing - client->printer->start_time));
 }
 
@@ -217,11 +224,12 @@ static void
 copy_job_attributes(
     server_client_t *client,		/* I - Client */
     server_job_t    *job,		/* I - Job */
-    cups_array_t  *ra)			/* I - requested-attributes */
+    cups_array_t    *ra,		/* I - requested-attributes */
+    cups_array_t    *pa)		/* I - Private attributes */
 {
-  serverCopyAttributes(client->response, job->attrs, ra, IPP_TAG_JOB, 0);
+  serverCopyAttributes(client->response, job->attrs, ra, pa, IPP_TAG_JOB, 0);
 
-  if (!ra || cupsArrayFind(ra, "date-time-at-completed"))
+  if (check_attribute("date-time-at-completed", ra, pa))
   {
     if (job->completed)
       ippAddDate(client->response, IPP_TAG_JOB, "date-time-at-completed", ippTimeToDate(job->completed));
@@ -229,7 +237,7 @@ copy_job_attributes(
       ippAddOutOfBand(client->response, IPP_TAG_JOB, IPP_TAG_NOVALUE, "date-time-at-completed");
   }
 
-  if (!ra || cupsArrayFind(ra, "date-time-at-processing"))
+  if (check_attribute("date-time-at-processing", ra, pa))
   {
     if (job->processing)
       ippAddDate(client->response, IPP_TAG_JOB, "date-time-at-processing", ippTimeToDate(job->processing));
@@ -237,20 +245,19 @@ copy_job_attributes(
       ippAddOutOfBand(client->response, IPP_TAG_JOB, IPP_TAG_NOVALUE, "date-time-at-processing");
   }
 
-  if (!ra || cupsArrayFind(ra, "job-impressions"))
+  if (check_attribute("job-impressions", ra, pa))
     ippAddInteger(client->response, IPP_TAG_JOB, IPP_TAG_INTEGER, "job-impressions", job->impressions);
 
-  if (!ra || cupsArrayFind(ra, "job-impressions-completed"))
+  if (check_attribute("job-impressions-completed", ra, pa))
     ippAddInteger(client->response, IPP_TAG_JOB, IPP_TAG_INTEGER, "job-impressions-completed", job->impcompleted);
 
-  if (!ra || cupsArrayFind(ra, "job-printer-up-time"))
+  if (check_attribute("job-printer-up-time", ra, pa))
     ippAddInteger(client->response, IPP_TAG_JOB, IPP_TAG_INTEGER, "job-printer-up-time", (int)(time(NULL) - client->printer->start_time));
 
-  if (!ra || cupsArrayFind(ra, "job-state"))
-    ippAddInteger(client->response, IPP_TAG_JOB, IPP_TAG_ENUM,
-		  "job-state", job->state);
+  if (check_attribute("job-state", ra, pa))
+    ippAddInteger(client->response, IPP_TAG_JOB, IPP_TAG_ENUM, "job-state", job->state);
 
-  if (!ra || cupsArrayFind(ra, "job-state-message"))
+  if (check_attribute("job-state-message", ra, pa))
   {
     if (job->dev_state_message)
     {
@@ -308,78 +315,14 @@ copy_job_attributes(
     }
   }
 
-  if (!ra || cupsArrayFind(ra, "job-state-reasons"))
+  if (check_attribute("job-state-reasons", ra, pa))
     serverCopyJobStateReasons(client->response, IPP_TAG_JOB, job);
-/*
-    switch (job->state)
-    {
-      case IPP_JSTATE_PENDING :
-	  ippAddString(client->response, IPP_TAG_JOB,
-	               IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-state-reasons",
-		       NULL, "none");
-	  break;
 
-      case IPP_JSTATE_HELD :
-          if (job->fd >= 0)
-	    ippAddString(client->response, IPP_TAG_JOB,
-	                 IPP_CONST_TAG(IPP_TAG_KEYWORD),
-	                 "job-state-reasons", NULL, "job-incoming");
-	  else if (ippFindAttribute(job->attrs, "job-hold-until", IPP_TAG_ZERO))
-	    ippAddString(client->response, IPP_TAG_JOB,
-	                 IPP_CONST_TAG(IPP_TAG_KEYWORD),
-	                 "job-state-reasons", NULL, "job-hold-until-specified");
-          else
-	    ippAddString(client->response, IPP_TAG_JOB,
-	                 IPP_CONST_TAG(IPP_TAG_KEYWORD),
-	                 "job-state-reasons", NULL, "job-data-insufficient");
-	  break;
+  if (check_attribute("time-at-completed", ra, pa))
+    ippAddInteger(client->response, IPP_TAG_JOB, job->completed ? IPP_TAG_INTEGER : IPP_TAG_NOVALUE, "time-at-completed", (int)(job->completed - client->printer->start_time));
 
-      case IPP_JSTATE_PROCESSING :
-	  if (job->cancel)
-	    ippAddString(client->response, IPP_TAG_JOB,
-	                 IPP_CONST_TAG(IPP_TAG_KEYWORD),
-	                 "job-state-reasons", NULL, "processing-to-stop-point");
-	  else
-	    ippAddString(client->response, IPP_TAG_JOB,
-	                 IPP_CONST_TAG(IPP_TAG_KEYWORD),
-	                 "job-state-reasons", NULL, "job-printing");
-	  break;
-
-      case IPP_JSTATE_STOPPED :
-	  ippAddString(client->response, IPP_TAG_JOB,
-	               IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-state-reasons",
-		       NULL, "job-stopped");
-	  break;
-
-      case IPP_JSTATE_CANCELED :
-	  ippAddString(client->response, IPP_TAG_JOB,
-	               IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-state-reasons",
-		       NULL, "job-canceled-by-user");
-	  break;
-
-      case IPP_JSTATE_ABORTED :
-	  ippAddString(client->response, IPP_TAG_JOB,
-	               IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-state-reasons",
-		       NULL, "aborted-by-system");
-	  break;
-
-      case IPP_JSTATE_COMPLETED :
-	  ippAddString(client->response, IPP_TAG_JOB,
-	               IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-state-reasons",
-		       NULL, "job-completed-successfully");
-	  break;
-    }
-*/
-
-  if (!ra || cupsArrayFind(ra, "time-at-completed"))
-    ippAddInteger(client->response, IPP_TAG_JOB,
-                  job->completed ? IPP_TAG_INTEGER : IPP_TAG_NOVALUE,
-                  "time-at-completed", (int)(job->completed - client->printer->start_time));
-
-  if (!ra || cupsArrayFind(ra, "time-at-processing"))
-    ippAddInteger(client->response, IPP_TAG_JOB,
-                  job->processing ? IPP_TAG_INTEGER : IPP_TAG_NOVALUE,
-                  "time-at-processing", (int)(job->processing - client->printer->start_time));
+  if (check_attribute("time-at-processing", ra, pa))
+    ippAddInteger(client->response, IPP_TAG_JOB, job->processing ? IPP_TAG_INTEGER : IPP_TAG_NOVALUE, "time-at-processing", (int)(job->processing - client->printer->start_time));
 }
 
 
@@ -391,17 +334,18 @@ static void
 copy_subscription_attributes(
     server_client_t       *client,	/* I - Client */
     server_subscription_t *sub,		/* I - Subscription */
-    cups_array_t        *ra)		/* I - requested-attributes */
+    cups_array_t          *ra,		/* I - requested-attributes */
+    cups_array_t          *pa)		/* I - Private attributes */
 {
-  serverCopyAttributes(client->response, sub->attrs, ra, IPP_TAG_SUBSCRIPTION, 0);
+  serverCopyAttributes(client->response, sub->attrs, ra, pa, IPP_TAG_SUBSCRIPTION, 0);
 
-  if (!ra || cupsArrayFind(ra, "notify-lease-expiration-time"))
+  if (check_attribute("notify-lease-expiration-time", ra, pa))
     ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-lease-expiration-time", (int)(sub->expire - client->printer->start_time));
 
-  if (!ra || cupsArrayFind(ra, "notify-printer-up-time"))
+  if (check_attribute("notify-printer-up-time", ra, pa))
     ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-printer-up-time", (int)(time(NULL) - client->printer->start_time));
 
-  if (!ra || cupsArrayFind(ra, "notify-sequence-number"))
+  if (check_attribute("notify-sequence-number", ra, pa))
     ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-sequence-number", sub->last_sequence);
 }
 
@@ -429,6 +373,9 @@ filter_cb(server_filter_t   *filter,	/* I - Filter parameters */
   if ((filter->group_tag != IPP_TAG_ZERO && group != filter->group_tag && group != IPP_TAG_ZERO) || !name || (!strcmp(name, "media-col-database") && !cupsArrayFind(filter->ra, (void *)name)))
     return (0);
 
+  if (filter->pa && cupsArrayFind(filter->pa, (void *)name))
+    return (0);
+
   return (!filter->ra || cupsArrayFind(filter->ra, (void *)name) != NULL);
 }
 
@@ -441,7 +388,7 @@ static void
 ipp_acknowledge_document(
     server_client_t *client)		/* I - Client */
 {
-  server_device_t		*device;	/* Device */
+  server_device_t	*device;	/* Device */
   server_job_t		*job;		/* Job */
   ipp_attribute_t	*attr;		/* Attribute */
 
@@ -495,7 +442,7 @@ static void
 ipp_acknowledge_job(
     server_client_t *client)		/* I - Client */
 {
-  server_device_t		*device;	/* Device */
+  server_device_t	*device;	/* Device */
   server_job_t		*job;		/* Job */
 
 
@@ -877,7 +824,7 @@ ipp_create_job(server_client_t *client)	/* I - Client */
   cupsArrayAdd(ra, "job-state-reasons");
   cupsArrayAdd(ra, "job-uri");
 
-  copy_job_attributes(client, job, ra);
+  copy_job_attributes(client, job, ra, NULL);
   cupsArrayDelete(ra);
 
  /*
@@ -1110,7 +1057,7 @@ static void
 ipp_deregister_output_device(
     server_client_t *client)		/* I - Client */
 {
-  server_device_t	*device;		/* Device */
+  server_device_t	*device;	/* Device */
 
 
  /*
@@ -1296,7 +1243,7 @@ ipp_fetch_document(
 static void
 ipp_fetch_job(server_client_t *client)	/* I - Client */
 {
-  server_device_t		*device;	/* Device */
+  server_device_t	*device;	/* Device */
   server_job_t		*job;		/* Job */
 
 
@@ -1325,7 +1272,7 @@ ipp_fetch_job(server_client_t *client)	/* I - Client */
   }
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
-  serverCopyAttributes(client->response, job->attrs, NULL, IPP_TAG_JOB, 0);
+  serverCopyAttributes(client->response, job->attrs, NULL, NULL, IPP_TAG_JOB, 0);
 }
 
 
@@ -1360,7 +1307,7 @@ ipp_get_document_attributes(
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
   ra = ippCreateRequestedArray(client->request);
-  copy_doc_attributes(client, job, ra);
+  copy_doc_attributes(client, job, ra, serverAuthorizeUser(client, job->username, DocumentPrivacyScope) ? NULL : DocumentPrivacyArray);
   cupsArrayDelete(ra);
 }
 
@@ -1388,7 +1335,7 @@ ipp_get_documents(server_client_t *client)/* I - Client */
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
   ra = ippCreateRequestedArray(client->request);
-  copy_doc_attributes(client, job, ra);
+  copy_doc_attributes(client, job, ra, serverAuthorizeUser(client, job->username, DocumentPrivacyScope) ? NULL : DocumentPrivacyArray);
   cupsArrayDelete(ra);
 }
 
@@ -1414,7 +1361,7 @@ ipp_get_job_attributes(
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
   ra = ippCreateRequestedArray(client->request);
-  copy_job_attributes(client, job, ra);
+  copy_job_attributes(client, job, ra, serverAuthorizeUser(client, job->username, JobPrivacyScope) ? NULL : JobPrivacyArray);
   cupsArrayDelete(ra);
 }
 
@@ -1588,7 +1535,7 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
       ippAddSeparator(client->response);
 
     count ++;
-    copy_job_attributes(client, job, ra);
+    copy_job_attributes(client, job, ra, serverAuthorizeUser(client, job->username, JobPrivacyScope) ? NULL : JobPrivacyArray);
   }
 
   cupsArrayDelete(ra);
@@ -1744,9 +1691,10 @@ ipp_get_printer_attributes(
 
   _cupsRWLockRead(&(printer->rwlock));
 
-  serverCopyAttributes(client->response, printer->pinfo.attrs, ra, IPP_TAG_ZERO,
+  serverCopyAttributes(client->response, printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO,
 		  IPP_TAG_CUPS_CONST);
-  serverCopyAttributes(client->response, printer->dev_attrs, ra, IPP_TAG_ZERO, IPP_TAG_ZERO);
+  serverCopyAttributes(client->response, printer->dev_attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
+  serverCopyAttributes(client->response, PrivacyAttributes, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
 
   if (!ra || cupsArrayFind(ra, "printer-config-change-date-time"))
     ippAddDate(client->response, IPP_TAG_PRINTER, "printer-config-change-date-time", ippTimeToDate(printer->config_time));
@@ -1849,7 +1797,7 @@ ipp_get_printer_supported_values(
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  serverCopyAttributes(client->response, client->printer->pinfo.attrs, ra, IPP_TAG_PRINTER, 1);
+  serverCopyAttributes(client->response, client->printer->pinfo.attrs, ra, NULL, IPP_TAG_PRINTER, 1);
 
   cupsArrayDelete(ra);
 }
@@ -1875,7 +1823,7 @@ ipp_get_subscription_attributes(
   else
   {
     serverRespondIPP(client, IPP_STATUS_OK, NULL);
-    copy_subscription_attributes(client, sub, ra);
+    copy_subscription_attributes(client, sub, ra, serverAuthorizeUser(client, sub->username, SubscriptionPrivacyScope) ? NULL : SubscriptionPrivacyArray);
   }
 
   cupsArrayDelete(ra);
@@ -1907,7 +1855,7 @@ ipp_get_subscriptions(
     else
       ippAddSeparator(client->response);
 
-    copy_subscription_attributes(client, sub, ra);
+    copy_subscription_attributes(client, sub, ra, serverAuthorizeUser(client, sub->username, SubscriptionPrivacyScope) ? NULL : SubscriptionPrivacyArray);
   }
 
   cupsArrayDelete(ra);
@@ -2076,7 +2024,7 @@ ipp_print_job(server_client_t *client)	/* I - Client */
   cupsArrayAdd(ra, "job-state-reasons");
   cupsArrayAdd(ra, "job-uri");
 
-  copy_job_attributes(client, job, ra);
+  copy_job_attributes(client, job, ra, NULL);
   cupsArrayDelete(ra);
 
  /*
@@ -2356,7 +2304,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
   cupsArrayAdd(ra, "job-state-reasons");
   cupsArrayAdd(ra, "job-uri");
 
-  copy_job_attributes(client, job, ra);
+  copy_job_attributes(client, job, ra, NULL);
   cupsArrayDelete(ra);
 
  /*
@@ -2490,7 +2438,7 @@ ipp_send_document(server_client_t *client)/* I - Client */
     return;
   }
 
-  serverCopyAttributes(job->attrs, client->request, NULL, IPP_TAG_JOB, 0);
+  serverCopyAttributes(job->attrs, client->request, NULL, NULL, IPP_TAG_JOB, 0);
 
  /*
   * Get the document format for the job...
@@ -2603,7 +2551,7 @@ ipp_send_document(server_client_t *client)/* I - Client */
   cupsArrayAdd(ra, "job-state-reasons");
   cupsArrayAdd(ra, "job-uri");
 
-  copy_job_attributes(client, job, ra);
+  copy_job_attributes(client, job, ra, NULL);
   cupsArrayDelete(ra);
 }
 
@@ -2957,7 +2905,7 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
   cupsArrayAdd(ra, "job-state-reasons");
   cupsArrayAdd(ra, "job-uri");
 
-  copy_job_attributes(client, job, ra);
+  copy_job_attributes(client, job, ra, NULL);
   cupsArrayDelete(ra);
 }
 
@@ -2970,7 +2918,7 @@ static void
 ipp_update_active_jobs(
     server_client_t *client)		/* I - Client */
 {
-  server_device_t		*device;	/* Output device */
+  server_device_t	*device;	/* Output device */
   server_job_t		*job;		/* Job */
   ipp_attribute_t	*job_ids,	/* job-ids */
 			*job_states;	/* output-device-job-states */
@@ -3077,7 +3025,7 @@ static void
 ipp_update_document_status(
     server_client_t *client)		/* I - Client */
 {
-  server_device_t		*device;	/* Device */
+  server_device_t	*device;	/* Device */
   server_job_t		*job;		/* Job */
   ipp_attribute_t	*attr;		/* Attribute */
 
@@ -3124,7 +3072,7 @@ static void
 ipp_update_job_status(
     server_client_t *client)		/* I - Client */
 {
-  server_device_t		*device;	/* Device */
+  server_device_t	*device;	/* Device */
   server_job_t		*job;		/* Job */
   ipp_attribute_t	*attr;		/* Attribute */
   server_event_t		events = SERVER_EVENT_NONE;
@@ -3182,7 +3130,7 @@ static void
 ipp_update_output_device_attributes(
     server_client_t *client)		/* I - Client */
 {
-  server_device_t		*device;	/* Device */
+  server_device_t	*device;	/* Device */
   ipp_attribute_t	*attr,		/* Current attribute */
 			*dev_attr;	/* Device attribute */
   server_event_t		events = SERVER_EVENT_NONE;
