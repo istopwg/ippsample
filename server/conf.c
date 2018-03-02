@@ -172,9 +172,9 @@ serverFinalizeConfiguration(void)
 
   if (Authentication)
   {
-    if (AuthAdminGroup == (gid_t)-1)
-      AuthAdminGroup = 0;
-    if (AuthOperatorGroup == (gid_t)-1)
+    if (AuthAdminGroup == SERVER_GROUP_NONE)
+      AuthAdminGroup = SERVER_GROUP_WHEEL;
+    if (AuthOperatorGroup == SERVER_GROUP_NONE)
       AuthOperatorGroup = getgid();
 
     if (!AuthName)
@@ -375,7 +375,8 @@ serverLoadConfiguration(
         *ptr = '\0';
 
         memset(&pinfo, 0, sizeof(pinfo));
-        pinfo.print_group = (gid_t)-1;
+        pinfo.print_group = SERVER_GROUP_NONE;
+	pinfo.proxy_group = SERVER_GROUP_NONE;
 
         snprintf(iconname, sizeof(iconname), "%s/print/%s.png", directory, dent->filename);
         if (!access(iconname, R_OK))
@@ -424,7 +425,8 @@ serverLoadConfiguration(
         *ptr = '\0';
 
         memset(&pinfo, 0, sizeof(pinfo));
-        pinfo.print_group = (gid_t)-1;
+        pinfo.print_group = SERVER_GROUP_NONE;
+	pinfo.proxy_group = SERVER_GROUP_NONE;
 
         snprintf(iconname, sizeof(iconname), "%s/print3d/%s.png", directory, dent->filename);
         if (!access(iconname, R_OK))
@@ -1580,17 +1582,25 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->print_group = group->gr_gid;
   }
-  else if (!_cups_strcasecmp(token, "AuthProxyUser"))
+  else if (!_cups_strcasecmp(token, "AuthProxyGroup"))
   {
+    struct group	*group;		/* Group information */
+
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing AuthProxyUser value on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing AuthProxyGroup value on line %d of \"%s\".", f->linenum, f->filename);
       return (0);
     }
 
     _ippVarsExpand(vars, value, temp, sizeof(value));
 
-    pinfo->proxy_user = strdup(value);
+    if ((group = getgrnam(value)) == NULL)
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Unknown AuthProxyGroup \"%s\" on line %d of \"%s\".", value, f->linenum, f->filename);
+      return (0);
+    }
+
+    pinfo->proxy_group = group->gr_gid;
   }
   else if (!_cups_strcasecmp(token, "Command"))
   {

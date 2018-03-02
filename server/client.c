@@ -677,10 +677,10 @@ serverProcessHTTP(
 int					/* O - 1 on success, 0 on failure */
 serverRespondHTTP(
     server_client_t *client,		/* I - Client */
-    http_status_t code,			/* I - HTTP status of response */
-    const char    *content_encoding,	/* I - Content-Encoding of response */
-    const char    *type,		/* I - MIME media type of response */
-    size_t        length)		/* I - Length of response */
+    http_status_t   code,		/* I - HTTP status of response */
+    const char      *content_encoding,	/* I - Content-Encoding of response */
+    const char      *type,		/* I - MIME media type of response */
+    size_t          length)		/* I - Length of response */
 {
   char	message[1024];			/* Text message */
 
@@ -716,8 +716,19 @@ serverRespondHTTP(
 
   httpClearFields(client->http);
 
-  if (code == HTTP_STATUS_METHOD_NOT_ALLOWED ||
-      client->operation == HTTP_STATE_OPTIONS)
+  if (code == HTTP_STATUS_UNAUTHORIZED || code == HTTP_STATUS_FORBIDDEN)
+  {
+    char www_auth[HTTP_MAX_VALUE];	/* WWW-Authenicate header value */
+
+    if (!_cups_strcasecmp(AuthType, "Basic"))
+      snprintf(www_auth, sizeof(www_auth), "Basic realm=\"%s\" charset=\"UTF-8\"", AuthName);
+    else
+      www_auth[0] = '\0';
+
+    httpSetField(client->http, HTTP_FIELD_WWW_AUTHENTICATE, www_auth);
+  }
+
+  if (code == HTTP_STATUS_METHOD_NOT_ALLOWED || client->operation == HTTP_STATE_OPTIONS)
     httpSetField(client->http, HTTP_FIELD_ALLOW, "GET, HEAD, OPTIONS, POST");
 
   if (type)

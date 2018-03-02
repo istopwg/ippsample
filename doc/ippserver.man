@@ -63,9 +63,6 @@ ippserver \- a simple ipp server
 .B \-s
 .I speed[,color-speed]
 ] [
-.B \-u
-.I username:password
-] [
 .B \-v[vvv]
 ] [
 -B \-\-help
@@ -147,9 +144,6 @@ Runs the server in relaxed conformance mode, which allows certain harmless IPP c
 .TP 5
 \fB\-s \fIspeed[,color-speed]\fR
 Specifies the printer speed in pages-per-minute.
-.TP 5
-\fB\-u \fIusername:password\fR
-Specifies the username and password for the IPP proxy.
 .TP 5
 .B \-v[vvv]
 Be (very) verbose when logging activity to the standard output.
@@ -319,10 +313,10 @@ The format is further defined in
 .BR ipptoolfile (7).
 .TP 5
 \fBAuthPrintGroup \fIgroup\fR
-Specifies the group of users that is allowed to print.
+Specifies the group of users that is allowed to do printing operations.
 .TP 5
-\fBAuthProxyUser \fIuser\fR
-Specifies the name of the proxy user for the printer.
+\fBAuthProxyGroup \fIgroup\fR
+Specifies the group of users that is allowed to do proxy operations.
 .TP 5
 \fBCommand \fIcommand\fR
 Specifies the command to run when processing jobs.

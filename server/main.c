@@ -40,7 +40,8 @@ main(int  argc,				/* I - Number of command-line args */
   */
 
   memset(&pinfo, 0, sizeof(pinfo));
-  pinfo.print_group = (gid_t)-1;
+  pinfo.print_group = SERVER_GROUP_NONE;
+  pinfo.proxy_group = SERVER_GROUP_NONE;
 
   for (i = 1; i < argc; i ++)
   {
@@ -215,17 +216,6 @@ main(int  argc,				/* I - Number of command-line args */
                 usage(1);
               break;
 
-          case 'u' : /* -u username */
-	      i ++;
-	      if (i >= argc)
-	        usage(1);
-
-              if (pinfo.proxy_user)
-                free(pinfo.proxy_user);
-
-	      pinfo.proxy_user = strdup(argv[i]);
-	      break;
-
 	  case 'v' : /* -v (be verbose) */
 	      LogLevel ++;
 	      break;
@@ -354,7 +344,6 @@ usage(int status)			/* O - Exit status */
   puts("-p port                 Port number (default=auto)");
   puts("-r subtype              Bonjour service subtype (default=_print)");
   puts("-s speed[,color-speed]  Speed in pages per minute (default=10,0)");
-  puts("-u username             Specifies a username to require for proxies.");
   puts("-v[v]                   Be (very) verbose");
 
   exit(status);

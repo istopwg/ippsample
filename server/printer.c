@@ -1071,7 +1071,7 @@ serverCreatePrinter(
   {
     xri_col = ippNew();
 
-    ippAddString(xri_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "xri-authentication", NULL, printer->pinfo.proxy_user ? "basic"  : "none");
+    ippAddString(xri_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "xri-authentication", NULL, Authentication ? "basic"  : "none");
 
 #ifdef HAVE_SSL
     if (Encryption != HTTP_ENCRYPTION_NEVER)
@@ -1126,7 +1126,7 @@ serverCreatePrinter(
   /* uri-authentication-supported */
   attr = ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-authentication-supported", num_uris, NULL, NULL);
   for (i = 0; i < num_uris; i ++)
-    ippSetString(printer->pinfo.attrs, &attr, i, printer->pinfo.proxy_user ? "basic"  : "none");
+    ippSetString(printer->pinfo.attrs, &attr, i, Authentication ? "basic"  : "none");
 
   /* uri-security-supported */
 #ifdef HAVE_SSL
@@ -1227,8 +1227,6 @@ serverDeletePrinter(server_printer_t *printer)	/* I - Printer */
     free(printer->pinfo.command);
   if (printer->pinfo.device_uri)
     free(printer->pinfo.device_uri);
-  if (printer->pinfo.proxy_user)
-    free(printer->pinfo.proxy_user);
 
   cupsArrayDelete(printer->pinfo.strings);
 

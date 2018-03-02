@@ -119,6 +119,10 @@ extern char **environ;
 #  define SERVER_SCOPE_NONE	"none"
 #  define SERVER_SCOPE_OWNER	"owner"
 
+/* Group constants */
+#  define SERVER_GROUP_NONE	(gid_t)-1
+#  define SERVER_GROUP_WHEEL	(gid_t)0
+
 
 /*
  * LogLevel constants...
@@ -380,9 +384,9 @@ typedef struct server_pinfo_s		/**** Printer information ****/
 		*document_formats,	/* Supported input formats */
 		*command,		/* Command to run with job files */
 		*device_uri,		/* Device URI */
-		*output_format,		/* Output format */
-		*proxy_user;		/* Proxy user, if any */
-  gid_t		print_group;		/* Print group, if any */
+		*output_format;		/* Output format */
+  gid_t		print_group,		/* Print group, if any */
+		proxy_group;		/* Proxy group, if any */
   int		duplex,			/* Duplex mode */
 		pin,			/* PIN printing mode? */
 		ppm,			/* Pages per minute for mono */
@@ -564,7 +568,7 @@ VAR _cups_cond_t	SubscriptionCondition VALUE(_CUPS_COND_INITIALIZER);
 
 extern void		serverAddEvent(server_printer_t *printer, server_job_t *job, server_event_t event, const char *message, ...) __attribute__((__format__(__printf__, 4, 5)));
 extern http_status_t	serverAuthenticateClient(server_client_t *client);
-extern int		serverAuthorizeUser(server_client_t *client, const char *owner, const char *scope);
+extern int		serverAuthorizeUser(server_client_t *client, const char *owner, gid_t group, const char *scope);
 extern void		serverCheckJobs(server_printer_t *printer);
 extern void             serverCleanAllJobs(void);
 extern void		serverCleanJobs(server_printer_t *printer);

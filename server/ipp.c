@@ -393,6 +393,25 @@ ipp_acknowledge_document(
   ipp_attribute_t	*attr;		/* Attribute */
 
 
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the proxy group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, client->printer->pinfo.proxy_group, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
   if ((device = serverFindDevice(client)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Device was not found.");
@@ -429,6 +448,25 @@ static void
 ipp_acknowledge_identify_printer(
     server_client_t *client)		/* I - Client */
 {
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the proxy group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, client->printer->pinfo.proxy_group, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
   // TODO: Implement Acknowledge-Identify-Printer operation (Issue #85)
   serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Need to implement this.");
 }
@@ -445,6 +483,25 @@ ipp_acknowledge_job(
   server_device_t	*device;	/* Device */
   server_job_t		*job;		/* Job */
 
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the proxy group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, client->printer->pinfo.proxy_group, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
 
   if ((device = serverFindDevice(client)) == NULL)
   {
@@ -490,6 +547,16 @@ ipp_cancel_job(server_client_t *client)	/* I - Client */
 {
   server_job_t		*job;		/* Job information */
 
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
 
  /*
   * Get the job...
@@ -570,15 +637,39 @@ ipp_cancel_my_jobs(
   * See which user is canceling jobs...
   */
 
-  if ((attr = ippFindAttribute(client->request, "requesting-user-name", IPP_TAG_NAME)) == NULL)
+  if (Authentication)
   {
+   /*
+    * Use authenticated username...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    username = client->username;
+  }
+  else if ((attr = ippFindAttribute(client->request, "requesting-user-name", IPP_TAG_NAME)) == NULL)
+  {
+   /*
+    * No authentication and no requesting-user-name...
+    */
+
     serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Need requesting-user-name with Cancel-My-Jobs.");
     return;
   }
+  else
+  {
+   /*
+    * Use requesting-user-name value...
+    */
 
-  username = ippGetString(attr, 0, NULL);
+    username = ippGetString(attr, 0, NULL);
+  }
 
-  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Cancel-My-Jobs requesting-user-name='%s'", username);
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Cancel-My-Jobs username='%s'", username);
 
  /*
   * and then see if a list of jobs was provided...
@@ -703,6 +794,16 @@ ipp_cancel_subscription(
   server_subscription_t	*sub;		/* Subscription */
 
 
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
   if ((sub = serverFindSubscription(client, 0)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Subscription was not found.");
@@ -726,6 +827,16 @@ ipp_close_job(server_client_t *client)	/* I - Client */
 {
   server_job_t		*job;		/* Job information */
 
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
 
  /*
   * Get the job...
@@ -782,6 +893,16 @@ ipp_create_job(server_client_t *client)	/* I - Client */
   server_job_t		*job;		/* New job */
   cups_array_t		*ra;		/* Attributes to send in response */
 
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
 
  /*
   * Validate print job attributes...
@@ -851,6 +972,16 @@ ipp_create_xxx_subscriptions(
   int			num_subs = 0,	/* Number of subscriptions */
 			ok_subs = 0;	/* Number of good subscriptions */
 
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
 
  /*
   * For the Create-xxx-Subscriptions operations, queue up a successful-ok
@@ -1060,6 +1191,25 @@ ipp_deregister_output_device(
   server_device_t	*device;	/* Device */
 
 
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the proxy group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, client->printer->pinfo.proxy_group, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
  /*
   * Find the device...
   */
@@ -1108,6 +1258,25 @@ ipp_fetch_document(
   char			filename[1024];	/* Job filename */
   const char		*format = NULL;	/* document-format */
 
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the proxy group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, client->printer->pinfo.proxy_group, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
 
   if ((device = serverFindDevice(client)) == NULL)
   {
@@ -1247,6 +1416,25 @@ ipp_fetch_job(server_client_t *client)	/* I - Client */
   server_job_t		*job;		/* Job */
 
 
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the proxy group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, client->printer->pinfo.proxy_group, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
   if ((device = serverFindDevice(client)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Device was not found.");
@@ -1292,6 +1480,16 @@ ipp_get_document_attributes(
   cups_array_t	*ra;			/* requested-attributes */
 
 
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
   if ((job = serverFindJob(client, 0)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Job not found.");
@@ -1307,7 +1505,7 @@ ipp_get_document_attributes(
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
   ra = ippCreateRequestedArray(client->request);
-  copy_doc_attributes(client, job, ra, serverAuthorizeUser(client, job->username, DocumentPrivacyScope) ? NULL : DocumentPrivacyArray);
+  copy_doc_attributes(client, job, ra, serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, DocumentPrivacyScope) ? NULL : DocumentPrivacyArray);
   cupsArrayDelete(ra);
 }
 
@@ -1326,6 +1524,16 @@ ipp_get_documents(server_client_t *client)/* I - Client */
   cups_array_t	*ra;			/* requested-attributes */
 
 
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
   if ((job = serverFindJob(client, 0)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Job not found.");
@@ -1335,7 +1543,7 @@ ipp_get_documents(server_client_t *client)/* I - Client */
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
   ra = ippCreateRequestedArray(client->request);
-  copy_doc_attributes(client, job, ra, serverAuthorizeUser(client, job->username, DocumentPrivacyScope) ? NULL : DocumentPrivacyArray);
+  copy_doc_attributes(client, job, ra, serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, DocumentPrivacyScope) ? NULL : DocumentPrivacyArray);
   cupsArrayDelete(ra);
 }
 
@@ -1352,6 +1560,16 @@ ipp_get_job_attributes(
   cups_array_t	*ra;			/* requested-attributes */
 
 
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
   if ((job = serverFindJob(client, 0)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Job not found.");
@@ -1361,7 +1579,7 @@ ipp_get_job_attributes(
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
   ra = ippCreateRequestedArray(client->request);
-  copy_job_attributes(client, job, ra, serverAuthorizeUser(client, job->username, JobPrivacyScope) ? NULL : JobPrivacyArray);
+  copy_job_attributes(client, job, ra, serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope) ? NULL : JobPrivacyArray);
   cupsArrayDelete(ra);
 }
 
@@ -1386,6 +1604,15 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
   cups_array_t		*ra;		/* Requested attributes array */
 
 
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
 
  /*
   * See if the "which-jobs" attribute have been specified...
@@ -1535,7 +1762,7 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
       ippAddSeparator(client->response);
 
     count ++;
-    copy_job_attributes(client, job, ra, serverAuthorizeUser(client, job->username, JobPrivacyScope) ? NULL : JobPrivacyArray);
+    copy_job_attributes(client, job, ra, serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope) ? NULL : JobPrivacyArray);
   }
 
   cupsArrayDelete(ra);
@@ -1564,6 +1791,16 @@ ipp_get_notifications(
   int			num_events = 0;	/* Number of events returned */
   const char		*username;	/* Requesting user */
 
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
 
   if ((sub_ids = ippFindAttribute(client->request, "notify-subscription-ids", IPP_TAG_INTEGER)) == NULL)
   {
@@ -1663,6 +1900,16 @@ static void
 ipp_get_output_device_attributes(
     server_client_t *client)		/* I - Client */
 {
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
   // TODO: Implement Get-Output-Device-Attributes operation (Issue #84)
   serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Need to implement this.");
 }
@@ -1795,6 +2042,16 @@ ipp_get_printer_supported_values(
 					/* Requested attributes */
 
 
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
   serverCopyAttributes(client->response, client->printer->pinfo.attrs, ra, NULL, IPP_TAG_PRINTER, 1);
@@ -1816,6 +2073,16 @@ ipp_get_subscription_attributes(
 					/* Requested attributes */
 
 
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
   if ((sub = serverFindSubscription(client, 0)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Subscription was not found.");
@@ -1823,7 +2090,7 @@ ipp_get_subscription_attributes(
   else
   {
     serverRespondIPP(client, IPP_STATUS_OK, NULL);
-    copy_subscription_attributes(client, sub, ra, serverAuthorizeUser(client, sub->username, SubscriptionPrivacyScope) ? NULL : SubscriptionPrivacyArray);
+    copy_subscription_attributes(client, sub, ra, serverAuthorizeUser(client, sub->username, SERVER_GROUP_NONE, SubscriptionPrivacyScope) ? NULL : SubscriptionPrivacyArray);
   }
 
   cupsArrayDelete(ra);
@@ -1844,6 +2111,16 @@ ipp_get_subscriptions(
   int			first = 1;	/* First time? */
 
 
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
   _cupsRWLockRead(&client->printer->rwlock);
   for (sub = (server_subscription_t *)cupsArrayFirst(client->printer->subscriptions);
@@ -1855,7 +2132,7 @@ ipp_get_subscriptions(
     else
       ippAddSeparator(client->response);
 
-    copy_subscription_attributes(client, sub, ra, serverAuthorizeUser(client, sub->username, SubscriptionPrivacyScope) ? NULL : SubscriptionPrivacyArray);
+    copy_subscription_attributes(client, sub, ra, serverAuthorizeUser(client, sub->username, SERVER_GROUP_NONE, SubscriptionPrivacyScope) ? NULL : SubscriptionPrivacyArray);
   }
 
   cupsArrayDelete(ra);
@@ -1873,6 +2150,16 @@ ipp_identify_printer(
   ipp_attribute_t	*actions,	/* identify-actions */
 			*message;	/* message */
 
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
 
   actions = ippFindAttribute(client->request, "identify-actions", IPP_TAG_KEYWORD);
   message = ippFindAttribute(client->request, "message", IPP_TAG_TEXT);
@@ -1905,6 +2192,16 @@ ipp_print_job(server_client_t *client)	/* I - Client */
   ssize_t		bytes;		/* Bytes read */
   cups_array_t		*ra;		/* Attributes to send in response */
 
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
 
  /*
   * Validate print job attributes...
@@ -2071,6 +2368,16 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
     "Bad/empty URI."
   };
 
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
 
  /*
   * Validate print job attributes...
@@ -2329,6 +2636,16 @@ ipp_renew_subscription(
   int			lease;		/* Lease duration in seconds */
 
 
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
   if ((sub = serverFindSubscription(client, 0)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Subscription was not found.");
@@ -2380,6 +2697,16 @@ ipp_send_document(server_client_t *client)/* I - Client */
   ipp_attribute_t	*attr;		/* Current attribute */
   cups_array_t		*ra;		/* Attributes to send in response */
 
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
 
  /*
   * Get the job...
@@ -2593,6 +2920,16 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
     "Bad/empty URI."
   };
 
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
 
  /*
   * Get the job...
@@ -2934,6 +3271,25 @@ ipp_update_active_jobs(
   ipp_jstate_t		states[1000];	/* Different job state values */
 
 
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the proxy group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, client->printer->pinfo.proxy_group, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
  /*
   * Process the job-ids and output-device-job-states values...
   */
@@ -3030,6 +3386,25 @@ ipp_update_document_status(
   ipp_attribute_t	*attr;		/* Attribute */
 
 
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the proxy group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, client->printer->pinfo.proxy_group, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
   if ((device = serverFindDevice(client)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Device was not found.");
@@ -3078,6 +3453,25 @@ ipp_update_job_status(
   server_event_t		events = SERVER_EVENT_NONE;
 					/* Event(s) */
 
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the proxy group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, client->printer->pinfo.proxy_group, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
 
   if ((device = serverFindDevice(client)) == NULL)
   {
@@ -3136,6 +3530,25 @@ ipp_update_output_device_attributes(
   server_event_t		events = SERVER_EVENT_NONE;
 					/* Config/state changed? */
 
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the proxy group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, client->printer->pinfo.proxy_group, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
 
   if ((device = serverFindDevice(client)) == NULL)
   {
@@ -3246,6 +3659,16 @@ static void
 ipp_validate_document(
     server_client_t *client)		/* I - Client */
 {
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
   if (valid_doc_attributes(client))
     serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -3258,6 +3681,16 @@ ipp_validate_document(
 static void
 ipp_validate_job(server_client_t *client)	/* I - Client */
 {
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
   if (valid_job_attributes(client))
     serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -3632,8 +4065,7 @@ serverProcessIPP(
 
     serverLogAttributes(client, "Response:", client->response, 2);
 
-    return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "application/ipp",
-			 client->fetch_file >= 0 ? 0 : ippLength(client->response)));
+    return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "application/ipp", client->fetch_file >= 0 ? 0 : ippLength(client->response)));
   }
   else
     return (1);

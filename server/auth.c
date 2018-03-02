@@ -219,6 +219,7 @@ int					/* O - 1 if authorized, 0 otherwise */
 serverAuthorizeUser(
     server_client_t *client,		/* I - Client connection */
     const char      *owner,		/* I - Object owner or @code NULL@ if none/not applicable */
+    gid_t           group,		/* I - Authorized group, if any */
     const char      *scope)		/* I - Access scope */
 {
   struct passwd	*pw;			/* User account information */
@@ -292,6 +293,19 @@ serverAuthorizeUser(
   {
     serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" not authorized because the group list could not be retrieved: %s", client->username, strerror(errno));
     return (0);
+  }
+
+  if (group != SERVER_GROUP_NONE)
+  {
+    for (i = 0; i < ngroups; i ++)
+      if ((gid_t)groups[i] == group)
+        break;
+
+    if (i < ngroups)
+    {
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" is authorized because they are a group member.", client->username);
+      return (1);
+    }
   }
 
   if (!strcmp(scope, SERVER_SCOPE_ADMIN))

@@ -62,9 +62,6 @@ ippserver - a simple ipp server
 <b>-s</b>
 <i>speed[,color-speed]</i>
 ] [
-<b>-u</b>
-<i>username:password</i>
-] [
 <b>-v[vvv]</b>
 ] [
 -B --help
@@ -127,8 +124,6 @@ The default subtype is "_print".
 <dd style="margin-left: 5.0em">Runs the server in relaxed conformance mode, which allows certain harmless IPP conformance issues to be ignored.
 <dt><b>-s </b><i>speed[,color-speed]</i>
 <dd style="margin-left: 5.0em">Specifies the printer speed in pages-per-minute.
-<dt><b>-u </b><i>username:password</i>
-<dd style="margin-left: 5.0em">Specifies the username and password for the IPP proxy.
 <dt><b>-v[vvv]</b>
 <dd style="margin-left: 5.0em">Be (very) verbose when logging activity to the standard output.
 <dt><b>--version</b>
@@ -274,9 +269,9 @@ The following directives are supported:
 The format is further defined in
 <a href="man-ipptoolfile.html?TOPIC=Man+Pages"><b>ipptoolfile</b>(7).</a>
 <dt><b>AuthPrintGroup </b><i>group</i>
-<dd style="margin-left: 5.0em">Specifies the group of users that is allowed to print.
-<dt><b>AuthProxyUser </b><i>user</i>
-<dd style="margin-left: 5.0em">Specifies the name of the proxy user for the printer.
+<dd style="margin-left: 5.0em">Specifies the group of users that is allowed to do printing operations.
+<dt><b>AuthProxyGroup </b><i>group</i>
+<dd style="margin-left: 5.0em">Specifies the group of users that is allowed to do proxy operations.
 <dt><b>Command </b><i>command</i>
 <dd style="margin-left: 5.0em">Specifies the command to run when processing jobs.
 The
