@@ -186,7 +186,9 @@ serverCreateJob(server_client_t *client)	/* I - Client */
   else
     job->priority = 50;
 
-  if ((attr = ippFindAttribute(client->request, "requesting-user-name", IPP_TAG_NAME)) != NULL)
+  if (client->username[0])
+    job->username = client->username;
+  else if ((attr = ippFindAttribute(client->request, "requesting-user-name", IPP_TAG_NAME)) != NULL)
     job->username = ippGetString(attr, 0, NULL);
   else
     job->username = "anonymous";

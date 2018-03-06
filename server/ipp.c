@@ -568,6 +568,12 @@ ipp_cancel_job(server_client_t *client)	/* I - Client */
     return;
   }
 
+  if (Authentication && !serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this job.");
+    return;
+  }
+
  /*
   * See if the job is already completed, canceled, or aborted; if so,
   * we can't cancel...
@@ -810,6 +816,12 @@ ipp_cancel_subscription(
     return;
   }
 
+  if (Authentication && !serverAuthorizeUser(client, sub->username, SERVER_GROUP_NONE, SubscriptionPrivacyScope))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this subscription.");
+    return;
+  }
+
   _cupsRWLockWrite(&client->printer->rwlock);
   cupsArrayRemove(client->printer->subscriptions, sub);
   serverDeleteSubscription(sub);
@@ -825,7 +837,7 @@ ipp_cancel_subscription(
 static void
 ipp_close_job(server_client_t *client)	/* I - Client */
 {
-  server_job_t		*job;		/* Job information */
+  server_job_t	*job;			/* Job information */
 
 
   if (Authentication && !client->username[0])
@@ -845,6 +857,12 @@ ipp_close_job(server_client_t *client)	/* I - Client */
   if ((job = serverFindJob(client, 0)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Job does not exist.");
+    return;
+  }
+
+  if (Authentication && !serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this job.");
     return;
   }
 
@@ -901,6 +919,12 @@ ipp_create_job(server_client_t *client)	/* I - Client */
     */
 
     serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
+  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
     return;
   }
 
@@ -983,6 +1007,12 @@ ipp_create_xxx_subscriptions(
     return;
   }
 
+  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
+    return;
+  }
+
  /*
   * For the Create-xxx-Subscriptions operations, queue up a successful-ok
   * response...
@@ -1000,7 +1030,7 @@ ipp_create_xxx_subscriptions(
   else if ((attr = ippFindAttribute(client->request, "requesting-user-name", IPP_TAG_NAME)) != NULL && ippGetGroupTag(attr) == IPP_TAG_OPERATION && ippGetCount(attr) == 1)
     username = ippGetString(attr, 0, NULL);
   else
-    username = "guest";
+    username = "anonymous";
 
  /*
   * Skip past the initial attributes to the first subscription group.
@@ -1496,6 +1526,12 @@ ipp_get_document_attributes(
     return;
   }
 
+  if (Authentication && !serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this job.");
+    return;
+  }
+
   if ((number = ippFindAttribute(client->request, "document-number", IPP_TAG_INTEGER)) == NULL || ippGetInteger(number, 0) != 1)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Document %d not found.", ippGetInteger(number, 0));
@@ -1540,6 +1576,12 @@ ipp_get_documents(server_client_t *client)/* I - Client */
     return;
   }
 
+  if (Authentication && !serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this job.");
+    return;
+  }
+
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
   ra = ippCreateRequestedArray(client->request);
@@ -1567,6 +1609,12 @@ ipp_get_job_attributes(
     */
 
     serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
+  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
     return;
   }
 
@@ -1611,6 +1659,12 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
     */
 
     serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
+  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
     return;
   }
 
@@ -1789,7 +1843,6 @@ ipp_get_notifications(
   server_subscription_t	*sub;		/* Current subscription */
   ipp_t			*event;		/* Current event */
   int			num_events = 0;	/* Number of events returned */
-  const char		*username;	/* Requesting user */
 
 
   if (Authentication && !client->username[0])
@@ -1811,13 +1864,6 @@ ipp_get_notifications(
   count       = ippGetCount(sub_ids);
   seq_nums    = ippFindAttribute(client->request, "notify-sequence-numbers", IPP_TAG_INTEGER);
   notify_wait = ippGetBoolean(ippFindAttribute(client->request, "notify-wait", IPP_TAG_BOOLEAN), 0);
-  username    = ippGetString(ippFindAttribute(client->request, "requesting-user-name", IPP_TAG_NAME), 0, NULL);
-
-  if (!username)
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing requesting-user-name attribute and no authentication.");
-    return;
-  }
 
   if (seq_nums && count != ippGetCount(seq_nums))
   {
@@ -1836,7 +1882,7 @@ ipp_get_notifications(
 	break;
       }
 
-      if (username && _cups_strcasecmp(username, sub->username))
+      if (!serverAuthorizeUser(client, sub->username, SERVER_GROUP_NONE, SubscriptionPrivacyScope))
       {
         serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "You do not have access to subscription #%d.", ippGetInteger(sub_ids, i));
         ippAddInteger(client->response, IPP_TAG_UNSUPPORTED_GROUP, IPP_TAG_INTEGER, "notify-subscription-ids", ippGetInteger(sub_ids, i));
@@ -2083,6 +2129,12 @@ ipp_get_subscription_attributes(
     return;
   }
 
+  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
+    return;
+  }
+
   if ((sub = serverFindSubscription(client, 0)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Subscription was not found.");
@@ -2118,6 +2170,12 @@ ipp_get_subscriptions(
     */
 
     serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
+  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
     return;
   }
 
@@ -2200,6 +2258,12 @@ ipp_print_job(server_client_t *client)	/* I - Client */
     */
 
     serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
+  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
     return;
   }
 
@@ -2376,6 +2440,12 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
     */
 
     serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
+  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
     return;
   }
 
@@ -2652,6 +2722,12 @@ ipp_renew_subscription(
     return;
   }
 
+  if (Authentication && !serverAuthorizeUser(client, sub->username, SERVER_GROUP_NONE, SubscriptionPrivacyScope))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this subscription.");
+    return;
+  }
+
   if (sub->job)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Per-job subscriptions cannot be renewed.");
@@ -2716,6 +2792,12 @@ ipp_send_document(server_client_t *client)/* I - Client */
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Job does not exist.");
     httpFlush(client->http);
+    return;
+  }
+
+  if (Authentication && !serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this job.");
     return;
   }
 
@@ -2939,6 +3021,12 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Job does not exist.");
     httpFlush(client->http);
+    return;
+  }
+
+  if (Authentication && !serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this job.");
     return;
   }
 
@@ -3669,6 +3757,12 @@ ipp_validate_document(
     return;
   }
 
+  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
+    return;
+  }
+
   if (valid_doc_attributes(client))
     serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -3688,6 +3782,12 @@ ipp_validate_job(server_client_t *client)	/* I - Client */
     */
 
     serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
+  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
     return;
   }
 
