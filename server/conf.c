@@ -27,6 +27,9 @@ static _cups_mutex_t	printer_mutex = _CUPS_MUTEX_INITIALIZER;
  * Local functions...
  */
 
+static void		add_document_privacy(void);
+static void		add_job_privacy(void);
+static void		add_subscription_privacy(void);
 static int		attr_cb(_ipp_file_t *f, server_pinfo_t *pinfo, const char *attr);
 static int		compare_lang(server_lang_t *a, server_lang_t *b);
 static int		compare_printers(server_printer_t *a, server_printer_t *b);
@@ -37,9 +40,6 @@ static void		dnssd_client_cb(AvahiClient *c, AvahiClientState state, void *userd
 static int		error_cb(_ipp_file_t *f, server_pinfo_t *pinfo, const char *error);
 static void		free_lang(server_lang_t *a);
 static int		load_system(const char *conf);
-static void		set_document_privacy(const char *value);
-static void		set_job_privacy(const char *value);
-static void		set_subscription_privacy(const char *value);
 static int		token_cb(_ipp_file_t *f, _ipp_vars_t *vars, server_pinfo_t *pinfo, const char *token);
 
 
@@ -187,29 +187,41 @@ serverFinalizeConfiguration(void)
     if (!DocumentPrivacyScope)
       DocumentPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
     if (!DocumentPrivacyAttributes)
-      set_document_privacy("default");
+      DocumentPrivacyAttributes = strdup("default");
 
     if (!JobPrivacyScope)
       JobPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
     if (!JobPrivacyAttributes)
-      set_job_privacy("default");
+      JobPrivacyAttributes = strdup("default");
 
     if (!SubscriptionPrivacyScope)
       SubscriptionPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
     if (!SubscriptionPrivacyAttributes)
-      set_subscription_privacy("default");
+      SubscriptionPrivacyAttributes = strdup("default");
   }
   else
   {
     if (!DocumentPrivacyScope)
       DocumentPrivacyScope = strdup(SERVER_SCOPE_ALL);
+    if (!DocumentPrivacyAttributes)
+      DocumentPrivacyAttributes = strdup("none");
 
     if (!JobPrivacyScope)
       JobPrivacyScope = strdup(SERVER_SCOPE_ALL);
+    if (!JobPrivacyAttributes)
+      JobPrivacyAttributes = strdup("none");
 
     if (!SubscriptionPrivacyScope)
       SubscriptionPrivacyScope = strdup(SERVER_SCOPE_ALL);
+    if (!SubscriptionPrivacyAttributes)
+      SubscriptionPrivacyAttributes = strdup("none");
   }
+
+  PrivacyAttributes = ippNew();
+
+  add_document_privacy();
+  add_job_privacy();
+  add_subscription_privacy();
 
  /*
   * Initialize Bonjour...
@@ -453,6 +465,603 @@ serverLoadConfiguration(
   }
 
   return (1);
+}
+
+
+/*
+ * 'add_document_privacy()' - Add document privacy attributes.
+ */
+
+static void
+add_document_privacy(void)
+{
+  int		i;			/* Looping var */
+  char		temp[1024],		/* Temporary copy of value */
+		*start,			/* Start of value */
+		*ptr;			/* Pointer into value */
+  ipp_attribute_t *privattrs = NULL;	/* document-privacy-attributes */
+  static const char * const description[] =
+  {					/* document-description attributes */
+    "compression",
+    "copies-actual",
+    "cover-back-actual",
+    "cover-front-actual",
+    "current-page-order",
+    "date-time-at-completed",
+    "date-time-at-creation",
+    "date-time-at-processing",
+    "detailed-status-messages",
+    "document-access-errors",
+    "document-charset",
+    "document-digital-signature",
+    "document-format",
+    "document-format-details",
+    "document-format-detected",
+    "document-format-version",
+    "document-format-version-detected",
+    "document-message",
+    "document-metadata",
+    "document-name",
+    "document-natural-language",
+    "document-state",
+    "document-state-message",
+    "document-state-reasons",
+    "document-uri",
+    "errors-count",
+    "finishings-actual",
+    "finishings-col-actual",
+    "force-front-side-actual",
+    "imposition-template-actual",
+    "impressions",
+    "impressions-col",
+    "impressions-completed",
+    "impressions-completed-col",
+    "impressions-completed-current-copy",
+    "insert-sheet-actual",
+    "k-octets",
+    "k-octets-processed",
+    "last-document",
+    "materials-col-actual",
+    "media-actual",
+    "media-col-actual",
+    "media-input-tray-check-actual",
+    "media-sheets",
+    "media-sheets-col",
+    "media-sheets-completed",
+    "media-sheets-completed-col",
+    "more-info",
+    "multiple-object-handling-actual",
+    "number-up-actual",
+    "orientation-requested-actual",
+    "output-bin-actual",
+    "output-device-assigned",
+    "overrides-actual",
+    "page-delivery-actual",
+    "page-order-received-actual",
+    "page-ranges-actual",
+    "pages",
+    "pages-col",
+    "pages-completed",
+    "pages-completed-col",
+    "pages-completed-current-copy",
+    "platform-temperature-actual",
+    "presentation-direction-number-up-actual",
+    "print-accuracy-actual",
+    "print-base-actual",
+    "print-color-mode-actual",
+    "print-content-optimize-actual",
+    "print-objects-actual",
+    "print-quality-actual",
+    "print-rendering-intent-actual",
+    "print-scaling-actual",
+    "print-supports-actual",
+    "printer-resolution-actual",
+    "printer-up-time",
+    "separator-sheets-actual",
+    "sheet-completed-copy-number",
+    "sides-actual",
+    "time-at-completed",
+    "time-at-creation",
+    "time-at-processing",
+    "x-image-position-actual",
+    "x-image-shift-actual",
+    "x-side1-image-shift-actual",
+    "x-side2-image-shift-actual",
+    "y-image-position-actual",
+    "y-image-shift-actual",
+    "y-side1-image-shift-actual",
+    "y-side2-image-shift-actual"
+  };
+  static const char * const template[] =
+  {					/* document-template attributes */
+    "copies",
+    "cover-back",
+    "cover-front",
+    "feed-orientation",
+    "finishings",
+    "finishings-col",
+    "font-name-requested",
+    "font-size-requested",
+    "force-front-side",
+    "imposition-template",
+    "insert-sheet",
+    "materials-col",
+    "media",
+    "media-col",
+    "media-input-tray-check",
+    "multiple-document-handling",
+    "multiple-object-handling",
+    "number-up",
+    "orientation-requested",
+    "overrides",
+    "page-delivery",
+    "page-order-received",
+    "page-ranges",
+    "pages-per-subset",
+    "pdl-init-file",
+    "platform-temperature",
+    "presentation-direction-number-up",
+    "print-accuracy",
+    "print-base",
+    "print-color-mode",
+    "print-content-optimize",
+    "print-objects",
+    "print-quality",
+    "print-rendering-intent",
+    "print-scaling",
+    "print-supports",
+    "printer-resolution",
+    "separator-sheets",
+    "sheet-collate",
+    "sides",
+    "x-image-position",
+    "x-image-shift",
+    "x-side1-image-shift",
+    "x-side2-image-shift",
+    "y-image-position",
+    "y-image-shift",
+    "y-side1-image-shift",
+    "y-side2-image-shift"
+  };
+
+
+  if (!strcmp(DocumentPrivacyAttributes, "none"))
+  {
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-attributes", NULL, "none");
+  }
+  else if (!strcmp(DocumentPrivacyAttributes, "all"))
+  {
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-attributes", NULL, "all");
+
+    DocumentPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+    for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
+      cupsArrayAdd(DocumentPrivacyArray, (void *)description[i]);
+    for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
+      cupsArrayAdd(DocumentPrivacyArray, (void *)template[i]);
+  }
+  else
+  {
+    DocumentPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+
+    strlcpy(temp, DocumentPrivacyAttributes, sizeof(temp));
+
+    ptr = temp;
+    while (*ptr)
+    {
+      start = ptr;
+      while (*ptr && *ptr != ',')
+	ptr ++;
+      if (*ptr == ',')
+	*ptr++ = '\0';
+
+      if (!strcmp(start, "all") || !strcmp(start, "none"))
+	continue;
+
+      if (!privattrs)
+	privattrs = ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "document-privacy-attributes", NULL, start);
+      else
+	ippSetString(PrivacyAttributes, &privattrs, ippGetCount(privattrs), start);
+
+      if (!strcmp(start, "default"))
+      {
+	for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
+	  cupsArrayAdd(DocumentPrivacyArray, (void *)description[i]);
+	for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
+	  cupsArrayAdd(DocumentPrivacyArray, (void *)template[i]);
+      }
+      else if (!strcmp(start, "document-description"))
+      {
+	for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
+	  cupsArrayAdd(DocumentPrivacyArray, (void *)description[i]);
+      }
+      else if (!strcmp(start, "document-template"))
+      {
+	for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
+	  cupsArrayAdd(DocumentPrivacyArray, (void *)template[i]);
+      }
+      else
+      {
+	cupsArrayAdd(DocumentPrivacyArray, (void *)start);
+      }
+    }
+  }
+
+  ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-scope", NULL, DocumentPrivacyScope);
+}
+
+
+/*
+ * 'add_job_privacy()' - Add job privacy attributes.
+ */
+
+static void
+add_job_privacy(void)
+{
+  int		i;			/* Looping var */
+  char		temp[1024],		/* Temporary copy of value */
+		*start,			/* Start of value */
+		*ptr;			/* Pointer into value */
+  ipp_attribute_t *privattrs = NULL;	/* job-privacy-attributes */
+  static const char * const description[] =
+  {					/* job-description attributes */
+    "compression-supplied",
+    "copies-actual",
+    "cover-back-actual",
+    "cover-front-actual",
+    "current-page-order",
+    "date-time-at-completed",
+    "date-time-at-creation",
+    "date-time-at-processing",
+    "destination-statuses",
+    "document-charset-supplied",
+    "document-digital-signature-supplied",
+    "document-format-details-supplied",
+    "document-format-supplied",
+    "document-message-supplied",
+    "document-metadata",
+    "document-name-supplied",
+    "document-natural-language-supplied",
+    "document-overrides-actual",
+    "errors-count",
+    "finishings-actual",
+    "finishings-col-actual",
+    "force-front-side-actual",
+    "imposition-template-actual",
+    "impressions-completed-current-copy",
+    "insert-sheet-actual",
+    "job-account-id-actual",
+    "job-accounting-sheets-actual",
+    "job-accounting-user-id-actual",
+    "job-attribute-fidelity",
+    "job-collation-type",
+    "job-collation-type-actual",
+    "job-copies-actual",
+    "job-cover-back-actual",
+    "job-cover-front-actual",
+    "job-detailed-status-message",
+    "job-document-access-errors",
+    "job-error-sheet-actual",
+    "job-finishings-actual",
+    "job-finishings-col-actual",
+    "job-hold-until-actual",
+    "job-impressions",
+    "job-impressions-col",
+    "job-impressions-completed",
+    "job-impressions-completed-col",
+    "job-k-octets",
+    "job-k-octets-processed",
+    "job-mandatory-attributes",
+    "job-media-sheets",
+    "job-media-sheets-col",
+    "job-media-sheets-completed",
+    "job-media-sheets-completed-col",
+    "job-message-from-operator",
+    "job-more-info",
+    "job-name",
+    "job-originating-user-name",
+    "job-originating-user-uri",
+    "job-pages",
+    "job-pages-col",
+    "job-pages-completed",
+    "job-pages-completed-col",
+    "job-pages-completed-current-copy",
+    "job-priority-actual",
+    "job-save-printer-make-and-model",
+    "job-sheet-message-actual",
+    "job-sheets-actual",
+    "job-sheets-col-actual",
+    "job-state",
+    "job-state-message",
+    "job-state-reasons",
+    "materials-col-actual",
+    "media-actual",
+    "media-col-actual",
+    "media-check-input-tray-actual",
+    "multiple-document-handling-actual",
+    "multiple-object-handling-actual",
+    "number-of-documents",
+    "number-of-intervening-jobs",
+    "number-up-actual",
+    "orientation-requested-actual",
+    "original-requesting-user-name",
+    "output-bin-actual",
+    "output-device-assigned",
+    "overrides-actual",
+    "page-delivery-actual",
+    "page-order-received-actual",
+    "page-ranges-actual",
+    "platform-temperature-actual",
+    "presentation-direction-number-up-actual",
+    "print-accuracy-actual",
+    "print-base-actual",
+    "print-color-mode-actual",
+    "print-content-optimize-actual",
+    "print-objects-actual",
+    "print-quality-actual",
+    "print-rendering-intent-actual",
+    "print-scaling-actual",
+    "print-supports-actual",
+    "printer-resolution-actual",
+    "separator-sheets-actual",
+    "sheet-collate-actual",
+    "sheet-completed-copy-number",
+    "sheet-completed-document-number",
+    "sides-actual",
+    "time-at-completed",
+    "time-at-creation",
+    "time-at-processing",
+    "warnings-count",
+    "x-image-position-actual",
+    "x-image-shift-actual",
+    "x-side1-image-shift-actual",
+    "x-side2-image-shift-actual",
+    "y-image-position-actual",
+    "y-image-shift-actual",
+    "y-side1-image-shift-actual",
+    "y-side2-image-shift-actual"
+  };
+  static const char * const template[] =
+  {					/* job-template attributes */
+    "confirmation-sheet-print",
+    "copies",
+    "cover-back",
+    "cover-front",
+    "cover-sheet-info",
+    "destination-uris",
+    "feed-orientation",
+    "finishings",
+    "finishings-col",
+    "font-name-requested",
+    "font-size-requested",
+    "force-front-side",
+    "imposition-template",
+    "insert-sheet",
+    "job-account-id",
+    "job-accounting-sheets"
+    "job-accounting-user-id",
+    "job-copies",
+    "job-cover-back",
+    "job-cover-front",
+    "job-delay-output-until",
+    "job-delay-output-until-time",
+    "job-error-action",
+    "job-error-sheet",
+    "job-finishings",
+    "job-finishings-col",
+    "job-hold-until",
+    "job-hold-until-time",
+    "job-message-to-operator",
+    "job-phone-number",
+    "job-priority",
+    "job-recipient-name",
+    "job-save-disposition",
+    "job-sheets",
+    "job-sheets-col",
+    "materials-col",
+    "media",
+    "media-col",
+    "media-input-tray-check",
+    "multiple-document-handling",
+    "multiple-object-handling",
+    "number-of-retries",
+    "number-up",
+    "orientation-requested",
+    "output-bin",
+    "output-device",
+    "overrides",
+    "page-delivery",
+    "page-order-received",
+    "page-ranges",
+    "pages-per-subset",
+    "pdl-init-file",
+    "platform-temperature",
+    "presentation-direction-number-up",
+    "print-accuracy",
+    "print-base",
+    "print-color-mode",
+    "print-content-optimize",
+    "print-objects",
+    "print-quality",
+    "print-rendering-intent",
+    "print-scaling",
+    "print-supports",
+    "printer-resolution",
+    "proof-print",
+    "retry-interval",
+    "retry-timeout",
+    "separator-sheets",
+    "sheet-collate",
+    "sides",
+    "x-image-position",
+    "x-image-shift",
+    "x-side1-image-shift",
+    "x-side2-image-shift",
+    "y-image-position",
+    "y-image-shift",
+    "y-side1-image-shift",
+    "y-side2-image-shift",
+  };
+
+
+  if (!strcmp(JobPrivacyAttributes, "none"))
+  {
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-attributes", NULL, "none");
+  }
+  else if (!strcmp(JobPrivacyAttributes, "all"))
+  {
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-attributes", NULL, "all");
+
+    JobPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+    for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
+      cupsArrayAdd(JobPrivacyArray, (void *)description[i]);
+    for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
+      cupsArrayAdd(JobPrivacyArray, (void *)template[i]);
+  }
+  else
+  {
+    JobPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+
+    strlcpy(temp, JobPrivacyAttributes, sizeof(temp));
+
+    ptr = temp;
+    while (*ptr)
+    {
+      start = ptr;
+      while (*ptr && *ptr != ',')
+	ptr ++;
+      if (*ptr == ',')
+	*ptr++ = '\0';
+
+      if (!strcmp(start, "all") || !strcmp(start, "none"))
+	continue;
+
+      if (!privattrs)
+	privattrs = ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "job-privacy-attributes", NULL, start);
+      else
+	ippSetString(PrivacyAttributes, &privattrs, ippGetCount(privattrs), start);
+
+      if (!strcmp(start, "default"))
+      {
+	for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
+	  cupsArrayAdd(JobPrivacyArray, (void *)description[i]);
+	for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
+	  cupsArrayAdd(JobPrivacyArray, (void *)template[i]);
+      }
+      else if (!strcmp(start, "job-description"))
+      {
+	for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
+	  cupsArrayAdd(JobPrivacyArray, (void *)description[i]);
+      }
+      else if (!strcmp(start, "job-template"))
+      {
+	for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
+	  cupsArrayAdd(JobPrivacyArray, (void *)template[i]);
+      }
+      else
+      {
+	cupsArrayAdd(JobPrivacyArray, (void *)start);
+      }
+    }
+  }
+
+  ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-scope", NULL, JobPrivacyScope);
+}
+
+
+/*
+ * 'add_subscription_privacy()' - Add subscription privacy attributes.
+ */
+
+static void
+add_subscription_privacy(void)
+{
+  int		i;			/* Looping var */
+  char		temp[1024],		/* Temporary copy of value */
+		*start,			/* Start of value */
+		*ptr;			/* Pointer into value */
+  ipp_attribute_t *privattrs = NULL;	/* job-privacy-attributes */
+  static const char * const description[] =
+  {					/* subscription-description attributes */
+    "notify-lease-expiration-time",
+    "notify-sequence-number",
+    "notify-subscriber-user-name"
+  };
+  static const char * const template[] =
+  {					/* subscription-template attributes */
+    "notify-attributes",
+    "notify-charset",
+    "notify-events",
+    "notify-lease-duration",
+    "notify-natural-language",
+    "notify-pull-method",
+    "notify-recipient-uri",
+    "notify-time-interval",
+    "notify-user-data"
+  };
+
+
+  if (!strcmp(SubscriptionPrivacyAttributes, "none"))
+  {
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-attributes", NULL, "none");
+  }
+  else if (!strcmp(SubscriptionPrivacyAttributes, "all"))
+  {
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-attributes", NULL, "all");
+
+    SubscriptionPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+    for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
+      cupsArrayAdd(SubscriptionPrivacyArray, (void *)description[i]);
+    for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
+      cupsArrayAdd(SubscriptionPrivacyArray, (void *)template[i]);
+  }
+  else
+  {
+    SubscriptionPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+
+    strlcpy(temp, SubscriptionPrivacyAttributes, sizeof(temp));
+
+    ptr = temp;
+    while (*ptr)
+    {
+      start = ptr;
+      while (*ptr && *ptr != ',')
+	ptr ++;
+      if (*ptr == ',')
+	*ptr++ = '\0';
+
+      if (!strcmp(start, "all") || !strcmp(start, "none"))
+	continue;
+
+      if (!privattrs)
+	privattrs = ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "subscription-privacy-attributes", NULL, start);
+      else
+	ippSetString(PrivacyAttributes, &privattrs, ippGetCount(privattrs), start);
+
+      if (!strcmp(start, "default"))
+      {
+	for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
+	  cupsArrayAdd(SubscriptionPrivacyArray, (void *)description[i]);
+	for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
+	  cupsArrayAdd(SubscriptionPrivacyArray, (void *)template[i]);
+      }
+      else if (!strcmp(start, "subscription-description"))
+      {
+	for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
+	  cupsArrayAdd(SubscriptionPrivacyArray, (void *)description[i]);
+      }
+      else if (!strcmp(start, "subscription-template"))
+      {
+	for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
+	  cupsArrayAdd(SubscriptionPrivacyArray, (void *)template[i]);
+      }
+      else
+      {
+	cupsArrayAdd(SubscriptionPrivacyArray, (void *)start);
+      }
+    }
+  }
+
+  ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-scope", NULL, SubscriptionPrivacyScope);
 }
 
 
@@ -756,7 +1365,7 @@ load_system(const char *conf)		/* I - Configuration file */
         break;
       }
 
-      set_document_privacy(value);
+      DocumentPrivacyAttributes = strdup(value);
     }
     else if (!_cups_strcasecmp(line, "DocumentPrivacyScope"))
     {
@@ -795,7 +1404,7 @@ load_system(const char *conf)		/* I - Configuration file */
         break;
       }
 
-      set_job_privacy(value);
+      JobPrivacyAttributes = strdup(value);
     }
     else if (!_cups_strcasecmp(line, "JobPrivacyScope"))
     {
@@ -902,7 +1511,7 @@ load_system(const char *conf)		/* I - Configuration file */
         break;
       }
 
-      set_subscription_privacy(value);
+      SubscriptionPrivacyAttributes = strdup(value);
     }
     else if (!_cups_strcasecmp(line, "SubscriptionPrivacyScope"))
     {
@@ -924,616 +1533,6 @@ load_system(const char *conf)		/* I - Configuration file */
   cupsFileClose(fp);
 
   return (status);
-}
-
-
-/*
- * 'set_document_privacy()' - Set document privacy attributes.
- */
-
-static void
-set_document_privacy(const char *value)	/* I - Privacy attribute value */
-{
-  int		i;			/* Looping var */
-  char		temp[1024],		/* Temporary copy of value */
-		*start,			/* Start of value */
-		*ptr;			/* Pointer into value */
-  ipp_attribute_t *privattrs = NULL;	/* document-privacy-attributes */
-  static const char * const description[] =
-  {					/* document-description attributes */
-    "compression",
-    "copies-actual",
-    "cover-back-actual",
-    "cover-front-actual",
-    "current-page-order",
-    "date-time-at-completed",
-    "date-time-at-creation",
-    "date-time-at-processing",
-    "detailed-status-messages",
-    "document-access-errors",
-    "document-charset",
-    "document-digital-signature",
-    "document-format",
-    "document-format-details",
-    "document-format-detected",
-    "document-format-version",
-    "document-format-version-detected",
-    "document-message",
-    "document-metadata",
-    "document-name",
-    "document-natural-language",
-    "document-state",
-    "document-state-message",
-    "document-state-reasons",
-    "document-uri",
-    "errors-count",
-    "finishings-actual",
-    "finishings-col-actual",
-    "force-front-side-actual",
-    "imposition-template-actual",
-    "impressions",
-    "impressions-col",
-    "impressions-completed",
-    "impressions-completed-col",
-    "impressions-completed-current-copy",
-    "insert-sheet-actual",
-    "k-octets",
-    "k-octets-processed",
-    "last-document",
-    "materials-col-actual",
-    "media-actual",
-    "media-col-actual",
-    "media-input-tray-check-actual",
-    "media-sheets",
-    "media-sheets-col",
-    "media-sheets-completed",
-    "media-sheets-completed-col",
-    "more-info",
-    "multiple-object-handling-actual",
-    "number-up-actual",
-    "orientation-requested-actual",
-    "output-bin-actual",
-    "output-device-assigned",
-    "overrides-actual",
-    "page-delivery-actual",
-    "page-order-received-actual",
-    "page-ranges-actual",
-    "pages",
-    "pages-col",
-    "pages-completed",
-    "pages-completed-col",
-    "pages-completed-current-copy",
-    "platform-temperature-actual",
-    "presentation-direction-number-up-actual",
-    "print-accuracy-actual",
-    "print-base-actual",
-    "print-color-mode-actual",
-    "print-content-optimize-actual",
-    "print-objects-actual",
-    "print-quality-actual",
-    "print-rendering-intent-actual",
-    "print-scaling-actual",
-    "print-supports-actual",
-    "printer-resolution-actual",
-    "printer-up-time",
-    "separator-sheets-actual",
-    "sheet-completed-copy-number",
-    "sides-actual",
-    "time-at-completed",
-    "time-at-creation",
-    "time-at-processing",
-    "x-image-position-actual",
-    "x-image-shift-actual",
-    "x-side1-image-shift-actual",
-    "x-side2-image-shift-actual",
-    "y-image-position-actual",
-    "y-image-shift-actual",
-    "y-side1-image-shift-actual",
-    "y-side2-image-shift-actual"
-  };
-  static const char * const template[] =
-  {					/* document-template attributes */
-    "copies",
-    "cover-back",
-    "cover-front",
-    "feed-orientation",
-    "finishings",
-    "finishings-col",
-    "font-name-requested",
-    "font-size-requested",
-    "force-front-side",
-    "imposition-template",
-    "insert-sheet",
-    "materials-col",
-    "media",
-    "media-col",
-    "media-input-tray-check",
-    "multiple-document-handling",
-    "multiple-object-handling",
-    "number-up",
-    "orientation-requested",
-    "overrides",
-    "page-delivery",
-    "page-order-received",
-    "page-ranges",
-    "pages-per-subset",
-    "pdl-init-file",
-    "platform-temperature",
-    "presentation-direction-number-up",
-    "print-accuracy",
-    "print-base",
-    "print-color-mode",
-    "print-content-optimize",
-    "print-objects",
-    "print-quality",
-    "print-rendering-intent",
-    "print-scaling",
-    "print-supports",
-    "printer-resolution",
-    "separator-sheets",
-    "sheet-collate",
-    "sides",
-    "x-image-position",
-    "x-image-shift",
-    "x-side1-image-shift",
-    "x-side2-image-shift",
-    "y-image-position",
-    "y-image-shift",
-    "y-side1-image-shift",
-    "y-side2-image-shift"
-  };
-
-
-  DocumentPrivacyAttributes = strdup(value);
-
-  if (!PrivacyAttributes)
-    PrivacyAttributes = ippNew();
-
-  if (!strcmp(value, "none"))
-  {
-    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-attributes", NULL, "none");
-    return;
-  }
-  else if (!strcmp(value, "all"))
-  {
-    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-attributes", NULL, "all");
-
-    DocumentPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
-    for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
-      cupsArrayAdd(DocumentPrivacyArray, (void *)description[i]);
-    for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
-      cupsArrayAdd(DocumentPrivacyArray, (void *)template[i]);
-
-    return;
-  }
-
-  DocumentPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
-
-  strlcpy(temp, value, sizeof(temp));
-
-  ptr = temp;
-  while (*ptr)
-  {
-    start = ptr;
-    while (*ptr && *ptr != ',')
-      ptr ++;
-    if (*ptr == ',')
-      *ptr++ = '\0';
-
-    if (!strcmp(start, "all") || !strcmp(start, "none"))
-      continue;
-
-    if (!privattrs)
-      privattrs = ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "document-privacy-attributes", NULL, start);
-    else
-      ippSetString(PrivacyAttributes, &privattrs, ippGetCount(privattrs), start);
-
-    if (!strcmp(start, "default"))
-    {
-      for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
-        cupsArrayAdd(DocumentPrivacyArray, (void *)description[i]);
-      for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
-        cupsArrayAdd(DocumentPrivacyArray, (void *)template[i]);
-    }
-    else if (!strcmp(start, "document-description"))
-    {
-      for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
-        cupsArrayAdd(DocumentPrivacyArray, (void *)description[i]);
-    }
-    else if (!strcmp(start, "document-template"))
-    {
-      for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
-        cupsArrayAdd(DocumentPrivacyArray, (void *)template[i]);
-    }
-    else
-    {
-      cupsArrayAdd(DocumentPrivacyArray, (void *)start);
-    }
-  }
-}
-
-
-/*
- * 'set_job_privacy()' - Set job privacy attributes.
- */
-
-static void
-set_job_privacy(const char *value)	/* I - Privacy attribute value */
-{
-  int		i;			/* Looping var */
-  char		temp[1024],		/* Temporary copy of value */
-		*start,			/* Start of value */
-		*ptr;			/* Pointer into value */
-  ipp_attribute_t *privattrs = NULL;	/* job-privacy-attributes */
-  static const char * const description[] =
-  {					/* job-description attributes */
-    "compression-supplied",
-    "copies-actual",
-    "cover-back-actual",
-    "cover-front-actual",
-    "current-page-order",
-    "date-time-at-completed",
-    "date-time-at-creation",
-    "date-time-at-processing",
-    "destination-statuses",
-    "document-charset-supplied",
-    "document-digital-signature-supplied",
-    "document-format-details-supplied",
-    "document-format-supplied",
-    "document-message-supplied",
-    "document-metadata",
-    "document-name-supplied",
-    "document-natural-language-supplied",
-    "document-overrides-actual",
-    "errors-count",
-    "finishings-actual",
-    "finishings-col-actual",
-    "force-front-side-actual",
-    "imposition-template-actual",
-    "impressions-completed-current-copy",
-    "insert-sheet-actual",
-    "job-account-id-actual",
-    "job-accounting-sheets-actual",
-    "job-accounting-user-id-actual",
-    "job-attribute-fidelity",
-    "job-collation-type",
-    "job-collation-type-actual",
-    "job-copies-actual",
-    "job-cover-back-actual",
-    "job-cover-front-actual",
-    "job-detailed-status-message",
-    "job-document-access-errors",
-    "job-error-sheet-actual",
-    "job-finishings-actual",
-    "job-finishings-col-actual",
-    "job-hold-until-actual",
-    "job-impressions",
-    "job-impressions-col",
-    "job-impressions-completed",
-    "job-impressions-completed-col",
-    "job-k-octets",
-    "job-k-octets-processed",
-    "job-mandatory-attributes",
-    "job-media-sheets",
-    "job-media-sheets-col",
-    "job-media-sheets-completed",
-    "job-media-sheets-completed-col",
-    "job-message-from-operator",
-    "job-more-info",
-    "job-name",
-    "job-originating-user-name",
-    "job-originating-user-uri",
-    "job-pages",
-    "job-pages-col",
-    "job-pages-completed",
-    "job-pages-completed-col",
-    "job-pages-completed-current-copy",
-    "job-priority-actual",
-    "job-save-printer-make-and-model",
-    "job-sheet-message-actual",
-    "job-sheets-actual",
-    "job-sheets-col-actual",
-    "job-state",
-    "job-state-message",
-    "job-state-reasons",
-    "materials-col-actual",
-    "media-actual",
-    "media-col-actual",
-    "media-check-input-tray-actual",
-    "multiple-document-handling-actual",
-    "multiple-object-handling-actual",
-    "number-of-documents",
-    "number-of-intervening-jobs",
-    "number-up-actual",
-    "orientation-requested-actual",
-    "original-requesting-user-name",
-    "output-bin-actual",
-    "output-device-assigned",
-    "overrides-actual",
-    "page-delivery-actual",
-    "page-order-received-actual",
-    "page-ranges-actual",
-    "platform-temperature-actual",
-    "presentation-direction-number-up-actual",
-    "print-accuracy-actual",
-    "print-base-actual",
-    "print-color-mode-actual",
-    "print-content-optimize-actual",
-    "print-objects-actual",
-    "print-quality-actual",
-    "print-rendering-intent-actual",
-    "print-scaling-actual",
-    "print-supports-actual",
-    "printer-resolution-actual",
-    "separator-sheets-actual",
-    "sheet-collate-actual",
-    "sheet-completed-copy-number",
-    "sheet-completed-document-number",
-    "sides-actual",
-    "time-at-completed",
-    "time-at-creation",
-    "time-at-processing",
-    "warnings-count",
-    "x-image-position-actual",
-    "x-image-shift-actual",
-    "x-side1-image-shift-actual",
-    "x-side2-image-shift-actual",
-    "y-image-position-actual",
-    "y-image-shift-actual",
-    "y-side1-image-shift-actual",
-    "y-side2-image-shift-actual"
-  };
-  static const char * const template[] =
-  {					/* job-template attributes */
-    "confirmation-sheet-print",
-    "copies",
-    "cover-back",
-    "cover-front",
-    "cover-sheet-info",
-    "destination-uris",
-    "feed-orientation",
-    "finishings",
-    "finishings-col",
-    "font-name-requested",
-    "font-size-requested",
-    "force-front-side",
-    "imposition-template",
-    "insert-sheet",
-    "job-account-id",
-    "job-accounting-sheets"
-    "job-accounting-user-id",
-    "job-copies",
-    "job-cover-back",
-    "job-cover-front",
-    "job-delay-output-until",
-    "job-delay-output-until-time",
-    "job-error-action",
-    "job-error-sheet",
-    "job-finishings",
-    "job-finishings-col",
-    "job-hold-until",
-    "job-hold-until-time",
-    "job-message-to-operator",
-    "job-phone-number",
-    "job-priority",
-    "job-recipient-name",
-    "job-save-disposition",
-    "job-sheets",
-    "job-sheets-col",
-    "materials-col",
-    "media",
-    "media-col",
-    "media-input-tray-check",
-    "multiple-document-handling",
-    "multiple-object-handling",
-    "number-of-retries",
-    "number-up",
-    "orientation-requested",
-    "output-bin",
-    "output-device",
-    "overrides",
-    "page-delivery",
-    "page-order-received",
-    "page-ranges",
-    "pages-per-subset",
-    "pdl-init-file",
-    "platform-temperature",
-    "presentation-direction-number-up",
-    "print-accuracy",
-    "print-base",
-    "print-color-mode",
-    "print-content-optimize",
-    "print-objects",
-    "print-quality",
-    "print-rendering-intent",
-    "print-scaling",
-    "print-supports",
-    "printer-resolution",
-    "proof-print",
-    "retry-interval",
-    "retry-timeout",
-    "separator-sheets",
-    "sheet-collate",
-    "sides",
-    "x-image-position",
-    "x-image-shift",
-    "x-side1-image-shift",
-    "x-side2-image-shift",
-    "y-image-position",
-    "y-image-shift",
-    "y-side1-image-shift",
-    "y-side2-image-shift",
-  };
-
-
-  JobPrivacyAttributes = strdup(value);
-
-  if (!PrivacyAttributes)
-    PrivacyAttributes = ippNew();
-
-  if (!strcmp(value, "none"))
-  {
-    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-attributes", NULL, "none");
-    return;
-  }
-  else if (!strcmp(value, "all"))
-  {
-    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-attributes", NULL, "all");
-
-    JobPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
-    for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
-      cupsArrayAdd(JobPrivacyArray, (void *)description[i]);
-    for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
-      cupsArrayAdd(JobPrivacyArray, (void *)template[i]);
-
-    return;
-  }
-
-  JobPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
-
-  strlcpy(temp, value, sizeof(temp));
-
-  ptr = temp;
-  while (*ptr)
-  {
-    start = ptr;
-    while (*ptr && *ptr != ',')
-      ptr ++;
-    if (*ptr == ',')
-      *ptr++ = '\0';
-
-    if (!strcmp(start, "all") || !strcmp(start, "none"))
-      continue;
-
-    if (!privattrs)
-      privattrs = ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "job-privacy-attributes", NULL, start);
-    else
-      ippSetString(PrivacyAttributes, &privattrs, ippGetCount(privattrs), start);
-
-    if (!strcmp(start, "default"))
-    {
-      for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
-        cupsArrayAdd(JobPrivacyArray, (void *)description[i]);
-      for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
-        cupsArrayAdd(JobPrivacyArray, (void *)template[i]);
-    }
-    else if (!strcmp(start, "job-description"))
-    {
-      for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
-        cupsArrayAdd(JobPrivacyArray, (void *)description[i]);
-    }
-    else if (!strcmp(start, "job-template"))
-    {
-      for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
-        cupsArrayAdd(JobPrivacyArray, (void *)template[i]);
-    }
-    else
-    {
-      cupsArrayAdd(JobPrivacyArray, (void *)start);
-    }
-  }
-}
-
-
-/*
- * 'set_subscription_privacy()' - Set subscription privacy attributes.
- */
-
-static void
-set_subscription_privacy(
-    const char *value)			/* I - Privacy attribute value */
-{
-  int		i;			/* Looping var */
-  char		temp[1024],		/* Temporary copy of value */
-		*start,			/* Start of value */
-		*ptr;			/* Pointer into value */
-  ipp_attribute_t *privattrs = NULL;	/* job-privacy-attributes */
-  static const char * const description[] =
-  {					/* subscription-description attributes */
-    "notify-lease-expiration-time",
-    "notify-sequence-number",
-    "notify-subscriber-user-name"
-  };
-  static const char * const template[] =
-  {					/* subscription-template attributes */
-    "notify-attributes",
-    "notify-charset",
-    "notify-events",
-    "notify-lease-duration",
-    "notify-natural-language",
-    "notify-pull-method",
-    "notify-recipient-uri",
-    "notify-time-interval",
-    "notify-user-data"
-  };
-
-
-  SubscriptionPrivacyAttributes = strdup(value);
-
-  if (!PrivacyAttributes)
-    PrivacyAttributes = ippNew();
-
-  if (!strcmp(value, "none"))
-  {
-    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-attributes", NULL, "none");
-    return;
-  }
-  else if (!strcmp(value, "all"))
-  {
-    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-attributes", NULL, "all");
-
-    SubscriptionPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
-    for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
-      cupsArrayAdd(SubscriptionPrivacyArray, (void *)description[i]);
-    for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
-      cupsArrayAdd(SubscriptionPrivacyArray, (void *)template[i]);
-
-    return;
-  }
-
-  SubscriptionPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
-
-  strlcpy(temp, value, sizeof(temp));
-
-  ptr = temp;
-  while (*ptr)
-  {
-    start = ptr;
-    while (*ptr && *ptr != ',')
-      ptr ++;
-    if (*ptr == ',')
-      *ptr++ = '\0';
-
-    if (!strcmp(start, "all") || !strcmp(start, "none"))
-      continue;
-
-    if (!privattrs)
-      privattrs = ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "subscription-privacy-attributes", NULL, start);
-    else
-      ippSetString(PrivacyAttributes, &privattrs, ippGetCount(privattrs), start);
-
-    if (!strcmp(start, "default"))
-    {
-      for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
-        cupsArrayAdd(SubscriptionPrivacyArray, (void *)description[i]);
-      for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
-        cupsArrayAdd(SubscriptionPrivacyArray, (void *)template[i]);
-    }
-    else if (!strcmp(start, "subscription-description"))
-    {
-      for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
-        cupsArrayAdd(SubscriptionPrivacyArray, (void *)description[i]);
-    }
-    else if (!strcmp(start, "subscription-template"))
-    {
-      for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
-        cupsArrayAdd(SubscriptionPrivacyArray, (void *)template[i]);
-    }
-    else
-    {
-      cupsArrayAdd(SubscriptionPrivacyArray, (void *)start);
-    }
-  }
 }
 
 
