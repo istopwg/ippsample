@@ -13,6 +13,7 @@ include ../Makedefs
 
 
 OBJS		=	\
+			ippdoclint.o \
 			ippfind.o \
 			ippproxy.o \
 			ipptool.o \
@@ -22,6 +23,7 @@ TARGETS         =       \
                         $(BIN_TARGETS) \
                         $(SBIN_TARGETS)
 BIN_TARGETS	=	\
+			ippdoclint \
 			$(IPPFIND_BIN) \
 			ipptool \
 			$(IPPTRANSFORM_BIN) \
@@ -75,6 +77,15 @@ install:	all
 #
 
 test:
+
+
+#
+# ippdoclint
+#
+
+ippdoclint:	ippdoclint.o ../cups/libcups.a
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ ippdoclint.o $(LIBS)
 
 
 #

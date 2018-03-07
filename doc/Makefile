@@ -16,17 +16,19 @@ OBJS		=	\
 TARGETS		=	\
 			mantohtml
 MAN1		=	\
+			ippdoclint.1 \
 			$(IPPFIND_MAN) \
-			ipptool.man \
+			ipptool.1 \
 			$(IPPTRANSFORM_MAN) \
 			$(IPPTRANSFORM3D_MAN)
 MAN5		=	\
-			ipptoolfile.man
+			ipptoolfile.5
 
 MAN8		=	\
-			ippproxy.man \
-			ippserver.man
+			ippproxy.8 \
+			ippserver.8
 HTML		=	\
+			ippdoclint.html \
 			$(IPPFIND_HTML) \
 			ippproxy.html \
 			ippserver.html \
@@ -40,8 +42,8 @@ HTML		=	\
 # Rules for converting man pages to HTML...
 #
 
-.SUFFIXES:	.html .man
-.man.html:	mantohtml
+.SUFFIXES:	.1 .5 .8 .html
+.1.html .5.html .8.html:	mantohtml
 	echo Generating $@...
 	./mantohtml $< >$@
 
@@ -76,17 +78,17 @@ depend:
 install:
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(mandir)/man1
 	for file in $(MAN1); do \
-		man="`basename $$file .man | sed -e '1,$$s/^ipp/$(IPP)/'`.1"; \
+		man="`echo $$file .| sed -e '1,$$s/^ipp/$(IPP)/'`"; \
 		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man1/$$man; \
 	done
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(mandir)/man5
 	for file in $(MAN5); do \
-		man="`basename $$file .man | sed -e '1,$$s/^ipp/$(IPP)/'`.5"; \
+		man="`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`"; \
 		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man5/$$man; \
 	done
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(mandir)/man8
 	for file in $(MAN8); do \
-		man="`basename $$file .man | sed -e '1,$$s/^ipp/$(IPP)/'`.8"; \
+		man="`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`"; \
 		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man8/$$man; \
 	done
 

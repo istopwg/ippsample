@@ -168,3 +168,29 @@ util.o: util.c cups-private.h string-private.h ../config.h \
   ipp-private.h ../cups/cups.h file.h ipp.h http.h language.h pwg.h \
   http-private.h language-private.h ../cups/transcode.h pwg-private.h \
   thread-private.h
+testarray.o: testarray.c string-private.h ../config.h debug-private.h \
+  ../cups/versioning.h array-private.h ../cups/array.h dir.h
+testclient.o: testclient.c ../cups/cups.h file.h versioning.h ipp.h \
+  http.h array.h language.h pwg.h ../cups/raster.h \
+  ../cups/string-private.h ../config.h ../cups/thread-private.h
+testdest.o: testdest.c cups.h file.h versioning.h ipp.h http.h array.h \
+  language.h pwg.h
+testfile.o: testfile.c string-private.h ../config.h debug-private.h \
+  ../cups/versioning.h file.h
+testhttp.o: testhttp.c cups-private.h string-private.h ../config.h \
+  debug-private.h ../cups/versioning.h array-private.h ../cups/array.h \
+  ipp-private.h ../cups/cups.h file.h ipp.h http.h language.h pwg.h \
+  http-private.h language-private.h ../cups/transcode.h pwg-private.h \
+  thread-private.h
+testi18n.o: testi18n.c string-private.h ../config.h language-private.h \
+  ../cups/transcode.h language.h array.h versioning.h
+testipp.o: testipp.c file.h versioning.h string-private.h ../config.h \
+  ipp-private.h ../cups/cups.h ipp.h http.h array.h language.h pwg.h
+testoptions.o: testoptions.c cups-private.h string-private.h ../config.h \
+  debug-private.h ../cups/versioning.h array-private.h ../cups/array.h \
+  ipp-private.h ../cups/cups.h file.h ipp.h http.h language.h pwg.h \
+  http-private.h language-private.h ../cups/transcode.h pwg-private.h \
+  thread-private.h
+testraster.o: testraster.c ../cups/raster-private.h raster.h cups.h \
+  file.h versioning.h ipp.h http.h array.h language.h pwg.h \
+  ../cups/debug-private.h ../cups/string-private.h ../config.h

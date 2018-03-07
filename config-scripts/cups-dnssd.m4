@@ -29,7 +29,7 @@ if test "x$PKGCONFIG" != x -a x$enable_avahi != xno -a x$uname != xDarwin; then
 		DNSSDLIBS="`$PKGCONFIG --libs avahi-client`"
 		IPPFIND_BIN="ippfind"
 		IPPFIND_HTML="ippfind.html"
-		IPPFIND_MAN="ippfind.man"
+		IPPFIND_MAN="ippfind.1"
 		AC_DEFINE(HAVE_AVAHI)
 	else
 		AC_MSG_RESULT(no)
@@ -45,7 +45,7 @@ if test "x$DNSSD_BACKEND" = x -a x$enable_dnssd != xno; then
 				DNSSDLIBS="-framework CoreFoundation -framework SystemConfiguration"
 				IPPFIND_BIN="ippfind"
 				IPPFIND_HTML="ippfind.html"
-				IPPFIND_MAN="ippfind.man"
+				IPPFIND_MAN="ippfind.1"
 				;;
 			*)
 				# All others...
@@ -63,7 +63,7 @@ if test "x$DNSSD_BACKEND" = x -a x$enable_dnssd != xno; then
 					DNSSDLIBS="-ldns_sd"
 					IPPFIND_BIN="ippfind"
 					IPPFIND_HTML="ippfind.html"
-					IPPFIND_MAN="ippfind.man"
+					IPPFIND_MAN="ippfind.1"
 					AC_MSG_RESULT(no))
 				LIBS="$SAVELIBS"
 				;;

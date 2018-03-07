@@ -21,6 +21,7 @@ parts
 prime
 server/ippserver
 stage
+tools/ippdoclint
 tools/ippfind
 tools/ippproxy
 tools/ipptool

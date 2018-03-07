@@ -183,7 +183,7 @@ case $uname in
 
 		IPPTRANSFORM_BIN="ipptransform"
 		IPPTRANSFORM_HTML="ipptransform.html"
-		IPPTRANSFORM_MAN="ipptransform.man"
+		IPPTRANSFORM_MAN="ipptransform.1"
 		;;
 
 	*)
@@ -198,7 +198,7 @@ case $uname in
 			LIBS="-lmupdf $LIBS"
 			IPPTRANSFORM_BIN="ipptransform"
 			IPPTRANSFORM_HTML="ipptransform.html"
-			IPPTRANSFORM_MAN="ipptransform.man"
+			IPPTRANSFORM_MAN="ipptransform.1"
                         AC_MSG_CHECKING(for version of fz_new_pixmap function)
                         AC_TRY_COMPILE([#include <mupdf/fitz.h>],[
                                 fz_pixmap *p = fz_new_pixmap(0,0,100,100,1);],
@@ -225,7 +225,7 @@ PATH="$SAVEPATH"
 if test "x$CURAENGINE" != x; then
 	IPPTRANSFORM3D_BIN="ipptransform3d"
 	IPPTRANSFORM3D_HTML="ipptransform3d.html"
-	IPPTRANSFORM3D_MAN="ipptransform3d.man"
+	IPPTRANSFORM3D_MAN="ipptransform3d.1"
 
 	AC_DEFINE_UNQUOTED(CURAENGINE, "$CURAENGINE")
 fi

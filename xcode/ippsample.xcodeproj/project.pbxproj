@@ -36,25 +36,33 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
-		275C6BA11C8789E9000D2DE7 /* ippfind.man in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E006081C5C0BA8006CF057 /* ippfind.man */; };
-		275C6BA41C878A74000D2DE7 /* ippproxy.man in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E0060C1C5C0BE3006CF057 /* ippproxy.man */; };
-		275C6BA51C878A83000D2DE7 /* ippserver.man in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72B402A81C0CE43D00139783 /* ippserver.man */; };
-		275C6BA61C878A8E000D2DE7 /* ipptool.man in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E006091C5C0BA8006CF057 /* ipptool.man */; };
-		275C6BA81C878AAE000D2DE7 /* ipptoolfile.man in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E0060A1C5C0BA8006CF057 /* ipptoolfile.man */; };
-		275C6BA91C878AF5000D2DE7 /* ipptransform.man in CopyFiles */ = {isa = PBXBuildFile; fileRef = 275C6BA31C878A65000D2DE7 /* ipptransform.man */; };
+		275C6BA11C8789E9000D2DE7 /* ippfind.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E006081C5C0BA8006CF057 /* ippfind.1 */; };
+		275C6BA41C878A74000D2DE7 /* ippproxy.8 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E0060C1C5C0BE3006CF057 /* ippproxy.8 */; };
+		275C6BA51C878A83000D2DE7 /* ippserver.8 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72B402A81C0CE43D00139783 /* ippserver.8 */; };
+		275C6BA61C878A8E000D2DE7 /* ipptool.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E006091C5C0BA8006CF057 /* ipptool.1 */; };
+		275C6BA81C878AAE000D2DE7 /* ipptoolfile.5 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E0060A1C5C0BA8006CF057 /* ipptoolfile.5 */; };
+		275C6BA91C878AF5000D2DE7 /* ipptransform.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 275C6BA31C878A65000D2DE7 /* ipptransform.1 */; };
 		2778EBA21D2FF60E00DE72EC /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
 		2778EBA31D2FF60E00DE72EC /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
 		2778EBA41D2FF60E00DE72EC /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
 		2778EBA51D2FF60E00DE72EC /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups_static.a */; };
 		2778EBA61D2FF60E00DE72EC /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402E91C0CE81900139783 /* ApplicationServices.framework */; };
 		2778EBA71D2FF60E00DE72EC /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
-		2778EBA91D2FF60E00DE72EC /* ipptransform.man in CopyFiles */ = {isa = PBXBuildFile; fileRef = 275C6BA31C878A65000D2DE7 /* ipptransform.man */; };
+		2778EBA91D2FF60E00DE72EC /* ipptransform.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 275C6BA31C878A65000D2DE7 /* ipptransform.1 */; };
 		2778EBB01D2FF64300DE72EC /* ipptransform3d.c in Sources */ = {isa = PBXBuildFile; fileRef = 2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */; };
 		27E2CC681C99C69400D203EC /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
 		27E2CC691C99C6A000D203EC /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EB1C0CE81900139783 /* SystemConfiguration.framework */; };
 		27EB2B8F20463E4B0088BC2C /* auth.c in Sources */ = {isa = PBXBuildFile; fileRef = 27EB2B8E20463E4B0088BC2C /* auth.c */; };
 		27EB2B9120470BAF0088BC2C /* libpam.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 27EB2B9020470BAE0088BC2C /* libpam.tbd */; };
 		27EB2B9320470BBA0088BC2C /* libdl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 27EB2B9220470BBA0088BC2C /* libdl.tbd */; };
+		27EB2B9A204F81470088BC2C /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
+		27EB2B9B204F81470088BC2C /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
+		27EB2B9C204F81470088BC2C /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
+		27EB2B9D204F81470088BC2C /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402261C0CE0E100139783 /* libcups_static.a */; };
+		27EB2B9E204F81470088BC2C /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402E91C0CE81900139783 /* ApplicationServices.framework */; };
+		27EB2B9F204F81470088BC2C /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
+		27EB2BA7204F81730088BC2C /* ippdoclint.c in Sources */ = {isa = PBXBuildFile; fileRef = 27EB2BA6204F81710088BC2C /* ippdoclint.c */; };
+		27EB2BAA204F81BA0088BC2C /* ippdoclint.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27EB2BA8204F81A20088BC2C /* ippdoclint.1 */; };
 		72368674202B657400973022 /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
 		72368675202B657400973022 /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
 		72368676202B657400973022 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
@@ -243,6 +251,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 2778EB9C1D2FF60E00DE72EC;
 			remoteInfo = ipptransform3d;
+		};
+		27EB2B96204F81470088BC2C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72B402251C0CE0E100139783;
+			remoteInfo = libcups;
 		};
 		72368670202B657400973022 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -456,7 +471,7 @@
 			dstPath = /usr/local/share/man/man5;
 			dstSubfolderSpec = 0;
 			files = (
-				275C6BA81C878AAE000D2DE7 /* ipptoolfile.man in CopyFiles */,
+				275C6BA81C878AAE000D2DE7 /* ipptoolfile.5 in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
@@ -466,7 +481,17 @@
 			dstPath = /usr/local/share/man/man1;
 			dstSubfolderSpec = 0;
 			files = (
-				2778EBA91D2FF60E00DE72EC /* ipptransform.man in CopyFiles */,
+				2778EBA91D2FF60E00DE72EC /* ipptransform.1 in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		27EB2BA0204F81470088BC2C /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/local/share/man/man1;
+			dstSubfolderSpec = 0;
+			files = (
+				27EB2BAA204F81BA0088BC2C /* ippdoclint.1 in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
@@ -476,7 +501,7 @@
 			dstPath = /usr/local/share/man/man1;
 			dstSubfolderSpec = 0;
 			files = (
-				275C6BA91C878AF5000D2DE7 /* ipptransform.man in CopyFiles */,
+				275C6BA91C878AF5000D2DE7 /* ipptransform.1 in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
@@ -486,7 +511,7 @@
 			dstPath = /usr/local/share/man/man1;
 			dstSubfolderSpec = 0;
 			files = (
-				275C6BA51C878A83000D2DE7 /* ippserver.man in CopyFiles */,
+				275C6BA51C878A83000D2DE7 /* ippserver.8 in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
@@ -496,7 +521,7 @@
 			dstPath = /usr/local/share/man/man1;
 			dstSubfolderSpec = 0;
 			files = (
-				275C6BA61C878A8E000D2DE7 /* ipptool.man in CopyFiles */,
+				275C6BA61C878A8E000D2DE7 /* ipptool.1 in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
@@ -506,7 +531,7 @@
 			dstPath = /usr/local/share/man/man1;
 			dstSubfolderSpec = 0;
 			files = (
-				275C6BA11C8789E9000D2DE7 /* ippfind.man in CopyFiles */,
+				275C6BA11C8789E9000D2DE7 /* ippfind.1 in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
@@ -516,7 +541,7 @@
 			dstPath = /usr/local/share/man/man1;
 			dstSubfolderSpec = 0;
 			files = (
-				275C6BA41C878A74000D2DE7 /* ippproxy.man in CopyFiles */,
+				275C6BA41C878A74000D2DE7 /* ippproxy.8 in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
@@ -524,7 +549,7 @@
 
 /* Begin PBXFileReference section */
 		275C6BA21C878A65000D2DE7 /* ipptransform.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = ipptransform.html; path = ../doc/ipptransform.html; sourceTree = "<group>"; };
-		275C6BA31C878A65000D2DE7 /* ipptransform.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ipptransform.man; path = ../doc/ipptransform.man; sourceTree = "<group>"; };
+		275C6BA31C878A65000D2DE7 /* ipptransform.1 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.man; name = ipptransform.1; path = ../doc/ipptransform.1; sourceTree = "<group>"; };
 		275C6BAA1C87D907000D2DE7 /* dither.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dither.h; path = ../tools/dither.h; sourceTree = "<group>"; };
 		2778EBAD1D2FF60E00DE72EC /* ipptransform3d */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ipptransform3d; sourceTree = BUILT_PRODUCTS_DIR; };
 		2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ipptransform3d.c; path = ../tools/ipptransform3d.c; sourceTree = "<group>"; };
@@ -533,8 +558,12 @@
 		27EB2B8E20463E4B0088BC2C /* auth.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = auth.c; path = ../server/auth.c; sourceTree = "<group>"; };
 		27EB2B9020470BAE0088BC2C /* libpam.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libpam.tbd; path = usr/lib/libpam.tbd; sourceTree = SDKROOT; };
 		27EB2B9220470BBA0088BC2C /* libdl.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libdl.tbd; path = usr/lib/libdl.tbd; sourceTree = SDKROOT; };
+		27EB2BA5204F81470088BC2C /* ippdoclint */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ippdoclint; sourceTree = BUILT_PRODUCTS_DIR; };
+		27EB2BA6204F81710088BC2C /* ippdoclint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ippdoclint.c; path = ../tools/ippdoclint.c; sourceTree = "<group>"; };
+		27EB2BA8204F81A20088BC2C /* ippdoclint.1 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.man; name = ippdoclint.1; path = ../doc/ippdoclint.1; sourceTree = "<group>"; };
+		27EB2BA9204F81A20088BC2C /* ippdoclint.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = ippdoclint.html; path = ../doc/ippdoclint.html; sourceTree = "<group>"; };
 		27FDC5F61D7F497500246F95 /* ipptransform3d.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = ipptransform3d.html; path = ../doc/ipptransform3d.html; sourceTree = "<group>"; };
-		27FDC5F71D7F497500246F95 /* ipptransform3d.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ipptransform3d.man; path = ../doc/ipptransform3d.man; sourceTree = "<group>"; };
+		27FDC5F71D7F497500246F95 /* ipptransform3d.1 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.man; name = ipptransform3d.1; path = ../doc/ipptransform3d.1; sourceTree = "<group>"; };
 		72368665202B652600973022 /* testi18n.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = testi18n.c; path = ../cups/testi18n.c; sourceTree = "<group>"; };
 		72368666202B652700973022 /* testclient.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = testclient.c; path = ../cups/testclient.c; sourceTree = "<group>"; };
 		72368667202B652700973022 /* testarray.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = testarray.c; path = ../cups/testarray.c; sourceTree = "<group>"; };
@@ -633,7 +662,7 @@
 		72B402A51C0CE43D00139783 /* device.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = device.c; path = ../server/device.c; sourceTree = "<group>"; };
 		72B402A61C0CE43D00139783 /* ipp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ipp.c; path = ../server/ipp.c; sourceTree = "<group>"; };
 		72B402A71C0CE43D00139783 /* ippserver.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ippserver.h; path = ../server/ippserver.h; sourceTree = "<group>"; };
-		72B402A81C0CE43D00139783 /* ippserver.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ippserver.man; path = ../doc/ippserver.man; sourceTree = "<group>"; };
+		72B402A81C0CE43D00139783 /* ippserver.8 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ippserver.8; path = ../doc/ippserver.8; sourceTree = "<group>"; };
 		72B402A91C0CE43D00139783 /* job.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = job.c; path = ../server/job.c; sourceTree = "<group>"; };
 		72B402AA1C0CE43D00139783 /* log.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = log.c; path = ../server/log.c; sourceTree = "<group>"; };
 		72B402AB1C0CE43D00139783 /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = main.c; path = ../server/main.c; sourceTree = "<group>"; };
@@ -658,11 +687,11 @@
 		72B589F51D1C6628007117DA /* printer-png.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "printer-png.h"; path = "../server/printer-png.h"; sourceTree = "<group>"; };
 		72E006021C5C0B10006CF057 /* ippproxy */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ippproxy; sourceTree = BUILT_PRODUCTS_DIR; };
 		72E006031C5C0B49006CF057 /* ippproxy.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ippproxy.c; path = ../tools/ippproxy.c; sourceTree = "<group>"; };
-		72E006081C5C0BA8006CF057 /* ippfind.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ippfind.man; path = ../doc/ippfind.man; sourceTree = "<group>"; };
-		72E006091C5C0BA8006CF057 /* ipptool.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ipptool.man; path = ../doc/ipptool.man; sourceTree = "<group>"; };
-		72E0060A1C5C0BA8006CF057 /* ipptoolfile.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ipptoolfile.man; path = ../doc/ipptoolfile.man; sourceTree = "<group>"; };
+		72E006081C5C0BA8006CF057 /* ippfind.1 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.man; name = ippfind.1; path = ../doc/ippfind.1; sourceTree = "<group>"; };
+		72E006091C5C0BA8006CF057 /* ipptool.1 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.man; name = ipptool.1; path = ../doc/ipptool.1; sourceTree = "<group>"; };
+		72E0060A1C5C0BA8006CF057 /* ipptoolfile.5 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ipptoolfile.5; path = ../doc/ipptoolfile.5; sourceTree = "<group>"; };
 		72E0060B1C5C0BE3006CF057 /* ippproxy.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = ippproxy.html; path = ../doc/ippproxy.html; sourceTree = "<group>"; };
-		72E0060C1C5C0BE3006CF057 /* ippproxy.man */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ippproxy.man; path = ../doc/ippproxy.man; sourceTree = "<group>"; };
+		72E0060C1C5C0BE3006CF057 /* ippproxy.8 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ippproxy.8; path = ../doc/ippproxy.8; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -676,6 +705,19 @@
 				2778EBA51D2FF60E00DE72EC /* libcups_static.a in Frameworks */,
 				2778EBA61D2FF60E00DE72EC /* ApplicationServices.framework in Frameworks */,
 				2778EBA71D2FF60E00DE72EC /* CoreFoundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		27EB2B99204F81470088BC2C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				27EB2B9A204F81470088BC2C /* libiconv.dylib in Frameworks */,
+				27EB2B9B204F81470088BC2C /* libresolv.dylib in Frameworks */,
+				27EB2B9C204F81470088BC2C /* libz.dylib in Frameworks */,
+				27EB2B9D204F81470088BC2C /* libcups_static.a in Frameworks */,
+				27EB2B9E204F81470088BC2C /* ApplicationServices.framework in Frameworks */,
+				27EB2B9F204F81470088BC2C /* CoreFoundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -926,6 +968,7 @@
 				723686EB202B658000973022 /* testipp */,
 				723686FD202B658100973022 /* testoptions */,
 				7236870F202B65D300973022 /* testraster */,
+				27EB2BA5204F81470088BC2C /* ippdoclint */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -1026,6 +1069,7 @@
 		72B4022E1C0CE22300139783 /* tools */ = {
 			isa = PBXGroup;
 			children = (
+				27EB2BA6204F81710088BC2C /* ippdoclint.c */,
 				275C6BAA1C87D907000D2DE7 /* dither.h */,
 				72B402D01C0CE60400139783 /* ippfind.c */,
 				72E006031C5C0B49006CF057 /* ippproxy.c */,
@@ -1041,20 +1085,22 @@
 			children = (
 				723D66D41C723CB70078B537 /* CONTRIBUTING.md */,
 				723D66D81C723CC20078B537 /* DESIGN.md */,
+				27EB2BA9204F81A20088BC2C /* ippdoclint.html */,
+				27EB2BA8204F81A20088BC2C /* ippdoclint.1 */,
 				72B402E21C0CE66200139783 /* ippfind.html */,
-				72E006081C5C0BA8006CF057 /* ippfind.man */,
+				72E006081C5C0BA8006CF057 /* ippfind.1 */,
 				72E0060B1C5C0BE3006CF057 /* ippproxy.html */,
-				72E0060C1C5C0BE3006CF057 /* ippproxy.man */,
+				72E0060C1C5C0BE3006CF057 /* ippproxy.8 */,
 				72B402E31C0CE66200139783 /* ippserver.html */,
-				72B402A81C0CE43D00139783 /* ippserver.man */,
+				72B402A81C0CE43D00139783 /* ippserver.8 */,
 				72B402E41C0CE66200139783 /* ipptool.html */,
-				72E006091C5C0BA8006CF057 /* ipptool.man */,
+				72E006091C5C0BA8006CF057 /* ipptool.1 */,
 				72B402E51C0CE66200139783 /* ipptoolfile.html */,
-				72E0060A1C5C0BA8006CF057 /* ipptoolfile.man */,
+				72E0060A1C5C0BA8006CF057 /* ipptoolfile.5 */,
 				275C6BA21C878A65000D2DE7 /* ipptransform.html */,
-				275C6BA31C878A65000D2DE7 /* ipptransform.man */,
+				275C6BA31C878A65000D2DE7 /* ipptransform.1 */,
 				27FDC5F61D7F497500246F95 /* ipptransform3d.html */,
-				27FDC5F71D7F497500246F95 /* ipptransform3d.man */,
+				27FDC5F71D7F497500246F95 /* ipptransform3d.1 */,
 				279C01D61D1B0F9700F06A84 /* LICENSE */,
 				729181C42011828E005E7560 /* NOTICE */,
 				279C01D71D1B0F9700F06A84 /* PI.md */,
@@ -1132,6 +1178,24 @@
 			name = ipptransform3d;
 			productName = ipptool;
 			productReference = 2778EBAD1D2FF60E00DE72EC /* ipptransform3d */;
+			productType = "com.apple.product-type.tool";
+		};
+		27EB2B94204F81470088BC2C /* ippdoclint */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 27EB2BA2204F81470088BC2C /* Build configuration list for PBXNativeTarget "ippdoclint" */;
+			buildPhases = (
+				27EB2B97204F81470088BC2C /* Sources */,
+				27EB2B99204F81470088BC2C /* Frameworks */,
+				27EB2BA0204F81470088BC2C /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				27EB2B95204F81470088BC2C /* PBXTargetDependency */,
+			);
+			name = ippdoclint;
+			productName = ipptool;
+			productReference = 27EB2BA5204F81470088BC2C /* ippdoclint */;
 			productType = "com.apple.product-type.tool";
 		};
 		7236866E202B657400973022 /* testarray */ = {
@@ -1435,6 +1499,7 @@
 			targets = (
 				72E0060D1C5C0C48006CF057 /* All */,
 				72B402251C0CE0E100139783 /* libcups_static */,
+				27EB2B94204F81470088BC2C /* ippdoclint */,
 				72B402D81C0CE61D00139783 /* ippfind */,
 				72E005F21C5C0B10006CF057 /* ippproxy */,
 				72B402171C0CDFB400139783 /* ippserver */,
@@ -1460,6 +1525,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				2778EBB01D2FF64300DE72EC /* ipptransform3d.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		27EB2B97204F81470088BC2C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				27EB2BA7204F81730088BC2C /* ippdoclint.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1644,6 +1717,11 @@
 			target = 2778EB9C1D2FF60E00DE72EC /* ipptransform3d */;
 			targetProxy = 2778EBB11D2FF67B00DE72EC /* PBXContainerItemProxy */;
 		};
+		27EB2B95204F81470088BC2C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72B402251C0CE0E100139783 /* libcups_static */;
+			targetProxy = 27EB2B96204F81470088BC2C /* PBXContainerItemProxy */;
+		};
 		7236866F202B657400973022 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 72B402251C0CE0E100139783 /* libcups_static */;
@@ -1802,6 +1880,24 @@
 			name = Debug;
 		};
 		2778EBAC1D2FF60E00DE72EC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		27EB2BA3204F81470088BC2C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		27EB2BA4204F81470088BC2C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -2255,6 +2351,15 @@
 			buildConfigurations = (
 				2778EBAB1D2FF60E00DE72EC /* Debug */,
 				2778EBAC1D2FF60E00DE72EC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		27EB2BA2204F81470088BC2C /* Build configuration list for PBXNativeTarget "ippdoclint" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				27EB2BA3204F81470088BC2C /* Debug */,
+				27EB2BA4204F81470088BC2C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

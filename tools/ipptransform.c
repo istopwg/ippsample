@@ -170,7 +170,23 @@ main(int  argc,				/* I - Number of command-line args */
 
   for (i = 1; i < argc; i ++)
   {
-    if (argv[i][0] == '-' && argv[i][1] != '-')
+    if (!strncmp(argv[i], "--", 2))
+    {
+      if (!strcmp(argv[i], "--help"))
+      {
+        usage(0);
+      }
+      else if (!strcmp(argv[i], "--version"))
+      {
+        puts(CUPS_SVERSION);
+      }
+      else
+      {
+	fprintf(stderr, "ERROR: Unknown option '%s'.\n", argv[i]);
+	usage(1);
+      }
+    }
+    else if (argv[i][0] == '-')
     {
       for (opt = argv[i] + 1; *opt; opt ++)
       {
@@ -242,13 +258,6 @@ main(int  argc,				/* I - Number of command-line args */
 	      break;
 	}
       }
-    }
-    else if (!strcmp(argv[i], "--help"))
-      usage(0);
-    else if (!strncmp(argv[i], "--", 2))
-    {
-      fprintf(stderr, "ERROR: Unknown option '%s'.\n", argv[i]);
-      usage(1);
     }
     else if (!filename)
       filename = argv[i];

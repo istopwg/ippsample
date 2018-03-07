@@ -4414,7 +4414,7 @@ fi
 
 		IPPTRANSFORM_BIN="ipptransform"
 		IPPTRANSFORM_HTML="ipptransform.html"
-		IPPTRANSFORM_MAN="ipptransform.man"
+		IPPTRANSFORM_MAN="ipptransform.1"
 		;;
 
 	*)
@@ -4797,7 +4797,7 @@ if test "x$ac_cv_lib_mupdf_fz_drop_document" = xyes; then :
 			LIBS="-lmupdf $LIBS"
 			IPPTRANSFORM_BIN="ipptransform"
 			IPPTRANSFORM_HTML="ipptransform.html"
-			IPPTRANSFORM_MAN="ipptransform.man"
+			IPPTRANSFORM_MAN="ipptransform.1"
                         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for version of fz_new_pixmap function" >&5
 $as_echo_n "checking for version of fz_new_pixmap function... " >&6; }
                         cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -4883,7 +4883,7 @@ PATH="$SAVEPATH"
 if test "x$CURAENGINE" != x; then
 	IPPTRANSFORM3D_BIN="ipptransform3d"
 	IPPTRANSFORM3D_HTML="ipptransform3d.html"
-	IPPTRANSFORM3D_MAN="ipptransform3d.man"
+	IPPTRANSFORM3D_MAN="ipptransform3d.1"
 
 	cat >>confdefs.h <<_ACEOF
 #define CURAENGINE "$CURAENGINE"
@@ -6798,7 +6798,7 @@ $as_echo "yes" >&6; }
 		DNSSDLIBS="`$PKGCONFIG --libs avahi-client`"
 		IPPFIND_BIN="ippfind"
 		IPPFIND_HTML="ippfind.html"
-		IPPFIND_MAN="ippfind.man"
+		IPPFIND_MAN="ippfind.1"
 		$as_echo "#define HAVE_AVAHI 1" >>confdefs.h
 
 	else
@@ -6819,7 +6819,7 @@ if test "x$ac_cv_header_dns_sd_h" = xyes; then :
 				DNSSDLIBS="-framework CoreFoundation -framework SystemConfiguration"
 				IPPFIND_BIN="ippfind"
 				IPPFIND_HTML="ippfind.html"
-				IPPFIND_MAN="ippfind.man"
+				IPPFIND_MAN="ippfind.1"
 				;;
 			*)
 				# All others...
@@ -6850,7 +6850,7 @@ $as_echo "yes" >&6; }
 					DNSSDLIBS="-ldns_sd"
 					IPPFIND_BIN="ippfind"
 					IPPFIND_HTML="ippfind.html"
-					IPPFIND_MAN="ippfind.man"
+					IPPFIND_MAN="ippfind.1"
 					{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 fi
