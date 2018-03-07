@@ -136,8 +136,12 @@ main(int  argc,				/* I - Number of command-line arguments */
         content_type = "application/pdf";
       else if (!strcmp(opt, ".jpg") || !strcmp(opt, ".jpeg"))
         content_type = "image/jpeg";
-      else if (!strcmp(opt, ".pwg") || !strcmp(opt, ".ras") || !strcmp(opt, ".urf"))
+      else if (!strcmp(opt, ".pwg"))
         content_type = "image/pwg-raster";
+      else if (!strcmp(opt, ".ras"))
+        content_type = "application/vnd.cups-raster";
+      else if (!strcmp(opt, ".urf"))
+        content_type = "image/urf";
     }
   }
 
@@ -154,7 +158,7 @@ main(int  argc,				/* I - Number of command-line arguments */
   {
     return (lint_pdf(filename, num_options, options));
   }
-  else if (!strcmp(content_type, "image/pwg-raster"))
+  else if (!strcmp(content_type, "application/vnd.cups-raster") || !strcmp(content_type, "image/pwg-raster") || !strcmp(content_type, "image/urf"))
   {
     return (lint_raster(filename, num_options, options));
   }
