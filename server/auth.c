@@ -15,6 +15,7 @@
 #include "ippserver.h"
 
 #include <pwd.h>
+#include <grp.h>
 #ifdef HAVE_LIBPAM
 #  ifdef HAVE_PAM_PAM_APPL_H
 #    include <pam/pam_appl.h>
