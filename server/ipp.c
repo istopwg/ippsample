@@ -3121,15 +3121,13 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
 #endif /* HAVE_SSL */
       strcmp(scheme, "http"))
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_URI_SCHEME,
-                "URI scheme \"%s\" not supported.", scheme);
+    serverRespondIPP(client, IPP_STATUS_ERROR_URI_SCHEME, "URI scheme \"%s\" not supported.", scheme);
     return;
   }
 
   if (!strcmp(scheme, "file") && access(resource, R_OK))
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS,
-                "Unable to access URI: %s", strerror(errno));
+    serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to access URI: %s", strerror(errno));
     return;
   }
 

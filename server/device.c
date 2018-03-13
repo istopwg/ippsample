@@ -138,12 +138,12 @@ serverUpdateDeviceStateNoLock(
  /* TODO: Support multiple output devices, icons, etc... (Issue #89) */
   device = (server_device_t *)cupsArrayFirst(printer->devices);
 
-  if ((attr = ippFindAttribute(device->attrs, "printer-state", IPP_TAG_ENUM)) != NULL)
+  if (device && (attr = ippFindAttribute(device->attrs, "printer-state", IPP_TAG_ENUM)) != NULL)
     printer->dev_state = (ipp_pstate_t)ippGetInteger(attr, 0);
   else
     printer->dev_state = IPP_PSTATE_STOPPED;
 
-  if ((attr = ippFindAttribute(device->attrs, "printer-state-reasons", IPP_TAG_KEYWORD)) != NULL)
+  if (device && (attr = ippFindAttribute(device->attrs, "printer-state-reasons", IPP_TAG_KEYWORD)) != NULL)
     printer->dev_reasons = serverGetPrinterStateReasonsBits(attr);
   else
     printer->dev_reasons = SERVER_PREASON_PAUSED;

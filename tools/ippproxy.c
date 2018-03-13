@@ -236,7 +236,7 @@ main(int  argc,				/* I - Number of command-line arguments */
 
   dest = cupsGetDestWithURI("infra", printer_uri);
 
-  while ((http = cupsConnectDest(dest, CUPS_DEST_FLAGS_NONE, 30000, NULL, resource, sizeof(resource), NULL, NULL)) == NULL)
+  while ((http = cupsConnectDest(dest, CUPS_DEST_FLAGS_DEVICE, 30000, NULL, resource, sizeof(resource), NULL, NULL)) == NULL)
   {
     int interval = 1 + (CUPS_RAND() % 30);
 					/* Retry interval */
@@ -244,6 +244,9 @@ main(int  argc,				/* I - Number of command-line arguments */
     fprintf(stderr, "ippproxy: Infrastructure printer at '%s' is not responding, retrying in %d seconds.\n", printer_uri, interval);
     sleep((unsigned)interval);
   }
+
+  if (verbosity)
+    fprintf(stderr, "ippproxy: Connected to '%s'.\n", printer_uri);
 
   cupsFreeDests(1, dest);
 
@@ -510,7 +513,7 @@ get_device_attrs(const char *device_uri)/* I - Device URI */
 
     dest = cupsGetDestWithURI("device", device_uri);
 
-    while ((http = cupsConnectDest(dest, CUPS_DEST_FLAGS_NONE, 30000, NULL, resource, sizeof(resource), NULL, NULL)) == NULL)
+    while ((http = cupsConnectDest(dest, CUPS_DEST_FLAGS_DEVICE, 30000, NULL, resource, sizeof(resource), NULL, NULL)) == NULL)
     {
       fprintf(stderr, "ippproxy: Device at '%s' is not responding, retrying in 30 seconds...\n", device_uri);
       sleep(30);
@@ -847,6 +850,9 @@ register_printer(
   if ((attr = ippFindAttribute(response, "notify-subscription-id", IPP_TAG_INTEGER)) != NULL)
   {
     subscription_id = ippGetInteger(attr, 0);
+
+    if (verbosity)
+      fprintf(stderr, "ippproxy: Monitoring events with subscription #%d.\n", subscription_id);
   }
   else
   {

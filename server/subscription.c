@@ -12,6 +12,13 @@
 
 
 /*
+ * Local functions...
+ */
+
+static int	compare_subscriptions(server_subscription_t *a, server_subscription_t *b);
+
+
+/*
  * 'serverAddEvent()' - Add an event to a subscription.
  */
 
@@ -133,6 +140,8 @@ serverCreateSubcription(
   sub->lease    = lease;
   sub->attrs    = ippNew();
 
+  serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreateSubscription: notify-subscription-id=%d, printer=%p(%s)", sub->id, (void *)printer, printer ? printer->name : "(null)");
+
   if (lease)
     sub->expire = time(NULL) + sub->lease;
   else
@@ -175,6 +184,9 @@ serverCreateSubcription(
     ippCopyAttribute(sub->attrs, notify_user_data, 0);
 
   sub->events = cupsArrayNew3(NULL, NULL, NULL, 0, NULL, (cups_afree_func_t)ippDelete);
+
+  if (!printer->subscriptions)
+    printer->subscriptions = cupsArrayNew((cups_array_func_t)compare_subscriptions, NULL);
 
   cupsArrayAdd(printer->subscriptions, sub);
 
@@ -222,6 +234,8 @@ serverFindSubscription(
 			*sub;		/* Matching subscription */
 
 
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverFindSubscription: sub_id=%d, printer=%p(%s)", sub_id, (void *)client->printer, client->printer ? client->printer->name : "(null)");
+
   if (sub_id > 0)
     key.id = sub_id;
   else if ((notify_subscription_id = ippFindAttribute(client->request, "notify-subscription-id", IPP_TAG_INTEGER)) == NULL)
@@ -232,6 +246,8 @@ serverFindSubscription(
   _cupsRWLockRead(&client->printer->rwlock);
   sub = (server_subscription_t *)cupsArrayFind(client->printer->subscriptions, &key);
   _cupsRWUnlock(&client->printer->rwlock);
+
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverFindSubscription: sub=%p", (void *)sub);
 
   return (sub);
 }
@@ -288,4 +304,17 @@ serverGetNotifySubscribedEvent(
       return (server_events[i]);
 
   return ("none");
+}
+
+
+/*
+ * 'compare_subscriptions()' - Compare two subscriptions.
+ */
+
+static int				/* O - Result of comparison */
+compare_subscriptions(
+    server_subscription_t *a,		/* I - First subscription */
+    server_subscription_t *b)		/* I - Second subscription */
+{
+  return (b->id - a->id);
 }
