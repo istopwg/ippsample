@@ -1063,6 +1063,9 @@ run_printer(
     else
       get_interval = 30;
 
+    if (verbosity)
+      fprintf(stderr, "[%s] notify-get-interval=%d\n", httpGetDateString(time(NULL)), get_interval);
+
     for (attr = ippFirstAttribute(response); attr; attr = ippNextAttribute(response))
     {
       if (ippGetGroupTag(attr) != IPP_TAG_EVENT_NOTIFICATION || !ippGetName(attr))
@@ -1160,6 +1163,8 @@ run_printer(
       sleep((unsigned)get_interval);
     else
       sleep(30);
+
+    httpReconnect(http);
   }
 
  /*
