@@ -23,11 +23,12 @@ static int	compare_subscriptions(server_subscription_t *a, server_subscription_t
  */
 
 void
-serverAddEvent(server_printer_t *printer,	/* I - Printer */
-          server_job_t     *job,		/* I - Job, if any */
-	  server_event_t   event,		/* I - Event */
-	  const char     *message,	/* I - Printf-style notify-text message */
-	  ...)				/* I - Additional printf arguments */
+serverAddEvent(
+    server_printer_t *printer,		/* I - Printer */
+    server_job_t     *job,		/* I - Job, if any */
+    server_event_t   event,		/* I - Event */
+    const char       *message,		/* I - Printf-style notify-text message */
+    ...)				/* I - Additional printf arguments */
 {
   server_subscription_t *sub;		/* Current subscription */
   ipp_t		*n;			/* Notify attributes */
@@ -44,10 +45,16 @@ serverAddEvent(server_printer_t *printer,	/* I - Printer */
   else
     text[0] = '\0';
 
+  serverLog(SERVER_LOGLEVEL_DEBUG, "serverAddEvent(printer=%p(%s), job=%p(%d), event=0x%x, message=\"%s\")", (void *)printer, printer ? printer->name : "(null)", (void *)job, job ? job->id : -1, event, text);
+
+  _cupsRWLockRead(&printer->rwlock);
+
   for (sub = (server_subscription_t *)cupsArrayFirst(printer->subscriptions);
        sub;
        sub = (server_subscription_t *)cupsArrayNext(printer->subscriptions))
   {
+    serverLog(SERVER_LOGLEVEL_DEBUG, "serverAddEvent: sub->id=%d, sub->mask=0x%x, sub->job=%p(%d)", sub->id, sub->mask, (void *)sub->job, sub->job ? sub->job->id : -1);
+
     if (sub->mask & event && (!sub->job || job == sub->job))
     {
       _cupsRWLockWrite(&sub->rwlock);
@@ -90,9 +97,13 @@ serverAddEvent(server_printer_t *printer,	/* I - Printer */
       }
 
       _cupsRWUnlock(&sub->rwlock);
+
+      serverLog(SERVER_LOGLEVEL_DEBUG, "Broadcasting new event.");
       _cupsCondBroadcast(&SubscriptionCondition);
     }
   }
+
+  _cupsRWUnlock(&printer->rwlock);
 }
 
 
@@ -102,16 +113,16 @@ serverAddEvent(server_printer_t *printer,	/* I - Printer */
  *                           request.
  */
 
-server_subscription_t *		/* O - Subscription object */
+server_subscription_t *			/* O - Subscription object */
 serverCreateSubcription(
-    server_printer_t  *printer,		/* I - Printer */
-    server_job_t      *job,		/* I - Job, if any */
-    int             interval,		/* I - Interval for progress events */
-    int             lease,		/* I - Lease duration */
-    const char      *username,		/* I - User creating the subscription */
-    ipp_attribute_t *notify_events,	/* I - Events to monitor */
-    ipp_attribute_t *notify_attributes,	/* I - Attributes to report */
-    ipp_attribute_t *notify_user_data)	/* I - User data, if any */
+    server_printer_t *printer,		/* I - Printer */
+    server_job_t     *job,		/* I - Job, if any */
+    int              interval,		/* I - Interval for progress events */
+    int              lease,		/* I - Lease duration */
+    const char       *username,		/* I - User creating the subscription */
+    ipp_attribute_t  *notify_events,	/* I - Events to monitor */
+    ipp_attribute_t  *notify_attributes,/* I - Attributes to report */
+    ipp_attribute_t  *notify_user_data)	/* I - User data, if any */
 {
   server_listener_t *lis = (server_listener_t *)cupsArrayFirst(Listeners);
 					/* First listener */
@@ -171,9 +182,30 @@ serverCreateSubcription(
   sub->username = ippGetString(attr, 0, NULL);
 
   if (notify_events)
+  {
+    int		i;			/* Looping var */
+    server_event_t mask;		/* Event mask */
+
     ippCopyAttribute(sub->attrs, notify_events, 0);
+
+    serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreateSubscription: notify-events has %d values.", ippGetCount(notify_events));
+
+    for (i = 0, mask = SERVER_EVENT_DOCUMENT_COMPLETED; i < (int)(sizeof(server_events) / sizeof(server_events[0])); i ++, mask *= 2)
+    {
+      if (ippContainsString(notify_events, server_events[i]))
+      {
+	serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreateSubscription: Adding 0x%x (%s) to mask bits.", mask, server_events[i]);
+	sub->mask |= mask;
+      }
+    }
+  }
   else
+  {
     ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-events", NULL, SERVER_EVENT_DEFAULT_STRING);
+    sub->mask = SERVER_EVENT_DEFAULT;
+  }
+
+  serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreateSubscription: sub->mask=0x%x", sub->mask);
 
   ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-pull-method", NULL, "ippget");
 
@@ -206,6 +238,7 @@ serverDeleteSubscription(
 {
   sub->pending_delete = 1;
 
+  serverLog(SERVER_LOGLEVEL_DEBUG, "Broadcasting deleted subscription.");
   _cupsCondBroadcast(&SubscriptionCondition);
 
   _cupsRWLockWrite(&sub->rwlock);
@@ -264,7 +297,7 @@ serverGetNotifyEventsBits(
   int		i, j,			/* Looping vars */
 		count;			/* Number of "notify-events" values */
   const char	*keyword;		/* "notify-events" value */
-  server_event_t	events = SERVER_EVENT_NONE;
+  server_event_t events = SERVER_EVENT_NONE;
 					/* Bits for "notify-events" values */
 
 
@@ -296,7 +329,7 @@ serverGetNotifySubscribedEvent(
     server_event_t event)		/* I - Event bit */
 {
   int		i;			/* Looping var */
-  server_event_t	mask;		/* Current mask */
+  server_event_t mask;			/* Current mask */
 
 
   for (i = 0, mask = 1; i < (int)(sizeof(server_events) / sizeof(server_events[0])); i ++, mask <<= 1)

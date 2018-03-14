@@ -1354,14 +1354,21 @@ ipp_fetch_document(
 
     if (i >= count)
     {
-      if (ippContainsString(attr, "image/pwg-raster"))
+      if (ippContainsString(attr, "image/urf"))
+        format = "image/urf";
+      else if (ippContainsString(attr, "image/pwg-raster"))
+        format = "image/pwg-raster";
+      else
+        format = NULL;
+
+      if (format)
       {
        /*
-        * Transform and stream document as PWG Raster...
+        * Transform and stream document as raster...
 	*/
 
 	serverRespondIPP(client, IPP_STATUS_OK, NULL);
-	ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, "image/pwg-raster");
+	ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, format);
 	ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression", NULL, compression ? "gzip" : "none");
 
         if (httpGetState(client->http) != HTTP_STATE_POST_SEND)
@@ -1393,7 +1400,8 @@ ipp_fetch_document(
 
 	serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sent IPP response.");
 
-        serverTransformJob(client, job, "ipptransform", "image/pwg-raster", SERVER_TRANSFORM_TO_CLIENT);
+        job->state = IPP_JSTATE_PROCESSING;
+        serverTransformJob(client, job, "ipptransform", format, SERVER_TRANSFORM_TO_CLIENT);
 
 	serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sending 0-length chunk.");
 	httpWrite2(client->http, "", 0);
@@ -1838,7 +1846,6 @@ ipp_get_notifications(
   int			notify_wait;	/* Wait for events? */
   int			i,		/* Looping vars */
 			count,		/* Number of IDs */
-			first = 1,	/* First event? */
 			seq_num;	/* Sequence number */
   server_subscription_t	*sub;		/* Current subscription */
   ipp_t			*event;		/* Current event */
@@ -1905,11 +1912,10 @@ ipp_get_notifications(
 	   event;
 	   event = (ipp_t *)cupsArrayNext(sub->events))
       {
-	if (first)
+	if (num_events == 0)
 	{
 	  serverRespondIPP(client, IPP_STATUS_OK, NULL);
 	  ippAddInteger(client->response, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "notify-get-interval", 30);
-	  first = 0;
 	}
 	else
 	  ippAddSeparator(client->response);
@@ -1925,13 +1931,30 @@ ipp_get_notifications(
       break;
     else if (num_events == 0 && notify_wait)
     {
-     /*
-      * Wait for more events...
-      */
+      if (notify_wait > 0)
+      {
+       /*
+	* Wait for more events...
+	*/
 
-      _cupsMutexLock(&SubscriptionMutex);
-      _cupsCondWait(&SubscriptionCondition, &SubscriptionMutex, 30.0);
-      _cupsMutexUnlock(&SubscriptionMutex);
+        serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Waiting for events.");
+
+	_cupsMutexLock(&SubscriptionMutex);
+	_cupsCondWait(&SubscriptionCondition, &SubscriptionMutex, 30.0);
+	_cupsMutexUnlock(&SubscriptionMutex);
+
+        serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Done waiting for events.");
+
+        notify_wait = -1;
+      }
+      else
+      {
+       /*
+        * Stop waiting for events...
+        */
+
+        notify_wait = 0;
+      }
     }
   }
   while (num_events == 0 && notify_wait);

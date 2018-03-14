@@ -426,8 +426,8 @@ serverGetJobStateReasonsBits(
  * 'serverProcessJob()' - Process a print job.
  */
 
-void *				/* O - Thread exit status */
-serverProcessJob(server_job_t *job)		/* I - Job */
+void *					/* O - Thread exit status */
+serverProcessJob(server_job_t *job)	/* I - Job */
 {
   job->state                   = IPP_JSTATE_PROCESSING;
   job->printer->state          = IPP_PSTATE_PROCESSING;
@@ -453,6 +453,17 @@ serverProcessJob(server_job_t *job)		/* I - Job */
 
     serverTransformJob(NULL, job, job->printer->pinfo.command, job->printer->pinfo.output_format, SERVER_TRANSFORM_COMMAND);
   }
+  else if (job->printer->pinfo.proxy_group != SERVER_GROUP_NONE)
+  {
+   /*
+    * Prepare the job for the proxy...
+    */
+
+    job->state         = IPP_JSTATE_STOPPED;
+    job->state_reasons |= SERVER_JREASON_JOB_FETCHABLE;
+
+    serverAddEvent(job->printer, job, SERVER_EVENT_JOB_STATE_CHANGED | SERVER_EVENT_JOB_FETCHABLE, "Job fetchable.");
+  }
   else
   {
    /*
@@ -467,35 +478,37 @@ serverProcessJob(server_job_t *job)		/* I - Job */
   else if (job->state == IPP_JSTATE_PROCESSING)
     job->state = IPP_JSTATE_COMPLETED;
 
-  job->completed               = time(NULL);
   job->printer->state          = IPP_PSTATE_IDLE;
   job->printer->processing_job = NULL;
 
-  _cupsRWLockWrite(&job->printer->rwlock);
-  cupsArrayAdd(job->printer->completed_jobs, job);
-  cupsArrayRemove(job->printer->active_jobs, job);
-
-  if (MaxCompletedJobs > 0)
+  if (job->state >= IPP_JSTATE_CANCELED)
   {
-   /*
-    * Make sure the job history doesn't go over the limit...
-    */
+    job->completed = time(NULL);
 
-    while (cupsArrayCount(job->printer->completed_jobs) > MaxCompletedJobs)
+    _cupsRWLockWrite(&job->printer->rwlock);
+    cupsArrayAdd(job->printer->completed_jobs, job);
+    cupsArrayRemove(job->printer->active_jobs, job);
+
+    if (MaxCompletedJobs > 0)
     {
-      server_job_t *tjob = (server_job_t *)cupsArrayFirst(job->printer->completed_jobs);
+     /*
+      * Make sure the job history doesn't go over the limit...
+      */
 
-      if (tjob == job)
-        tjob = (server_job_t *)cupsArrayNext(job->printer->completed_jobs);
+      while (cupsArrayCount(job->printer->completed_jobs) > MaxCompletedJobs)
+      {
+	server_job_t *tjob = (server_job_t *)cupsArrayFirst(job->printer->completed_jobs);
 
-      cupsArrayRemove(job->printer->completed_jobs, tjob);
-      cupsArrayRemove(job->printer->jobs, tjob); /* Removing here calls serverDeleteJob */
+	if (tjob == job)
+	  tjob = (server_job_t *)cupsArrayNext(job->printer->completed_jobs);
+
+	cupsArrayRemove(job->printer->completed_jobs, tjob);
+	cupsArrayRemove(job->printer->jobs, tjob); /* Removing here calls serverDeleteJob */
+      }
     }
+
+    _cupsRWUnlock(&job->printer->rwlock);
   }
-
-  _cupsRWUnlock(&job->printer->rwlock);
-
-  serverAddEvent(job->printer, job, SERVER_EVENT_JOB_STATE_CHANGED, "Job fetchable.");
 
   return (NULL);
 }

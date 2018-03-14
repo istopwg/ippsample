@@ -815,12 +815,13 @@ register_printer(
   int		subscription_id = 0;	/* Subscription ID */
   static const char * const events[] =	/* Events to monitor */
   {
-    "document-config-change",
-    "document-state-change",
-    "job-config-change",
-    "job-state-change",
-    "printer-config-change",
-    "printer-state-change"
+    "document-config-changed",
+    "document-state-changed",
+    "job-config-changed",
+    "job-fetchable",
+    "job-state-changed",
+    "printer-config-changed",
+    "printer-state-changed"
   };
 
 
@@ -1049,7 +1050,13 @@ run_printer(
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
     ippAddBoolean(request, IPP_TAG_OPERATION, "notify-wait", 1);
 
+    if (verbosity)
+      fprintf(stderr, "[%s] Sending Get-Notifications request...\n", httpGetDateString(time(NULL)));
+
     response = cupsDoRequest(http, request, resource);
+
+    if (verbosity)
+      fprintf(stderr, "[%s] Get-Notifications response: %s\n", httpGetDateString(time(NULL)), ippErrorString(cupsLastError()));
 
     if ((attr = ippFindAttribute(response, "notify-get-interval", IPP_TAG_INTEGER)) != NULL)
       get_interval = ippGetInteger(attr, 0);
