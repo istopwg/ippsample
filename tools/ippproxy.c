@@ -506,10 +506,15 @@ get_device_attrs(const char *device_uri)/* I - Device URI */
     * Query the IPP printer...
     */
 
+    int		i,			/* Looping var */
+		count;			/* Number of values */
     cups_dest_t	*dest;			/* Destination for printer URI */
     http_t	*http;			/* Connection to printer */
     char	resource[1024];		/* Resource path */
     ipp_t	*request;		/* Get-Printer-Attributes request */
+    ipp_attribute_t *urf_supported,	/* urf-supported */
+		*pwg_supported;		/* pwg-raster-document-xxx-supported */
+
 
    /*
     * Connect to the printer...
@@ -547,6 +552,87 @@ get_device_attrs(const char *device_uri)/* I - Device URI */
     }
 
     httpClose(http);
+
+   /*
+    * Convert urf-supported to pwg-raster-document-xxx-supported, as needed...
+    */
+
+    urf_supported = ippFindAttribute(response, "urf-supported", IPP_TAG_KEYWORD);
+    pwg_supported = ippFindAttribute(response, "pwg-raster-document-resolution-supported", IPP_TAG_RESOLUTION);
+    if (urf_supported && !pwg_supported)
+    {
+      for (i = 0, count = ippGetCount(urf_supported); i < count; i ++)
+      {
+        const char *keyword = ippGetString(urf_supported, i, NULL);
+					/* Value from urf_supported */
+
+        if (!strncmp(keyword, "RS", 2))
+        {
+	  char	*ptr;			/* Pointer into value */
+	  int	res;			/* Resolution */
+
+          for (res = (int)strtol(keyword + 2, &ptr, 10); res > 0; res = (int)strtol(ptr + 1, &ptr, 10))
+	  {
+	    if (pwg_supported)
+	      ippSetResolution(response, &pwg_supported, ippGetCount(pwg_supported), IPP_RES_PER_INCH, res, res);
+	    else
+	      pwg_supported = ippAddResolution(response, IPP_TAG_PRINTER, "pwg-raster-document-resolution-supported", IPP_RES_PER_INCH, res, res);
+	  }
+        }
+      }
+    }
+
+    pwg_supported = ippFindAttribute(response, "pwg-raster-document-sheet-back", IPP_TAG_KEYWORD);
+    if (urf_supported && !pwg_supported)
+    {
+      for (i = 0, count = ippGetCount(urf_supported); i < count; i ++)
+      {
+        const char *keyword = ippGetString(urf_supported, i, NULL);
+					/* Value from urf_supported */
+
+        if (!strncmp(keyword, "DM", 2))
+        {
+          if (!strcmp(keyword, "DM1"))
+            pwg_supported = ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "pwg-raster-document-sheet-back", NULL, "normal");
+          else if (!strcmp(keyword, "DM2"))
+            pwg_supported = ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "pwg-raster-document-sheet-back", NULL, "flipped");
+          else if (!strcmp(keyword, "DM3"))
+            pwg_supported = ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "pwg-raster-document-sheet-back", NULL, "rotated");
+          else
+            pwg_supported = ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "pwg-raster-document-sheet-back", NULL, "manual-tumble");
+        }
+      }
+    }
+
+    pwg_supported = ippFindAttribute(response, "pwg-raster-document-type-supported", IPP_TAG_KEYWORD);
+    if (urf_supported && !pwg_supported)
+    {
+      for (i = 0, count = ippGetCount(urf_supported); i < count; i ++)
+      {
+        const char *keyword = ippGetString(urf_supported, i, NULL);
+					/* Value from urf_supported */
+        const char *pwg_keyword = NULL;	/* Value for pwg-raster-document-type-supported */
+
+        if (!strcmp(keyword, "ADOBERGB24"))
+          pwg_keyword = "adobe-rgb_8";
+	else if (!strcmp(keyword, "ADOBERGB48"))
+          pwg_keyword = "adobe-rgb_16";
+	else if (!strcmp(keyword, "SRGB24"))
+          pwg_keyword = "srgb_8";
+	else if (!strcmp(keyword, "W8"))
+          pwg_keyword = "sgray_8";
+	else if (!strcmp(keyword, "W16"))
+          pwg_keyword = "sgray_16";
+
+        if (pwg_keyword)
+        {
+	  if (pwg_supported)
+	    ippSetString(response, &pwg_supported, ippGetCount(pwg_supported), pwg_keyword);
+	  else
+	    pwg_supported = ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "pwg-raster-document-type-supported", NULL, pwg_keyword);
+        }
+      }
+    }
   }
   else
   {

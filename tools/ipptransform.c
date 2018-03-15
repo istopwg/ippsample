@@ -2371,7 +2371,8 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
 		*media,			/* "media" option */
 		*media_col;		/* "media-col" option */
   pwg_media_t	*pwg_media = NULL;	/* PWG media value */
-  const char	*print_quality,		/* "print-quality" option */
+  const char	*print_color_mode,	/* "print-color-mode" option */
+		*print_quality,		/* "print-quality" option */
 		*printer_resolution,	/* "printer-resolution" option */
 		*sides,			/* "sides" option */
 		*type;			/* Raster type to use */
@@ -2584,6 +2585,22 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
  /*
   * Now figure out the color space to use...
   */
+
+  if ((print_color_mode = cupsGetOption("print-color-mode", num_options, options)) == NULL)
+    print_color_mode = getenv("PRINTER_PRINT_COLOR_MODE_DEFAULT");
+
+  if (print_color_mode)
+  {
+    if (!strcmp(print_color_mode, "monochrome") || !strcmp(print_color_mode, "process-monochrome") || !strcmp(print_color_mode, "auto-monochrome"))
+    {
+      color = 0;
+    }
+    else if (!strcmp(print_color_mode, "bi-level") || !strcmp(print_color_mode, "process-bi-level"))
+    {
+      color = 0;
+      draft = 1;
+    }
+  }
 
   type_array = _cupsArrayNewStrings(types, ',');
 
