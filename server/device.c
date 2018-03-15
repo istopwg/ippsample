@@ -23,6 +23,8 @@ serverCreateDevice(
   ipp_attribute_t	*uuid;		/* output-device-uuid */
 
 
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverCreateDevice: Finding output-device-uuid.");
+
   if ((uuid = ippFindAttribute(client->request, "output-device-uuid", IPP_TAG_URI)) == NULL)
     return (NULL);
 
@@ -33,6 +35,8 @@ serverCreateDevice(
 
   device->uuid  = strdup(ippGetString(uuid, 0, NULL));
   device->state = IPP_PSTATE_STOPPED;
+
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverCreateDevice: Created device object for \"%s\".", device->uuid);
 
   _cupsRWLockWrite(&client->printer->rwlock);
   cupsArrayAdd(client->printer->devices, device);
@@ -49,11 +53,14 @@ serverCreateDevice(
  */
 
 void
-serverDeleteDevice(server_device_t *device)	/* I - Device */
+serverDeleteDevice(
+    server_device_t *device)		/* I - Device */
 {
  /*
   * Free memory used for the device...
   */
+
+  serverLog(SERVER_LOGLEVEL_DEBUG, "Deleting device object for \"%s\".", device->uuid);
 
   _cupsRWDeinit(&device->rwlock);
 
@@ -73,21 +80,28 @@ serverDeleteDevice(server_device_t *device)	/* I - Device */
  */
 
 server_device_t *			/* I - Device */
-serverFindDevice(server_client_t *client)	/* I - Client */
+serverFindDevice(
+    server_client_t *client)		/* I - Client */
 {
   ipp_attribute_t	*uuid;		/* output-device-uuid */
   server_device_t	key,		/* Search key */
 			*device;	/* Matching device */
 
 
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverFindDevice: Looking for output-device-uuid.");
+
   if ((uuid = ippFindAttribute(client->request, "output-device-uuid", IPP_TAG_URI)) == NULL)
     return (NULL);
 
   key.uuid = (char *)ippGetString(uuid, 0, NULL);
 
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverFindDevice: Looking for \"%s\".", key.uuid);
+
   _cupsRWLockRead(&client->printer->rwlock);
   device = (server_device_t *)cupsArrayFind(client->printer->devices, &key);
   _cupsRWUnlock(&client->printer->rwlock);
+
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverFindDevice: Returning device=%p", (void *)device);
 
   return (device);
 }

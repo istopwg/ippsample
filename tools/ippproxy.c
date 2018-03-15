@@ -113,7 +113,7 @@ static void	*proxy_jobs(proxy_info_t *info);
 static int	register_printer(http_t *http, const char *printer_uri, const char *resource, const char *device_uri, const char *device_uuid);
 static void	run_job(proxy_info_t *info, proxy_job_t *pjob);
 static void	run_printer(http_t *http, const char *printer_uri, const char *resource, int subscription_id, const char *device_uri, const char *device_uuid);
-static void	send_document(proxy_info_t *info, proxy_job_t *pjob, ipp_t *job_attrs, ipp_t *doc_attrs, int doc_number, const char *doc_file);
+static void	send_document(proxy_info_t *info, proxy_job_t *pjob, ipp_t *job_attrs, ipp_t *doc_attrs, int doc_number);
 static void	sighandler(int sig);
 static int	update_device_attrs(http_t *http, const char *printer_uri, const char *resource, const char *device_uuid, ipp_t *old_attrs, ipp_t *new_attrs);
 static void	update_document_status(proxy_info_t *info, proxy_job_t *pjob, int doc_number, ipp_dstate_t doc_state);
@@ -722,8 +722,6 @@ static void *				/* O - Thread exit status */
 proxy_jobs(proxy_info_t *info)		/* I - Printer and device info */
 {
   cups_dest_t	*dest;			/* Destination for printer URI */
-  http_t	*http;			/* Connection to printer */
-  char		resource[1024];		/* Resource path */
   proxy_job_t	*pjob;			/* Current job */
 //  ipp_t		*new_attrs;		/* New device attributes */
 
@@ -732,12 +730,15 @@ proxy_jobs(proxy_info_t *info)		/* I - Printer and device info */
   * Connect to the infrastructure printer...
   */
 
+  if (verbosity)
+    fprintf(stderr, "[%s] Job processing thread starting.\n", httpGetDateString(time(NULL)));
+
   if (password)
     cupsSetPasswordCB2(password_cb, password);
 
   dest = cupsGetDestWithURI("infra", info->printer_uri);
 
-  while ((http = cupsConnectDest(dest, CUPS_DEST_FLAGS_NONE, 30000, NULL, resource, sizeof(resource), NULL, NULL)) == NULL)
+  while ((info->http = cupsConnectDest(dest, CUPS_DEST_FLAGS_DEVICE, 30000, NULL, info->resource, sizeof(info->resource), NULL, NULL)) == NULL)
   {
     int interval = 1 + (CUPS_RAND() % 30);
 					/* Retry interval */
@@ -747,6 +748,9 @@ proxy_jobs(proxy_info_t *info)		/* I - Printer and device info */
   }
 
   cupsFreeDests(1, dest);
+
+  if (verbosity)
+    fprintf(stderr, "[%s] Connected to '%s'.\n", httpGetDateString(time(NULL)), info->printer_uri);
 
   _cupsMutexLock(&jobs_mutex);
 
@@ -787,7 +791,13 @@ proxy_jobs(proxy_info_t *info)		/* I - Printer and device info */
       }
       _cupsRWUnlock(&jobs_rwlock);
 
-      _cupsCondWait(&jobs_cond, &jobs_mutex, 0.0);
+      if (verbosity)
+        fprintf(stderr, "[%s] Waiting for jobs.\n", httpGetDateString(time(NULL)));
+
+      _cupsCondWait(&jobs_cond, &jobs_mutex, 15.0);
+
+      if (verbosity)
+        fprintf(stderr, "[%s] Done waiting.\n", httpGetDateString(time(NULL)));
     }
   }
 
@@ -879,8 +889,6 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
 		*doc_attrs;		/* Document attributes */
   int		num_docs,		/* Number of documents */
 		doc_number;		/* Current document number */
-  int		doc_fd;			/* Temporary document file descriptor */
-  char		doc_file[1024];		/* Temporary document filename */
 
 
  /*
@@ -890,8 +898,10 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
   request = ippNewRequest(IPP_OP_FETCH_JOB);
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, info->printer_uri);
   ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "job-id", pjob->remote_job_id);
-  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "device-uuid", NULL, info->device_uuid);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, info->device_uuid);
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+
+  httpReconnect(info->http);
 
   job_attrs = cupsDoRequest(info->http, request, info->resource);
 
@@ -931,17 +941,16 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
     if (pjob->remote_job_state >= IPP_JSTATE_ABORTED)
       break;
 
-    doc_fd = cupsTempFd(doc_file, sizeof(doc_file));
-
     request = ippNewRequest(IPP_OP_FETCH_DOCUMENT);
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, info->printer_uri);
     ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "job-id", pjob->remote_job_id);
     ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "document-number", doc_number);
-    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "device-uuid", NULL, info->device_uuid);
+    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, info->device_uuid);
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
 
-    doc_attrs = cupsDoIORequest(info->http, request, info->resource, -1, doc_fd);
-    close(doc_fd);
+    cupsSendRequest(info->http, request, info->resource, ippLength(request));
+    doc_attrs = cupsGetResponse(info->http, info->resource);
+    ippDelete(request);
 
     if (!doc_attrs || cupsLastError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
     {
@@ -949,7 +958,6 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
 
       pjob->local_job_state = IPP_JSTATE_ABORTED;
       ippDelete(doc_attrs);
-      unlink(doc_file);
       break;
     }
 
@@ -959,7 +967,7 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
       * Send document to local printer...
       */
 
-      send_document(info, pjob, job_attrs, doc_attrs, doc_number, doc_file);
+      send_document(info, pjob, job_attrs, doc_attrs, doc_number);
     }
 
    /*
@@ -967,7 +975,6 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
     */
 
     ippDelete(doc_attrs);
-    unlink(doc_file);
   }
 
  /*
@@ -1120,6 +1127,7 @@ run_printer(
 
               pjob->remote_job_id    = job_id;
               pjob->remote_job_state = job_state;
+              pjob->local_job_state  = IPP_JSTATE_PENDING;
 
               _cupsRWLockWrite(&jobs_rwlock);
               cupsArrayAdd(jobs, pjob);
@@ -1171,6 +1179,7 @@ run_printer(
   * Stop the job proxy thread...
   */
 
+  _cupsCondBroadcast(&jobs_cond);
   _cupsThreadCancel(jobs_thread);
   _cupsThreadWait(jobs_thread);
 }
@@ -1185,8 +1194,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
               proxy_job_t  *pjob,	/* I - Proxy job */
               ipp_t        *job_attrs,	/* I - Job attributes */
               ipp_t        *doc_attrs,	/* I - Document attributes */
-              int          doc_number,	/* I - Document number */
-              const char   *doc_file)	/* I - Document file */
+              int          doc_number)	/* I - Document number */
 {
   char		scheme[32],		/* URI scheme */
 		userpass[256],		/* URI user:pass */
@@ -1195,6 +1203,8 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
 		service[32];		/* Service port */
   int		port;			/* URI port number */
   http_addrlist_t *list;		/* Address list for socket */
+  ssize_t	doc_bytes;		/* Bytes read/written */
+  char		doc_buffer[16384];	/* Copy buffer */
 
 
   if (httpSeparateURI(HTTP_URI_CODING_ALL, info->device_uri, scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, resource, sizeof(resource)) < HTTP_URI_STATUS_OK)
@@ -1221,9 +1231,6 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
     */
 
     int		sock;			/* Output socket */
-    int		doc_fd;			/* Document file descriptor */
-    ssize_t	doc_bytes;		/* Bytes read/written */
-    char	doc_buffer[16384];	/* Copy buffer */
 
     if (!httpAddrConnect2(list, &sock, 30000, NULL))
     {
@@ -1232,9 +1239,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
       return;
     }
 
-    doc_fd = open(doc_file, O_RDONLY);
-
-    while ((doc_bytes = read(doc_fd, doc_buffer, sizeof(doc_buffer))) > 0)
+    while ((doc_bytes = cupsReadResponseData(info->http, doc_buffer, sizeof(doc_buffer))) > 0)
     {
       char	*doc_ptr = doc_buffer,	/* Pointer into buffer */
 		*doc_end = doc_buffer + doc_bytes;
@@ -1247,7 +1252,6 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
       }
     }
 
-    close(doc_fd);
     close(sock);
   }
   else
@@ -1338,7 +1342,16 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
       ippAddBoolean(request, IPP_TAG_OPERATION, "last-document", 1);
     }
 
-    response = cupsDoFileRequest(http, request, resource, doc_file);
+    if (cupsSendRequest(http, request, resource, 0) == HTTP_STATUS_CONTINUE)
+    {
+      while ((doc_bytes = cupsReadResponseData(info->http, doc_buffer, sizeof(doc_buffer))) > 0)
+      {
+        if (cupsWriteRequestData(http, doc_buffer, (size_t)doc_bytes) != HTTP_STATUS_CONTINUE)
+          break;
+      }
+    }
+
+    response = cupsGetResponse(http, resource);
 
     if (!pjob->local_job_id)
       pjob->local_job_id = ippGetInteger(ippFindAttribute(response, "job-id", IPP_TAG_INTEGER), 0);
@@ -1495,7 +1508,7 @@ update_document_status(
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, info->printer_uri);
   ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "job-id", pjob->remote_job_id);
   ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "document-number", doc_number);
-  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "device-uuid", NULL, info->device_uuid);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, info->device_uuid);
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
 
   ippAddInteger(request, IPP_TAG_JOB, IPP_TAG_ENUM, "output-device-document-state", doc_state);
@@ -1521,7 +1534,7 @@ update_job_status(proxy_info_t *info,	/* I - Proxy info */
   request = ippNewRequest(IPP_OP_UPDATE_JOB_STATUS);
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, info->printer_uri);
   ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "job-id", pjob->remote_job_id);
-  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "device-uuid", NULL, info->device_uuid);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, info->device_uuid);
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
 
   ippAddInteger(request, IPP_TAG_JOB, IPP_TAG_ENUM, "output-device-job-state", pjob->local_job_state);
