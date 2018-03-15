@@ -318,6 +318,9 @@ copy_job_attributes(
   if (check_attribute("job-state-reasons", ra, pa))
     serverCopyJobStateReasons(client->response, IPP_TAG_JOB, job);
 
+  if (check_attribute("number-of-documents", ra, pa))
+    ippAddInteger(client->response, IPP_TAG_JOB, IPP_TAG_INTEGER, "number-of-documents", job->filename ? 1 : 0);
+
   if (check_attribute("time-at-completed", ra, pa))
     ippAddInteger(client->response, IPP_TAG_JOB, job->completed ? IPP_TAG_INTEGER : IPP_TAG_NOVALUE, "time-at-completed", (int)(job->completed - client->printer->start_time));
 
@@ -1337,97 +1340,87 @@ ipp_fetch_document(
   else
     compression = 0;
 
-  if ((attr = ippFindAttribute(client->request, "document-format-accepted", IPP_TAG_MIMETYPE)) != NULL)
+  if ((attr = ippFindAttribute(client->request, "document-format-accepted", IPP_TAG_MIMETYPE)) == NULL)
+    attr = ippFindAttribute(client->printer->dev_attrs, "document-format-supported", IPP_TAG_MIMETYPE);
+
+  if (attr)
   {
-    int	i,				/* Looping var */
-	count = ippGetCount(attr);	/* Number of values */
+    if (ippContainsString(attr, "image/urf"))
+      format = "image/urf";
+    else if (ippContainsString(attr, "image/pwg-raster"))
+      format = "image/pwg-raster";
+    else if (ippContainsString(attr, "application/vnd.hp-pcl"))
+      format = "application/vnd.hp-pcl";
+    else
+      format = NULL;
 
-    for (i = 0; i < count; i ++)
+    if (format)
     {
-      format = ippGetString(attr, i, NULL);
+     /*
+      * Transform and stream document as raster...
+      */
 
-      serverCreateJobFilename(client->printer, job, format, filename, sizeof(filename));
+      serverRespondIPP(client, IPP_STATUS_OK, NULL);
+      ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, format);
+      ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression", NULL, compression ? "gzip" : "none");
 
-      if (!access(filename, R_OK))
-        break;
+      if (httpGetState(client->http) != HTTP_STATE_POST_SEND)
+	httpFlush(client->http);	/* Flush trailing (junk) data */
+
+      serverLogAttributes(client, "Response:", client->response, 2);
+
+      serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s", httpStatus(HTTP_STATUS_OK));
+
+      httpClearFields(client->http);
+      httpSetField(client->http, HTTP_FIELD_CONTENT_TYPE, "application/ipp");
+
+      if (compression)
+	httpSetField(client->http, HTTP_FIELD_CONTENT_ENCODING, "gzip");
+
+      httpSetLength(client->http, 0);
+      if (httpWriteResponse(client->http, HTTP_STATUS_OK) < 0)
+	return;
+
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sending %d bytes of IPP response.", (int)ippLength(client->response));
+
+      ippSetState(client->response, IPP_STATE_IDLE);
+
+      if (ippWrite(client->http, client->response) != IPP_STATE_DATA)
+      {
+	serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Unable to write IPP response.");
+	return;
+      }
+
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sent IPP response.");
+
+      job->state = IPP_JSTATE_PROCESSING;
+      serverTransformJob(client, job, "ipptransform", format, SERVER_TRANSFORM_TO_CLIENT);
+
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sending 0-length chunk.");
+      httpWrite2(client->http, "", 0);
+
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Flushing write buffer.");
+      httpFlushWrite(client->http);
+      return;
     }
-
-    if (i >= count)
+    else if (!ippContainsString(attr, job->format))
     {
-      if (ippContainsString(attr, "image/urf"))
-        format = "image/urf";
-      else if (ippContainsString(attr, "image/pwg-raster"))
-        format = "image/pwg-raster";
-      else
-        format = NULL;
-
-      if (format)
-      {
-       /*
-        * Transform and stream document as raster...
-	*/
-
-	serverRespondIPP(client, IPP_STATUS_OK, NULL);
-	ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, format);
-	ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression", NULL, compression ? "gzip" : "none");
-
-        if (httpGetState(client->http) != HTTP_STATE_POST_SEND)
-          httpFlush(client->http);	/* Flush trailing (junk) data */
-
-	serverLogAttributes(client, "Response:", client->response, 2);
-
-	serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s", httpStatus(HTTP_STATUS_OK));
-
-	httpClearFields(client->http);
-	httpSetField(client->http, HTTP_FIELD_CONTENT_TYPE, "application/ipp");
-
-        if (compression)
-	  httpSetField(client->http, HTTP_FIELD_CONTENT_ENCODING, "gzip");
-
-        httpSetLength(client->http, 0);
-	if (httpWriteResponse(client->http, HTTP_STATUS_OK) < 0)
-	  return;
-
-	serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sending %d bytes of IPP response.", (int)ippLength(client->response));
-
-	ippSetState(client->response, IPP_STATE_IDLE);
-
-	if (ippWrite(client->http, client->response) != IPP_STATE_DATA)
-	{
-	  serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Unable to write IPP response.");
-	  return;
-	}
-
-	serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sent IPP response.");
-
-        job->state = IPP_JSTATE_PROCESSING;
-        serverTransformJob(client, job, "ipptransform", format, SERVER_TRANSFORM_TO_CLIENT);
-
-	serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sending 0-length chunk.");
-	httpWrite2(client->http, "", 0);
-
-	serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Flushing write buffer.");
-	httpFlushWrite(client->http);
-	return;
-      }
-      else
-      {
-	serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FETCHABLE, "Document not available in requested format.");
-	return;
-      }
+      serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FETCHABLE, "Document not available in requested format.");
+      return;
     }
   }
-  else if ((attr = ippFindAttribute(job->attrs, "document-format", IPP_TAG_MIMETYPE)) != NULL)
-  {
-    format = ippGetString(attr, 0, NULL);
 
-    serverCreateJobFilename(client->printer, job, format, filename, sizeof(filename));
+  if (job->format)
+  {
+    serverCreateJobFilename(client->printer, job, job->format, filename, sizeof(filename));
 
     if (access(filename, R_OK))
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FETCHABLE, "Document not available in requested format.");
       return;
     }
+
+    format = job->format;
   }
   else
   {
@@ -1498,7 +1491,7 @@ ipp_fetch_job(server_client_t *client)	/* I - Client */
   }
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
-  serverCopyAttributes(client->response, job->attrs, NULL, NULL, IPP_TAG_JOB, 0);
+  copy_job_attributes(client, job, NULL, NULL);
 }
 
 

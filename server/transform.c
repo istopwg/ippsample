@@ -47,7 +47,8 @@ serverTransformJob(
   int		myenvc;			/* Number of environment variables */
   ipp_attribute_t *attr;		/* Job attribute */
   char		val[1280],		/* IPP_NAME=value */
-                *valptr;		/* Pointer into string */
+                *valptr,		/* Pointer into string */
+                fullcommand[1024];	/* Full command path */
 #ifndef WIN32
   posix_spawn_file_actions_t actions;	/* Spawn file actions */
   int		mystdout[2] = {-1, -1},	/* Pipe for stdout */
@@ -60,8 +61,15 @@ serverTransformJob(
                 *ptr,			/* Pointer into line */
                 *endptr;		/* End of line */
   ssize_t	bytes;			/* Bytes read */
+  size_t	total = 0;		/* Total bytes read */
 #endif /* !WIN32 */
 
+
+  if (command[0] != '/')
+  {
+    snprintf(fullcommand, sizeof(fullcommand), "%s/%s", BinDir, command);
+    command = fullcommand;
+  }
 
   serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Running command \"%s %s\".", command, job->filename);
   start = time_seconds();
@@ -315,7 +323,10 @@ serverTransformJob(
     else if (pollcount > 1 && polldata[1].revents & POLLIN)
     {
       if ((bytes = read(mystdout[0], data, sizeof(data))) > 0)
+      {
 	httpWrite2(client->http, data, (size_t)bytes);
+	total += (size_t)bytes;
+      }
     }
 
     if (polldata[0].revents & POLLHUP)
@@ -325,8 +336,8 @@ serverTransformJob(
   if (mystdout[0] >= 0)
   {
     close(mystdout[0]);
-    httpFlushWrite(client->http);
-    httpWrite2(client->http, "", 0);
+
+    serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Total transformed output is %ld bytes.", (long)total);
   }
 
   close(mystderr[0]);

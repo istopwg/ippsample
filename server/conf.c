@@ -109,6 +109,13 @@ serverFinalizeConfiguration(void)
 
 
  /*
+  * Default BinDir...
+  */
+
+  if (!BinDir)
+    BinDir = strdup(CUPS_SERVERBIN);
+
+ /*
   * Default hostname...
   */
 
@@ -1333,6 +1340,17 @@ load_system(const char *conf)		/* I - Configuration file */
     else if (!_cups_strcasecmp(line, "AuthType"))
     {
       AuthType = strdup(value);
+    }
+    else if (!_cups_strcasecmp(line, "BinDir"))
+    {
+      if (access(value, X_OK))
+      {
+        fprintf(stderr, "ippserver: Unable to access BinDir \"%s\": %s\n", value, strerror(errno));
+        status = 0;
+        break;
+      }
+
+      BinDir = strdup(value);
     }
     else if (!_cups_strcasecmp(line, "DataDirectory"))
     {

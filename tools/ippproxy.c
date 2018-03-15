@@ -889,7 +889,22 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
 		*doc_attrs;		/* Document attributes */
   int		num_docs,		/* Number of documents */
 		doc_number;		/* Current document number */
+  ipp_attribute_t *doc_formats;		/* Supported document formats */
+  const char	*doc_format = NULL;	/* Document format we want... */
 
+
+ /*
+  * Figure out the output format we want to use...
+  */
+
+  doc_formats = ippFindAttribute(info->device_attrs, "document-format-supported", IPP_TAG_MIMETYPE);
+
+  if (ippContainsString(doc_formats, "image/urf"))
+    doc_format = "image/urf";
+  else if (ippContainsString(doc_formats, "image/pwg-raster"))
+    doc_format = "image/pwg-raster";
+  else
+    doc_format = "application/vnd.hp-pcl";
 
  /*
   * Fetch the job...
@@ -924,6 +939,21 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
     goto update_job;
   }
 
+  request = ippNewRequest(IPP_OP_ACKNOWLEDGE_JOB);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, info->printer_uri);
+  ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "job-id", pjob->remote_job_id);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, info->device_uuid);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+
+  ippDelete(cupsDoRequest(info->http, request, info->resource));
+
+  if (cupsLastError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
+  {
+    fprintf(stderr, "[Job %d] Unable to acknowledge job: %s\n", pjob->remote_job_id, cupsLastErrorString());
+    pjob->local_job_state = IPP_JSTATE_ABORTED;
+    return;
+  }
+
   num_docs = ippGetInteger(ippFindAttribute(job_attrs, "number-of-documents", IPP_TAG_INTEGER), 0);
 
   fprintf(stderr, "[Job %d] Fetched job with %d documents.\n", pjob->remote_job_id, num_docs);
@@ -941,12 +971,15 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
     if (pjob->remote_job_state >= IPP_JSTATE_ABORTED)
       break;
 
+    update_document_status(info, pjob, doc_number, IPP_DSTATE_PROCESSING);
+
     request = ippNewRequest(IPP_OP_FETCH_DOCUMENT);
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, info->printer_uri);
     ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "job-id", pjob->remote_job_id);
     ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "document-number", doc_number);
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, info->device_uuid);
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format-accepted", NULL, doc_format);
 
     cupsSendRequest(info->http, request, info->resource, ippLength(request));
     doc_attrs = cupsGetResponse(info->http, info->resource);
@@ -971,10 +1004,19 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
     }
 
    /*
-    * Remove temporary file...
+    * Acknowledge receipt of the document data...
     */
 
     ippDelete(doc_attrs);
+
+    request = ippNewRequest(IPP_OP_ACKNOWLEDGE_DOCUMENT);
+    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, info->printer_uri);
+    ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "job-id", pjob->remote_job_id);
+    ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "document-number", doc_number);
+    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, info->device_uuid);
+    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+
+    ippDelete(cupsDoRequest(info->http, request, info->resource));
   }
 
  /*
@@ -1203,6 +1245,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
 		service[32];		/* Service port */
   int		port;			/* URI port number */
   http_addrlist_t *list;		/* Address list for socket */
+  size_t	doc_total = 0;		/* Total bytes read */
   ssize_t	doc_bytes;		/* Bytes read/written */
   char		doc_buffer[16384];	/* Copy buffer */
 
@@ -1222,8 +1265,6 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
     return;
   }
 
-  update_document_status(info, pjob, doc_number, IPP_DSTATE_PROCESSING);
-
   if (!strcmp(scheme, "socket"))
   {
    /*
@@ -1239,11 +1280,15 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
       return;
     }
 
+    fprintf(stderr, "[Job %d] Connected to \"%s\" on port %d.\n", pjob->remote_job_id, host, port);
+
     while ((doc_bytes = cupsReadResponseData(info->http, doc_buffer, sizeof(doc_buffer))) > 0)
     {
       char	*doc_ptr = doc_buffer,	/* Pointer into buffer */
 		*doc_end = doc_buffer + doc_bytes;
 					/* End of buffer */
+
+      doc_total += (size_t)doc_bytes;
 
       while (doc_ptr < doc_end)
       {
@@ -1253,6 +1298,8 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
     }
 
     close(sock);
+
+    fprintf(stderr, "[Job %d] Local job created, %ld bytes.\n", pjob->remote_job_id, (long)doc_total);
   }
   else
   {
@@ -1283,6 +1330,8 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
       pjob->local_job_state = IPP_JSTATE_ABORTED;
       return;
     }
+
+    fprintf(stderr, "[Job %d] Connected to \"%s\" on port %d.\n", pjob->remote_job_id, host, port);
 
    /*
     * See if it supports Create-Job + Send-Document...
@@ -1346,6 +1395,8 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
     {
       while ((doc_bytes = cupsReadResponseData(info->http, doc_buffer, sizeof(doc_buffer))) > 0)
       {
+	doc_total += (size_t)doc_bytes;
+
         if (cupsWriteRequestData(http, doc_buffer, (size_t)doc_bytes) != HTTP_STATUS_CONTINUE)
           break;
       }
@@ -1367,6 +1418,8 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
       httpClose(http);
       return;
     }
+
+    fprintf(stderr, "[Job %d] Local job %d created, %ld bytes.\n", pjob->remote_job_id, pjob->local_job_id, (long)doc_total);
 
     while (pjob->remote_job_state < IPP_JSTATE_CANCELED && job_state < IPP_JSTATE_CANCELED)
     {

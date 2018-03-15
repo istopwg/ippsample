@@ -531,6 +531,7 @@ VAR cups_array_t	*SubscriptionPrivacyArray VALUE(NULL);
 
 VAR ipp_t		*PrivacyAttributes VALUE(NULL);
 
+VAR char		*BinDir		VALUE(NULL);
 VAR char		*ConfigDirectory VALUE(NULL);
 VAR char		*DataDirectory	VALUE(NULL);
 VAR int			DefaultPort	VALUE(0);

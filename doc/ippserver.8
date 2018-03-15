@@ -7,7 +7,7 @@
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ippserver 8 "ippsample" "1 March 2018" "Apple Inc."
+.TH ippserver 8 "ippsample" "15 March 2018" "Apple Inc."
 .SH NAME
 ippserver \- a simple ipp server
 .SH SYNOPSIS
@@ -209,6 +209,13 @@ Specifies the type of authentication to require.
 "None" specifies that no authentication is required.
 "Basic" specifies that HTTP Basic authentication (username + password) is required.
 The default is "Basic".
+.TP 5
+\fBBinDir \fIdirectory\fR
+Specifies the location of the
+.BR ipptransform (1)
+and
+.BR ipptransform3d (1)
+programs.
 .TP 5
 \fBDataDirectory \fIdirectory\fR
 Specifies the location of server data files.
