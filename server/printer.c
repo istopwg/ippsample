@@ -251,6 +251,7 @@ serverCreatePrinter(
     "media-col",
     "multiple-document-handling",
     "orientation-requested",
+    "print-color-mode",
     "print-quality",
     "sides"
   };

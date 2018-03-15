@@ -1347,14 +1347,38 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
   }
   else
   {
+    int			i;		/* Looping var */
     http_t		*http;		/* Output HTTP connection */
     http_encryption_t	encryption;	/* Encryption mode */
     ipp_t		*request,	/* IPP request */
 			*response;	/* IPP response */
-    ipp_attribute_t	*attr;		/* operations-supported */
+    ipp_attribute_t	*attr;		/* Current attribute */
     int			create_job = 0;	/* Support for Create-Job/Send-Document? */
     const char		*doc_format;	/* Document format */
     ipp_jstate_t	job_state;	/* Current job-state value */
+    static const char * const operation[] =
+    {					/* Operation attributes to copy */
+      "job-name",
+      "job-password",
+      "job-password-encryption",
+      "job-priority"
+    };
+    static const char * const job_template[] =
+    {					/* Job Template attributes to copy */
+      "copies",
+      "finishings",
+      "finishings-col",
+      "job-account-id",
+      "job-accounting-user-id",
+      "media",
+      "media-col",
+      "multiple-document-handling",
+      "orientation-requested",
+      "page-ranges",
+      "print-color-mode",
+      "print-quality",
+      "sides"
+    };
 
     if ((doc_format = ippGetString(ippFindAttribute(doc_attrs, "document-format", IPP_TAG_MIMETYPE), 0, NULL)) == NULL)
       doc_format = "application/octet-stream";
@@ -1414,8 +1438,40 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
     if (!create_job)
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, doc_format);
-    /* TODO: Add job-name and job template attributes from job_attrs */
-    (void)job_attrs;
+    for (i = 0; i < (int)(sizeof(operation) / sizeof(operation[0])); i ++)
+    {
+      if ((attr = ippFindAttribute(job_attrs, operation[i], IPP_TAG_ZERO)) != NULL)
+      {
+	attr = ippCopyAttribute(request, attr, 0);
+	ippSetGroupTag(request, &attr, IPP_TAG_OPERATION);
+      }
+    }
+
+    for (i = 0; i < (int)(sizeof(job_template) / sizeof(job_template[0])); i ++)
+    {
+      if ((attr = ippFindAttribute(job_attrs, job_template[i], IPP_TAG_ZERO)) != NULL)
+	ippCopyAttribute(request, attr, 0);
+    }
+
+    if (verbosity)
+    {
+      logf(pjob, "%s", ippOpString(ippGetOperation(request)));
+
+      for (attr = ippFirstAttribute(request); attr; attr = ippNextAttribute(request))
+      {
+        const char *name = ippGetName(attr);	/* Attribute name */
+
+        if (!name)
+        {
+          logf(pjob, "----");
+          continue;
+	}
+
+        ippAttributeString(attr, doc_buffer, sizeof(doc_buffer));
+
+        logf(pjob, "%s %s '%s'", name, ippTagString(ippGetValueTag(attr)), doc_buffer);
+      }
+    }
 
     if (create_job)
     {
