@@ -12,7 +12,7 @@
 #include <cups/cups.h>
 #include <cups/raster.h>
 #include <cups/string-private.h>
-
+#include <endian.h>
 
 /*
  * Local globals...
@@ -350,7 +350,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   fprintf(stderr, "DEBUG: Synchronization word is correct\n");
   
   cups_page_header2_t header;
-  fread(&header, 1, 1796, file);
+  fread(&header, 4, 449, file);
   
   if(strncmp(header.MediaClass, "PwgRaster", 64)){
     fprintf(stderr, "ERROR: PwgRaster value in header is incorrect\n");
@@ -393,11 +393,13 @@ lint_raster(const char    *filename,	/* I - File to check */
   else
     fprintf(stderr, "DEBUG: Incorrect Duplex value\n");
 
-  /* [TODO]: Not working properly */
+  header.HWResolution[0] = be32toh(header.HWResolution[0]);
+  header.HWResolution[1] = be32toh(header.HWResolution[1]);
   fprintf(stderr, "DEBUG: Using cross-feed resolution of %u and feed resolution of %u\n", header.HWResolution[0], header.HWResolution[1]);
 
   /* [TODO]: Not working properly */
   for(int i=0; i<4; i++){
+    header.ImagingBoundingBox[i] = be32toh(header.ImagingBoundingBox[i]);
     if(header.ImagingBoundingBox[i]!=0){
       fprintf(stderr, "ERROR: Non-zero values present in Reserved[284-299] area\n");
       //return(1);
@@ -450,7 +452,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   else
     fprintf(stderr, "DEBUG: Reserved[332-339] field is zero as expected\n");
 
-  /* [TODO]: Not working properly */
+  header.NumCopies = be32toh(header.NumCopies);
   if (header.NumCopies==0)
     fprintf(stderr, "DEBUG: Using default value for NumCopies\n");
   else 
@@ -469,8 +471,174 @@ lint_raster(const char    *filename,	/* I - File to check */
   else
     fprintf(stderr, "DEBUG: Reserved[348-351] field is zero as expected\n");
 
-  /* [TODO]: Not working properly */ 
+  header.PageSize[0] = be32toh(header.PageSize[0]);
+  header.PageSize[1] = be32toh(header.PageSize[1]);
   fprintf(stderr, "DEBUG: Page size is %d x %d\n", header.PageSize[0], header.PageSize[1]);
+
+  if (header.Separations != 0 || header.TraySwitch != 0){
+    fprintf(stderr, "ERROR: Non-zero values present in Reserved[360-367] area\n");
+    return(1);
+  }
+  else
+    fprintf(stderr, "DEBUG: Reserved[360-367] field is zero as expected\n");
+
+  if(header.Tumble == 0)
+    fprintf(stderr, "DEBUG: Tumble set to false\n");
+  else if(header.Tumble == 1)
+    fprintf(stderr, "DEBUG: Tumble set to true\n");
+  else
+    fprintf(stderr, "DEBUG: Incorrect Tumble value\n");
+
+  header.cupsWidth = be32toh(header.cupsWidth);
+  header.cupsHeight = be32toh(header.cupsHeight);
+  fprintf(stderr, "DEBUG: Page width is %d and height is %d\n", header.cupsWidth, header.cupsHeight);
+
+  if (header.cupsMediaType != 0){
+    fprintf(stderr, "ERROR: Non-zero values present in Reserved[380-383] area\n");
+    return(1);
+  }
+  else
+    fprintf(stderr, "DEBUG: Reserved[380-383] field is zero as expected\n");
+
+  header.cupsBitsPerColor = be32toh(header.cupsBitsPerColor);
+  switch (header.cupsBitsPerColor) {
+    case 1: break;
+    case 8: break;
+    case 16: break;
+    default:
+      fprintf(stderr, "ERROR: Incorrect BitsPerColor value present %d\n", header.cupsBitsPerColor);
+      return(1);
+  }
+  fprintf(stderr, "DEBUG: BitsPerColor value is %d\n", header.cupsBitsPerColor);
+
+  header.cupsBitsPerPixel = be32toh(header.cupsBitsPerPixel);
+  switch (header.cupsBitsPerPixel) { // [TODO] Much more checks needed
+    case 1: break;
+    case 8: break;
+    case 16: break;
+    case 24: break;
+    case 32: break;
+    case 40: break;
+    case 48: break;
+    case 56: break;
+    case 64: break;
+    case 72: break;
+    case 80: break;
+    case 88: break;
+    case 96: break;
+    case 104: break;
+    case 112: break;
+    case 120: break;
+    case 128: break;
+    case 144: break;
+    case 160: break;
+    case 176: break;
+    case 192: break;
+    case 208: break;
+    case 224: break;
+    case 240: break;
+    default:
+      fprintf(stderr, "ERROR: Incorrect BitsPerPixel value present %d\n", header.cupsBitsPerPixel);
+      return(1);
+  }
+  fprintf(stderr, "DEBUG: BitsPerPixel value is %d\n", header.cupsBitsPerPixel);
+
+  header.cupsBytesPerLine = be32toh(header.cupsBytesPerLine);
+  if (header.cupsBytesPerLine==(header.cupsBitsPerPixel * header.cupsWidth + 7)/8)
+    fprintf(stderr, "DEBUG: BytesPerLine value is correct %d\n", header.cupsBytesPerLine);
+  else {
+    fprintf(stderr, "ERROR: BytesPerLine value is incorrect %d\n", header.cupsBytesPerLine);
+    return(1);
+  }
+
+  if (header.cupsColorOrder==0)
+    fprintf(stderr, "DEBUG: ColorOrder value is correct %d\n", header.cupsColorOrder);
+  else {
+    fprintf(stderr, "ERROR: ColorOrder value is incorrect %d\n", header.cupsColorOrder);
+    return(1);
+  }
+
+  header.cupsColorSpace = be32toh(header.cupsColorSpace);
+  switch(header.cupsColorSpace) { // [TODO] Much more checks needed
+    case 1: break;
+    case 3: break;
+    case 6: break;
+    case 18: break;
+    case 19: break;
+    case 20: break;
+    case 48: break;
+    case 49: break;
+    case 50: break;
+    case 51: break;
+    case 52: break;
+    case 53: break;
+    case 54: break;
+    case 55: break;
+    case 56: break;
+    case 57: break;
+    case 58: break;
+    case 59: break;
+    case 60: break;
+    case 61: break;
+    case 62: break;
+    default:
+      fprintf(stderr, "ERROR: Incorrect ColorSpace value present %d\n", header.cupsColorSpace);
+      return(1);
+  }
+  fprintf(stderr, "DEBUG: ColorSpace value is %d\n", header.cupsColorSpace);
+
+  if (header.cupsCompression != 0 || header.cupsRowCount != 0 || header.cupsRowFeed != 0 || header.cupsRowStep != 0){
+    fprintf(stderr, "ERROR: Non-zero values present in Reserved[404-419] area\n");
+    return(1);
+  }
+  else
+    fprintf(stderr, "DEBUG: Reserved[404-419] field is zero as expected\n");
+
+  header.cupsNumColors = be32toh(header.cupsNumColors);
+  switch(header.cupsNumColors) { // [TODO] Much more checks needed
+    case 1: break;
+    case 2: break;
+    case 3: break;
+    case 4: break;
+    case 5: break;
+    case 6: break;
+    case 7: break;
+    case 8: break;
+    case 9: break;
+    case 10: break;
+    case 11: break;
+    case 12: break;
+    case 13: break;
+    case 14: break;
+    case 15: break;
+    default:
+      fprintf(stderr, "ERROR: Incorrect NumColors value present %d\n", header.cupsNumColors);
+      return(1);
+  }
+  fprintf(stderr, "DEBUG: NumColors value is %d\n", header.cupsNumColors);
+
+  if (header.cupsBorderlessScalingFactor != 0 || header.cupsPageSize[0] != 0 || header.cupsPageSize[1] != 0 || 
+      header.cupsImagingBBox[0] != 0 || header.cupsImagingBBox[1] != 0 || header.cupsImagingBBox[2] != 0 || header.cupsImagingBBox[3] != 0){
+    fprintf(stderr, "ERROR: Non-zero values present in Reserved[424-451] area\n");
+    return(1);
+  }
+  else
+    fprintf(stderr, "DEBUG: Reserved[424-451] field is zero as expected\n");
+
+  for(int i=0; i<64; i++){
+    if(header.cupsMarkerType[i]!=0){
+      fprintf(stderr, "ERROR: Non-zero values present in Reserved[1604-1667] area\n");
+      return(1);
+    }
+  }
+  fprintf(stderr, "DEBUG: Reserved[1604-1667] field is zero as expected\n");
+ 
+  if(header.cupsRenderingIntent[0] == '\0')
+    fprintf(stderr, "DEBUG: Using default value for RenderingIntent\n");
+  else
+    fprintf(stderr, "DEBUG: RenderingIntent is %s\n", header.cupsRenderingIntent);
+  
+  fprintf(stderr, "DEBUG: PageSizeName is %s\n", header.cupsPageSizeName);
 
   (void)num_options;
   (void)options;
