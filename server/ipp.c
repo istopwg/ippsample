@@ -1343,7 +1343,7 @@ ipp_fetch_document(
   if ((attr = ippFindAttribute(client->request, "document-format-accepted", IPP_TAG_MIMETYPE)) == NULL)
     attr = ippFindAttribute(client->printer->dev_attrs, "document-format-supported", IPP_TAG_MIMETYPE);
 
-  if (attr)
+  if (attr && !ippContainsString(attr, job->format))
   {
     if (ippContainsString(attr, "image/urf"))
       format = "image/urf";
@@ -1403,7 +1403,7 @@ ipp_fetch_document(
       httpFlushWrite(client->http);
       return;
     }
-    else if (!ippContainsString(attr, job->format))
+    else
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FETCHABLE, "Document not available in requested format.");
       return;

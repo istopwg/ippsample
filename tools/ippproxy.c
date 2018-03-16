@@ -29,7 +29,8 @@ typedef struct proxy_info_s		/* Proxy thread information */
   char		resource[256];		/* Resource path */
   const char	*printer_uri,		/* Infrastructure Printer URI */
 		*device_uri,		/* Output device URI */
-		*device_uuid;		/* Output device UUID */
+		*device_uuid,		/* Output device UUID */
+		*outformat;		/* Desired output format (NULL for auto) */
   ipp_t		*device_attrs;		/* Output device attributes */
 } proxy_info_t;
 
@@ -113,7 +114,7 @@ static const char *password_cb(const char *prompt, http_t *http, const char *met
 static void	*proxy_jobs(proxy_info_t *info);
 static int	register_printer(http_t *http, const char *printer_uri, const char *resource, const char *device_uri, const char *device_uuid);
 static void	run_job(proxy_info_t *info, proxy_job_t *pjob);
-static void	run_printer(http_t *http, const char *printer_uri, const char *resource, int subscription_id, const char *device_uri, const char *device_uuid);
+static void	run_printer(http_t *http, const char *printer_uri, const char *resource, int subscription_id, const char *device_uri, const char *device_uuid, const char *outformat);
 static void	send_document(proxy_info_t *info, proxy_job_t *pjob, ipp_t *job_attrs, ipp_t *doc_attrs, int doc_number);
 static void	sighandler(int sig);
 static int	update_device_attrs(http_t *http, const char *printer_uri, const char *resource, const char *device_uuid, ipp_t *old_attrs, ipp_t *new_attrs);
@@ -139,6 +140,7 @@ main(int  argc,				/* I - Number of command-line arguments */
   char		resource[1024];		/* Resource path */
   int		subscription_id;	/* Event subscription ID */
   char		device_uuid[45];	/* Device UUID URN */
+  const char	*outformat;		/* Output format */
 
 
  /*
@@ -147,7 +149,23 @@ main(int  argc,				/* I - Number of command-line arguments */
 
   for (i = 1; i < argc; i ++)
   {
-    if (argv[i][0] == '-' && argv[i][1] != '-')
+    if (argv[i][0] == '-' && argv[i][1] == '-')
+    {
+      if (!strcmp(argv[i], "--help"))
+      {
+        usage(0);
+      }
+      else if (!strcmp(argv[i], "--version"))
+      {
+        puts(CUPS_SVERSION);
+      }
+      else
+      {
+        fprintf(stderr, "ippproxy: Unknown option '%s'.\n", argv[i]);
+        usage(1);
+      }
+    }
+    else if (argv[i][0] == '-')
     {
       for (opt = argv[i] + 1; *opt; opt ++)
       {
@@ -168,6 +186,17 @@ main(int  argc,				/* I - Number of command-line arguments */
 	      }
 
 	      device_uri = argv[i];
+	      break;
+
+          case 'm' : /* -m mime/type */
+              i ++;
+              if (i >= argc)
+	      {
+	        fputs("ippproxy: Missing MIME media type after '-m' option.\n", stderr);
+	        usage(1);
+	      }
+
+	      outformat = argv[i];
 	      break;
 
 	  case 'p' : /* -p password */
@@ -203,8 +232,6 @@ main(int  argc,				/* I - Number of command-line arguments */
 	}
       }
     }
-    else if (!strcmp(argv[i], "--help"))
-      usage(0);
     else if (printer_uri)
     {
       fprintf(stderr, "ippproxy: Unexpected option '%s'.\n", argv[i]);
@@ -268,7 +295,7 @@ main(int  argc,				/* I - Number of command-line arguments */
     return (1);
   }
 
-  run_printer(http, printer_uri, resource, subscription_id, device_uri, device_uuid);
+  run_printer(http, printer_uri, resource, subscription_id, device_uri, device_uuid, outformat);
 
   deregister_printer(http, printer_uri, resource, subscription_id, device_uuid);
   httpClose(http);
@@ -1025,12 +1052,17 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
 
   doc_formats = ippFindAttribute(info->device_attrs, "document-format-supported", IPP_TAG_MIMETYPE);
 
-  if (ippContainsString(doc_formats, "image/urf"))
-    doc_format = "image/urf";
-  else if (ippContainsString(doc_formats, "image/pwg-raster"))
-    doc_format = "image/pwg-raster";
-  else
-    doc_format = "application/vnd.hp-pcl";
+  if (info->outformat)
+    doc_format = info->outformat;
+  else if (!ippContainsString(doc_formats, "application/pdf"))
+  {
+    if (ippContainsString(doc_formats, "image/urf"))
+      doc_format = "image/urf";
+    else if (ippContainsString(doc_formats, "image/pwg-raster"))
+      doc_format = "image/pwg-raster";
+    else if (ippContainsString(doc_formats, "application/vnd.hp-pcl"))
+      doc_format = "application/vnd.hp-pcl";
+  }
 
  /*
   * Fetch the job...
@@ -1105,7 +1137,8 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
     ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "document-number", doc_number);
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, info->device_uuid);
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
-    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format-accepted", NULL, doc_format);
+    if (doc_format)
+      ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format-accepted", NULL, doc_format);
 
     cupsSendRequest(info->http, request, info->resource, ippLength(request));
     doc_attrs = cupsGetResponse(info->http, info->resource);
@@ -1168,7 +1201,8 @@ run_printer(
     const char *resource,		/* I - Resource path */
     int        subscription_id,		/* I - Subscription ID */
     const char *device_uri,		/* I - Device URI, if any */
-    const char *device_uuid)		/* I - Device UUID */
+    const char *device_uuid,		/* I - Device UUID */
+    const char *outformat)		/* I - Output format */
 {
   ipp_t			*device_attrs,	/* Device attributes */
 			*request,	/* IPP request */
@@ -1202,6 +1236,7 @@ run_printer(
   info.device_uri   = device_uri;
   info.device_uuid  = device_uuid;
   info.device_attrs = device_attrs;
+  info.outformat    = outformat;
 
   jobs_thread = _cupsThreadCreate((_cups_thread_func_t)proxy_jobs, &info);
 
@@ -1579,6 +1614,26 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, doc_format);
       ippAddBoolean(request, IPP_TAG_OPERATION, "last-document", 1);
+
+      if (verbosity)
+      {
+	logf(pjob, "%s", ippOpString(ippGetOperation(request)));
+
+	for (attr = ippFirstAttribute(request); attr; attr = ippNextAttribute(request))
+	{
+	  const char *name = ippGetName(attr);	/* Attribute name */
+
+	  if (!name)
+	  {
+	    logf(pjob, "----");
+	    continue;
+	  }
+
+	  ippAttributeString(attr, doc_buffer, sizeof(doc_buffer));
+
+	  logf(pjob, "%s %s '%s'", name, ippTagString(ippGetValueTag(attr)), doc_buffer);
+	}
+      }
     }
 
     if (cupsSendRequest(http, request, resource, 0) == HTTP_STATUS_CONTINUE)
@@ -1799,11 +1854,13 @@ usage(int status)			/* O - Exit status */
   puts("Usage: ippproxy [options] printer-uri");
   puts("Options:");
   puts("  -d device-uri   Specify local printer device URI.");
+  puts("  -m mime/type    Specify the desired print format.");
   puts("  -p password     Password for authentication.");
   puts("                  (Also IPPPROXY_PASSWORD environment variable)");
   puts("  -u username     Username for authentication.");
   puts("  -v              Be verbose.");
   puts("  --help          Show this help.");
+  puts("  --version       Show program version.");
 
   exit(status);
 }

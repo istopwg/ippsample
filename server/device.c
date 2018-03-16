@@ -35,6 +35,7 @@ serverCreateDevice(
 
   device->uuid  = strdup(ippGetString(uuid, 0, NULL));
   device->state = IPP_PSTATE_STOPPED;
+  device->attrs = ippNew();
 
   serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverCreateDevice: Created device object for \"%s\".", device->uuid);
 
@@ -129,8 +130,7 @@ serverUpdateDeviceAttributesNoLock(
     serverCopyAttributes(dev_attrs, device->attrs, NULL, NULL, IPP_TAG_PRINTER, 0);
 
   ippDelete(printer->dev_attrs);
-  printer->dev_attrs = dev_attrs;
-
+  printer->dev_attrs   = dev_attrs;
   printer->config_time = time(NULL);
 }
 

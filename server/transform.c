@@ -111,7 +111,9 @@ serverTransformJob(
   if (format && asprintf(myenvp + myenvc, "OUTPUT_TYPE=%s", format) > 0)
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "materials-col-default", IPP_TAG_BEGIN_COLLECTION)) != NULL)
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "materials-col-default", IPP_TAG_BEGIN_COLLECTION)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "materials-col-default", IPP_TAG_BEGIN_COLLECTION);
+  if (attr)
   {
     ippAttributeString(attr, val, sizeof(val));
 
@@ -134,25 +136,37 @@ serverTransformJob(
       myenvc ++;
   }
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "platform-temperature-default", IPP_TAG_INTEGER)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PLATFORM_TEMPERATURE_DEFAULT=%d", ippGetInteger(attr, 0)))
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "platform-temperature-default", IPP_TAG_INTEGER)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "platform-temperature-default", IPP_TAG_INTEGER);
+  if (attr && asprintf(myenvp + myenvc, "PRINTER_PLATFORM_TEMPERATURE_DEFAULT=%d", ippGetInteger(attr, 0)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "print-base-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PRINT_BASE_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "print-base-default", IPP_TAG_KEYWORD)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "print-base-default", IPP_TAG_KEYWORD);
+  if (attr && asprintf(myenvp + myenvc, "PRINTER_PRINT_BASE_DEFAULT=%s", ippGetString(attr, 0, NULL)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "print-quality-default", IPP_TAG_ENUM)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PRINT_QUALITY_DEFAULT=%d", ippGetInteger(attr, 0)))
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "print-quality-default", IPP_TAG_ENUM)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "print-quality-default", IPP_TAG_ENUM);
+  if (attr && asprintf(myenvp + myenvc, "PRINTER_PRINT_QUALITY_DEFAULT=%d", ippGetInteger(attr, 0)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "print-color-mode-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PRINT_COLOR_MODE_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "print-color-mode-default", IPP_TAG_KEYWORD)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "print-color-mode-default", IPP_TAG_KEYWORD);
+  if (attr && asprintf(myenvp + myenvc, "PRINTER_PRINT_COLOR_MODE_DEFAULT=%s", ippGetString(attr, 0, NULL)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "print-supports-default", IPP_TAG_INTEGER)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PPRINT_SUPPORTS_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "print-supports-default", IPP_TAG_INTEGER)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "print-supports-default", IPP_TAG_INTEGER);
+  if (attr && asprintf(myenvp + myenvc, "PRINTER_PPRINT_SUPPORTS_DEFAULT=%s", ippGetString(attr, 0, NULL)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "sides-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_SIDES_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "sides-default", IPP_TAG_KEYWORD)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "sides-default", IPP_TAG_KEYWORD);
+  if (attr && asprintf(myenvp + myenvc, "PRINTER_SIDES_DEFAULT=%s", ippGetString(attr, 0, NULL)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "pwg-raster-document-resolution-supported", IPP_TAG_RESOLUTION)) == NULL)
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "pwg-raster-document-resolution-supported", IPP_TAG_RESOLUTION)) == NULL)
     attr = ippFindAttribute(job->printer->pinfo.attrs, "pwg-raster-document-resolution-supported", IPP_TAG_RESOLUTION);
   if (attr && ippAttributeString(attr, val, sizeof(val)) > 0 && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED=%s", val) > 0)
     myenvc ++;
@@ -162,8 +176,8 @@ serverTransformJob(
   if (attr && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_SHEET_BACK=%s", ippGetString(attr, 0, NULL)) > 0)
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->dev_attrs, "pwg-raster-document-type-supported", IPP_TAG_RESOLUTION)) == NULL)
-    attr = ippFindAttribute(job->printer->pinfo.attrs, "pwg-raster-document-type-supported", IPP_TAG_RESOLUTION);
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "pwg-raster-document-type-supported", IPP_TAG_KEYWORD)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "pwg-raster-document-type-supported", IPP_TAG_KEYWORD);
   if (attr && ippAttributeString(attr, val, sizeof(val)) > 0 && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_TYPE_SUPPORTED=%s", val) > 0)
     myenvc ++;
 
