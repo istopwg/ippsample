@@ -309,6 +309,13 @@ char orientation_enum[4][20] = {
   "ReverseLandscape"
 };
 
+char print_quality_enum[4][10] = {
+  "Default",
+  "Draft",
+  "Normal",
+  "High"
+};
+
 /*
  * 'lint_raster()' - Check an Apple/CUPS/PWG Raster file.
  */
@@ -397,7 +404,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   header.HWResolution[1] = be32toh(header.HWResolution[1]);
   fprintf(stderr, "DEBUG: Using cross-feed resolution of %u and feed resolution of %u\n", header.HWResolution[0], header.HWResolution[1]);
 
-  /* [TODO]: Not working properly */
+  /* [TODO]: This field is not zero in the test files but the spec requires it to be */
   for(int i=0; i<4; i++){
     header.ImagingBoundingBox[i] = be32toh(header.ImagingBoundingBox[i]);
     if(header.ImagingBoundingBox[i]!=0){
@@ -625,6 +632,72 @@ lint_raster(const char    *filename,	/* I - File to check */
   else
     fprintf(stderr, "DEBUG: Reserved[424-451] field is zero as expected\n");
 
+  header.cupsInteger[0] = be32toh(header.cupsInteger[0]);
+  if(header.cupsInteger[0]==0)
+    fprintf(stderr, "DEBUG: TotalPageCount is not known when the file is produced\n");
+  else if(header.cupsInteger[0]>0) 
+    fprintf(stderr, "DEBUG: TotalPageCount is %d\n", header.cupsInteger[0]);
+  else {
+    fprintf(stderr, "ERROR: TotalPageCount is incorrect %d\n", header.cupsInteger[0]);
+    return(1);
+  }
+
+  /* [TODO]: The value in the test pwg files is 0 whereas the spec requires it to be +-1 */
+  header.cupsInteger[1] = (int32_t)(header.cupsInteger[1]);
+  if(header.cupsInteger[1]==1 || header.cupsInteger[1]==-1)
+    fprintf(stderr, "DEBUG: CrossFeedTransform value is %d\n", header.cupsInteger[1]);
+  else {
+    fprintf(stderr, "ERROR: CrossFeedTransform is incorrect %d\n", header.cupsInteger[1]);
+    //return(1);
+  }
+
+  /* [TODO]: The value in the test pwg files is 0 whereas the spec requires it to be +-1 */
+  header.cupsInteger[2] = (int32_t)(header.cupsInteger[2]);
+  if(header.cupsInteger[2]==1 || header.cupsInteger[2]==-1)
+    fprintf(stderr, "DEBUG: FeedTransform value is %d\n", header.cupsInteger[2]);
+  else {
+    fprintf(stderr, "ERROR: FeedTransform is incorrect %d\n", header.cupsInteger[2]);
+    //return(1);
+  }
+
+  for(int i=0; i<4; i++)
+    header.cupsInteger[3+i] = be32toh(header.cupsInteger[3+i]);
+  fprintf(stderr, "DEBUG: ImageBoxLeft value is %d\n", header.cupsInteger[3]);
+  fprintf(stderr, "DEBUG: ImageBoxTop value is %d\n", header.cupsInteger[4]);
+  fprintf(stderr, "DEBUG: ImageBoxBottom value is %d\n", header.cupsInteger[5]);
+  fprintf(stderr, "DEBUG: ImageBoxRight value is %d\n", header.cupsInteger[6]);
+
+  header.cupsInteger[7] = be32toh(header.cupsInteger[7]);
+  if(header.cupsInteger[7] >=0 && header.cupsInteger[7] < (1 << 25))
+    fprintf(stderr, "DEBUG: AlternatePrimary value is %d\n", header.cupsInteger[7]);
+  else
+    fprintf(stderr, "DEBUG: AlternatePrimary value is incorrect %d\n", header.cupsInteger[7]);
+
+  header.cupsInteger[8] = be32toh(header.cupsInteger[8]);
+  if(header.cupsInteger[8] == 0)
+    fprintf(stderr, "DEBUG: PrintQuality value is %d(%s)\n", header.cupsInteger[8], print_quality_enum[header.cupsInteger[8]]);
+  else if(header.cupsInteger[8] >=3 && header.cupsInteger[8] < 6)
+    fprintf(stderr, "DEBUG: PrintQuality value is %d(%s)\n", header.cupsInteger[8], print_quality_enum[header.cupsInteger[8]-2]);
+  else
+    fprintf(stderr, "DEBUG: PrintQuality value is incorrect %d\n", header.cupsInteger[8]);
+
+  for(int i=9; i<14; i++)
+    if(header.cupsInteger[i]!=0){
+      fprintf(stderr, "ERROR: Non-zero values present in Reserved[488-507] area\n");
+      return(1);
+    }
+  fprintf(stderr, "DEBUG: Reserved[488-507] field is zero as expected\n");
+
+  for(int i=0; i<2; i++)
+    header.cupsInteger[14+i] = be32toh(header.cupsInteger[14+i]);
+  fprintf(stderr, "DEBUG: VendorIdentifier value is %d\n", header.cupsInteger[14]);
+  fprintf(stderr, "DEBUG: VendorLength value is %d\n", header.cupsInteger[15]);
+
+  if(header.cupsInteger[14]==0 || header.cupsInteger[15]==0)
+    fprintf(stderr, "DEBUG: No vendor information present\n");
+  else
+    fprintf(stderr, "DEBUG: VendorData is %s\n", header.cupsReal);
+
   for(int i=0; i<64; i++){
     if(header.cupsMarkerType[i]!=0){
       fprintf(stderr, "ERROR: Non-zero values present in Reserved[1604-1667] area\n");
@@ -639,6 +712,38 @@ lint_raster(const char    *filename,	/* I - File to check */
     fprintf(stderr, "DEBUG: RenderingIntent is %s\n", header.cupsRenderingIntent);
   
   fprintf(stderr, "DEBUG: PageSizeName is %s\n", header.cupsPageSizeName);
+
+  fprintf(stderr, "DEBUG: Started checking bitmap for ColorSpace %d\n", header.cupsColorSpace);
+  int height_count = 0;
+  int width_count = 0;
+  uint8_t *buffer;
+  uint8_t *buffer2;
+  while(1){
+    width_count = 0;
+    buffer = malloc(1);
+    fread(buffer, 1, 1, file);
+    height_count += *buffer + 1;
+    if(height_count > header.cupsHeight) { // [TODO] height_count is exceeding Height
+      fprintf(stderr, "DEBUG: Old height_count: %d New height_count: %d Height: %d\n", height_count, height_count - *buffer - 1, header.cupsHeight);
+      break;
+    }
+    while(width_count < header.cupsWidth){
+      fread(buffer, 1, 1, file);
+      int unit_size = header.cupsBitsPerPixel == 1 ? (header.cupsBitsPerPixel / 8) + 1 : (header.cupsBitsPerPixel / 8);
+      int size = *buffer > 127 ? 257-*buffer : *buffer + 1;
+      if (width_count+size > header.cupsWidth) // [TODO] width_count is exceeding Width
+        size = header.cupsWidth - width_count;
+      buffer2 = malloc(unit_size * size);
+      fread(buffer2, unit_size, size, file);
+      width_count += size;
+    }
+    if(width_count != header.cupsWidth){
+      printf("%d %d\n", width_count, header.cupsWidth);
+      fprintf(stderr, "ERROR: Bitmap width didn't match specified Width value in the header\n");
+      return(1);
+    }
+  }
+  return(1);
 
   (void)num_options;
   (void)options;
