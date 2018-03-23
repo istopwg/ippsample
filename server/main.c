@@ -40,8 +40,13 @@ main(int  argc,				/* I - Number of command-line args */
   */
 
   memset(&pinfo, 0, sizeof(pinfo));
-  pinfo.print_group = SERVER_GROUP_NONE;
-  pinfo.proxy_group = SERVER_GROUP_NONE;
+
+  pinfo.document_formats = "application/pdf,image/jpeg,image/pwg-raster";
+  pinfo.location         = "";
+  pinfo.make             = "Test";
+  pinfo.model            = "Printer";
+  pinfo.print_group      = SERVER_GROUP_NONE;
+  pinfo.proxy_group      = SERVER_GROUP_NONE;
 
   for (i = 1; i < argc; i ++)
   {
@@ -95,10 +100,8 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-              if (pinfo.make)
-                free(pinfo.make);
 
-	      pinfo.make = strdup(argv[i]);
+	      pinfo.make = argv[i];
 	      break;
 
           case 'P' : /* -P (PIN printing mode) */
@@ -119,9 +122,6 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-              if (pinfo.command)
-                free(pinfo.command);
-
 	      pinfo.command = argv[i];
 	      break;
 
@@ -138,10 +138,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-              if (pinfo.document_formats)
-                free(pinfo.document_formats);
-
-	      pinfo.document_formats = strdup(argv[i]);
+	      pinfo.document_formats = argv[i];
 	      break;
 
           case 'h' : /* -h (show help) */
@@ -152,10 +149,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-              if (pinfo.icon)
-                free(pinfo.icon);
-
-	      pinfo.icon = strdup(argv[i]);
+	      pinfo.icon = argv[i];
 	      break;
 
 	  case 'k' : /* -k (keep files) */
@@ -167,10 +161,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-              if (pinfo.location)
-                free(pinfo.location);
-
-	      pinfo.location = strdup(argv[i]);
+	      pinfo.location = argv[i];
 	      break;
 
 	  case 'm' : /* -m model */
@@ -178,10 +169,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-              if (pinfo.model)
-                free(pinfo.model);
-
-	      pinfo.model = strdup(argv[i]);
+	      pinfo.model = argv[i];
 	      break;
 
 	  case 'n' : /* -n hostname */
@@ -246,22 +234,6 @@ main(int  argc,				/* I - Number of command-line args */
     usage(1);
   }
 
-  if (!confdir)
-  {
-   /*
-    * Apply defaults for some of the other options...
-    */
-
-    if (!pinfo.location)
-      pinfo.location = strdup("");
-    if (!pinfo.make)
-      pinfo.make = strdup("Test");
-    if (!pinfo.model)
-      pinfo.model = strdup("Printer");
-    if (!pinfo.document_formats)
-      pinfo.document_formats = strdup("application/pdf,image/jpeg,image/pwg-raster");
-  }
-
   if (!name && !confdir)
     usage(1);
   else if (confdir)
@@ -284,7 +256,7 @@ main(int  argc,				/* I - Number of command-line args */
     if (!serverFinalizeConfiguration())
       return (1);
 
-    if ((printer = serverCreatePrinter("/ipp/print", name, &pinfo)) == NULL)
+    if ((printer = serverCreatePrinter("/ipp/print", name, &pinfo, 1)) == NULL)
       return (1);
 
     Printers = cupsArrayNew(NULL, NULL);

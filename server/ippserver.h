@@ -581,7 +581,7 @@ extern server_device_t	*serverCreateDevice(server_client_t *client);
 extern server_job_t	*serverCreateJob(server_client_t *client);
 extern void		serverCreateJobFilename(server_printer_t *printer, server_job_t *job, const char *format, char *fname, size_t fnamesize);
 extern int		serverCreateListeners(const char *host, int port);
-extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, server_pinfo_t *pinfo);
+extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, server_pinfo_t *pinfo, int dupe_pinfo);
 extern server_subscription_t *serverCreateSubcription(server_printer_t *printer, server_job_t *job, int interval, int lease, const char *username, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
 extern void		serverDeleteClient(server_client_t *client);
 extern void		serverDeleteDevice(server_device_t *device);

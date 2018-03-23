@@ -77,7 +77,8 @@ server_printer_t *			/* O - Printer */
 serverCreatePrinter(
     const char     *resource,		/* I - Resource path for URIs */
     const char     *name,		/* I - printer-name */
-    server_pinfo_t *pinfo)		/* I - Printer information */
+    server_pinfo_t *pinfo,		/* I - Printer information */
+    int            dupe_pinfo)		/* I - Duplicate printer info strings? */
 {
   int			i;		/* Looping var */
   server_printer_t	*printer;	/* Printer */
@@ -425,6 +426,18 @@ serverCreatePrinter(
   printer->next_job_id    = 1;
   printer->next_sub_id    = 1;
   printer->pinfo          = *pinfo;
+
+  if (dupe_pinfo)
+  {
+    printer->pinfo.icon             = pinfo->icon ? strdup(pinfo->icon) : NULL;
+    printer->pinfo.location         = pinfo->location ? strdup(pinfo->location) : NULL;
+    printer->pinfo.make             = pinfo->make ? strdup(pinfo->make) : NULL;
+    printer->pinfo.model            = pinfo->model ? strdup(pinfo->model) : NULL;
+    printer->pinfo.document_formats = pinfo->document_formats ? strdup(pinfo->document_formats) : NULL;
+    printer->pinfo.command          = pinfo->command ? strdup(pinfo->command) : NULL;
+    printer->pinfo.device_uri       = pinfo->device_uri ? strdup(pinfo->device_uri) : NULL;
+    printer->pinfo.output_format    = pinfo->output_format ? strdup(pinfo->output_format) : NULL;
+  }
 
   uris = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
   for (lis = cupsArrayFirst(Listeners); lis; lis = cupsArrayNext(Listeners))

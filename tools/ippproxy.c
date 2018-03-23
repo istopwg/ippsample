@@ -140,7 +140,7 @@ main(int  argc,				/* I - Number of command-line arguments */
   char		resource[1024];		/* Resource path */
   int		subscription_id;	/* Event subscription ID */
   char		device_uuid[45];	/* Device UUID URN */
-  const char	*outformat;		/* Output format */
+  const char	*outformat = NULL;	/* Output format */
 
 
  /*

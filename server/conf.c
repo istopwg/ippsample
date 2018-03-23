@@ -405,7 +405,7 @@ serverLoadConfiguration(
 	{
           snprintf(resource, sizeof(resource), "/ipp/print/%s", dent->filename);
 
-	  if ((printer = serverCreatePrinter(resource, dent->filename, &pinfo)) == NULL)
+	  if ((printer = serverCreatePrinter(resource, dent->filename, &pinfo, 0)) == NULL)
             continue;
 
 	  if (!Printers)
@@ -455,7 +455,7 @@ serverLoadConfiguration(
 	{
           snprintf(resource, sizeof(resource), "/ipp/print3d/%s", dent->filename);
 
-	  if ((printer = serverCreatePrinter(resource, dent->filename, &pinfo)) == NULL)
+	  if ((printer = serverCreatePrinter(resource, dent->filename, &pinfo, 0)) == NULL)
           continue;
 
 	  if (!Printers)
