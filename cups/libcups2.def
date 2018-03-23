@@ -13,6 +13,8 @@ _cupsConnect
 _cupsCreateDest
 _cupsEncodeOption
 _cupsEncodingName
+_cupsFileCheck
+_cupsFileCheckFilter
 _cupsGet1284Values
 _cupsGetDestResource
 _cupsGetDests
@@ -21,6 +23,7 @@ _cupsGlobalLock
 _cupsGlobalUnlock
 _cupsGlobals
 _cupsLangPrintError
+_cupsLangPrintFilter
 _cupsLangPrintf
 _cupsLangPuts
 _cupsLangString
@@ -138,6 +141,7 @@ cupsDoAuthentication
 cupsDoFileRequest
 cupsDoIORequest
 cupsDoRequest
+cupsEncodeOption
 cupsEncodeOptions
 cupsEncodeOptions2
 cupsEncryption
@@ -263,6 +267,7 @@ cupsUTF8ToUTF32
 cupsUser
 cupsUserAgent
 cupsWriteRequestData
+hex_dump
 httpAcceptConnection
 httpAddCredential
 httpAddrAny
@@ -469,9 +474,22 @@ ippValidateAttributes
 ippWrite
 ippWriteFile
 ippWriteIO
+main
+main
+main
+main
+main
+main
+main
+main
+main
+print_attributes
 pwgFormatSizeName
 pwgInitSize
 pwgMediaForLegacy
 pwgMediaForPPD
 pwgMediaForPWG
 pwgMediaForSize
+read_cb
+token_cb
+write_cb
