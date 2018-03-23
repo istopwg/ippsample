@@ -3713,7 +3713,6 @@ ipp_update_output_device_attributes(
 
     if ((dotptr = strrchr(attrname, '.')) != NULL && isdigit(dotptr[1] & 255))
     {
-#if 0 /* TODO: Support sparse updates (Issue #82) */
      /*
       * Sparse representation: name.NNN or name.NNN-NNN
       */
@@ -3732,11 +3731,200 @@ ipp_update_output_device_attributes(
       if ((tempptr = strrchr(temp, '.')) != NULL)
         *tempptr = '\0';
 
-      if ((dev_attr = ippFindAttribute(device->attrs, temp, IPP_TAG_ZERO)) != NULL)
+      if (low >= 1 && low <= high && (dev_attr = ippFindAttribute(device->attrs, temp, IPP_TAG_ZERO)) != NULL)
       {
+        int	i,			/* Looping var */
+        	count = ippGetCount(attr),
+        				/* New number of values */
+        	dev_count = ippGetCount(dev_attr);
+        				/* Current number of values */
+
+	if (ippGetValueTag(attr) != ippGetValueTag(dev_attr) && ippGetValueTag(attr) != IPP_TAG_DELETEATTR)
+	{
+	  serverRespondUnsupported(client, attr);
+	  continue;
+	}
+        else if (ippGetValueTag(attr) != IPP_TAG_DELETEATTR)
+        {
+          if (low < dev_count && count < (high - low + 1))
+	  {
+	   /*
+	    * Deleting one or more values...
+	    */
+
+	    ippDeleteValues(device->attrs, &dev_attr, low - 1, high - low + 1 - count);
+	  }
+	  else if (high < dev_count && count > (high - low + 1))
+	  {
+	   /*
+	    * Insert one or more values...
+	    */
+
+	    int offset = count - high + low - 1;
+					  /* Number of values to insert */
+
+	    switch (ippGetValueTag(dev_attr))
+	    {
+	      default :
+		  break;
+
+	      case IPP_TAG_BOOLEAN :
+	          for (i = dev_count; i >= high; i --)
+	            ippSetBoolean(device->attrs, &dev_attr, i + offset - 1, ippGetBoolean(dev_attr, i - 1));
+		  break;
+
+	      case IPP_TAG_INTEGER :
+	      case IPP_TAG_ENUM :
+	          for (i = dev_count; i >= high; i --)
+	            ippSetInteger(device->attrs, &dev_attr, i + offset - 1, ippGetInteger(dev_attr, i - 1));
+		  break;
+
+	      case IPP_TAG_STRING :
+	          for (i = dev_count; i >= high; i --)
+	          {
+	            int datalen;
+	            void *data = ippGetOctetString(dev_attr, i - 1, &datalen);
+
+	            ippSetOctetString(device->attrs, &dev_attr, i + offset - 1, data, datalen);
+		  }
+		  break;
+
+	      case IPP_TAG_DATE :
+	          for (i = dev_count; i >= high; i --)
+	            ippSetDate(device->attrs, &dev_attr, i + offset - 1, ippGetDate(dev_attr, i - 1));
+		  break;
+
+	      case IPP_TAG_RESOLUTION :
+	          for (i = dev_count; i >= high; i --)
+	          {
+	            int xres, yres;	/* Resolution */
+	            ipp_res_t units;	/* Units */
+
+	            xres = ippGetResolution(dev_attr, i - 1, &yres, &units);
+	            ippSetResolution(device->attrs, &dev_attr, i + offset - 1, units, xres, yres);
+		  }
+		  break;
+
+	      case IPP_TAG_RANGE :
+	          for (i = dev_count; i >= high; i --)
+	          {
+	            int upper, lower = ippGetRange(dev_attr, i - 1, &upper);
+					/* Range */
+
+	            ippSetRange(device->attrs, &dev_attr, i + offset - 1, lower, upper);
+		  }
+		  break;
+
+	      case IPP_TAG_BEGIN_COLLECTION :
+	          for (i = dev_count; i >= high; i --)
+	            ippSetCollection(device->attrs, &dev_attr, i + offset - 1, ippGetCollection(dev_attr, i - 1));
+		  break;
+
+	      case IPP_TAG_TEXTLANG :
+	      case IPP_TAG_NAMELANG :
+	      case IPP_TAG_TEXT :
+	      case IPP_TAG_NAME :
+	      case IPP_TAG_KEYWORD :
+	      case IPP_TAG_URI :
+	      case IPP_TAG_URISCHEME :
+	      case IPP_TAG_CHARSET :
+	      case IPP_TAG_LANGUAGE :
+	      case IPP_TAG_MIMETYPE :
+	          for (i = dev_count; i >= high; i --)
+	            ippSetString(device->attrs, &dev_attr, i + offset - 1, ippGetString(dev_attr, i - 1, NULL));
+		  break;
+	    }
+	  }
+	}
+
+	switch (ippGetValueTag(attr))
+	{
+          default : /* Don't allow updates for unknown values */
+	      serverRespondUnsupported(client, attr);
+              break;
+
+	  case IPP_TAG_DELETEATTR :
+	     /*
+	      * Delete values from attribute...
+	      */
+
+	      if (low < count)
+	      {
+		if (high > count)
+		  high = count;
+
+		ippDeleteValues(device->attrs, &dev_attr, low - 1, high - low + 1);
+	      }
+	      break;
+
+	  case IPP_TAG_INTEGER :
+	  case IPP_TAG_ENUM :
+	      for (i = high; i >= low; i --)
+	        ippSetInteger(device->attrs, &dev_attr, i, ippGetInteger(attr, i - low));
+	      break;
+
+	  case IPP_TAG_BOOLEAN :
+	      for (i = high; i >= low; i --)
+	        ippSetBoolean(device->attrs, &dev_attr, i, ippGetBoolean(attr, i - low));
+	      break;
+
+          case IPP_TAG_STRING :
+	      for (i = high; i >= low; i --)
+	      {
+	        int datalen;
+	        void *data = ippGetOctetString(attr, i - low, &datalen);
+
+	        ippSetOctetString(device->attrs, &dev_attr, i, data, datalen);
+	      }
+              break;
+
+          case IPP_TAG_DATE :
+	      for (i = high; i >= low; i --)
+	        ippSetDate(device->attrs, &dev_attr, i, ippGetDate(attr, i - low));
+              break;
+
+          case IPP_TAG_RESOLUTION :
+	      for (i = high; i >= low; i --)
+	      {
+	        int xres, yres;		/* Resolution */
+	        ipp_res_t units;	/* Units */
+
+                xres = ippGetResolution(attr, i - low, &yres, &units);
+	        ippSetResolution(device->attrs, &dev_attr, i, units, xres, yres);
+	      }
+              break;
+
+          case IPP_TAG_RANGE :
+	      for (i = high; i >= low; i --)
+	      {
+	        int upper, lower = ippGetRange(attr, i - low, &upper);
+					/* Range */
+
+	        ippSetRange(device->attrs, &dev_attr, i, lower, upper);
+	      }
+              break;
+
+          case IPP_TAG_BEGIN_COLLECTION :
+	      for (i = high; i >= low; i --)
+	        ippSetCollection(device->attrs, &dev_attr, i, ippGetCollection(attr, i - low));
+              break;
+
+          case IPP_TAG_TEXTLANG :
+          case IPP_TAG_NAMELANG :
+          case IPP_TAG_TEXT :
+          case IPP_TAG_NAME :
+          case IPP_TAG_KEYWORD :
+          case IPP_TAG_URI :
+          case IPP_TAG_URISCHEME :
+          case IPP_TAG_CHARSET :
+          case IPP_TAG_LANGUAGE :
+          case IPP_TAG_MIMETYPE :
+	      for (i = high; i >= low; i --)
+	        ippSetString(device->attrs, &dev_attr, i, ippGetString(attr, i - low, NULL));
+              break;
+        }
       }
       else
-#endif /* 0 */
         serverRespondUnsupported(client, attr);
     }
     else
