@@ -1962,6 +1962,10 @@ static void
 ipp_get_output_device_attributes(
     server_client_t *client)		/* I - Client */
 {
+  cups_array_t		*ra;		/* Requested attributes array */
+  server_device_t	*device;	/* Device */
+
+
   if (Authentication && !client->username[0])
   {
    /*
@@ -1972,8 +1976,22 @@ ipp_get_output_device_attributes(
     return;
   }
 
-  // TODO: Implement Get-Output-Device-Attributes operation (Issue #84)
-  serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Need to implement this.");
+  if ((device = serverFindDevice(client)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Output device not found.");
+    return;
+  }
+
+  ra = ippCreateRequestedArray(client->request);
+
+  _cupsRWLockRead(&device->rwlock);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+  serverCopyAttributes(client->response, device->attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
+
+  _cupsRWUnlock(&device->rwlock);
+
+  cupsArrayDelete(ra);
 }
 
 
@@ -3628,7 +3646,7 @@ ipp_update_output_device_attributes(
   server_device_t	*device;	/* Device */
   ipp_attribute_t	*attr,		/* Current attribute */
 			*dev_attr;	/* Device attribute */
-  server_event_t		events = SERVER_EVENT_NONE;
+  server_event_t	events = SERVER_EVENT_NONE;
 					/* Config/state changed? */
 
 
