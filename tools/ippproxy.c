@@ -101,6 +101,7 @@ static int	verbosity = 0;
  * Local functions...
  */
 
+static void	acknowledge_identify_printer(http_t *http, const char *printer_uri, const char *resource, const char *device_uuid);
 static int	attrs_are_equal(ipp_attribute_t *a, ipp_attribute_t *b);
 static int	compare_jobs(proxy_job_t *a, proxy_job_t *b);
 static ipp_t	*create_media_col(const char *media, const char *source, const char *type, int width, int length, int margins);
@@ -301,6 +302,43 @@ main(int  argc,				/* I - Number of command-line arguments */
   httpClose(http);
 
   return (0);
+}
+
+
+/*
+ * 'acknowledge_identify_printer()' - Acknowledge an Identify-Printer request.
+ */
+
+static void
+acknowledge_identify_printer(
+    http_t     *http,			/* I - HTTP connection */
+    const char *printer_uri,		/* I - Printer URI */
+    const char *resource,		/* I - Resource path */
+    const char *device_uuid)		/* I - Device UUID */
+{
+  ipp_t		*request,		/* IPP request */
+		*response;		/* IPP response */
+  ipp_attribute_t *actions,		/* "identify-actions" attribute */
+		*message;		/* "message" attribute */
+
+
+  request = ippNewRequest(IPP_OP_ACKNOWLEDGE_IDENTIFY_PRINTER);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, printer_uri);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "device-uuid", NULL, device_uuid);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+
+  response = cupsDoRequest(http, request, resource);
+
+  actions = ippFindAttribute(response, "identify-actions", IPP_TAG_KEYWORD);
+  message = ippFindAttribute(response, "message", IPP_TAG_TEXT);
+
+  if (ippContainsString(actions, "display"))
+    printf("IDENTIFY-PRINTER: display (%s)\n", message ? ippGetString(message, 0, NULL) : "No message supplied");
+
+  if (!actions || ippContainsString(actions, "sound"))
+    puts("IDENTIFY-PRINTER: sound\007");
+
+  ippDelete(response);
 }
 
 
@@ -1300,6 +1338,8 @@ run_printer(
 	  if (new_seq >= seq_number)
 	    seq_number = new_seq + 1;
 	}
+	else if (!strcmp(name, "printer-state-reasons") && ippContainsString(attr, "identify-printer-requested"))
+	  acknowledge_identify_printer(http, printer_uri, resource, device_uuid);
 
         attr = ippNextAttribute(response);
       }

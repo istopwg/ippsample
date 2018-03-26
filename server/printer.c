@@ -1253,6 +1253,9 @@ serverDeletePrinter(server_printer_t *printer)	/* I - Printer */
   cupsArrayDelete(printer->jobs);
   cupsArrayDelete(printer->subscriptions);
 
+  if (printer->identify_message)
+    free(printer->identify_message);
+
   _cupsRWDeinit(&printer->rwlock);
 
   free(printer);

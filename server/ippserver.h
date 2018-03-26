@@ -203,6 +203,14 @@ VALUE({					/* Strings for bits */
   "printer-stopped"
 });
 
+enum server_identify_e			/* identify-actions bit values */
+{
+  SERVER_IDENTIFY_NONE = 0x00,		/* none */
+  SERVER_IDENTIFY_DISPLAY = 0x01,	/* display */
+  SERVER_IDENTIFY_SOUND = 0x02		/* sound */
+};
+typedef unsigned int server_identify_t;	/* Bitfield for identify-actions */
+
 enum server_jreason_e			/* job-state-reasons bit values */
 {
   SERVER_JREASON_NONE = 0x00000000,	/* none */
@@ -290,13 +298,16 @@ enum server_preason_e			/* printer-state-reasons bit values */
   SERVER_PREASON_MEDIA_NEEDED = 0x0400,	/* media-needed */
   SERVER_PREASON_MOVING_TO_PAUSED = 0x0800,
 					/* moving-to-paused */
-  SERVER_PREASON_PAUSED = 0x1000,		/* paused */
-  SERVER_PREASON_SPOOL_AREA_FULL = 0x2000,/* spool-area-full */
+  SERVER_PREASON_PAUSED = 0x1000,	/* paused */
+  SERVER_PREASON_SPOOL_AREA_FULL = 0x2000,
+					/* spool-area-full */
   SERVER_PREASON_TONER_EMPTY = 0x4000,	/* toner-empty */
-  SERVER_PREASON_TONER_LOW = 0x8000	/* toner-low */
+  SERVER_PREASON_TONER_LOW = 0x8000,	/* toner-low */
+  SERVER_PREASON_IDENTIFY_PRINTER_REQUESTED = 0x10000
+					/* identify-printer-requested */
 };
 typedef unsigned int server_preason_t;	/* Bitfield for printer-state-reasons */
-VAR const char * const server_preasons[16]
+VAR const char * const server_preasons[17]
 VALUE({					/* Strings for bits */
   /* "none" is implied for no bits set */
   "other",
@@ -314,7 +325,8 @@ VALUE({					/* Strings for bits */
   "paused",
   "spool-area-full",
   "toner-empty",
-  "toner-low"
+  "toner-low",
+  "identify-printer-requested"
 });
 
 typedef enum server_transform_e		/* Transform modes for server */
@@ -427,6 +439,10 @@ typedef struct server_printer_s		/**** Printer data ****/
   int			next_job_id;	/* Next job-id value */
   cups_array_t		*subscriptions;	/* Subscriptions */
   int			next_sub_id;	/* Next notify-subscription-id value */
+  server_identify_t	identify_actions;
+					/* identify-actions value, if any */
+  char			*identify_message;
+					/* Identify-Printer message value, if any */
 } server_printer_t;
 
 struct server_job_s			/**** Job data ****/

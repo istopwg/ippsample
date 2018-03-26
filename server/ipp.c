@@ -470,8 +470,41 @@ ipp_acknowledge_identify_printer(
     }
   }
 
-  // TODO: Implement Acknowledge-Identify-Printer operation (Issue #85)
-  serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Need to implement this.");
+  _cupsRWLockWrite(&client->printer->rwlock);
+
+  if (client->printer->identify_actions)
+  {
+    static const char * const identify_actions[] =
+    {
+      "display",
+      "sound"
+    };
+
+    serverRespondIPP(client, IPP_STATUS_OK, NULL);
+
+    if (client->printer->identify_actions == SERVER_IDENTIFY_DISPLAY)
+      ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "identify-actions", NULL, "display");
+    else if (client->printer->identify_actions == SERVER_IDENTIFY_SOUND)
+      ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "identify-actions", NULL, "sound");
+    else
+      ippAddStrings(client->response, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "identify-actions", 2, NULL, identify_actions);
+    client->printer->identify_actions = SERVER_IDENTIFY_NONE;
+
+    if (client->printer->identify_message)
+    {
+      ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_TEXT, "message", NULL, client->printer->identify_message);
+      free(client->printer->identify_message);
+      client->printer->identify_message = NULL;
+    }
+
+    client->printer->state_reasons &= (unsigned)~SERVER_PREASON_IDENTIFY_PRINTER_REQUESTED;
+
+    serverAddEvent(client->printer, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Identify-Printer request received.");
+  }
+  else
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "No pending Identify-Printer request.");
+
+  _cupsRWUnlock(&client->printer->rwlock);
 }
 
 
@@ -2255,14 +2288,47 @@ ipp_identify_printer(
   actions = ippFindAttribute(client->request, "identify-actions", IPP_TAG_KEYWORD);
   message = ippFindAttribute(client->request, "message", IPP_TAG_TEXT);
 
-  if (!actions || ippContainsString(actions, "sound"))
+  if (client->printer->pinfo.proxy_group == SERVER_GROUP_NONE)
   {
-    putchar(0x07);
-    fflush(stdout);
-  }
+   /*
+    * Send a notification to the console...
+    */
 
-  if (ippContainsString(actions, "display"))
-    printf("IDENTIFY from %s: %s\n", client->hostname, message ? ippGetString(message, 0, NULL) : "No message supplied");
+    if (ippContainsString(actions, "display"))
+      printf("IDENTIFY-PRINTER: display (%s)\n", message ? ippGetString(message, 0, NULL) : "No message supplied");
+
+    if (!actions || ippContainsString(actions, "sound"))
+      puts("IDENTIFY-PRINTER: sound\007");
+  }
+  else
+  {
+   /*
+    * Save this notification in the printer for the proxy to acknowledge...
+    */
+
+    _cupsRWLockWrite(&client->printer->rwlock);
+
+    client->printer->identify_actions = SERVER_IDENTIFY_NONE;
+    if (ippContainsString(actions, "display"))
+      client->printer->identify_actions |= SERVER_IDENTIFY_DISPLAY;
+    if (!actions || ippContainsString(actions, "sound"))
+      client->printer->identify_actions |= SERVER_IDENTIFY_SOUND;
+
+    if (client->printer->identify_message)
+    {
+      free(client->printer->identify_message);
+      client->printer->identify_message = NULL;
+    }
+
+    if (message)
+      client->printer->identify_message = strdup(ippGetString(message, 0, NULL));
+
+    client->printer->state_reasons |= SERVER_PREASON_IDENTIFY_PRINTER_REQUESTED;
+
+    _cupsRWUnlock(&client->printer->rwlock);
+
+    serverAddEvent(client->printer, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Identify-Printer request received.");
+  }
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
