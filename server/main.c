@@ -40,13 +40,8 @@ main(int  argc,				/* I - Number of command-line args */
   */
 
   memset(&pinfo, 0, sizeof(pinfo));
-
-  pinfo.document_formats = "application/pdf,image/jpeg,image/pwg-raster";
-  pinfo.location         = "";
-  pinfo.make             = "Test";
-  pinfo.model            = "Printer";
-  pinfo.print_group      = SERVER_GROUP_NONE;
-  pinfo.proxy_group      = SERVER_GROUP_NONE;
+  pinfo.print_group = SERVER_GROUP_NONE;
+  pinfo.proxy_group = SERVER_GROUP_NONE;
 
   for (i = 1; i < argc; i ++)
   {
@@ -252,6 +247,15 @@ main(int  argc,				/* I - Number of command-line args */
     */
 
     serverLog(SERVER_LOGLEVEL_INFO, "Using default configuration with a single printer.");
+
+    if (!pinfo.document_formats)
+      pinfo.document_formats = "application/pdf,image/jpeg,image/pwg-raster";
+    if (!pinfo.location)
+      pinfo.location = "";
+    if (!pinfo.make)
+      pinfo.make = "Test";
+    if (!pinfo.model)
+      pinfo.model = "Printer";
 
     if (!serverFinalizeConfiguration())
       return (1);
