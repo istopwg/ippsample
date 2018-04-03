@@ -101,6 +101,8 @@ extern char **environ;
 /* Default duration is 1 day */
 #  define SERVER_NOTIFY_LEASE_DURATION_DEFAULT		86400
 
+/* ippget event lifetime is 5 minutes */
+#  define SERVER_IPPGET_EVENT_LIFE			300
 
 /* URL schemes and DNS-SD types for IPP and web resources... */
 #  define SERVER_IPP_SCHEME "ipp"
@@ -336,6 +338,14 @@ typedef enum server_transform_e		/* Transform modes for server */
   SERVER_TRANSFORM_TO_FILE		/* Send output to file */
 } server_transform_t;
 
+typedef enum server_type_e		/* Service types */
+{
+  SERVER_TYPE_PRINT,			/* 2D print service */
+  SERVER_TYPE_PRINT3D			/* 3D print service */
+  /* SERVER_TYPE_FAXOUT - future */
+  /* SERVER_TYPE_SCAN - future */
+} server_type_t;
+
 
 /*
  * Base types...
@@ -409,6 +419,8 @@ typedef struct server_pinfo_s		/**** Printer information ****/
 
 typedef struct server_printer_s		/**** Printer data ****/
 {
+  int			id;		/* Printer ID */
+  server_type_t		type;		/* Type of printer/service */
   _cups_rwlock_t	rwlock;		/* Printer lock */
   server_srv_t		ipp_ref,	/* Bonjour IPP service */
 #ifdef HAVE_SSL
@@ -547,11 +559,17 @@ VAR cups_array_t	*SubscriptionPrivacyArray VALUE(NULL);
 
 VAR ipp_t		*PrivacyAttributes VALUE(NULL);
 
+VAR ipp_t		*SystemAttributes VALUE(NULL);
+VAR time_t		SystemStartTime,
+			SystemConfigChangeTime,
+			SystemStateChangeTime;
+VAR int			SystemConfigChanges VALUE(0);
+
 VAR char		*BinDir		VALUE(NULL);
 VAR char		*ConfigDirectory VALUE(NULL);
 VAR char		*DataDirectory	VALUE(NULL);
 VAR int			DefaultPort	VALUE(0);
-VAR char		*DefaultPrinter	VALUE(NULL);
+VAR server_printer_t	*DefaultPrinter	VALUE(NULL);
 VAR http_encryption_t	Encryption	VALUE(HTTP_ENCRYPTION_IF_REQUESTED);
 VAR int			KeepFiles	VALUE(0);
 #ifdef HAVE_SSL
@@ -561,8 +579,10 @@ VAR cups_array_t	*Listeners	VALUE(NULL);
 VAR char		*LogFile	VALUE(NULL);
 VAR server_loglevel_t	LogLevel	VALUE(SERVER_LOGLEVEL_ERROR);
 VAR int			MaxJobs		VALUE(100),
-                        MaxCompletedJobs VALUE(100);
+                        MaxCompletedJobs VALUE(100),
+                        NextPrinterId	VALUE(1);
 VAR cups_array_t	*Printers	VALUE(NULL);
+VAR _cups_rwlock_t	PrintersRWLock	VALUE(_CUPS_RWLOCK_INITIALIZER);
 VAR int			RelaxedConformance VALUE(0);
 VAR char		*ServerName	VALUE(NULL);
 VAR char		*SpoolDirectory	VALUE(NULL);

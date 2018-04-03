@@ -20,7 +20,7 @@
  * Local globals...
  */
 
-static _cups_mutex_t	printer_mutex = _CUPS_MUTEX_INITIALIZER;
+static char		*default_printer = NULL;
 
 
 /*
@@ -34,6 +34,7 @@ static int		attr_cb(_ipp_file_t *f, server_pinfo_t *pinfo, const char *attr);
 static int		compare_lang(server_lang_t *a, server_lang_t *b);
 static int		compare_printers(server_printer_t *a, server_printer_t *b);
 static server_lang_t	*copy_lang(server_lang_t *a);
+static void		create_system_attributes(void);
 #ifdef HAVE_AVAHI
 static void		dnssd_client_cb(AvahiClient *c, AvahiClientState state, void *userdata);
 #endif /* HAVE_AVAHI */
@@ -55,12 +56,12 @@ serverCleanAllJobs(void)
 
   serverLog(SERVER_LOGLEVEL_DEBUG, "Cleaning old jobs.");
 
-  _cupsMutexLock(&printer_mutex);
+  _cupsRWLockRead(&PrintersRWLock);
 
   for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
     serverCleanJobs(printer);
 
-  _cupsMutexUnlock(&printer_mutex);
+  _cupsRWUnlock(&PrintersRWLock);
 }
 
 
@@ -230,6 +231,8 @@ serverFinalizeConfiguration(void)
   add_job_privacy();
   add_subscription_privacy();
 
+  create_system_attributes();
+
  /*
   * Initialize Bonjour...
   */
@@ -281,7 +284,7 @@ serverFindPrinter(const char *resource)	/* I - Resource path */
 			*match = NULL;	/* Matching printer */
 
 
-  _cupsMutexLock(&printer_mutex);
+  _cupsRWLockRead(&PrintersRWLock);
   if (cupsArrayCount(Printers) == 1 || !strcmp(resource, "/ipp/print"))
   {
    /*
@@ -297,7 +300,7 @@ serverFindPrinter(const char *resource)	/* I - Resource path */
     key.resource = (char *)resource;
     match        = (server_printer_t *)cupsArrayFind(Printers, &key);
   }
-  _cupsMutexUnlock(&printer_mutex);
+  _cupsRWUnlock(&PrintersRWLock);
 
   return (match);
 }
@@ -471,6 +474,19 @@ serverLoadConfiguration(
     cupsDirClose(dir);
   }
 
+  if (default_printer)
+  {
+    for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+      if (!strcmp(printer->name, default_printer))
+        break;
+
+    DefaultPrinter = printer;
+  }
+  else
+  {
+    DefaultPrinter = NULL;
+  }
+
   return (1);
 }
 
@@ -634,11 +650,11 @@ add_document_privacy(void)
 
   if (!strcmp(DocumentPrivacyAttributes, "none"))
   {
-    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-attributes", NULL, "none");
+    ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-attributes", NULL, "none");
   }
   else if (!strcmp(DocumentPrivacyAttributes, "all"))
   {
-    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-attributes", NULL, "all");
+    ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-attributes", NULL, "all");
 
     DocumentPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
     for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
@@ -665,7 +681,7 @@ add_document_privacy(void)
 	continue;
 
       if (!privattrs)
-	privattrs = ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "document-privacy-attributes", NULL, start);
+	privattrs = ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_TAG_KEYWORD, "document-privacy-attributes", NULL, start);
       else
 	ippSetString(PrivacyAttributes, &privattrs, ippGetCount(privattrs), start);
 
@@ -693,7 +709,7 @@ add_document_privacy(void)
     }
   }
 
-  ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-scope", NULL, DocumentPrivacyScope);
+  ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-scope", NULL, DocumentPrivacyScope);
 }
 
 
@@ -912,11 +928,11 @@ add_job_privacy(void)
 
   if (!strcmp(JobPrivacyAttributes, "none"))
   {
-    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-attributes", NULL, "none");
+    ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-attributes", NULL, "none");
   }
   else if (!strcmp(JobPrivacyAttributes, "all"))
   {
-    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-attributes", NULL, "all");
+    ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-attributes", NULL, "all");
 
     JobPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
     for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
@@ -943,7 +959,7 @@ add_job_privacy(void)
 	continue;
 
       if (!privattrs)
-	privattrs = ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "job-privacy-attributes", NULL, start);
+	privattrs = ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_TAG_KEYWORD, "job-privacy-attributes", NULL, start);
       else
 	ippSetString(PrivacyAttributes, &privattrs, ippGetCount(privattrs), start);
 
@@ -971,7 +987,7 @@ add_job_privacy(void)
     }
   }
 
-  ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-scope", NULL, JobPrivacyScope);
+  ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-scope", NULL, JobPrivacyScope);
 }
 
 
@@ -1009,11 +1025,11 @@ add_subscription_privacy(void)
 
   if (!strcmp(SubscriptionPrivacyAttributes, "none"))
   {
-    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-attributes", NULL, "none");
+    ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-attributes", NULL, "none");
   }
   else if (!strcmp(SubscriptionPrivacyAttributes, "all"))
   {
-    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-attributes", NULL, "all");
+    ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-attributes", NULL, "all");
 
     SubscriptionPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
     for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
@@ -1040,7 +1056,7 @@ add_subscription_privacy(void)
 	continue;
 
       if (!privattrs)
-	privattrs = ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "subscription-privacy-attributes", NULL, start);
+	privattrs = ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_TAG_KEYWORD, "subscription-privacy-attributes", NULL, start);
       else
 	ippSetString(PrivacyAttributes, &privattrs, ippGetCount(privattrs), start);
 
@@ -1068,7 +1084,7 @@ add_subscription_privacy(void)
     }
   }
 
-  ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-scope", NULL, SubscriptionPrivacyScope);
+  ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-scope", NULL, SubscriptionPrivacyScope);
 }
 
 
@@ -1189,6 +1205,235 @@ copy_lang(server_lang_t *a)		/* I - Localization to copy */
   }
 
   return (b);
+}
+
+
+/*
+ * 'create_system_attributes()' - Create the core system object attributes.
+ */
+
+static void
+create_system_attributes(void)
+{
+  int			i;		/* Looping var */
+  ipp_t			*col;		/* Collection value */
+  char			vcard[1024];	/* VCARD value */
+  server_listener_t	*lis;		/* Current listener */
+  cups_array_t		*uris;		/* Array of URIs */
+  char			uri[1024];	/* URI */
+  int			num_values = 0;	/* Number of values */
+  ipp_t			*values[32];	/* Collection values */
+  static const char * const charset_supported[] =
+  {					/* Values for charset-supported */
+    "us-ascii",
+    "utf-8"
+  };
+  static const char * const ipp_features_supported[] =
+  {					/* Values for ipp-features-supported */
+    "document-object",
+    "infrastructure-printer",
+    "ipp-3d",
+    "ipp-everywhere",
+    "page-overrides",
+    "system-service"
+  };
+  static const char * const ipp_versions_supported[] =
+  {					/* Values for ipp-versions-supported */
+    "2.0"
+  };
+  static const char * const notify_attributes_supported[] =
+  {					/* Values for notify-attributes-supported */
+    "printer-state-change-time",
+    "notify-lease-expiration-time",
+    "notify-subscriber-user-name"
+  };
+  static const int operations_supported[] =
+  {					/* Values for operations-supported */
+    IPP_OP_GET_PRINTER_ATTRIBUTES,
+    IPP_OP_GET_SUBSCRIPTION_ATTRIBUTES,
+    IPP_OP_GET_SUBSCRIPTIONS,
+    IPP_OP_RENEW_SUBSCRIPTION,
+    IPP_OP_CANCEL_SUBSCRIPTION,
+    IPP_OP_GET_NOTIFICATIONS,
+    IPP_OP_ALLOCATE_PRINTER_RESOURCES,
+    IPP_OP_CREATE_PRINTER,
+    IPP_OP_DEALLOCATE_PRINTER_RESOURCES,
+    IPP_OP_DELETE_PRINTER,
+    IPP_OP_GET_PRINTERS,
+    IPP_OP_SHUTDOWN_ONE_PRINTER,
+    IPP_OP_STARTUP_ONE_PRINTER,
+    IPP_OP_CANCEL_RESOURCE,
+    IPP_OP_CREATE_RESOURCE,
+    IPP_OP_INSTALL_RESOURCE,
+    IPP_OP_SEND_RESOURCE_DATA,
+    IPP_OP_SET_RESOURCE_ATTRIBUTES,
+    IPP_OP_CREATE_RESOURCE_SUBSCRIPTIONS,
+    IPP_OP_CREATE_SYSTEM_SUBSCRIPTIONS,
+    IPP_OP_DISABLE_ALL_PRINTERS,
+    IPP_OP_ENABLE_ALL_PRINTERS,
+    IPP_OP_GET_SYSTEM_ATTRIBUTES,
+    IPP_OP_GET_SYSTEM_SUPPORTED_VALUES,
+    IPP_OP_PAUSE_ALL_PRINTERS,
+    IPP_OP_PAUSE_ALL_PRINTERS_AFTER_CURRENT_JOB,
+    IPP_OP_REGISTER_OUTPUT_DEVICE,
+    IPP_OP_RESTART_SYSTEM,
+    IPP_OP_RESUME_ALL_PRINTERS,
+    IPP_OP_SET_SYSTEM_ATTRIBUTES,
+    IPP_OP_SHUTDOWN_ALL_PRINTERS,
+    IPP_OP_STARTUP_ALL_PRINTERS
+  };
+  static const char * const system_mandatory_printer_attributes[] =
+  {					/* Values for system-mandatory-printer-attributes */
+    "charset-configured",
+    "document-format-default",
+    "multiple-document-jobs-supported",
+    "natural-language-configured",
+    "pdl-override-supported",
+    "printer-info",
+    "printer-location",
+    "printer-make-and-model"
+  };
+
+
+  SystemAttributes = ippNew();
+
+  /* charset-configured */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_CHARSET), "charset-configured", NULL, "utf-8");
+
+  /* charset-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_CHARSET), "charset-supported", (int)(sizeof(charset_supported) / sizeof(charset_supported[0])), NULL, charset_supported);
+
+  /* generated-natural-language-supported */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_LANGUAGE), "generated-natural-language-supported", NULL, "en");
+
+  /* ipp-features-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "ipp-features-supported", (int)(sizeof(ipp_features_supported) / sizeof(ipp_features_supported[0])), NULL, ipp_features_supported);
+
+  /* ipp-versions-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "ipp-versions-supported", (int)(sizeof(ipp_versions_supported) / sizeof(ipp_versions_supported[0])), NULL, ipp_versions_supported);
+
+  /* ippget-event-life */
+  ippAddInteger(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "ippget-event-life", SERVER_IPPGET_EVENT_LIFE);
+
+  /* natural-language-configured */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_LANGUAGE), "natural-language-configured", NULL, "en");
+
+  /* notify-attributes-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-attributes-supported", sizeof(notify_attributes_supported) / sizeof(notify_attributes_supported[0]), NULL, notify_attributes_supported);
+
+  /* notify-events-default */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-events-default", NULL, "job-completed");
+
+  /* notify-events-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-events-supported", sizeof(server_events) / sizeof(server_events[0]), NULL, server_events);
+
+  /* notify-lease-duration-default */
+  ippAddInteger(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "notify-lease-duration-default", SERVER_NOTIFY_LEASE_DURATION_DEFAULT);
+
+  /* notify-lease-duration-supported */
+  ippAddRange(SystemAttributes, IPP_TAG_SYSTEM, "notify-lease-duration-supported", 0, SERVER_NOTIFY_LEASE_DURATION_MAX);
+
+  /* notify-max-events-supported */
+  ippAddInteger(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "notify-max-events-supported", (int)(sizeof(server_events) / sizeof(server_events[0])));
+
+  /* notify-pull-method-supported */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-pull-method-supported", NULL, "ippget");
+
+  /* operations-supported */
+  ippAddIntegers(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_ENUM, "operations-supported", sizeof(operations_supported) / sizeof(operations_supported[0]), operations_supported);
+
+  /* system-device-id, TODO: maybe remove this, it has no purpose */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-device-id", NULL, "MANU:None;MODEL:None;");
+
+  /* system-geo-location, TODO: allow configuration */
+  ippAddOutOfBand(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_UNKNOWN, "system-geo-location");
+
+  /* system-info, TODO: allow configuration */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-info", NULL, "ippserver system service");
+
+  /* system-location, TODO: allow configuration */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-location", NULL, "nowhere");
+
+  /* system-mandatory-printer-attributes */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "system-mandatory-printer-attributes", sizeof(system_mandatory_printer_attributes) / sizeof(system_mandatory_printer_attributes[0]), NULL, system_mandatory_printer_attributes);
+
+  /* system-make-and-model, TODO: allow configuration */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-make-and-model", NULL, "ippserver prototype");
+
+  /* system-name, TODO: allow configuration */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_NAME), "system-name", NULL, "ippserver");
+
+  /* system-owner-col, TODO: allow configuration */
+  col = ippNew();
+
+  httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "mailto", NULL, NULL, 0, "admin@example.org");
+  snprintf(vcard, sizeof(vcard),
+           "BEGIN:VCARD\r\n"
+           "VERSION:4.0\r\n"
+           "FN:%s\r\n"
+           "EMAIL:%s\r\n"
+           "END:VCARD\r\n", "Admin", "admin@example.org");
+  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_URI, "owner-uri", NULL, uri);
+  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_TEXT, "owner-vcard", NULL, vcard);
+
+  ippAddCollection(SystemAttributes, IPP_TAG_SYSTEM, "system-owner-col", col);
+  ippDelete(col);
+
+  /* system-settable-attributes-supported, TODO: allow configuration */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "system-settable-attributes-supported", NULL, "none");
+
+#if 0
+  /* system-strings-languages-supported */
+  if (SystemStrings)
+  {
+    server_lang_t *lang;
+
+    for (attr = NULL, lang = (server_lang_t *)cupsArrayFirst(SystemStrings); lang; lang = (server_lang_t *)cupsArrayNext(SystemStrings))
+    {
+      if (attr)
+        ippSetString(printer->pinfo.attrs, &attr, ippGetCount(attr), lang->lang);
+      else
+        attr = ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_LANGUAGE, "system-strings-languages-supported", NULL, lang->lang);
+    }
+  }
+#endif /* 0 */
+
+  /* system-xri-supported */
+  uris = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+  for (lis = cupsArrayFirst(Listeners); lis && num_values < (int)(sizeof(values) / sizeof(values[0])); lis = cupsArrayNext(Listeners))
+  {
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPP_SCHEME, NULL, lis->host, lis->port, "/ipp/system");
+
+    if (!cupsArrayFind(uris, uri))
+    {
+      cupsArrayAdd(uris, uri);
+
+      col = ippNew();
+
+      ippAddString(col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
+
+#ifdef HAVE_SSL
+      if (Encryption != HTTP_ENCRYPTION_NEVER)
+        ippAddString(col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "tls");
+      else
+#endif /* HAVE_SSL */
+        ippAddString(col, IPP_TAG_ZERO, IPP_TAG_KEYWORD, "xri-security", NULL, "none");
+
+      ippAddString(col, IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uri);
+
+      values[num_values ++] = col;
+    }
+  }
+
+  if (num_values > 0)
+  {
+    ippAddCollections(SystemAttributes, IPP_TAG_SYSTEM, "system-xri-supported", num_values, (const ipp_t **)values);
+
+    for (i = 0; i < num_values; i ++)
+      ippDelete(values[i]);
+  }
+
+  cupsArrayDelete(uris);
 }
 
 
@@ -1365,14 +1610,14 @@ load_system(const char *conf)		/* I - Configuration file */
     }
     else if (!_cups_strcasecmp(line, "DefaultPrinter"))
     {
-      if (DefaultPrinter)
+      if (default_printer)
       {
         fprintf(stderr, "ippserver: Extra DefaultPrinter seen on line %d of \"%s\".\n", linenum, conf);
         status = 0;
         break;
       }
 
-      DefaultPrinter = strdup(value);
+      default_printer = strdup(value);
     }
     else if (!_cups_strcasecmp(line, "DocumentPrivacyAttributes"))
     {

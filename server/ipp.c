@@ -45,6 +45,7 @@ static void		ipp_get_printer_attributes(server_client_t *client);
 static void		ipp_get_printer_supported_values(server_client_t *client);
 static void		ipp_get_subscription_attributes(server_client_t *client);
 static void		ipp_get_subscriptions(server_client_t *client);
+static void		ipp_get_system_attributes(server_client_t *client);
 static void		ipp_identify_printer(server_client_t *client);
 static void		ipp_print_job(server_client_t *client);
 static void		ipp_print_uri(server_client_t *client);
@@ -2264,6 +2265,179 @@ ipp_get_subscriptions(
 
 
 /*
+ * 'ipp_get_system_attributes()' - Get the attributes for the system object.
+ */
+
+static void
+ipp_get_system_attributes(
+    server_client_t *client)		/* I - Client */
+{
+  cups_array_t		*ra;		/* Requested attributes array */
+
+
+ /*
+  * Send the attributes...
+  */
+
+  ra = ippCreateRequestedArray(client->request);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+
+//  _cupsRWLockRead(&(printer->rwlock));
+
+  serverCopyAttributes(client->response, SystemAttributes, ra, NULL, IPP_TAG_ZERO, IPP_TAG_CUPS_CONST);
+//  serverCopyAttributes(client->response, PrivacyAttributes, ra, NULL, IPP_TAG_ZERO, IPP_TAG_CUPS_CONST);
+
+  /* system-default-printer-id (integer(1:65535) | no-value) */
+
+  if (!ra || cupsArrayFind(ra, "system-config-change-date-time"))
+    ippAddDate(client->response, IPP_TAG_SYSTEM, "system-config-change-date-time", ippTimeToDate(SystemConfigChangeTime));
+
+  if (!ra || cupsArrayFind(ra, "system-config-change-time"))
+    ippAddInteger(client->response, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "system-config-change-time", (int)(SystemConfigChangeTime - SystemStartTime));
+
+  if (!ra || cupsArrayFind(ra, "system-config-changes"))
+    ippAddInteger(client->response, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "system-config-change-date-time", SystemConfigChanges);
+
+  if (!ra || cupsArrayFind(ra, "system-configured-printers"))
+  {
+    int			i,		/* Looping var */
+  			count;		/* Number of printers */
+    ipp_t		*col;		/* Collection value */
+    ipp_attribute_t	*printers;	/* system-configured-printers attribute */
+    server_printer_t	*printer;	/* Current printer */
+    static const char * const types[] =	/* Service types */
+    {
+      "print",
+      "print3d"
+    };
+
+    _cupsRWLockRead(&PrintersRWLock);
+
+    if ((count = cupsArrayCount(Printers)) == 0)
+    {
+      ippAddOutOfBand(client->response, IPP_TAG_SYSTEM, IPP_TAG_NOVALUE, "system-configured-printers");
+    }
+    else
+    {
+      printers = ippAddCollections(client->response, IPP_TAG_SYSTEM, "system-configured-printers", count, NULL);
+
+      for (i = 0, printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers), i ++)
+      {
+        _cupsRWLockRead(&printer->rwlock);
+
+        col = ippNew();
+        ippAddInteger(col, IPP_TAG_ZERO, IPP_TAG_INTEGER, "printer-id", printer->id);
+        ippAddString(col, IPP_TAG_ZERO, IPP_TAG_TEXT, "printer-info", NULL, printer->name);
+        ippAddBoolean(col, IPP_TAG_ZERO, "printer-is-accepting-jobs", (char)ippGetBoolean(ippFindAttribute(printer->pinfo.attrs, "printer-is-accepting-jobs", IPP_TAG_BOOLEAN), 0));
+        ippAddString(col, IPP_TAG_ZERO, IPP_TAG_NAME, "printer-name", NULL, printer->name);
+        ippAddString(col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-service-type", NULL, types[printer->type]);
+        ippAddInteger(col, IPP_TAG_ZERO, IPP_TAG_ENUM, "printer-state", printer->state);
+        serverCopyPrinterStateReasons(col, IPP_TAG_ZERO, printer);
+        ippCopyAttribute(col, ippFindAttribute(printer->pinfo.attrs, "printer-xri-supported", IPP_TAG_BEGIN_COLLECTION), 1);
+
+        ippSetCollection(client->response, &printers, i, col);
+        ippDelete(col);
+
+        _cupsRWUnlock(&printer->rwlock);
+      }
+    }
+
+    _cupsRWUnlock(&PrintersRWLock);
+  }
+
+  /* TODO: Update when resources are implemented */
+  if (!ra || cupsArrayFind(ra, "system-configured-resources"))
+    ippAddOutOfBand(client->response, IPP_TAG_SYSTEM, IPP_TAG_NOVALUE, "system-configured-resources");
+
+  if (!ra || cupsArrayFind(ra, "system-current-time"))
+    ippAddDate(client->response, IPP_TAG_SYSTEM, "system-current-time", ippTimeToDate(time(NULL)));
+
+  if (!ra || cupsArrayFind(ra, "system-state"))
+  {
+    ipp_pstate_t	state = IPP_PSTATE_STOPPED;
+					/* System state */
+    server_printer_t	*printer;	/* Current printer */
+
+    _cupsRWLockRead(&PrintersRWLock);
+
+    for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+    {
+      if (printer->state == IPP_PSTATE_PROCESSING)
+        state = IPP_PSTATE_PROCESSING;
+      else if (printer->state == IPP_PSTATE_IDLE && state == IPP_PSTATE_STOPPED)
+        state = IPP_PSTATE_IDLE;
+    }
+
+    _cupsRWUnlock(&PrintersRWLock);
+
+    ippAddInteger(client->response, IPP_TAG_SYSTEM, IPP_TAG_ENUM, "system-state", state);
+  }
+
+  if (!ra || cupsArrayFind(ra, "system-state-change-date-time"))
+    ippAddDate(client->response, IPP_TAG_SYSTEM, "system-state-change-date-time", ippTimeToDate(SystemStateChangeTime));
+
+  if (!ra || cupsArrayFind(ra, "system-state-change-time"))
+    ippAddInteger(client->response, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "system-state-change-time", (int)(SystemStateChangeTime - SystemStartTime));
+
+  if (!ra || cupsArrayFind(ra, "system-state-message"))
+    ippAddString(client->response, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-state-message", NULL, "");
+
+  if (!ra || cupsArrayFind(ra, "system-state-reasons"))
+    ippAddString(client->response, IPP_TAG_SYSTEM, IPP_TAG_KEYWORD, "system-state-reasons", NULL, "none");
+
+  if (!ra || cupsArrayFind(ra, "system-up-time"))
+    ippAddInteger(client->response, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "system-up-time", (int)(time(NULL) - SystemStartTime));
+
+#if 0 /* TODO: Add strings support for system object */
+  if (printer->pinfo.strings && (!ra || cupsArrayFind(ra, "printer-strings-uri")))
+  {
+   /*
+    * See if we have a localization that matches the request language.
+    */
+
+    ipp_attribute_t	*attr;		/* attributes-natural-language attribute */
+    char		lang[32];	/* Copy of language string */
+    server_lang_t	key, *match;	/* Localization key and match */
+
+    ippFirstAttribute(client->request);
+    attr = ippNextAttribute(client->request);
+    strlcpy(lang, ippGetString(attr, 0, NULL), sizeof(lang));
+    key.lang = lang;
+    if ((match = cupsArrayFind(printer->pinfo.strings, &key)) == NULL && lang[2])
+    {
+     /*
+      * Try base language...
+      */
+
+      lang[2] = '\0';
+      match = cupsArrayFind(printer->pinfo.strings, &key);
+    }
+
+    if (match)
+    {
+      char		uri[1024];	/* printer-strings-uri value */
+      server_listener_t	*lis = cupsArrayFirst(Listeners);
+					/* Default listener */
+      const char	*scheme = "http";
+					/* URL scheme */
+
+#ifdef HAVE_SSL
+      if (Encryption != HTTP_ENCRYPTION_NEVER)
+        scheme = "https";
+#endif /* HAVE_SSL */
+
+      httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), scheme, NULL, lis->host, lis->port, "%s/%s.strings", printer->resource, match->lang);
+      ippAddString(client->response, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-strings-uri", NULL, uri);
+    }
+  }
+#endif /* 0 */
+
+  cupsArrayDelete(ra);
+}
+
+
+/*
  * 'ipp_identify_printer()' - Beep or display a message.
  */
 
@@ -4187,7 +4361,7 @@ serverProcessIPP(
       attr = ippNextAttribute(client->request);
       name = ippGetName(attr);
 
-      if (attr && name && (!strcmp(name, "printer-uri") || !strcmp(name, "job-uri")) &&
+      if (attr && name && (!strcmp(name, "system-uri") || !strcmp(name, "printer-uri") || !strcmp(name, "job-uri")) &&
           ippGetGroupTag(attr) == IPP_TAG_OPERATION &&
 	  ippGetValueTag(attr) == IPP_TAG_URI)
 	uri = attr;
@@ -4201,7 +4375,9 @@ serverProcessIPP(
         * elsewhere in the request...
         */
 
-	if ((attr = ippFindAttribute(client->request, "printer-uri", IPP_TAG_URI)) != NULL && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
+	if ((attr = ippFindAttribute(client->request, "system-uri", IPP_TAG_URI)) != NULL && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
+	  uri = attr;
+	else if ((attr = ippFindAttribute(client->request, "printer-uri", IPP_TAG_URI)) != NULL && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
 	  uri = attr;
 	else if ((attr = ippFindAttribute(client->request, "job-uri", IPP_TAG_URI)) != NULL && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
 	  uri = attr;
@@ -4281,13 +4457,14 @@ serverProcessIPP(
         }
         else if ((client->printer = serverFindPrinter(resource)) == NULL)
         {
-          serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "\"%s\" '%s' not found.", name, ippGetString(uri, 0, NULL));
+          if (strcmp(resource, "/ipp/system"))
+	    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "\"%s\" '%s' not found.", name, ippGetString(uri, 0, NULL));
         }
 
 	if (client->printer)
 	{
 	 /*
-	  * Try processing the operation...
+	  * Try processing the Printer operation...
 	  */
 
 	  switch ((int)ippGetOperation(client->request))
@@ -4428,6 +4605,60 @@ serverProcessIPP(
             case IPP_OP_DEREGISTER_OUTPUT_DEVICE :
 	        ipp_deregister_output_device(client);
 		break;
+
+	    default :
+		serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED,
+			    "Operation not supported.");
+		break;
+	  }
+	}
+	else if (!strcmp(resource, "/ipp/system"))
+	{
+	 /*
+	  * Try processing the System operation...
+	  */
+
+	  switch ((int)ippGetOperation(client->request))
+	  {
+	    case IPP_OP_GET_PRINTER_ATTRIBUTES :
+	        if (DefaultPrinter)
+	        {
+	          client->printer = DefaultPrinter;
+		  ipp_get_printer_attributes(client);
+		}
+		else
+		{
+		  serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "No default printer.");
+		}
+		break;
+
+	    case IPP_OP_CANCEL_SUBSCRIPTION :
+	        ipp_cancel_subscription(client);
+		break;
+
+	    case IPP_OP_CREATE_SYSTEM_SUBSCRIPTIONS :
+	        ipp_create_xxx_subscriptions(client);
+		break;
+
+	    case IPP_OP_GET_NOTIFICATIONS :
+	        ipp_get_notifications(client);
+		break;
+
+	    case IPP_OP_GET_SUBSCRIPTION_ATTRIBUTES :
+	        ipp_get_subscription_attributes(client);
+		break;
+
+	    case IPP_OP_GET_SUBSCRIPTIONS :
+	        ipp_get_subscriptions(client);
+		break;
+
+	    case IPP_OP_RENEW_SUBSCRIPTION :
+	        ipp_renew_subscription(client);
+		break;
+
+	    case IPP_OP_GET_SYSTEM_ATTRIBUTES :
+	        ipp_get_system_attributes(client);
+	        break;
 
 	    default :
 		serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED,

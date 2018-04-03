@@ -139,9 +139,10 @@ serverCreatePrinter(
   static const char * const features[] =/* ipp-features-supported values */
   {
     "document-object",
-    "ipp-everywhere",
     "infrastructure-printer",
-    "page-overrides"
+    "ipp-everywhere",
+    "page-overrides",
+    "system-service"
   };
   static const char * const features3d[] =/* ipp-features-supported values */
   {
@@ -411,6 +412,18 @@ serverCreatePrinter(
     return (NULL);
   }
 
+  if ((attr = ippFindAttribute(pinfo->attrs, "printer-id", IPP_TAG_INTEGER)) != NULL)
+  {
+    printer->id = ippGetInteger(attr, 0);
+  }
+  else
+  {
+    printer->id = NextPrinterId ++;
+
+    ippAddInteger(pinfo->attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "printer-id", printer->id);
+  }
+
+  printer->type           = is_print3d ? SERVER_TYPE_PRINT3D : SERVER_TYPE_PRINT;
   printer->resource       = strdup(resource);
   printer->resourcelen    = strlen(resource);
   printer->name           = strdup(name);
@@ -643,7 +656,7 @@ serverCreatePrinter(
     ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "ipp-versions-supported", sizeof(versions) / sizeof(versions[0]), NULL, versions);
 
   /* ippget-event-life */
-  ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "ippget-event-life", 300);
+  ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "ippget-event-life", SERVER_IPPGET_EVENT_LIFE);
 
   /* job-account-id-default */
   if (!is_print3d && !cupsArrayFind(existing, (void *)"job-account-id-default"))
@@ -819,7 +832,7 @@ serverCreatePrinter(
   ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-events-supported", sizeof(server_events) / sizeof(server_events[0]), NULL, server_events);
 
   /* notify-lease-duration-default */
-  ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "notify-lease-duration-default", 86400);
+  ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "notify-lease-duration-default", SERVER_NOTIFY_LEASE_DURATION_DEFAULT);
 
   /* notify-lease-duration-supported */
   ippAddRange(printer->pinfo.attrs, IPP_TAG_PRINTER, "notify-lease-duration-supported", 0, SERVER_NOTIFY_LEASE_DURATION_MAX);
@@ -1086,16 +1099,16 @@ serverCreatePrinter(
   {
     xri_col = ippNew();
 
-    ippAddString(xri_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "xri-authentication", NULL, Authentication ? "basic"  : "none");
+    ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
 
 #ifdef HAVE_SSL
     if (Encryption != HTTP_ENCRYPTION_NEVER)
-      ippAddString(xri_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "xri-security", NULL, "tls");
+      ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "tls");
     else
 #endif /* HAVE_SSL */
-      ippAddString(xri_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "xri-security", NULL, "none");
+      ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "none");
 
-    ippAddString(xri_col, IPP_TAG_PRINTER, IPP_TAG_URI, "xri-uri", NULL, uriptrs[i]);
+    ippAddString(xri_col, IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uriptrs[i]);
 
     ippSetCollection(printer->pinfo.attrs, &xri_sup, i, xri_col);
     ippDelete(xri_col);
