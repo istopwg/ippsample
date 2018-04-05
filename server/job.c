@@ -21,8 +21,13 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
   server_job_t	*job;			/* Current job */
 
 
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Checking for new jobs to process.");
+
   if (printer->processing_job)
+  {
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Printer is already processing job %d.", printer->processing_job->id);
     return;
+  }
 
   _cupsRWLockWrite(&(printer->rwlock));
   for (job = (server_job_t *)cupsArrayFirst(printer->active_jobs);
@@ -31,6 +36,8 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
   {
     if (job->state == IPP_JSTATE_PENDING)
     {
+      serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Starting job %d.", job->id);
+
       _cups_thread_t t = _cupsThreadCreate((_cups_thread_func_t)serverProcessJob, job);
 
       if (t)
@@ -47,6 +54,10 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
       break;
     }
   }
+
+  if (!job)
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "No jobs to process at this time.");
+
   _cupsRWUnlock(&(printer->rwlock));
 }
 

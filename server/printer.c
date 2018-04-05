@@ -309,7 +309,7 @@ serverCreatePrinter(
   };
   static const char * const overrides[] =
   {					/* overrides-supported */
-    "document-number",
+    "document-numbers",
     "pages"
   };
   static const char * const print_color_mode_supported[] =
@@ -726,7 +726,7 @@ serverCreatePrinter(
       media_col_database = ippAddCollections(printer->pinfo.attrs, IPP_TAG_PRINTER, "media-col-database", (int)(sizeof(media_col_sizes) / sizeof(media_col_sizes[0])), NULL);
       for (i = 0; i < (int)(sizeof(media_col_sizes) / sizeof(media_col_sizes[0])); i ++)
       {
-	media_col = create_media_col(media_supported[i], NULL, NULL, media_col_sizes[i][0], media_col_sizes[i][1], media_xxx_margin_supported[0]);
+	media_col = create_media_col(media_supported[i], "main", "auto", media_col_sizes[i][0], media_col_sizes[i][1], media_xxx_margin_supported[0]);
 
 	ippSetCollection(printer->pinfo.attrs, &media_col_database, i, media_col);
 
@@ -737,7 +737,7 @@ serverCreatePrinter(
     /* media-col-default */
     if (!cupsArrayFind(existing, (void *)"media-col-default"))
     {
-      media_col = create_media_col(media_supported[0], NULL, NULL, media_col_sizes[0][0], media_col_sizes[0][1], media_xxx_margin_supported[0]);
+      media_col = create_media_col(media_supported[0], "main", "auto", media_col_sizes[0][0], media_col_sizes[0][1], media_xxx_margin_supported[0]);
 
       ippAddCollection(printer->pinfo.attrs, IPP_TAG_PRINTER, "media-col-default", media_col);
       ippDelete(media_col);
@@ -746,7 +746,7 @@ serverCreatePrinter(
     /* media-col-ready */
     if (!cupsArrayFind(existing, (void *)"media-col-ready"))
     {
-      media_col = create_media_col(media_supported[0], "main", NULL, media_col_sizes[0][0], media_col_sizes[0][1], media_xxx_margin_supported[0]);
+      media_col = create_media_col(media_supported[0], "main", "auto", media_col_sizes[0][0], media_col_sizes[0][1], media_xxx_margin_supported[0]);
 
       ippAddCollection(printer->pinfo.attrs, IPP_TAG_PRINTER, "media-col-ready", media_col);
       ippDelete(media_col);
