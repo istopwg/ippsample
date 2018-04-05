@@ -650,11 +650,11 @@ add_document_privacy(void)
 
   if (!strcmp(DocumentPrivacyAttributes, "none"))
   {
-    ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-attributes", NULL, "none");
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-attributes", NULL, "none");
   }
   else if (!strcmp(DocumentPrivacyAttributes, "all"))
   {
-    ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-attributes", NULL, "all");
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-attributes", NULL, "all");
 
     DocumentPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
     for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
@@ -681,7 +681,7 @@ add_document_privacy(void)
 	continue;
 
       if (!privattrs)
-	privattrs = ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_TAG_KEYWORD, "document-privacy-attributes", NULL, start);
+	privattrs = ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "document-privacy-attributes", NULL, start);
       else
 	ippSetString(PrivacyAttributes, &privattrs, ippGetCount(privattrs), start);
 
@@ -709,7 +709,7 @@ add_document_privacy(void)
     }
   }
 
-  ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-scope", NULL, DocumentPrivacyScope);
+  ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-scope", NULL, DocumentPrivacyScope);
 }
 
 
@@ -928,11 +928,11 @@ add_job_privacy(void)
 
   if (!strcmp(JobPrivacyAttributes, "none"))
   {
-    ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-attributes", NULL, "none");
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-attributes", NULL, "none");
   }
   else if (!strcmp(JobPrivacyAttributes, "all"))
   {
-    ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-attributes", NULL, "all");
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-attributes", NULL, "all");
 
     JobPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
     for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
@@ -959,7 +959,7 @@ add_job_privacy(void)
 	continue;
 
       if (!privattrs)
-	privattrs = ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_TAG_KEYWORD, "job-privacy-attributes", NULL, start);
+	privattrs = ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "job-privacy-attributes", NULL, start);
       else
 	ippSetString(PrivacyAttributes, &privattrs, ippGetCount(privattrs), start);
 
@@ -987,7 +987,7 @@ add_job_privacy(void)
     }
   }
 
-  ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-scope", NULL, JobPrivacyScope);
+  ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-scope", NULL, JobPrivacyScope);
 }
 
 
@@ -1025,11 +1025,11 @@ add_subscription_privacy(void)
 
   if (!strcmp(SubscriptionPrivacyAttributes, "none"))
   {
-    ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-attributes", NULL, "none");
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-attributes", NULL, "none");
   }
   else if (!strcmp(SubscriptionPrivacyAttributes, "all"))
   {
-    ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-attributes", NULL, "all");
+    ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-attributes", NULL, "all");
 
     SubscriptionPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
     for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
@@ -1056,7 +1056,7 @@ add_subscription_privacy(void)
 	continue;
 
       if (!privattrs)
-	privattrs = ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_TAG_KEYWORD, "subscription-privacy-attributes", NULL, start);
+	privattrs = ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "subscription-privacy-attributes", NULL, start);
       else
 	ippSetString(PrivacyAttributes, &privattrs, ippGetCount(privattrs), start);
 
@@ -1084,7 +1084,7 @@ add_subscription_privacy(void)
     }
   }
 
-  ippAddString(PrivacyAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-scope", NULL, SubscriptionPrivacyScope);
+  ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-scope", NULL, SubscriptionPrivacyScope);
 }
 
 
