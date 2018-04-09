@@ -521,5 +521,7 @@ serverProcessJob(server_job_t *job)	/* I - Job */
     _cupsRWUnlock(&job->printer->rwlock);
   }
 
+  serverCheckJobs(job->printer);
+
   return (NULL);
 }
