@@ -20,6 +20,49 @@ static int	compare_resources(server_resource_t *a, server_resource_t *b);
 
 
 /*
+ * 'serverAddResourceFile()' - Add the file associated with a resource.
+ */
+
+void
+serverAddResourceFile(
+    server_resource_t *res,		/* I - Resource */
+    const char        *filename,	/* I - File */
+    const char        *format)		/* I - MIME media type */
+{
+  server_listener_t *lis = (server_listener_t *)cupsArrayFirst(Listeners);
+					/* First listener */
+  char		uri[1024];		/* resource-data-uri value */
+  struct stat	resinfo;		/* Resource info */
+
+
+  _cupsRWLockWrite(&res->rwlock);
+
+  res->filename = strdup(filename);
+  res->format   = strdup(format);
+  res->state    = IPP_RSTATE_AVAILABLE;
+
+#ifdef HAVE_SSL
+  if (Encryption != HTTP_ENCRYPTION_NEVER)
+    httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), "https", NULL, lis->host, lis->port, res->resource);
+  else
+#endif /* HAVE_SSL */
+    httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), "http", NULL, lis->host, lis->port, res->resource);
+  ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_URI, "resource-data-uri", NULL, uri);
+
+  ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_MIMETYPE, "resource-format", NULL, res->format);
+
+  if (!stat(res->filename, &resinfo))
+    ippAddInteger(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_INTEGER, "resource-k-octets", (int)((resinfo.st_size + 1023) / 1024));
+  else
+    ippAddInteger(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_INTEGER, "resource-k-octets", 0);
+
+  serverAddEvent(NULL, NULL, res, SERVER_EVENT_RESOURCE_STATE_CHANGED, "Resource %d now available.", res->id);
+
+  _cupsRWUnlock(&res->rwlock);
+}
+
+
+/*
  * 'serverCreateResource()' - Create a new resource object.
  */
 
@@ -40,7 +83,6 @@ serverCreateResource(
 			uuid[64];	/* resource-uuid value */
   time_t		curtime = time(NULL);
 					/* Current system time */
-  struct stat		resinfo;	/* Resource info */
 
 
  /*
@@ -93,31 +135,28 @@ serverCreateResource(
 
   _cupsRWLockWrite(&ResourcesRWLock);
 
-  res->id       = NextResourceId ++;
-  res->attrs    = ippNew();
+  res->attrs = ippNew();
+  res->id    = NextResourceId ++;
+  res->state = IPP_RSTATE_PENDING;
 
   if (resource)
+  {
     res->resource = strdup(resource);
+  }
   else
   {
     char	path[1024];		/* Resource path */
+    const char	*ext;			/* Extension */
 
-    snprintf(path, sizeof(path), "/ipp/system/%d", res->id);
+    if ((ext = strrchr(name, '.')) == NULL || (strcmp(ext, ".strings") && strlen(ext) != 4))
+      ext = "";
+
+    snprintf(path, sizeof(path), "/ipp/system/%d%s", res->id, ext);
     res->resource = strdup(path);
   }
 
-  if (filename)
-    res->filename = strdup(filename);
-
-  if (format)
-    res->format = strdup(format);
-
-  if (filename)
-    res->state = IPP_RSTATE_INSTALLED;
-  else
-    res->state = IPP_RSTATE_PENDING;
-
-  _cupsRWInit(&(res->rwlock));
+  _cupsRWInit(&res->rwlock);
+  _cupsRWLockWrite(&res->rwlock);
 
  /*
   * Add resource attributes and add the object to the resources arrays...
@@ -132,23 +171,9 @@ serverCreateResource(
 
   ippAddOutOfBand(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_NOVALUE, "date-time-at-canceled");
 
-#ifdef HAVE_SSL
-  if (Encryption != HTTP_ENCRYPTION_NEVER)
-    httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), "https", NULL, lis->host, lis->port, res->resource);
-  else
-#endif /* HAVE_SSL */
-    httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), "http", NULL, lis->host, lis->port, res->resource);
-  ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_URI, "resource-data-uri", NULL, uri);
-
-  if (res->format)
-    ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_MIMETYPE, "resource-format", NULL, res->format);
-
   ippAddInteger(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_INTEGER, "resource-id", res->id);
 
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_TEXT, "resource-info", NULL, info);
-
-  if (res->filename && !stat(res->filename, &resinfo))
-    ippAddInteger(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_INTEGER, "resource-k-octets", (int)((resinfo.st_size + 1023) / 1024));
 
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_NAME, "resource-name", NULL, name);
 
@@ -157,7 +182,7 @@ serverCreateResource(
     ipp_t	*col = ippNew();	/* owner-col value */
     char	vcard[1024];		/* owner-vcard value */
 
-    /* Yes, this is crap */
+    /* Yes, this is crap - we need owner-name */
     httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "username", NULL, NULL, 0, owner);
     snprintf(vcard, sizeof(vcard),
 	     "BEGIN:VCARD\r\n"
@@ -196,6 +221,13 @@ serverCreateResource(
   cupsArrayAdd(ResourcesByPath, res);
 
   _cupsRWUnlock(&ResourcesRWLock);
+
+  serverAddEvent(NULL, NULL, res, SERVER_EVENT_RESOURCE_CREATED | SERVER_EVENT_RESOURCE_STATE_CHANGED, "Resource %d created.", res->id);
+
+  _cupsRWUnlock(&res->rwlock);
+
+  if (filename)
+    serverAddResourceFile(res, filename, format);
 
   return (res);
 }

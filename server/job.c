@@ -49,7 +49,7 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
         job->state     = IPP_JSTATE_ABORTED;
 	job->completed = time(NULL);
 
-        serverAddEvent(printer, job, SERVER_EVENT_JOB_COMPLETED, "Job aborted because creation of processing thread failed.");
+        serverAddEvent(printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, "Job aborted because creation of processing thread failed.");
       }
       break;
     }
@@ -445,7 +445,7 @@ serverProcessJob(server_job_t *job)	/* I - Job */
   job->processing              = time(NULL);
   job->printer->processing_job = job;
 
-  serverAddEvent(job->printer, job, SERVER_EVENT_JOB_STATE_CHANGED, "Job processing.");
+  serverAddEvent(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job processing.");
 
   while (job->printer->state_reasons & SERVER_PREASON_MEDIA_EMPTY)
   {
@@ -473,7 +473,7 @@ serverProcessJob(server_job_t *job)	/* I - Job */
     job->state         = IPP_JSTATE_STOPPED;
     job->state_reasons |= SERVER_JREASON_JOB_FETCHABLE;
 
-    serverAddEvent(job->printer, job, SERVER_EVENT_JOB_STATE_CHANGED | SERVER_EVENT_JOB_FETCHABLE, "Job fetchable.");
+    serverAddEvent(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED | SERVER_EVENT_JOB_FETCHABLE, "Job fetchable.");
   }
   else
   {

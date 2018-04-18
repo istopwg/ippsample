@@ -500,7 +500,7 @@ ipp_acknowledge_identify_printer(
 
     client->printer->state_reasons &= (unsigned)~SERVER_PREASON_IDENTIFY_PRINTER_REQUESTED;
 
-    serverAddEvent(client->printer, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Identify-Printer request received.");
+    serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Identify-Printer request received.");
   }
   else
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "No pending Identify-Printer request.");
@@ -569,7 +569,7 @@ ipp_acknowledge_job(
 
   job->state_reasons &= (server_jreason_t)~SERVER_JREASON_JOB_FETCHABLE;
 
-  serverAddEvent(client->printer, job, SERVER_EVENT_JOB_STATE_CHANGED, "Job acknowledged.");
+  serverAddEvent(client->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job acknowledged.");
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -651,7 +651,7 @@ ipp_cancel_job(server_client_t *client)	/* I - Client */
 
 	_cupsRWUnlock(&(client->printer->rwlock));
 
-        serverAddEvent(client->printer, job, SERVER_EVENT_JOB_COMPLETED, NULL);
+        serverAddEvent(client->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, NULL);
 
 	serverRespondIPP(client, IPP_STATUS_OK, NULL);
         break;
@@ -814,7 +814,7 @@ ipp_cancel_my_jobs(
 	job->completed = time(NULL);
       }
 
-      serverAddEvent(client->printer, job, SERVER_EVENT_JOB_COMPLETED, NULL);
+      serverAddEvent(client->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, NULL);
     }
 
     serverRespondIPP(client, IPP_STATUS_OK, NULL);
@@ -2500,7 +2500,7 @@ ipp_identify_printer(
 
     _cupsRWUnlock(&client->printer->rwlock);
 
-    serverAddEvent(client->printer, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Identify-Printer request received.");
+    serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Identify-Printer request received.");
   }
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
@@ -3790,7 +3790,7 @@ ipp_update_document_status(
   if ((attr = ippFindAttribute(client->request, "impressions-completed", IPP_TAG_INTEGER)) != NULL)
   {
     job->impcompleted = ippGetInteger(attr, 0);
-    serverAddEvent(client->printer, job, SERVER_EVENT_JOB_PROGRESS, NULL);
+    serverAddEvent(client->printer, job, NULL, SERVER_EVENT_JOB_PROGRESS, NULL);
   }
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
@@ -3868,7 +3868,7 @@ ipp_update_job_status(
   }
 
   if (events)
-    serverAddEvent(client->printer, job, events, NULL);
+    serverAddEvent(client->printer, job, NULL, events, NULL);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -4192,7 +4192,7 @@ ipp_update_output_device_attributes(
       serverUpdateDeviceStateNoLock(client->printer);
     _cupsRWUnlock(&client->printer->rwlock);
 
-    serverAddEvent(client->printer, NULL, events, NULL);
+    serverAddEvent(client->printer, NULL, NULL, events, NULL);
   }
 }
 

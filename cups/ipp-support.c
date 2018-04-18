@@ -1771,16 +1771,19 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
   };
   static const char * const resource_description[] =
   {					/* resource-description group - IPP System */
+    "resource-info",
+    "resource-name",
+    "resource-owner-col"
+  };
+  static const char * const resource_status[] =
+  {					/* resource-status group - IPP System */
     "date-time-at-canceled",
     "date-time-at-creation",
     "date-time-at-installed",
     "resource-data-uri",
     "resource-format",
     "resource-id",
-    "resource-info",
     "resource-k-octets",
-    "resource-name",
-    "resource-owner-col",
     "resource-state",
     "resource-state-message",
     "resource-state-reasons",
@@ -1792,6 +1795,16 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
     "time-at-canceled",
     "time-at-creation",
     "time-at-installed"
+  };
+  static const char * const resource_template[] =
+  {					/* resource-template group - IPP System */
+    "resource-format",
+    "resource-format-supported",
+    "resource-info",
+    "resource-name",
+    "resource-owner-col"
+    "resource-type",
+    "resource-type-supported"
   };
   static const char * const subscription_description[] =
   {					/* subscription-description group */
@@ -1837,21 +1850,9 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
     "operations-supported",
     "power-calendar-policy-col",
     "power-event-policy-col",
-    "power-log-col",
-    "power-state-capabilities-col",
-    "power-state-counters-col",
-    "power-state-monitor-col",
-    "power-state-transitions-col",
     "power-timeout-policy-col",
     "printer-creation-attributes-supported",
-    "resource-format-supported",
     "resource-settable-attributes-supported",
-    "resource-type-supported",
-    "system-config-change-date-time",
-    "system-config-change-time",
-    "system-config-changes",
-    "system-configured-printers",
-    "system-configured-resources",
     "system-current-time",
     "system-default-printer-id",
     "system-device-id",
@@ -1863,18 +1864,31 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
     "system-message-from-operator",
     "system-name",
     "system-owner-col",
-    "system-serial-number",
     "system-settable-attributes-supported",
+    "system-strings-languages-supported",
+    "system-strings-uri",
+    "system-xri-supported"
+  };
+  static const char * const system_status[] =
+  {					/* system-status group - IPP System */
+    "power-log-col",
+    "power-state-capabilities-col",
+    "power-state-counters-col",
+    "power-state-monitor-col",
+    "power-state-transitions-col",
+    "system-config-change-date-time",
+    "system-config-change-time",
+    "system-config-changes",
+    "system-configured-printers",
+    "system-configured-resources",
+    "system-serial-number",
     "system-state",
     "system-state-change-date-time",
     "system-state-change-time",
     "system-state-message",
     "system-state-reasons",
-    "system-strings-languages-supported",
-    "system-strings-uri",
     "system-up-time",
-    "system-uuid",
-    "system-xri-supported"
+    "system-uuid"
   };
 
 
@@ -1970,6 +1984,22 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
       added = 1;
     }
 
+    if (!strcmp(value, "resource-status") || (!strcmp(value, "all") && (op == IPP_OP_GET_RESOURCE_ATTRIBUTES || op == IPP_OP_GET_RESOURCES)))
+    {
+      for (j = 0; j < (int)(sizeof(resource_status) / sizeof(resource_status[0])); j ++)
+        cupsArrayAdd(ra, (void *)resource_status[j]);
+
+      added = 1;
+    }
+
+    if (!strcmp(value, "resource-template") || (!strcmp(value, "all") && (op == IPP_OP_GET_RESOURCE_ATTRIBUTES || op == IPP_OP_GET_RESOURCES || op == IPP_OP_GET_SYSTEM_ATTRIBUTES)))
+    {
+      for (j = 0; j < (int)(sizeof(resource_template) / sizeof(resource_template[0])); j ++)
+        cupsArrayAdd(ra, (void *)resource_template[j]);
+
+      added = 1;
+    }
+
     if (!strcmp(value, "subscription-description") || (!strcmp(value, "all") && (op == IPP_OP_GET_SUBSCRIPTION_ATTRIBUTES || op == IPP_OP_GET_SUBSCRIPTIONS)))
     {
       for (j = 0; j < (int)(sizeof(subscription_description) / sizeof(subscription_description[0])); j ++)
@@ -1990,6 +2020,14 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
     {
       for (j = 0; j < (int)(sizeof(system_description) / sizeof(system_description[0])); j ++)
         cupsArrayAdd(ra, (void *)system_description[j]);
+
+      added = 1;
+    }
+
+    if (!strcmp(value, "system-status") || (!strcmp(value, "all") && op == IPP_OP_GET_SYSTEM_ATTRIBUTES))
+    {
+      for (j = 0; j < (int)(sizeof(system_status) / sizeof(system_status[0])); j ++)
+        cupsArrayAdd(ra, (void *)system_status[j]);
 
       added = 1;
     }

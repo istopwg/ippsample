@@ -152,6 +152,7 @@ enum server_event_e			/* notify-events bit values */
   SERVER_EVENT_DOCUMENT_FETCHABLE = 0x00000008,
   SERVER_EVENT_DOCUMENT_STATE_CHANGED = 0x00000010,
   SERVER_EVENT_DOCUMENT_STOPPED = 0x00000020,
+
   SERVER_EVENT_JOB_COMPLETED = 0x00000040,
   SERVER_EVENT_JOB_CONFIG_CHANGED = 0x00000080,
   SERVER_EVENT_JOB_CREATED = 0x00000100,
@@ -159,6 +160,7 @@ enum server_event_e			/* notify-events bit values */
   SERVER_EVENT_JOB_PROGRESS = 0x00000400,
   SERVER_EVENT_JOB_STATE_CHANGED = 0x00000800,
   SERVER_EVENT_JOB_STOPPED = 0x00001000,
+
   SERVER_EVENT_PRINTER_CONFIG_CHANGED = 0x00002000,
   SERVER_EVENT_PRINTER_FINISHINGS_CHANGED = 0x00004000,
   SERVER_EVENT_PRINTER_MEDIA_CHANGED = 0x00008000,
@@ -167,6 +169,19 @@ enum server_event_e			/* notify-events bit values */
   SERVER_EVENT_PRINTER_SHUTDOWN = 0x00040000,
   SERVER_EVENT_PRINTER_STATE_CHANGED = 0x00080000,
   SERVER_EVENT_PRINTER_STOPPED = 0x00100000,
+
+  SERVER_EVENT_RESOURCE_CANCELED = 0x00200000,
+  SERVER_EVENT_RESOURCE_CONFIG_CHANGED = 0x00400000,
+  SERVER_EVENT_RESOURCE_CREATED = 0x00800000,
+  SERVER_EVENT_RESOURCE_INSTALLED = 0x01000000,
+  SERVER_EVENT_RESOURCE_STATE_CHANGED = 0x02000000,
+
+  SERVER_EVENT_PRINTER_CREATED = 0x04000000,
+  SERVER_EVENT_PRINTER_DELETED = 0x08000000,
+
+  SERVER_EVENT_SYSTEM_CONFIG_CHANGED = 0x10000000,
+  SERVER_EVENT_SYSTEM_STATE_CHANGED = 0x20000000,
+  SERVER_EVENT_SYSTEM_STOPPED = 0x40000000,
 
   /* "Wildcard" values... */
   SERVER_EVENT_NONE = 0x00000000,		/* Nothing */
@@ -177,12 +192,12 @@ enum server_event_e			/* notify-events bit values */
   SERVER_EVENT_PRINTER_ALL = 0x001fe000,
   SERVER_EVENT_PRINTER_CONFIG_ALL = 0x0000e000,
   SERVER_EVENT_PRINTER_STATE_ALL = 0x001e0000,
-  SERVER_EVENT_ALL = 0x001fffff		/* Everything */
+  SERVER_EVENT_ALL = 0x7fffffff		/* Everything */
 };
 typedef unsigned int server_event_t;	/* Bitfield for notify-events */
 #define SERVER_EVENT_DEFAULT SERVER_EVENT_JOB_COMPLETED
 #define SERVER_EVENT_DEFAULT_STRING "job-completed"
-VAR const char * const server_events[21]
+VAR const char * const server_events[31]
 VALUE({					/* Strings for bits */
   /* "none" is implied for no bits set */
   "document-completed",
@@ -191,6 +206,7 @@ VALUE({					/* Strings for bits */
   "document-fetchable",
   "document-state-changed",
   "document-stopped",
+
   "job-completed",
   "job-config-changed",
   "job-created",
@@ -198,6 +214,7 @@ VALUE({					/* Strings for bits */
   "job-progress",
   "job-state-changed",
   "job-stopped",
+
   "printer-config-changed",
   "printer-finishings-changed",
   "printer-media-changed",
@@ -205,7 +222,20 @@ VALUE({					/* Strings for bits */
   "printer-restarted",
   "printer-shutdown",
   "printer-state-changed",
-  "printer-stopped"
+  "printer-stopped",
+
+  "resource-canceled",
+  "resource-config-changed",
+  "resource-created",
+  "resource-installed",
+  "resource-changed",
+
+  "printer-created",
+  "printer-deleted",
+
+  "system-config-changed",
+  "system-state-changed",
+  "system-stopped"
 });
 
 enum server_identify_e			/* identify-actions bit values */
@@ -510,8 +540,9 @@ typedef struct server_subscription_s	/**** Subscription data ****/
   const char		*uuid;		/* notify-subscription-uuid */
   _cups_rwlock_t	rwlock;		/* Subscription lock */
   server_event_t	mask;		/* Event mask */
-  server_printer_t	*printer;	/* Printer */
+  server_printer_t	*printer;	/* Printer, if any */
   server_job_t		*job;		/* Job, if any */
+  server_resource_t	*resource;	/* Resource, if any */
   ipp_t			*attrs;		/* Attributes */
   const char		*username;	/* notify-subscriber-user-name */
   int			lease;		/* notify-lease-duration */
@@ -631,7 +662,8 @@ VAR int			NextSubscriptionId VALUE(1);
  * Functions...
  */
 
-extern void		serverAddEvent(server_printer_t *printer, server_job_t *job, server_event_t event, const char *message, ...) __attribute__((__format__(__printf__, 4, 5)));
+extern void		serverAddEvent(server_printer_t *printer, server_job_t *job, server_resource_t *res, server_event_t event, const char *message, ...) __attribute__((__format__(__printf__, 5, 6)));
+extern void		serverAddResourceFile(server_resource_t *res, const char *filename, const char *format);
 extern http_status_t	serverAuthenticateClient(server_client_t *client);
 extern int		serverAuthorizeUser(server_client_t *client, const char *owner, gid_t group, const char *scope);
 extern void		serverCheckJobs(server_printer_t *printer);

@@ -24,10 +24,11 @@ static int	compare_subscriptions(server_subscription_t *a, server_subscription_t
 
 void
 serverAddEvent(
-    server_printer_t *printer,		/* I - Printer */
-    server_job_t     *job,		/* I - Job, if any */
-    server_event_t   event,		/* I - Event */
-    const char       *message,		/* I - Printf-style notify-text message */
+    server_printer_t  *printer,		/* I - Printer, if any */
+    server_job_t      *job,		/* I - Job, if any */
+    server_resource_t *res,		/* I - Resource, if any */
+    server_event_t    event,		/* I - Event */
+    const char        *message,		/* I - Printf-style notify-text message */
     ...)				/* I - Additional printf arguments */
 {
   server_subscription_t *sub;		/* Current subscription */
@@ -53,17 +54,28 @@ serverAddEvent(
   {
     serverLog(SERVER_LOGLEVEL_DEBUG, "serverAddEvent: sub->id=%d, sub->mask=0x%x, sub->job=%p(%d)", sub->id, sub->mask, (void *)sub->job, sub->job ? sub->job->id : -1);
 
-    if (sub->mask & event && (!sub->job || job == sub->job))
+    if (sub->mask & event && (!sub->job || job == sub->job) && (!sub->printer || printer == sub->printer) && (!sub->resource || res == sub->resource))
     {
       _cupsRWLockWrite(&sub->rwlock);
 
       n = ippNew();
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_CHARSET, "notify-charset", NULL, "utf-8");
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_LANGUAGE, "notify-natural-language", NULL, "en");
-      ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-printer-up-time", (int)(time(NULL) - printer->start_time));
-      ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_URI, "notify-printer-uri", NULL, printer->default_uri);
+      if (printer)
+      {
+	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-printer-up-time", (int)(time(NULL) - printer->start_time));
+	ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_URI, "notify-printer-uri", NULL, printer->default_uri);
+      }
+      else
+      {
+	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-system-up-time", (int)(time(NULL) - SystemStartTime));
+	ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_URI, "notify-system-uri", NULL, DefaultSystemURI);
+      }
+
       if (job)
 	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-job-id", job->id);
+      if (res)
+	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-resource-id", res->id);
       ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-subscription-id", sub->id);
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_URI, "notify-subscription-uuid", NULL, sub->uuid);
       ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-sequence-number", ++ sub->last_sequence);
