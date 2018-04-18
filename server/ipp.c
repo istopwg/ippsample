@@ -859,10 +859,10 @@ ipp_cancel_subscription(
     return;
   }
 
-  _cupsRWLockWrite(&client->printer->rwlock);
-  cupsArrayRemove(client->printer->subscriptions, sub);
+  _cupsRWLockWrite(&SubscriptionsRWLock);
+  cupsArrayRemove(Subscriptions, sub);
   serverDeleteSubscription(sub);
-  _cupsRWUnlock(&client->printer->rwlock);
+  _cupsRWUnlock(&SubscriptionsRWLock);
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
 
@@ -1230,7 +1230,7 @@ ipp_create_xxx_subscriptions(
 	    break;
       }
 
-      if ((sub = serverCreateSubcription(client->printer, job, interval, lease, username, notify_events, notify_attributes, notify_user_data)) != NULL)
+      if ((sub = serverCreateSubscription(client->printer, job, interval, lease, username, notify_events, notify_attributes, notify_user_data)) != NULL)
       {
         ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-subscription-id", sub->id);
         ok_subs ++;
@@ -1966,9 +1966,9 @@ ipp_get_notifications(
 
         serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Waiting for events.");
 
-	_cupsMutexLock(&SubscriptionMutex);
-	_cupsCondWait(&SubscriptionCondition, &SubscriptionMutex, 30.0);
-	_cupsMutexUnlock(&SubscriptionMutex);
+	_cupsMutexLock(&NotificationMutex);
+	_cupsCondWait(&NotificationCondition, &NotificationMutex, 30.0);
+	_cupsMutexUnlock(&NotificationMutex);
 
         serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Done waiting for events.");
 
@@ -2247,10 +2247,8 @@ ipp_get_subscriptions(
   }
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
-  _cupsRWLockRead(&client->printer->rwlock);
-  for (sub = (server_subscription_t *)cupsArrayFirst(client->printer->subscriptions);
-       sub;
-       sub = (server_subscription_t *)cupsArrayNext(client->printer->subscriptions))
+  _cupsRWLockRead(&SubscriptionsRWLock);
+  for (sub = (server_subscription_t *)cupsArrayFirst(Subscriptions); sub; sub = (server_subscription_t *)cupsArrayNext(Subscriptions))
   {
     if (first)
       first = 0;
@@ -2259,6 +2257,7 @@ ipp_get_subscriptions(
 
     copy_subscription_attributes(client, sub, ra, serverAuthorizeUser(client, sub->username, SERVER_GROUP_NONE, SubscriptionPrivacyScope) ? NULL : SubscriptionPrivacyArray);
   }
+  _cupsRWUnlock(&SubscriptionsRWLock);
 
   cupsArrayDelete(ra);
 }

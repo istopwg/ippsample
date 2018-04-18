@@ -1404,6 +1404,9 @@ create_system_attributes(void)
   {
     httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPP_SCHEME, NULL, lis->host, lis->port, "/ipp/system");
 
+    if (!DefaultSystemURI)
+      DefaultSystemURI = strdup(uri);
+
     if (!cupsArrayFind(uris, uri))
     {
       cupsArrayAdd(uris, uri);

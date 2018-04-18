@@ -94,6 +94,9 @@ extern char **environ;
  * Constants...
  */
 
+/* Maximum number of resources per job/printer */
+#  define SERVER_RESOURCES_MAX				100
+
 /* Maximum lease duration value from RFC 3995 - 2^26-1 seconds or ~2 years */
 #  define SERVER_NOTIFY_LEASE_DURATION_MAX		67108863
 /* But a value of 0 means "never expires"... */
@@ -449,12 +452,13 @@ typedef struct server_printer_s		/**** Printer data ****/
 			*completed_jobs;/* Completed jobs */
   server_job_t		*processing_job;/* Current processing job */
   int			next_job_id;	/* Next job-id value */
-  cups_array_t		*subscriptions;	/* Subscriptions */
-  int			next_sub_id;	/* Next notify-subscription-id value */
   server_identify_t	identify_actions;
 					/* identify-actions value, if any */
   char			*identify_message;
 					/* Identify-Printer message value, if any */
+  int			num_resources,	/* Number of printer resources */
+			resources[SERVER_RESOURCES_MAX];
+					/* Printer resource IDs */
 } server_printer_t;
 
 struct server_job_s			/**** Job data ****/
@@ -483,7 +487,22 @@ struct server_job_s			/**** Job data ****/
   char			*filename;	/* Print file name */
   int			fd;		/* Print file descriptor */
   server_printer_t	*printer;	/* Printer */
+  int			num_resources,	/* Number of job resources */
+			resources[SERVER_RESOURCES_MAX];
+					/* Job resource IDs */
 };
+
+typedef struct server_resource_s	/**** Resource data ****/
+{
+  int			id;		/* resource-id */
+  _cups_rwlock_t	rwlock;		/* Resource lock */
+  ipp_t			*attrs;		/* Resource attributes */
+  ipp_rstate_t		state;		/* Resource state */
+  char			*resource,	/* External resource path */
+			*filename,	/* Local filename */
+			*format;	/* MIME media type */
+  int			use;		/* Use count */
+} server_resource_t;
 
 typedef struct server_subscription_s	/**** Subscription data ****/
 {
@@ -527,9 +546,9 @@ typedef struct server_client_s		/**** Client data ****/
 
 typedef struct server_listener_s	/**** Listener data ****/
 {
-  int	fd;				/* Listener socket */
-  char	host[256];			/* Hostname, if any */
-  int	port;				/* Port number */
+  int			fd;		/* Listener socket */
+  char			host[256];	/* Hostname, if any */
+  int			port;		/* Port number */
 } server_listener_t;
 
 
@@ -570,6 +589,7 @@ VAR char		*ConfigDirectory VALUE(NULL);
 VAR char		*DataDirectory	VALUE(NULL);
 VAR int			DefaultPort	VALUE(0);
 VAR server_printer_t	*DefaultPrinter	VALUE(NULL);
+VAR char		*DefaultSystemURI VALUE(NULL);
 VAR http_encryption_t	Encryption	VALUE(HTTP_ENCRYPTION_IF_REQUESTED);
 VAR int			KeepFiles	VALUE(0);
 #ifdef HAVE_SSL
@@ -595,8 +615,16 @@ VAR AvahiClient		*DNSSDClient	VALUE(NULL);
 #endif /* HAVE_DNSSD */
 VAR char		*DNSSDSubType	VALUE(NULL);
 
-VAR _cups_mutex_t	SubscriptionMutex VALUE(_CUPS_MUTEX_INITIALIZER);
-VAR _cups_cond_t	SubscriptionCondition VALUE(_CUPS_COND_INITIALIZER);
+VAR _cups_rwlock_t	ResourcesRWLock	VALUE(_CUPS_RWLOCK_INITIALIZER);
+VAR cups_array_t	*ResourcesById	VALUE(NULL);
+VAR cups_array_t	*ResourcesByPath VALUE(NULL);
+VAR int			NextResourceId 	VALUE(1);
+
+VAR _cups_mutex_t	NotificationMutex VALUE(_CUPS_MUTEX_INITIALIZER);
+VAR _cups_cond_t	NotificationCondition VALUE(_CUPS_COND_INITIALIZER);
+VAR _cups_rwlock_t	SubscriptionsRWLock VALUE(_CUPS_RWLOCK_INITIALIZER);
+VAR cups_array_t	*Subscriptions	VALUE(NULL);
+VAR int			NextSubscriptionId VALUE(1);
 
 
 /*
@@ -618,17 +646,21 @@ extern server_job_t	*serverCreateJob(server_client_t *client);
 extern void		serverCreateJobFilename(server_printer_t *printer, server_job_t *job, const char *format, char *fname, size_t fnamesize);
 extern int		serverCreateListeners(const char *host, int port);
 extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, server_pinfo_t *pinfo, int dupe_pinfo);
-extern server_subscription_t *serverCreateSubcription(server_printer_t *printer, server_job_t *job, int interval, int lease, const char *username, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
+extern server_resource_t *serverCreateResource(const char *resource, const char *filename, const char *format, const char *name, const char *info, const char *type, const char *owner);
+extern server_subscription_t *serverCreateSubscription(server_printer_t *printer, server_job_t *job, int interval, int lease, const char *username, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
 extern void		serverDeleteClient(server_client_t *client);
 extern void		serverDeleteDevice(server_device_t *device);
 extern void		serverDeleteJob(server_job_t *job);
 extern void		serverDeletePrinter(server_printer_t *printer);
+extern void		serverDeleteResource(server_resource_t *res);
 extern void		serverDeleteSubscription(server_subscription_t *sub);
 extern void		serverDNSSDInit(void);
 extern int		serverFinalizeConfiguration(void);
 extern server_device_t	*serverFindDevice(server_client_t *client);
 extern server_job_t	*serverFindJob(server_client_t *client, int job_id);
 extern server_printer_t	*serverFindPrinter(const char *resource);
+extern server_resource_t *serverFindResourceById(int id);
+extern server_resource_t *serverFindResourceByPath(const char *resource);
 extern server_subscription_t *serverFindSubscription(server_client_t *client, int sub_id);
 extern server_jreason_t	serverGetJobStateReasonsBits(ipp_attribute_t *attr);
 extern server_event_t	serverGetNotifyEventsBits(ipp_attribute_t *attr);

@@ -135,6 +135,7 @@
 		725C87BA1C7664DE00FB3AD5 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402E91C0CE81900139783 /* ApplicationServices.framework */; };
 		725C87BB1C7664DE00FB3AD5 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
 		725C87C41C767CF800FB3AD5 /* ipptransform.c in Sources */ = {isa = PBXBuildFile; fileRef = 725C87C31C767CF800FB3AD5 /* ipptransform.c */; };
+		7263CE032086A83F00919E96 /* resource.c in Sources */ = {isa = PBXBuildFile; fileRef = 7263CE022086A83C00919E96 /* resource.c */; };
 		72737CF61C24BA4F007CBEF6 /* dest-job.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CEF1C24BA4F007CBEF6 /* dest-job.c */; };
 		72737CF71C24BA4F007CBEF6 /* dest-localization.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF01C24BA4F007CBEF6 /* dest-localization.c */; };
 		72737CF81C24BA4F007CBEF6 /* dest-options.c in Sources */ = {isa = PBXBuildFile; fileRef = 72737CF11C24BA4F007CBEF6 /* dest-options.c */; };
@@ -589,6 +590,7 @@
 		72530E342028BCF30035FF65 /* ipp-vars.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ipp-vars.c"; path = "../cups/ipp-vars.c"; sourceTree = "<group>"; };
 		725C87C01C7664DE00FB3AD5 /* ipptransform */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ipptransform; sourceTree = BUILT_PRODUCTS_DIR; };
 		725C87C31C767CF800FB3AD5 /* ipptransform.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ipptransform.c; path = ../tools/ipptransform.c; sourceTree = "<group>"; };
+		7263CE022086A83C00919E96 /* resource.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = resource.c; path = ../server/resource.c; sourceTree = "<group>"; };
 		72737CEF1C24BA4F007CBEF6 /* dest-job.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "dest-job.c"; path = "../cups/dest-job.c"; sourceTree = "<group>"; };
 		72737CF01C24BA4F007CBEF6 /* dest-localization.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "dest-localization.c"; path = "../cups/dest-localization.c"; sourceTree = "<group>"; };
 		72737CF11C24BA4F007CBEF6 /* dest-options.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "dest-options.c"; path = "../cups/dest-options.c"; sourceTree = "<group>"; };
@@ -1057,9 +1059,10 @@
 				72B402A91C0CE43D00139783 /* job.c */,
 				72B402AA1C0CE43D00139783 /* log.c */,
 				72B402AB1C0CE43D00139783 /* main.c */,
-				72B402AC1C0CE43D00139783 /* printer.c */,
 				72B589F51D1C6628007117DA /* printer-png.h */,
+				72B402AC1C0CE43D00139783 /* printer.c */,
 				72A0D4521E6864EB0092958D /* printer3d-png.h */,
+				7263CE022086A83C00919E96 /* resource.c */,
 				72B402AE1C0CE43D00139783 /* subscription.c */,
 				72B402AF1C0CE43D00139783 /* transform.c */,
 			);
@@ -1631,6 +1634,7 @@
 				72B402BE1C0CE45F00139783 /* ipp.c in Sources */,
 				72B402C21C0CE46800139783 /* printer.c in Sources */,
 				72B402C11C0CE46800139783 /* main.c in Sources */,
+				7263CE032086A83F00919E96 /* resource.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -437,7 +437,6 @@ serverCreatePrinter(
   printer->active_jobs    = cupsArrayNew((cups_array_func_t)compare_active_jobs, NULL);
   printer->completed_jobs = cupsArrayNew((cups_array_func_t)compare_completed_jobs, NULL);
   printer->next_job_id    = 1;
-  printer->next_sub_id    = 1;
   printer->pinfo          = *pinfo;
 
   if (dupe_pinfo)
@@ -1264,7 +1263,6 @@ serverDeletePrinter(server_printer_t *printer)	/* I - Printer */
   cupsArrayDelete(printer->active_jobs);
   cupsArrayDelete(printer->completed_jobs);
   cupsArrayDelete(printer->jobs);
-  cupsArrayDelete(printer->subscriptions);
 
   if (printer->identify_message)
     free(printer->identify_message);

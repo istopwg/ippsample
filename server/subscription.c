@@ -47,11 +47,9 @@ serverAddEvent(
 
   serverLog(SERVER_LOGLEVEL_DEBUG, "serverAddEvent(printer=%p(%s), job=%p(%d), event=0x%x, message=\"%s\")", (void *)printer, printer->name, (void *)job, job ? job->id : -1, event, text);
 
-  _cupsRWLockRead(&printer->rwlock);
+  _cupsRWLockRead(&SubscriptionsRWLock);
 
-  for (sub = (server_subscription_t *)cupsArrayFirst(printer->subscriptions);
-       sub;
-       sub = (server_subscription_t *)cupsArrayNext(printer->subscriptions))
+  for (sub = (server_subscription_t *)cupsArrayFirst(Subscriptions); sub; sub = (server_subscription_t *)cupsArrayNext(Subscriptions))
   {
     serverLog(SERVER_LOGLEVEL_DEBUG, "serverAddEvent: sub->id=%d, sub->mask=0x%x, sub->job=%p(%d)", sub->id, sub->mask, (void *)sub->job, sub->job ? sub->job->id : -1);
 
@@ -66,7 +64,7 @@ serverAddEvent(
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_URI, "notify-printer-uri", NULL, printer->default_uri);
       if (job)
 	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-job-id", job->id);
-      ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-subcription-id", sub->id);
+      ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-subscription-id", sub->id);
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_URI, "notify-subscription-uuid", NULL, sub->uuid);
       ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-sequence-number", ++ sub->last_sequence);
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_KEYWORD, "notify-subscribed-event", NULL, serverGetNotifySubscribedEvent(event));
@@ -99,22 +97,22 @@ serverAddEvent(
       _cupsRWUnlock(&sub->rwlock);
 
       serverLog(SERVER_LOGLEVEL_DEBUG, "Broadcasting new event.");
-      _cupsCondBroadcast(&SubscriptionCondition);
+      _cupsCondBroadcast(&NotificationCondition);
     }
   }
 
-  _cupsRWUnlock(&printer->rwlock);
+  _cupsRWUnlock(&SubscriptionsRWLock);
 }
 
 
 /*
- * 'serverCreateSubcription()' - Create a new subscription object from a
- *                           Print-Job, Create-Job, or Create-xxx-Subscription
- *                           request.
+ * 'serverCreateSubscription()' - Create a new subscription object from a
+ *                                Print-Job, Create-Job, or
+ *                                Create-xxx-Subscription request.
  */
 
 server_subscription_t *			/* O - Subscription object */
-serverCreateSubcription(
+serverCreateSubscription(
     server_printer_t *printer,		/* I - Printer */
     server_job_t     *job,		/* I - Job, if any */
     int              interval,		/* I - Interval for progress events */
@@ -141,9 +139,9 @@ serverCreateSubcription(
     return (NULL);
   }
 
-  _cupsRWLockWrite(&(printer->rwlock));
+  _cupsRWLockWrite(&SubscriptionsRWLock);
 
-  sub->id       = printer->next_sub_id ++;
+  sub->id       = NextSubscriptionId ++;
   sub->mask     = notify_events ? serverGetNotifyEventsBits(notify_events) : SERVER_EVENT_DEFAULT;
   sub->printer  = printer;
   sub->job      = job;
@@ -167,11 +165,14 @@ serverCreateSubcription(
 
   ippAddInteger(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-subscription-id", sub->id);
 
-  httpAssembleUUID(lis->host, lis->port, printer->name, -sub->id, uuid, sizeof(uuid));
+  httpAssembleUUID(lis->host, lis->port, printer ? printer->name : "_system_", -sub->id, uuid, sizeof(uuid));
   attr = ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-subscription-uuid", NULL, uuid);
   sub->uuid = ippGetString(attr, 0, NULL);
 
-  ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-printer-uri", NULL, printer->default_uri);
+  if (printer)
+    ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-printer-uri", NULL, printer->default_uri);
+  else
+    ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-system-uri", NULL, DefaultSystemURI);
 
   if (job)
     ippAddInteger(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-job-id", job->id);
@@ -217,12 +218,12 @@ serverCreateSubcription(
 
   sub->events = cupsArrayNew3(NULL, NULL, NULL, 0, NULL, (cups_afree_func_t)ippDelete);
 
-  if (!printer->subscriptions)
-    printer->subscriptions = cupsArrayNew((cups_array_func_t)compare_subscriptions, NULL);
+  if (!Subscriptions)
+    Subscriptions = cupsArrayNew((cups_array_func_t)compare_subscriptions, NULL);
 
-  cupsArrayAdd(printer->subscriptions, sub);
+  cupsArrayAdd(Subscriptions, sub);
 
-  _cupsRWUnlock(&(printer->rwlock));
+  _cupsRWUnlock(&SubscriptionsRWLock);
 
   return (sub);
 }
@@ -239,7 +240,7 @@ serverDeleteSubscription(
   sub->pending_delete = 1;
 
   serverLog(SERVER_LOGLEVEL_DEBUG, "Broadcasting deleted subscription.");
-  _cupsCondBroadcast(&SubscriptionCondition);
+  _cupsCondBroadcast(&NotificationCondition);
 
   _cupsRWLockWrite(&sub->rwlock);
 
@@ -253,7 +254,7 @@ serverDeleteSubscription(
 
 
 /*
- * 'serverFindSubscription()' - Find a subcription.
+ * 'serverFindSubscription()' - Find a subscription.
  */
 
 server_subscription_t *			/* O - Subscription */
@@ -276,9 +277,9 @@ serverFindSubscription(
   else
     key.id = ippGetInteger(notify_subscription_id, 0);
 
-  _cupsRWLockRead(&client->printer->rwlock);
-  sub = (server_subscription_t *)cupsArrayFind(client->printer->subscriptions, &key);
-  _cupsRWUnlock(&client->printer->rwlock);
+  _cupsRWLockRead(&SubscriptionsRWLock);
+  sub = (server_subscription_t *)cupsArrayFind(Subscriptions, &key);
+  _cupsRWUnlock(&SubscriptionsRWLock);
 
   serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverFindSubscription: sub=%p", (void *)sub);
 
