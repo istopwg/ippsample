@@ -888,6 +888,7 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
   int			i, j,		/* Looping vars */
 			count,		/* Number of values */
 			added;		/* Was name added? */
+  ipp_op_t		op;		/* IPP operation code */
   ipp_attribute_t	*requested;	/* requested-attributes attribute */
   cups_array_t		*ra;		/* Requested attributes array */
   const char		*value;		/* Current value */
@@ -1241,7 +1242,8 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
     "job-name",
     "job-originating-host-name",	/* CUPS extension */
     "job-originating-user-name",
-    "job-originating-user-uri",
+    "job-originating-user-uri",		/* IPP JPS3 */
+    "job-owner-col",			/* IPP System */
     "job-pages",
     "job-pages-col",
     "job-pages-completed",
@@ -1252,6 +1254,7 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
     "job-printer-up-time",
     "job-printer-uri",
     "job-priority-actual",
+    "job-resource-ids",			/* IPP System */
     "job-save-printer-make-and-model",
     "job-sheet-message-actual",
     "job-sheets-actual",
@@ -1680,6 +1683,7 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
     "pdf-features-supported",		/* IPP 3D */
     "pdf-versions-supported",		/* CUPS extension */
     "pdl-override-supported",
+    "platform-shape",			/* IPP 3D */
     "port-monitor",			/* CUPS extension */
     "port-monitor-supported",		/* CUPS extension */
     "preferred-attributes-supported",
@@ -1690,6 +1694,7 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
     "printer-commands",			/* CUPS extension */
     "printer-config-change-date-time",
     "printer-config-change-time",
+    "printer-config-changes",		/* IPP System */
     "printer-current-time",
     "printer-detailed-status-messages",
     "printer-device-id",
@@ -1707,7 +1712,7 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
     "printer-get-attributes-supported",
     "printer-icc-profiles",
     "printer-icons",
-    "printer-id",               	/* CUPS extension */
+    "printer-id",			/* IPP System */
     "printer-info",
     "printer-input-tray",		/* IPP JPS3 */
     "printer-is-accepting-jobs",
@@ -1727,7 +1732,8 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
     "printer-organization",
     "printer-organizational-unit",
     "printer-output-tray",		/* IPP JPS3 */
-    "printer-queue-id",			/* CUPS extension */
+    "printer-owner-col",		/* IPP System */
+    "printer-service-type",		/* IPP System */
     "printer-settable-attributes-supported",
     "printer-state",
     "printer-state-change-date-time",
@@ -1763,12 +1769,37 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
     "xri-security-supported",
     "xri-uri-scheme-supported"
   };
+  static const char * const resource_description[] =
+  {					/* resource-description group - IPP System */
+    "date-time-at-canceled",
+    "date-time-at-creation",
+    "date-time-at-installed",
+    "resource-data-uri",
+    "resource-format",
+    "resource-id",
+    "resource-info",
+    "resource-k-octets",
+    "resource-name",
+    "resource-owner-col",
+    "resource-state",
+    "resource-state-message",
+    "resource-state-reasons",
+    "resource-string-version",
+    "resource-type",
+    "resource-use-count",
+    "resource-uuid",
+    "resource-version",
+    "time-at-canceled",
+    "time-at-creation",
+    "time-at-installed"
+  };
   static const char * const subscription_description[] =
   {					/* subscription-description group */
     "notify-job-id",
     "notify-lease-expiration-time",
     "notify-printer-up-time",
     "notify-printer-uri",
+    "notify-system-uri",
     "notify-sequence-number",
     "notify-subscriber-user-name",
     "notify-subscriber-user-uri",
@@ -1795,21 +1826,72 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
     "notify-time-interval",
     "notify-user-data"
   };
+  static const char * const system_description[] =
+  {					/* system-description group - IPP System */
+    "charset-configured",
+    "charset-supported",
+    "generated-natural-language-supported",
+    "ipp-features-supported",
+    "ipp-versions-supported",
+    "natural-language-configured",
+    "operations-supported",
+    "power-calendar-policy-col",
+    "power-event-policy-col",
+    "power-log-col",
+    "power-state-capabilities-col",
+    "power-state-counters-col",
+    "power-state-monitor-col",
+    "power-state-transitions-col",
+    "power-timeout-policy-col",
+    "printer-creation-attributes-supported",
+    "resource-format-supported",
+    "resource-settable-attributes-supported",
+    "resource-type-supported",
+    "system-config-change-date-time",
+    "system-config-change-time",
+    "system-config-changes",
+    "system-configured-printers",
+    "system-configured-resources",
+    "system-current-time",
+    "system-default-printer-id",
+    "system-device-id",
+    "system-geo-location",
+    "system-info",
+    "system-location",
+    "system-mandatory-printer-attributes",
+    "system-make-and-model",
+    "system-message-from-operator",
+    "system-name",
+    "system-owner-col",
+    "system-serial-number",
+    "system-settable-attributes-supported",
+    "system-state",
+    "system-state-change-date-time",
+    "system-state-change-time",
+    "system-state-message",
+    "system-state-reasons",
+    "system-strings-languages-supported",
+    "system-strings-uri",
+    "system-up-time",
+    "system-uuid",
+    "system-xri-supported"
+  };
 
 
  /*
   * Get the requested-attributes attribute...
   */
 
-  if ((requested = ippFindAttribute(request, "requested-attributes",
-                                    IPP_TAG_KEYWORD)) == NULL)
+  op = ippGetOperation(request);
+
+  if ((requested = ippFindAttribute(request, "requested-attributes", IPP_TAG_KEYWORD)) == NULL)
   {
    /*
     * The Get-Jobs operation defaults to "job-id" and "job-uri", all others
     * default to "all"...
     */
 
-    if (ippGetOperation(request) == IPP_OP_GET_JOBS)
+    if (op == IPP_OP_GET_JOBS)
     {
       ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
       cupsArrayAdd(ra, "job-id");
@@ -1840,12 +1922,9 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
     added = 0;
     value = ippGetString(requested, i, NULL);
 
-    if (!strcmp(value, "document-description") || !strcmp(value, "all"))
+    if (!strcmp(value, "document-description") || (!strcmp(value, "all") && (op == IPP_OP_GET_JOB_ATTRIBUTES || op == IPP_OP_GET_JOBS || op == IPP_OP_GET_DOCUMENT_ATTRIBUTES || op == IPP_OP_GET_DOCUMENTS)))
     {
-      for (j = 0;
-           j < (int)(sizeof(document_description) /
-                     sizeof(document_description[0]));
-           j ++)
+      for (j = 0; j < (int)(sizeof(document_description) / sizeof(document_description[0])); j ++)
         cupsArrayAdd(ra, (void *)document_description[j]);
 
       added = 1;
@@ -1853,63 +1932,64 @@ ippCreateRequestedArray(ipp_t *request)	/* I - IPP request */
 
     if (!strcmp(value, "document-template") || !strcmp(value, "all"))
     {
-      for (j = 0;
-           j < (int)(sizeof(document_template) / sizeof(document_template[0]));
-           j ++)
+      for (j = 0; j < (int)(sizeof(document_template) / sizeof(document_template[0])); j ++)
         cupsArrayAdd(ra, (void *)document_template[j]);
 
       added = 1;
     }
 
-    if (!strcmp(value, "job-description") || !strcmp(value, "all"))
+    if (!strcmp(value, "job-description") || (!strcmp(value, "all") && (op == IPP_OP_GET_JOB_ATTRIBUTES || op == IPP_OP_GET_JOBS)))
     {
-      for (j = 0;
-           j < (int)(sizeof(job_description) / sizeof(job_description[0]));
-           j ++)
+      for (j = 0; j < (int)(sizeof(job_description) / sizeof(job_description[0])); j ++)
         cupsArrayAdd(ra, (void *)job_description[j]);
 
       added = 1;
     }
 
-    if (!strcmp(value, "job-template") || !strcmp(value, "all"))
+    if (!strcmp(value, "job-template") || (!strcmp(value, "all") && (op == IPP_OP_GET_JOB_ATTRIBUTES || op == IPP_OP_GET_JOBS || op == IPP_OP_GET_PRINTER_ATTRIBUTES)))
     {
-      for (j = 0;
-           j < (int)(sizeof(job_template) / sizeof(job_template[0]));
-           j ++)
+      for (j = 0; j < (int)(sizeof(job_template) / sizeof(job_template[0])); j ++)
         cupsArrayAdd(ra, (void *)job_template[j]);
 
       added = 1;
     }
 
-    if (!strcmp(value, "printer-description") || !strcmp(value, "all"))
+    if (!strcmp(value, "printer-description") || (!strcmp(value, "all") && (op == IPP_OP_GET_PRINTER_ATTRIBUTES || op == IPP_OP_GET_PRINTERS || op == IPP_OP_CUPS_GET_DEFAULT || op == IPP_OP_CUPS_GET_PRINTERS || op == IPP_OP_CUPS_GET_CLASSES)))
     {
-      for (j = 0;
-           j < (int)(sizeof(printer_description) /
-                     sizeof(printer_description[0]));
-           j ++)
+      for (j = 0; j < (int)(sizeof(printer_description) / sizeof(printer_description[0])); j ++)
         cupsArrayAdd(ra, (void *)printer_description[j]);
 
       added = 1;
     }
 
-    if (!strcmp(value, "subscription-description") || !strcmp(value, "all"))
+    if (!strcmp(value, "resource-description") || (!strcmp(value, "all") && (op == IPP_OP_GET_RESOURCE_ATTRIBUTES || op == IPP_OP_GET_RESOURCES)))
     {
-      for (j = 0;
-           j < (int)(sizeof(subscription_description) /
-                     sizeof(subscription_description[0]));
-           j ++)
+      for (j = 0; j < (int)(sizeof(resource_description) / sizeof(resource_description[0])); j ++)
+        cupsArrayAdd(ra, (void *)resource_description[j]);
+
+      added = 1;
+    }
+
+    if (!strcmp(value, "subscription-description") || (!strcmp(value, "all") && (op == IPP_OP_GET_SUBSCRIPTION_ATTRIBUTES || op == IPP_OP_GET_SUBSCRIPTIONS)))
+    {
+      for (j = 0; j < (int)(sizeof(subscription_description) / sizeof(subscription_description[0])); j ++)
         cupsArrayAdd(ra, (void *)subscription_description[j]);
 
       added = 1;
     }
 
-    if (!strcmp(value, "subscription-template") || !strcmp(value, "all"))
+    if (!strcmp(value, "subscription-template") || (!strcmp(value, "all") && (op == IPP_OP_GET_SUBSCRIPTION_ATTRIBUTES || op == IPP_OP_GET_SUBSCRIPTIONS)))
     {
-      for (j = 0;
-           j < (int)(sizeof(subscription_template) /
-                     sizeof(subscription_template[0]));
-           j ++)
+      for (j = 0; j < (int)(sizeof(subscription_template) / sizeof(subscription_template[0])); j ++)
         cupsArrayAdd(ra, (void *)subscription_template[j]);
+
+      added = 1;
+    }
+
+    if (!strcmp(value, "system-description") || (!strcmp(value, "all") && op == IPP_OP_GET_SYSTEM_ATTRIBUTES))
+    {
+      for (j = 0; j < (int)(sizeof(system_description) / sizeof(system_description[0])); j ++)
+        cupsArrayAdd(ra, (void *)system_description[j]);
 
       added = 1;
     }
