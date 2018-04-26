@@ -146,7 +146,9 @@ serverCreatePrinter(
   };
   static const char * const features3d[] =/* ipp-features-supported values */
   {
-    "ipp-3d"
+    "infrastructure-printer",
+    "ipp-3d",
+    "system-service"
   };
   static const int	ops[] =		/* operations-supported values */
   {
