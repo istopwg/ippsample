@@ -83,7 +83,8 @@ serverLogAttributes(
     if (ippGetGroupTag(attr) != group_tag)
     {
       group_tag = ippGetGroupTag(attr);
-      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s %s", title, ippTagString(group_tag));
+      if (group_tag != IPP_TAG_ZERO)
+        serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s %s", title, ippTagString(group_tag));
     }
 
     if (ippGetName(attr))
