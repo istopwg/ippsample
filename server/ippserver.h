@@ -609,11 +609,14 @@ VAR cups_array_t	*SubscriptionPrivacyArray VALUE(NULL);
 
 VAR ipp_t		*PrivacyAttributes VALUE(NULL);
 
+VAR _cups_rwlock_t	SystemRWLock	VALUE(_CUPS_RWLOCK_INITIALIZER);
 VAR ipp_t		*SystemAttributes VALUE(NULL);
 VAR time_t		SystemStartTime,
 			SystemConfigChangeTime,
 			SystemStateChangeTime;
 VAR int			SystemConfigChanges VALUE(0);
+VAR int			SystemNumSettings VALUE(0);
+VAR cups_option_t	*SystemSettings	VALUE(NULL);
 
 VAR char		*BinDir		VALUE(NULL);
 VAR char		*ConfigDirectory VALUE(NULL);
@@ -705,6 +708,7 @@ extern void		serverLogAttributes(server_client_t *client, const char *title, ipp
 extern void		serverLogClient(server_loglevel_t level, server_client_t *client, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
 extern void		serverLogJob(server_loglevel_t level, server_job_t *job, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
 extern void		serverLogPrinter(server_loglevel_t level, server_printer_t *printer, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
+extern char		*serverMakeVCARD(const char *user, const char *name, const char *location, const char *email, const char *phone, char *buffer, size_t bufsize);
 extern void		*serverProcessClient(server_client_t *client);
 extern int		serverProcessHTTP(server_client_t *client);
 extern int		serverProcessIPP(server_client_t *client);

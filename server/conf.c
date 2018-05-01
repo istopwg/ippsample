@@ -1217,6 +1217,7 @@ create_system_attributes(void)
 {
   int			i;		/* Looping var */
   ipp_t			*col;		/* Collection value */
+  const char		*setting;	/* System setting value */
   char			vcard[1024];	/* VCARD value */
   server_listener_t	*lis;		/* Current listener */
   cups_array_t		*uris;		/* Array of URIs */
@@ -1293,6 +1294,15 @@ create_system_attributes(void)
     "printer-location",
     "printer-make-and-model"
   };
+  static const char * const system_settable_attributes_supported[] =
+  {
+    "system-geo-location",
+    "system-info",
+    "system-location",
+    "system-make-and-model",
+    "system-name",
+    "system-owner-col"
+  };
 
 
   SystemAttributes = ippNew();
@@ -1345,45 +1355,53 @@ create_system_attributes(void)
   /* system-device-id, TODO: maybe remove this, it has no purpose */
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-device-id", NULL, "MANU:None;MODEL:None;");
 
-  /* system-geo-location, TODO: allow configuration */
-  ippAddOutOfBand(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_UNKNOWN, "system-geo-location");
+  /* system-geo-location */
+  setting = cupsGetOption("GeoLocation", SystemNumSettings, SystemSettings);
+  if (setting)
+    ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_URI, "system-geo-location", NULL, setting);
+  else
+    ippAddOutOfBand(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_UNKNOWN, "system-geo-location");
 
-  /* system-info, TODO: allow configuration */
-  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-info", NULL, "ippserver system service");
+  /* system-info */
+  setting = cupsGetOption("Info", SystemNumSettings, SystemSettings);
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-info", NULL, setting ? setting : "ippserver system service");
 
-  /* system-location, TODO: allow configuration */
-  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-location", NULL, "nowhere");
+  /* system-location */
+  setting = cupsGetOption("Location", SystemNumSettings, SystemSettings);
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-location", NULL, setting ? setting : "nowhere");
 
   /* system-mandatory-printer-attributes */
   ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "system-mandatory-printer-attributes", sizeof(system_mandatory_printer_attributes) / sizeof(system_mandatory_printer_attributes[0]), NULL, system_mandatory_printer_attributes);
 
-  /* system-make-and-model, TODO: allow configuration */
-  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-make-and-model", NULL, "ippserver prototype");
+  /* system-make-and-model */
+  setting = cupsGetOption("MakeAndModel", SystemNumSettings, SystemSettings);
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-make-and-model", NULL, setting ? setting : "ippserver prototype");
 
-  /* system-name, TODO: allow configuration */
-  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_NAME), "system-name", NULL, "ippserver");
+  /* system-name */
+  setting = cupsGetOption("Name", SystemNumSettings, SystemSettings);
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_NAME), "system-name", NULL, setting ? setting : "ippserver");
 
-  /* system-owner-col, TODO: allow configuration */
+  /* system-owner-col */
   col = ippNew();
 
-  httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "mailto", NULL, NULL, 0, "admin@example.org");
-  snprintf(vcard, sizeof(vcard),
-           "BEGIN:VCARD\r\n"
-           "VERSION:4.0\r\n"
-           "FN:%s\r\n"
-           "EMAIL:%s\r\n"
-           "END:VCARD\r\n", "Admin", "admin@example.org");
+  setting = cupsGetOption("OwnerEmail", SystemNumSettings, SystemSettings);
+  httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "mailto", NULL, NULL, 0, setting ? setting : "unknown@example.com");
   ippAddString(col, IPP_TAG_ZERO, IPP_TAG_URI, "owner-uri", NULL, uri);
+
+  setting = cupsGetOption("OwnerName", SystemNumSettings, SystemSettings);
+  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_NAME, "owner-user-name", NULL, setting ? setting : cupsUser());
+
+  serverMakeVCARD(NULL, cupsGetOption("OwnerName", SystemNumSettings, SystemSettings), cupsGetOption("OwnerLocation", SystemNumSettings, SystemSettings), cupsGetOption("OwnerEmail", SystemNumSettings, SystemSettings), cupsGetOption("OwnerPhone", SystemNumSettings, SystemSettings), vcard, sizeof(vcard));
   ippAddString(col, IPP_TAG_ZERO, IPP_TAG_TEXT, "owner-vcard", NULL, vcard);
 
   ippAddCollection(SystemAttributes, IPP_TAG_SYSTEM, "system-owner-col", col);
   ippDelete(col);
 
-  /* system-settable-attributes-supported, TODO: allow configuration */
-  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "system-settable-attributes-supported", NULL, "none");
+  /* system-settable-attributes-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "system-settable-attributes-supported", (int)(sizeof(system_settable_attributes_supported) / sizeof(system_settable_attributes_supported[0])), NULL, system_settable_attributes_supported);
 
 #if 0
-  /* system-strings-languages-supported */
+  /* TODO: Support system-strings-languages-supported */
   if (SystemStrings)
   {
     server_lang_t *lang;
@@ -1520,6 +1538,43 @@ load_system(const char *conf)		/* I - Configuration file */
   char		line[1024],		/* Line from file */
 		*value;			/* Pointer to value on line */
   struct group	*group;			/* Group information */
+  int		i;			/* Looping var */
+  static const char * const settings[] =/* List of directives */
+  {
+    "Authentication",
+    "AuthAdminGroup",
+    "AuthName",
+    "AuthOperatorGroup",
+    "AuthService",
+    "AuthTestPassword",
+    "AuthType",
+    "BinDir",
+    "DataDir",
+    "DefaultPrinter",
+    "DocumentPrivacyAttributes",
+    "DocumentPrivacyScope",
+    "Encryption",
+    "GeoLocation",
+    "Info",
+    "JobPrivacyAttributes",
+    "JobPrivacyScope",
+    "KeepFiles",
+    "Listen",
+    "Location",
+    "LogFile",
+    "LogLevel",
+    "MakeAndModel",
+    "MaxCompletedJobs",
+    "MaxJobs",
+    "Name",
+    "OwnerEmail",
+    "OwnerLocation",
+    "OwnerName",
+    "OwnerPhone",
+    "SpoolDir",
+    "SubscriptionPrivacyAttributes",
+    "SubscriptionPrivacyScope"
+  };
 
 
   if ((fp = cupsFileOpen(conf, "r")) == NULL)
@@ -1532,6 +1587,16 @@ load_system(const char *conf)		/* I - Configuration file */
       fprintf(stderr, "ippserver: Missing value on line %d of \"%s\".\n", linenum, conf);
       status = 0;
       break;
+    }
+
+    for (i = 0; i < (int)(sizeof(settings) / sizeof(settings[0])); i ++)
+      if (!_cups_strcasecmp(line, settings[i]))
+        break;
+
+    if (i >= (int)(sizeof(settings) / sizeof(settings[0])))
+    {
+      fprintf(stderr, "ippserver: Unknown directive \"%s\" on line %d.\n", line, linenum);
+      continue;
     }
 
     if (!_cups_strcasecmp(line, "Authentication"))
@@ -1600,7 +1665,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       BinDir = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "DataDirectory"))
+    else if (!_cups_strcasecmp(line, "DataDir"))
     {
       if (access(value, R_OK))
       {
@@ -1757,7 +1822,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       MaxJobs = atoi(value);
     }
-    else if (!_cups_strcasecmp(line, "SpoolDirectory"))
+    else if (!_cups_strcasecmp(line, "SpoolDir"))
     {
       if (access(value, R_OK))
       {
@@ -1789,10 +1854,6 @@ load_system(const char *conf)		/* I - Configuration file */
       }
 
       SubscriptionPrivacyScope = strdup(value);
-    }
-    else
-    {
-      fprintf(stderr, "ippserver: Unknown directive \"%s\" on line %d.\n", line, linenum);
     }
   }
 
