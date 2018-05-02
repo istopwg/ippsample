@@ -7,7 +7,7 @@
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ippserver 8 "ippsample" "2018-05-01" "Apple Inc."
+.TH ippserver 8 "ippsample" "2018-05-02" "Apple Inc."
 .SH NAME
 ippserver \- a simple ipp server
 .SH SYNOPSIS
@@ -271,8 +271,8 @@ The default is "default".
 \fBKeepFiles \fI{No|Yes}\fR
 Specifies whether job data files are retained after processing.
 .TP 5
-\fBListen \fIaddress[:port]\fR
-Listens for client connections on the specified address and port.
+\fBListen \fIaddress[:port] [ ... address[:port] ]\fR
+Listens for client connections on the specified addresses and ports.
 If the address is "*" the server will listen for connections on all network interfaces.
 If the port is omitted, a port between 8000 and 8999 will be used.
 .TP 5

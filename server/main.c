@@ -237,7 +237,7 @@ main(int  argc,				/* I - Number of command-line args */
     * Load the configuration from the specified directory...
     */
 
-    if (!serverLoadConfiguration(confdir))
+    if (!serverCreateSystem(confdir))
       return (1);
   }
   else
@@ -257,7 +257,7 @@ main(int  argc,				/* I - Number of command-line args */
     if (!pinfo.model)
       pinfo.model = "Printer";
 
-    if (!serverFinalizeConfiguration())
+    if (!serverCreateSystem(NULL))
       return (1);
 
     if ((printer = serverCreatePrinter("/ipp/print", name, &pinfo, 1)) == NULL)

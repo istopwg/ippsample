@@ -38,7 +38,9 @@ static void		create_system_attributes(void);
 #ifdef HAVE_AVAHI
 static void		dnssd_client_cb(AvahiClient *c, AvahiClientState state, void *userdata);
 #endif /* HAVE_AVAHI */
+static void		dnssd_init(void);
 static int		error_cb(_ipp_file_t *f, server_pinfo_t *pinfo, const char *error);
+static int		finalize_system(void);
 static void		free_lang(server_lang_t *a);
 static int		load_system(const char *conf);
 static int		token_cb(_ipp_file_t *f, _ipp_vars_t *vars, server_pinfo_t *pinfo, const char *token);
@@ -66,291 +68,12 @@ serverCleanAllJobs(void)
 
 
 /*
- * 'serverDNSSDInit()' - Initialize DNS-SD registrations.
- */
-
-void
-serverDNSSDInit(void)
-{
-#ifdef HAVE_DNSSD
-  if (DNSServiceCreateConnection(&DNSSDMaster) != kDNSServiceErr_NoError)
-  {
-    fputs("Error: Unable to initialize Bonjour.\n", stderr);
-    exit(1);
-  }
-
-#elif defined(HAVE_AVAHI)
-  int error;			/* Error code, if any */
-
-  if ((DNSSDMaster = avahi_threaded_poll_new()) == NULL)
-  {
-    fputs("Error: Unable to initialize Bonjour.\n", stderr);
-    exit(1);
-  }
-
-  if ((DNSSDClient = avahi_client_new(avahi_threaded_poll_get(DNSSDMaster), AVAHI_CLIENT_NO_FAIL, dnssd_client_cb, NULL, &error)) == NULL)
-  {
-    fputs("Error: Unable to initialize Bonjour.\n", stderr);
-    exit(1);
-  }
-
-  avahi_threaded_poll_start(DNSSDMaster);
-#endif /* HAVE_DNSSD */
-}
-
-
-/*
- * 'serverFinalizeConfiguration()' - Make final configuration choices.
- */
-
-int					/* O - 1 on success, 0 on failure */
-serverFinalizeConfiguration(void)
-{
-  char	local[1024];			/* Local hostname */
-
-
- /*
-  * Default BinDir...
-  */
-
-  if (!BinDir)
-    BinDir = strdup(CUPS_SERVERBIN);
-
- /*
-  * Default hostname...
-  */
-
-  if (!ServerName && httpGetHostname(NULL, local, sizeof(local)))
-    ServerName = strdup(local);
-
-  if (!ServerName)
-    ServerName = strdup("localhost");
-
-#ifdef HAVE_SSL
- /*
-  * Setup TLS certificate for server...
-  */
-
-  cupsSetServerCredentials(KeychainPath, ServerName, 1);
-#endif /* HAVE_SSL */
-
- /*
-  * Default directories...
-  */
-
-  if (!DataDirectory)
-  {
-    char	directory[1024];	/* New directory */
-    const char	*tmpdir;		/* Temporary directory */
-
-#ifdef WIN32
-    if ((tmpdir = getenv("TEMP")) == NULL)
-      tmpdir = "C:/TEMP";
-#elif defined(__APPLE__)
-    if ((tmpdir = getenv("TMPDIR")) == NULL)
-      tmpdir = "/private/tmp";
-#else
-    if ((tmpdir = getenv("TMPDIR")) == NULL)
-      tmpdir = "/tmp";
-#endif /* WIN32 */
-
-    snprintf(directory, sizeof(directory), "%s/ippserver.%d", tmpdir, (int)getpid());
-
-    if (mkdir(directory, 0755) && errno != EEXIST)
-    {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Unable to create default data directory \"%s\": %s", directory, strerror(errno));
-      return (0);
-    }
-
-    serverLog(SERVER_LOGLEVEL_INFO, "Using default data directory \"%s\".", directory);
-
-    DataDirectory = strdup(directory);
-  }
-
-  if (!SpoolDirectory)
-  {
-    SpoolDirectory = strdup(DataDirectory);
-
-    serverLog(SERVER_LOGLEVEL_INFO, "Using default spool directory \"%s\".", DataDirectory);
-  }
-
- /*
-  * Authentication/authorization support...
-  */
-
-  if (Authentication)
-  {
-    if (AuthAdminGroup == SERVER_GROUP_NONE)
-      AuthAdminGroup = getgid();
-    if (AuthOperatorGroup == SERVER_GROUP_NONE)
-      AuthOperatorGroup = getgid();
-
-    if (!AuthName)
-      AuthName = strdup("Printing");
-    if (!AuthService && !AuthTestPassword)
-      AuthService = strdup(DEFAULT_PAM_SERVICE);
-    if (!AuthType)
-      AuthType = strdup("Basic");
-
-    if (!DocumentPrivacyScope)
-      DocumentPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
-    if (!DocumentPrivacyAttributes)
-      DocumentPrivacyAttributes = strdup("default");
-
-    if (!JobPrivacyScope)
-      JobPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
-    if (!JobPrivacyAttributes)
-      JobPrivacyAttributes = strdup("default");
-
-    if (!SubscriptionPrivacyScope)
-      SubscriptionPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
-    if (!SubscriptionPrivacyAttributes)
-      SubscriptionPrivacyAttributes = strdup("default");
-  }
-  else
-  {
-    if (!DocumentPrivacyScope)
-      DocumentPrivacyScope = strdup(SERVER_SCOPE_ALL);
-    if (!DocumentPrivacyAttributes)
-      DocumentPrivacyAttributes = strdup("none");
-
-    if (!JobPrivacyScope)
-      JobPrivacyScope = strdup(SERVER_SCOPE_ALL);
-    if (!JobPrivacyAttributes)
-      JobPrivacyAttributes = strdup("none");
-
-    if (!SubscriptionPrivacyScope)
-      SubscriptionPrivacyScope = strdup(SERVER_SCOPE_ALL);
-    if (!SubscriptionPrivacyAttributes)
-      SubscriptionPrivacyAttributes = strdup("none");
-  }
-
-  PrivacyAttributes = ippNew();
-
-  add_document_privacy();
-  add_job_privacy();
-  add_subscription_privacy();
-
-  create_system_attributes();
-
- /*
-  * Initialize Bonjour...
-  */
-
-  serverDNSSDInit();
-
- /*
-  * Apply default listeners if none are specified...
-  */
-
-  if (!Listeners)
-  {
-#ifdef WIN32
-   /*
-    * Windows is almost always used as a single user system, so use a default port
-    * number of 8631.
-    */
-
-    if (!DefaultPort)
-      DefaultPort = 8631;
-
-#else
-   /*
-    * Use 8000 + UID mod 1000 for the default port number...
-    */
-
-    if (!DefaultPort)
-      DefaultPort = 8000 + ((int)getuid() % 1000);
-#endif /* WIN32 */
-
-    serverLog(SERVER_LOGLEVEL_INFO, "Using default listeners for %s:%d.", ServerName, DefaultPort);
-
-    if (!serverCreateListeners(strcmp(ServerName, "localhost") ? NULL : "localhost", DefaultPort))
-      return (0);
-  }
-
-  return (1);
-}
-
-
-/*
- * 'serverFindPrinter()' - Find a printer by resource...
- */
-
-server_printer_t *			/* O - Printer or NULL */
-serverFindPrinter(const char *resource)	/* I - Resource path */
-{
-  server_printer_t	key,		/* Search key */
-			*match = NULL;	/* Matching printer */
-
-
-  _cupsRWLockRead(&PrintersRWLock);
-  if (cupsArrayCount(Printers) == 1 || !strcmp(resource, "/ipp/print"))
-  {
-   /*
-    * Just use the first printer...
-    */
-
-    match = cupsArrayFirst(Printers);
-    if (strcmp(match->resource, resource) && strcmp(resource, "/ipp/print"))
-      match = NULL;
-  }
-  else
-  {
-    key.resource = (char *)resource;
-    match        = (server_printer_t *)cupsArrayFind(Printers, &key);
-  }
-  _cupsRWUnlock(&PrintersRWLock);
-
-  return (match);
-}
-
-
-/*
- * 'serverLoadAttributes()' - Load printer attributes from a file.
- *
- * Syntax is based on ipptool format:
- *
- *    ATTR value-tag name value
- *    ATTR value-tag name value,value,...
- *    AUTHTYPE "scheme"
- *    COMMAND "/path/to/command"
- *    DEVICE-URI "uri"
- *    MAKE "manufacturer"
- *    MODEL "model name"
- *    PROXY-USER "username"
- *    STRINGS lang filename.strings
- *
- * AUTH schemes are "none" for no authentication or "basic" for HTTP Basic
- * authentication.
- *
- * DEVICE-URI values can be "socket", "ipp", or "ipps" URIs.
- */
-
-int					/* O - 1 on success, 0 on failure */
-serverLoadAttributes(
-    const char     *filename,		/* I - File to load */
-    server_pinfo_t *pinfo)		/* I - Printer information */
-{
-  _ipp_vars_t	vars;			/* IPP variables */
-
-
-  _ippVarsInit(&vars, (_ipp_fattr_cb_t)attr_cb, (_ipp_ferror_cb_t)error_cb, (_ipp_ftoken_cb_t)token_cb);
-
-  pinfo->attrs = _ippFileParse(&vars, filename, (void *)pinfo);
-
-  _ippVarsDeinit(&vars);
-
-  return (pinfo->attrs != NULL);
-}
-
-
-/*
- * 'serverLoadConfiguration()' - Load the server configuration file.
+ * 'serverCreateSystem()' - Load the server configuration file and create the
+ *                          System object..
  */
 
 int					/* O - 1 if successful, 0 on error */
-serverLoadConfiguration(
+serverCreateSystem(
     const char *directory)		/* I - Configuration directory */
 {
   cups_dir_t	*dir;			/* Directory pointer */
@@ -363,16 +86,25 @@ serverLoadConfiguration(
   server_pinfo_t pinfo;			/* Printer information */
 
 
- /*
-  * First read the system configuration file, if any...
-  */
+  if (directory)
+  {
+   /*
+    * First read the system configuration file, if any...
+    */
 
-  snprintf(filename, sizeof(filename), "%s/system.conf", directory);
-  if (!load_system(filename))
+    snprintf(filename, sizeof(filename), "%s/system.conf", directory);
+    if (!load_system(filename))
+      return (0);
+  }
+
+  if (!finalize_system())
     return (0);
 
-  if (!serverFinalizeConfiguration())
-    return (0);
+  if (!directory)
+  {
+    DefaultPrinter = NULL;
+    return (1);
+  }
 
  /*
   * Then see if there are any print queues...
@@ -488,6 +220,78 @@ serverLoadConfiguration(
   }
 
   return (1);
+}
+
+
+/*
+ * 'serverFindPrinter()' - Find a printer by resource...
+ */
+
+server_printer_t *			/* O - Printer or NULL */
+serverFindPrinter(const char *resource)	/* I - Resource path */
+{
+  server_printer_t	key,		/* Search key */
+			*match = NULL;	/* Matching printer */
+
+
+  _cupsRWLockRead(&PrintersRWLock);
+  if (cupsArrayCount(Printers) == 1 || !strcmp(resource, "/ipp/print"))
+  {
+   /*
+    * Just use the first printer...
+    */
+
+    match = cupsArrayFirst(Printers);
+    if (strcmp(match->resource, resource) && strcmp(resource, "/ipp/print"))
+      match = NULL;
+  }
+  else
+  {
+    key.resource = (char *)resource;
+    match        = (server_printer_t *)cupsArrayFind(Printers, &key);
+  }
+  _cupsRWUnlock(&PrintersRWLock);
+
+  return (match);
+}
+
+
+/*
+ * 'serverLoadAttributes()' - Load printer attributes from a file.
+ *
+ * Syntax is based on ipptool format:
+ *
+ *    ATTR value-tag name value
+ *    ATTR value-tag name value,value,...
+ *    AUTHTYPE "scheme"
+ *    COMMAND "/path/to/command"
+ *    DEVICE-URI "uri"
+ *    MAKE "manufacturer"
+ *    MODEL "model name"
+ *    PROXY-USER "username"
+ *    STRINGS lang filename.strings
+ *
+ * AUTH schemes are "none" for no authentication or "basic" for HTTP Basic
+ * authentication.
+ *
+ * DEVICE-URI values can be "socket", "ipp", or "ipps" URIs.
+ */
+
+int					/* O - 1 on success, 0 on failure */
+serverLoadAttributes(
+    const char     *filename,		/* I - File to load */
+    server_pinfo_t *pinfo)		/* I - Printer information */
+{
+  _ipp_vars_t	vars;			/* IPP variables */
+
+
+  _ippVarsInit(&vars, (_ipp_fattr_cb_t)attr_cb, (_ipp_ferror_cb_t)error_cb, (_ipp_ftoken_cb_t)token_cb);
+
+  pinfo->attrs = _ippFileParse(&vars, filename, (void *)pinfo);
+
+  _ippVarsDeinit(&vars);
+
+  return (pinfo->attrs != NULL);
 }
 
 
@@ -1498,6 +1302,40 @@ dnssd_client_cb(
 
 
 /*
+ * 'dnssd_init()' - Initialize DNS-SD registrations.
+ */
+
+static void
+dnssd_init(void)
+{
+#ifdef HAVE_DNSSD
+  if (DNSServiceCreateConnection(&DNSSDMaster) != kDNSServiceErr_NoError)
+  {
+    fputs("Error: Unable to initialize Bonjour.\n", stderr);
+    exit(1);
+  }
+
+#elif defined(HAVE_AVAHI)
+  int error;			/* Error code, if any */
+
+  if ((DNSSDMaster = avahi_threaded_poll_new()) == NULL)
+  {
+    fputs("Error: Unable to initialize Bonjour.\n", stderr);
+    exit(1);
+  }
+
+  if ((DNSSDClient = avahi_client_new(avahi_threaded_poll_get(DNSSDMaster), AVAHI_CLIENT_NO_FAIL, dnssd_client_cb, NULL, &error)) == NULL)
+  {
+    fputs("Error: Unable to initialize Bonjour.\n", stderr);
+    exit(1);
+  }
+
+  avahi_threaded_poll_start(DNSSDMaster);
+#endif /* HAVE_DNSSD */
+}
+
+
+/*
  * 'error_cb()' - Log an error message.
  */
 
@@ -1510,6 +1348,180 @@ error_cb(_ipp_file_t    *f,		/* I - IPP file data */
   (void)pinfo;
 
   serverLog(SERVER_LOGLEVEL_ERROR, "%s", error);
+
+  return (1);
+}
+
+
+/*
+ * 'finalize_system()' - Finalize values for the System object.
+ */
+
+static int				/* O - 1 on success, 0 on failure */
+finalize_system(void)
+{
+  char	local[1024];			/* Local hostname */
+
+
+ /*
+  * Default BinDir...
+  */
+
+  if (!BinDir)
+    BinDir = strdup(CUPS_SERVERBIN);
+
+ /*
+  * Default hostname...
+  */
+
+  if (!ServerName && httpGetHostname(NULL, local, sizeof(local)))
+    ServerName = strdup(local);
+
+  if (!ServerName)
+    ServerName = strdup("localhost");
+
+#ifdef HAVE_SSL
+ /*
+  * Setup TLS certificate for server...
+  */
+
+  cupsSetServerCredentials(KeychainPath, ServerName, 1);
+#endif /* HAVE_SSL */
+
+ /*
+  * Default directories...
+  */
+
+  if (!DataDirectory)
+  {
+    char	directory[1024];	/* New directory */
+    const char	*tmpdir;		/* Temporary directory */
+
+#ifdef WIN32
+    if ((tmpdir = getenv("TEMP")) == NULL)
+      tmpdir = "C:/TEMP";
+#elif defined(__APPLE__)
+    if ((tmpdir = getenv("TMPDIR")) == NULL)
+      tmpdir = "/private/tmp";
+#else
+    if ((tmpdir = getenv("TMPDIR")) == NULL)
+      tmpdir = "/tmp";
+#endif /* WIN32 */
+
+    snprintf(directory, sizeof(directory), "%s/ippserver.%d", tmpdir, (int)getpid());
+
+    if (mkdir(directory, 0755) && errno != EEXIST)
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Unable to create default data directory \"%s\": %s", directory, strerror(errno));
+      return (0);
+    }
+
+    serverLog(SERVER_LOGLEVEL_INFO, "Using default data directory \"%s\".", directory);
+
+    DataDirectory = strdup(directory);
+  }
+
+  if (!SpoolDirectory)
+  {
+    SpoolDirectory = strdup(DataDirectory);
+
+    serverLog(SERVER_LOGLEVEL_INFO, "Using default spool directory \"%s\".", DataDirectory);
+  }
+
+ /*
+  * Authentication/authorization support...
+  */
+
+  if (Authentication)
+  {
+    if (AuthAdminGroup == SERVER_GROUP_NONE)
+      AuthAdminGroup = getgid();
+    if (AuthOperatorGroup == SERVER_GROUP_NONE)
+      AuthOperatorGroup = getgid();
+
+    if (!AuthName)
+      AuthName = strdup("Printing");
+    if (!AuthService && !AuthTestPassword)
+      AuthService = strdup(DEFAULT_PAM_SERVICE);
+    if (!AuthType)
+      AuthType = strdup("Basic");
+
+    if (!DocumentPrivacyScope)
+      DocumentPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
+    if (!DocumentPrivacyAttributes)
+      DocumentPrivacyAttributes = strdup("default");
+
+    if (!JobPrivacyScope)
+      JobPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
+    if (!JobPrivacyAttributes)
+      JobPrivacyAttributes = strdup("default");
+
+    if (!SubscriptionPrivacyScope)
+      SubscriptionPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
+    if (!SubscriptionPrivacyAttributes)
+      SubscriptionPrivacyAttributes = strdup("default");
+  }
+  else
+  {
+    if (!DocumentPrivacyScope)
+      DocumentPrivacyScope = strdup(SERVER_SCOPE_ALL);
+    if (!DocumentPrivacyAttributes)
+      DocumentPrivacyAttributes = strdup("none");
+
+    if (!JobPrivacyScope)
+      JobPrivacyScope = strdup(SERVER_SCOPE_ALL);
+    if (!JobPrivacyAttributes)
+      JobPrivacyAttributes = strdup("none");
+
+    if (!SubscriptionPrivacyScope)
+      SubscriptionPrivacyScope = strdup(SERVER_SCOPE_ALL);
+    if (!SubscriptionPrivacyAttributes)
+      SubscriptionPrivacyAttributes = strdup("none");
+  }
+
+  PrivacyAttributes = ippNew();
+
+  add_document_privacy();
+  add_job_privacy();
+  add_subscription_privacy();
+
+  create_system_attributes();
+
+ /*
+  * Initialize Bonjour...
+  */
+
+  dnssd_init();
+
+ /*
+  * Apply default listeners if none are specified...
+  */
+
+  if (!Listeners)
+  {
+#ifdef WIN32
+   /*
+    * Windows is almost always used as a single user system, so use a default port
+    * number of 8631.
+    */
+
+    if (!DefaultPort)
+      DefaultPort = 8631;
+
+#else
+   /*
+    * Use 8000 + UID mod 1000 for the default port number...
+    */
+
+    if (!DefaultPort)
+      DefaultPort = 8000 + ((int)getuid() % 1000);
+#endif /* WIN32 */
+
+    serverLog(SERVER_LOGLEVEL_INFO, "Using default listeners for %s:%d.", ServerName, DefaultPort);
+
+    if (!serverCreateListeners(strcmp(ServerName, "localhost") ? NULL : "localhost", DefaultPort))
+      return (0);
+  }
 
   return (1);
 }
@@ -1789,29 +1801,38 @@ load_system(const char *conf)		/* I - Configuration file */
     }
     else if (!_cups_strcasecmp(line, "Listen"))
     {
-      char	*ptr;			/* Pointer into host value */
+      char	*host,			/* Host value */
+		*ptr;			/* Pointer into host value */
       int	port;			/* Port number */
 
-      if ((ptr = strrchr(value, ':')) != NULL && !isdigit(ptr[1] & 255))
+      while ((host = strsep(&value, " \t")) != NULL)
       {
-        fprintf(stderr, "ippserver: Bad Listen value \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
-        status = 0;
-        break;
+	if ((ptr = strrchr(host, ':')) != NULL && !isdigit(ptr[1] & 255))
+	{
+	  fprintf(stderr, "ippserver: Bad Listen value \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
+	  status = 0;
+	  break;
+	}
+
+	if (ptr)
+	{
+	  *ptr++ = '\0';
+	  port   = atoi(ptr);
+	}
+	else
+	{
+	  port = 8000 + ((int)getuid() % 1000);
+	}
+
+	if (!serverCreateListeners(host, port))
+	{
+	  status = 0;
+	  break;
+	}
       }
 
-      if (ptr)
-      {
-        *ptr++ = '\0';
-        port   = atoi(ptr);
-      }
-      else
-        port = 8000 + ((int)getuid() % 1000);
-
-      if (!serverCreateListeners(value, port))
-      {
-        status = 0;
+      if (!status)
         break;
-      }
     }
     else if (!_cups_strcasecmp(line, "LogFile"))
     {
