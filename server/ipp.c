@@ -3885,6 +3885,13 @@ ipp_set_system_attributes(
     }
   }
 
+ /*
+  * Update config change time and count...
+  */
+
+  SystemConfigChangeTime = time(NULL);
+  SystemConfigChanges ++;
+
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
   unlock_system:
