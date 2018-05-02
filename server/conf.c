@@ -181,7 +181,7 @@ serverFinalizeConfiguration(void)
   if (Authentication)
   {
     if (AuthAdminGroup == SERVER_GROUP_NONE)
-      AuthAdminGroup = SERVER_GROUP_WHEEL;
+      AuthAdminGroup = getgid();
     if (AuthOperatorGroup == SERVER_GROUP_NONE)
       AuthOperatorGroup = getgid();
 
@@ -1240,7 +1240,9 @@ create_system_attributes(void)
   };
   static const char * const ipp_versions_supported[] =
   {					/* Values for ipp-versions-supported */
-    "2.0"
+    "2.0",
+    "2.1",
+    "2.2"
   };
   static const char * const notify_attributes_supported[] =
   {					/* Values for notify-attributes-supported */
@@ -1537,7 +1539,9 @@ load_system(const char *conf)		/* I - Configuration file */
   int		status = 1,		/* Return value */
 		linenum = 0;		/* Current line number */
   char		line[1024],		/* Line from file */
-		*value;			/* Pointer to value on line */
+		*value,			/* Pointer to value on line */
+		temp[1024];		/* Temporary string */
+  const char	*setting;		/* Current setting */
   struct group	*group;			/* Group information */
   int		i;			/* Looping var */
   static const char * const settings[] =/* List of directives */
@@ -1596,8 +1600,38 @@ load_system(const char *conf)		/* I - Configuration file */
 
     if (i >= (int)(sizeof(settings) / sizeof(settings[0])))
     {
-      fprintf(stderr, "ippserver: Unknown directive \"%s\" on line %d.\n", line, linenum);
+      fprintf(stderr, "ippserver: Unknown \"%s\" directive on line %d.\n", line, linenum);
       continue;
+    }
+
+    if ((setting = cupsGetOption(line, SystemNumSettings, SystemSettings)) != NULL)
+    {
+     /*
+      * Already have this setting, check whether this is OK...
+      */
+
+      if (!_cups_strcasecmp(line, "Listen"))
+      {
+       /*
+        * Listen allows multiple values, others do not...
+        */
+
+	snprintf(temp, sizeof(temp), "%s %s", setting, value);
+	SystemNumSettings = cupsAddOption("Listen", temp, SystemNumSettings, &SystemSettings);
+      }
+      else
+      {
+	fprintf(stderr, "ippserver: Duplicate \"%s\" directive on line %d.\n", line, linenum);
+	continue;
+      }
+    }
+    else
+    {
+     /*
+      * First time we've seen this setting...
+      */
+
+      SystemNumSettings = cupsAddOption(line, value, SystemNumSettings, &SystemSettings);
     }
 
     if (!_cups_strcasecmp(line, "Authentication"))

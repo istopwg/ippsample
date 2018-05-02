@@ -57,6 +57,7 @@ static void		ipp_get_printer_supported_values(server_client_t *client);
 static void		ipp_get_subscription_attributes(server_client_t *client);
 static void		ipp_get_subscriptions(server_client_t *client);
 static void		ipp_get_system_attributes(server_client_t *client);
+static void		ipp_get_system_supported_values(server_client_t *client);
 static void		ipp_identify_printer(server_client_t *client);
 static void		ipp_print_job(server_client_t *client);
 static void		ipp_print_uri(server_client_t *client);
@@ -2289,6 +2290,25 @@ ipp_get_system_attributes(
   cups_array_t		*ra;		/* Requested attributes array */
 
 
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
  /*
   * Send the attributes...
   */
@@ -2450,6 +2470,81 @@ ipp_get_system_attributes(
   cupsArrayDelete(ra);
 
   _cupsRWUnlock(&SystemRWLock);
+}
+
+
+/*
+ * 'ipp_get_system_supported_values()' - Get the supported values for the system object.
+ */
+
+static void
+ipp_get_system_supported_values(
+    server_client_t *client)		/* I - Client */
+{
+  cups_array_t		*ra;		/* Requested attributes array */
+
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+ /*
+  * Send the attributes...
+  */
+
+  ra = ippCreateRequestedArray(client->request);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+
+  /* system-default-printer-id (1setOf integer(1:65535)) */
+  if (!ra || cupsArrayFind(ra, "system-default-printer-id"))
+  {
+    int			*values,	/* printer-id values */
+  			num_values,	/* Number of printer-id values */
+  			count;		/* Number of printers */
+    server_printer_t	*printer;	/* Current printer */
+
+    _cupsRWLockRead(&PrintersRWLock);
+
+    if ((count = cupsArrayCount(Printers)) == 0)
+    {
+      ippAddOutOfBand(client->response, IPP_TAG_SYSTEM, IPP_TAG_NOVALUE, "system-default-printer-id");
+    }
+    else if ((values = (int *)calloc((size_t)count, sizeof(int))) != NULL)
+    {
+      for (num_values = 0, printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+      {
+        if (printer->id && printer->id <= 65535)
+          values[num_values ++] = printer->id;
+      }
+
+      if (num_values > 0)
+        ippAddIntegers(client->response, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "system-default-printer-id", num_values, values);
+      else
+	ippAddOutOfBand(client->response, IPP_TAG_SYSTEM, IPP_TAG_NOVALUE, "system-default-printer-id");
+
+      free(values);
+    }
+
+    _cupsRWUnlock(&PrintersRWLock);
+  }
+
+  cupsArrayDelete(ra);
 }
 
 
@@ -4850,6 +4945,10 @@ serverProcessIPP(
 
 	    case IPP_OP_GET_SYSTEM_ATTRIBUTES :
 	        ipp_get_system_attributes(client);
+	        break;
+
+	    case IPP_OP_GET_SYSTEM_SUPPORTED_VALUES :
+	        ipp_get_system_supported_values(client);
 	        break;
 
 	    case IPP_OP_SET_SYSTEM_ATTRIBUTES :

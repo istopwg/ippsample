@@ -134,21 +134,24 @@ serverCreatePrinter(
   {
     "1.0",
     "1.1",
-    "2.0"
+    "2.0",
+    "2.1",
+    "2.2"
   };
   static const char * const features[] =/* ipp-features-supported values */
   {
     "document-object",
-    "infrastructure-printer",
     "ipp-everywhere",
     "page-overrides",
-    "system-service"
+    "system-service",
+    "infrastructure-printer"
   };
   static const char * const features3d[] =/* ipp-features-supported values */
   {
-    "infrastructure-printer",
+    "document-object",
     "ipp-3d",
-    "system-service"
+    "system-service",
+    "infrastructure-printer"
   };
   static const int	ops[] =		/* operations-supported values */
   {
@@ -647,9 +650,9 @@ serverCreatePrinter(
   if (!cupsArrayFind(existing, (void *)"ipp-features-supported"))
   {
     if (is_print3d)
-      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "ipp-features-supported", sizeof(features3d) / sizeof(features3d[0]), NULL, features3d);
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "ipp-features-supported", sizeof(features3d) / sizeof(features3d[0]) - (printer->pinfo.proxy_group == SERVER_GROUP_NONE), NULL, features3d);
     else
-      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "ipp-features-supported", sizeof(features) / sizeof(features[0]), NULL, features);
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "ipp-features-supported", sizeof(features) / sizeof(features[0]) - (printer->pinfo.proxy_group == SERVER_GROUP_NONE), NULL, features);
   }
 
   /* ipp-versions-supported */
