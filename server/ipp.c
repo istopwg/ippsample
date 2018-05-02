@@ -12,6 +12,17 @@
 
 
 /*
+ * Local types...
+ */
+
+typedef struct server_value_s		/**** Value Tag Mapping ****/
+{
+  const char	*name;			/* Attribute name */
+  ipp_tag_t	value_tag;		/* Value tag */
+} server_value_t;
+
+
+/*
  * Local functions...
  */
 
@@ -52,6 +63,10 @@ static void		ipp_print_uri(server_client_t *client);
 static void		ipp_renew_subscription(server_client_t *client);
 static void		ipp_send_document(server_client_t *client);
 static void		ipp_send_uri(server_client_t *client);
+//static void		ipp_set_job_attributes(server_client_t *client);
+//static void		ipp_set_printer_attributes(server_client_t *client);
+//static void		ipp_set_subscription_attributes(server_client_t *client);
+static void		ipp_set_system_attributes(server_client_t *client);
 static void		ipp_update_active_jobs(server_client_t *client);
 static void		ipp_update_document_status(server_client_t *client);
 static void		ipp_update_job_status(server_client_t *client);
@@ -2282,7 +2297,7 @@ ipp_get_system_attributes(
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-//  _cupsRWLockRead(&(printer->rwlock));
+  _cupsRWLockRead(&SystemRWLock);
 
   serverCopyAttributes(client->response, SystemAttributes, ra, NULL, IPP_TAG_ZERO, IPP_TAG_CUPS_CONST);
 //  serverCopyAttributes(client->response, PrivacyAttributes, ra, NULL, IPP_TAG_ZERO, IPP_TAG_CUPS_CONST);
@@ -2433,6 +2448,8 @@ ipp_get_system_attributes(
 #endif /* 0 */
 
   cupsArrayDelete(ra);
+
+  _cupsRWUnlock(&SystemRWLock);
 }
 
 
@@ -3606,6 +3623,182 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
 
 
 /*
+ * 'ipp_set_system_attributes()' - Set attributes for the system object.
+ */
+
+static void
+ipp_set_system_attributes(
+    server_client_t *client)		/* I - Client */
+{
+  ipp_attribute_t	*settable,	/* system-settable-attributes-supported */
+			*attr,		/* Current attribute */
+			*unsupported;	/* Unsupported attribute */
+  int			i;		/* Looping var */
+  server_value_t	*value;		/* Current value tag */
+  static server_value_t	values[] =	/* Value tags for settable attributes */
+  {
+    { "system-default-printer-id",	IPP_TAG_INTEGER },
+    { "system-geo-location",		IPP_TAG_URI },
+    { "system-info",			IPP_TAG_TEXT },
+    { "system-location",		IPP_TAG_TEXT },
+    { "system-make-and-model",		IPP_TAG_TEXT },
+    { "system-name",			IPP_TAG_NAME },
+    { "system-owner-col",		IPP_TAG_BEGIN_COLLECTION }
+  };
+
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+  _cupsRWLockWrite(&SystemRWLock);
+
+  settable = ippFindAttribute(SystemAttributes, "system-settable-attributes-supported", IPP_TAG_KEYWORD);
+
+  for (attr = ippFirstAttribute(SystemAttributes); attr; attr = ippNextAttribute(SystemAttributes))
+  {
+    const char *name = ippGetName(attr);
+
+    if (ippGetGroupTag(attr) != IPP_TAG_OPERATION && ippGetGroupTag(attr) != IPP_TAG_SYSTEM)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Bad group in request.");
+      goto unlock_system;
+    }
+
+    if (!name)
+      continue;
+
+    if (!ippContainsString(settable, name))
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_NOT_SETTABLE, "\"%s\" is not settable.", name);
+      ippAddOutOfBand(client->response, IPP_TAG_UNSUPPORTED_GROUP, IPP_TAG_NOTSETTABLE, name);
+      goto unlock_system;
+    }
+
+    for (i = (int)(sizeof(values) / sizeof(values[0])), value = values; i > 0; i --, value ++)
+      if (!strcmp(name, value->name))
+        break;
+
+    if (i == 0)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_NOT_SETTABLE, "\"%s\" is not settable.", name);
+      ippAddOutOfBand(client->response, IPP_TAG_UNSUPPORTED_GROUP, IPP_TAG_NOTSETTABLE, name);
+      goto unlock_system;
+    }
+
+    if (ippGetValueTag(attr) != value->value_tag ||
+        (value->value_tag == IPP_TAG_NAME && ippGetValueTag(attr) == IPP_TAG_NAMELANG) ||
+        (value->value_tag == IPP_TAG_TEXT && ippGetValueTag(attr) == IPP_TAG_TEXTLANG))
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Wrong type for \"%s\".", name);
+      if ((unsupported = ippCopyAttribute(client->response, attr, 0)) != NULL)
+        ippSetGroupTag(client->response, &unsupported, IPP_TAG_UNSUPPORTED_GROUP);
+      goto unlock_system;
+    }
+
+    if (ippGetCount(attr) != 1)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Wrong number of values for \"%s\".", name);
+      if ((unsupported = ippCopyAttribute(client->response, attr, 0)) != NULL)
+        ippSetGroupTag(client->response, &unsupported, IPP_TAG_UNSUPPORTED_GROUP);
+      goto unlock_system;
+    }
+
+    if (!strcmp(name, "system-owner-col"))
+    {
+      ipp_t		*col = ippGetCollection(attr, 0);
+					/* Collection value */
+      ipp_attribute_t	*member;	/* Member attribute */
+
+      for (member = ippFirstAttribute(col); member; member = ippNextAttribute(col))
+      {
+        const char *mname = ippGetName(member);
+
+        if (strcmp(mname, "owner-uri") && strcmp(mname, "owner-user-name") && strcmp(mname, "owner-vcard"))
+        {
+	  serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Unknown member attribute \"%s\" in \"%s\".", mname, name);
+	  if ((unsupported = ippCopyAttribute(client->response, attr, 0)) != NULL)
+	    ippSetGroupTag(client->response, &unsupported, IPP_TAG_UNSUPPORTED_GROUP);
+	  goto unlock_system;
+        }
+        else if ((!strcmp(mname, "owner-uri") && (ippGetValueTag(member) != IPP_TAG_URI || ippGetCount(member) != 1)) ||
+                 (!strcmp(mname, "owner-user-name") && ((ippGetValueTag(member) != IPP_TAG_NAME && ippGetValueTag(member) != IPP_TAG_NAMELANG) || ippGetCount(member) != 1)) ||
+                 (!strcmp(mname, "owner-vcard") && ippGetValueTag(member) != IPP_TAG_TEXT && ippGetValueTag(member) != IPP_TAG_TEXTLANG))
+        {
+	  serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Bad value for member attribute \"%s\" in \"%s\".", mname, name);
+	  if ((unsupported = ippCopyAttribute(client->response, attr, 0)) != NULL)
+	    ippSetGroupTag(client->response, &unsupported, IPP_TAG_UNSUPPORTED_GROUP);
+	  goto unlock_system;
+        }
+      }
+    }
+  }
+
+  for (attr = ippFirstAttribute(SystemAttributes); attr; attr = ippNextAttribute(SystemAttributes))
+  {
+    const char		*name = ippGetName(attr);
+					/* Attribute name */
+    ipp_attribute_t	*sattr;		/* Attribute to set */
+
+    if (!name || ippGetGroupTag(attr) != IPP_TAG_SYSTEM)
+      continue;
+
+    if ((sattr = ippFindAttribute(SystemAttributes, name, IPP_TAG_ZERO)) != NULL)
+    {
+      switch (ippGetValueTag(attr))
+      {
+        case IPP_TAG_INTEGER :
+            ippSetInteger(SystemAttributes, &sattr, 0, ippGetInteger(attr, 0));
+            break;
+
+        case IPP_TAG_NAME :
+        case IPP_TAG_NAMELANG :
+        case IPP_TAG_TEXT :
+        case IPP_TAG_TEXTLANG :
+        case IPP_TAG_URI :
+           /*
+            * Need to copy since ippSetString doesn't handle setting the
+            * language override.
+            */
+
+	    ippDeleteAttribute(SystemAttributes, sattr);
+	    ippCopyAttribute(SystemAttributes, attr, 0);
+            break;
+
+        case IPP_TAG_BEGIN_COLLECTION :
+            ippSetCollection(SystemAttributes, &sattr, 0, ippGetCollection(attr, 0));
+            break;
+
+        default :
+            break;
+      }
+    }
+  }
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+
+  unlock_system:
+
+  _cupsRWUnlock(&SystemRWLock);
+}
+
+
+/*
  * 'ipp_update_active_jobs()' - Update the list of active jobs.
  */
 
@@ -4657,6 +4850,10 @@ serverProcessIPP(
 
 	    case IPP_OP_GET_SYSTEM_ATTRIBUTES :
 	        ipp_get_system_attributes(client);
+	        break;
+
+	    case IPP_OP_SET_SYSTEM_ATTRIBUTES :
+	        ipp_set_system_attributes(client);
 	        break;
 
 	    default :

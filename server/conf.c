@@ -1296,6 +1296,7 @@ create_system_attributes(void)
   };
   static const char * const system_settable_attributes_supported[] =
   {
+    "system-default-printer-id",
     "system-geo-location",
     "system-info",
     "system-location",
