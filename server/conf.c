@@ -1028,6 +1028,10 @@ create_system_attributes(void)
   char			uri[1024];	/* URI */
   int			num_values = 0;	/* Number of values */
   ipp_t			*values[32];	/* Collection values */
+  int			alloc_groups,	/* Allocated groups */
+			num_groups;	/* Number of groups */
+  char			**groups;	/* Group names */
+  struct group		*grp;		/* Current group */
   static const char * const charset_supported[] =
   {					/* Values for charset-supported */
     "us-ascii",
@@ -1089,16 +1093,52 @@ create_system_attributes(void)
     IPP_OP_SHUTDOWN_ALL_PRINTERS,
     IPP_OP_STARTUP_ALL_PRINTERS
   };
-  static const char * const system_mandatory_printer_attributes[] =
-  {					/* Values for system-mandatory-printer-attributes */
-    "charset-configured",
+  static const char * const device_command_supported[] =
+  { /* TODO: Scan BinDir for commands? Or make this configurable? */
+    "ippdoclint",
+    "ipptransform",
+    "ipptransform3d"
+  };
+  static const char * const device_format_supported[] =
+  {
+    "application/pdf",
+    "application/postscript",
+    "application/vnd.hp-pcl",
+    "image/pwg-raster",
+    "image/urf"
+  };
+  static const char * const device_uri_schemes_supported[] =
+  {
+    "ipp",
+    "ipps",
+    "socket",
+    "usbserial"
+  };
+  static const char * const printer_creation_attributes_supported[] =
+  {
+    "auth-print-group",
+    "auth-proxy-group",
+    "color-supported",
+    "device-command",
+    "device-format",
+    "device-name",
+    "device-uri",
     "document-format-default",
+    "document-format-supported",
     "multiple-document-jobs-supported",
     "natural-language-configured",
+    "pages-per-minute",
+    "pages-per-minute-color",
     "pdl-override-supported",
+    "printer-device-id",
     "printer-info",
     "printer-location",
-    "printer-make-and-model"
+    "printer-make-and-model",
+    "printer-name"
+  };
+  static const char * const system_mandatory_printer_attributes[] =
+  {					/* Values for system-mandatory-printer-attributes */
+    "printer-name"
   };
   static const char * const system_settable_attributes_supported[] =
   {
@@ -1114,11 +1154,46 @@ create_system_attributes(void)
 
   SystemAttributes = ippNew();
 
+  /* auth-group-supported */
+  alloc_groups = num_groups = 0;
+  groups       = NULL;
+
+  setgrent();
+  while ((grp = getgrent()) != NULL)
+  {
+    if (num_groups >= alloc_groups)
+    {
+      alloc_groups += 10;
+      groups       = (char **)realloc(groups, (size_t)alloc_groups * sizeof(char *));
+    }
+
+    groups[num_groups ++] = strdup(grp->gr_name);
+  }
+  endgrent();
+
+  if (num_groups > 0)
+  {
+    ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_NAME, "auth-group-supported", num_groups, NULL, (const char **)groups);
+
+    for (i = 0; i < num_groups; i ++)
+      free(groups[i]);
+    free(groups);
+  }
+
   /* charset-configured */
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_CHARSET), "charset-configured", NULL, "utf-8");
 
   /* charset-supported */
   ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_CHARSET), "charset-supported", (int)(sizeof(charset_supported) / sizeof(charset_supported[0])), NULL, charset_supported);
+
+  /* device-command-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_NAME), "device-command-supported", (int)(sizeof(device_command_supported) / sizeof(device_command_supported[0])), NULL, device_command_supported);
+
+  /* device-format-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "device-format-supported", (int)(sizeof(device_format_supported) / sizeof(device_format_supported[0])), NULL, device_format_supported);
+
+  /* device-uri-schemes-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "device-uri-schemes-supported", (int)(sizeof(device_uri_schemes_supported) / sizeof(device_uri_schemes_supported[0])), NULL, device_uri_schemes_supported);
 
   /* generated-natural-language-supported */
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_LANGUAGE), "generated-natural-language-supported", NULL, "en");
@@ -1158,6 +1233,9 @@ create_system_attributes(void)
 
   /* operations-supported */
   ippAddIntegers(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_ENUM, "operations-supported", sizeof(operations_supported) / sizeof(operations_supported[0]), operations_supported);
+
+  /* printer-creation-attributes-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-creation-attributes-supported", sizeof(printer_creation_attributes_supported) / sizeof(printer_creation_attributes_supported[0]), NULL, printer_creation_attributes_supported);
 
   /* system-device-id, TODO: maybe remove this, it has no purpose */
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-device-id", NULL, "MANU:None;MODEL:None;");
