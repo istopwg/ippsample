@@ -202,13 +202,13 @@ The default is either "cups" or "other", depending on the platform.
 \fBAuthTestPassword \fIpassword\fR
 Specifies a single password that can be used to authenticate against any user account.
 Note: This directive is provided for testing only and does not actually provide access to the "authenticated" user account.
-The default is to not have testing password enabled.
+The default is to not have a testing password enabled.
 .TP 5
 \fBAuthType \fI{None|Basic}\fR
 Specifies the type of authentication to require.
 "None" specifies that no authentication is required.
 "Basic" specifies that HTTP Basic authentication (username + password) is required.
-The default is "Basic".
+The default is "None" when authentication is turned off and "Basic" when authentication is turned on.
 .TP 5
 \fBBinDir \fIdirectory\fR
 Specifies the location of the
@@ -334,6 +334,9 @@ Specifies which users can query private subscription attribute values.
 "Owner" means that only the subscription owner can query private subscription attribute values.
 "None" means that no user can query private subscription attribute values.
 The default is "default".
+.TP 5
+\fBUUID \fIuuid\fR
+Specifies the UUID of the server.
 .SS PRINT SERVICE CONFIGURATION FILES
 Each 2D print service is configured by a \fIprint/name.conf\fR configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print/name".
 Each 3D print service is configured by a \fIprint3d/name.conf\fR configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print3d/name".

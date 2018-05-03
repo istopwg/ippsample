@@ -2288,6 +2288,12 @@ ipp_get_system_attributes(
     server_client_t *client)		/* I - Client */
 {
   cups_array_t		*ra;		/* Requested attributes array */
+  ipp_pstate_t		state = IPP_PSTATE_STOPPED;
+					/* system-state */
+  server_preason_t	state_reasons = SERVER_PREASON_NONE;
+					/* system-state-reasons */
+  time_t		state_time = 0;	/* system-state-change-[date-]time */
+  server_printer_t	*printer;	/* Current printer */
 
 
   if (Authentication)
@@ -2322,8 +2328,6 @@ ipp_get_system_attributes(
   serverCopyAttributes(client->response, SystemAttributes, ra, NULL, IPP_TAG_ZERO, IPP_TAG_CUPS_CONST);
 //  serverCopyAttributes(client->response, PrivacyAttributes, ra, NULL, IPP_TAG_ZERO, IPP_TAG_CUPS_CONST);
 
-  /* system-default-printer-id (integer(1:65535) | no-value) */
-
   if (!ra || cupsArrayFind(ra, "system-config-change-date-time"))
     ippAddDate(client->response, IPP_TAG_SYSTEM, "system-config-change-date-time", ippTimeToDate(SystemConfigChangeTime));
 
@@ -2331,7 +2335,7 @@ ipp_get_system_attributes(
     ippAddInteger(client->response, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "system-config-change-time", (int)(SystemConfigChangeTime - SystemStartTime));
 
   if (!ra || cupsArrayFind(ra, "system-config-changes"))
-    ippAddInteger(client->response, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "system-config-change-date-time", SystemConfigChanges);
+    ippAddInteger(client->response, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "system-config-changes", SystemConfigChanges);
 
   if (!ra || cupsArrayFind(ra, "system-configured-printers"))
   {
@@ -2339,7 +2343,6 @@ ipp_get_system_attributes(
   			count;		/* Number of printers */
     ipp_t		*col;		/* Collection value */
     ipp_attribute_t	*printers;	/* system-configured-printers attribute */
-    server_printer_t	*printer;	/* Current printer */
     static const char * const types[] =	/* Service types */
     {
       "print",
@@ -2387,12 +2390,16 @@ ipp_get_system_attributes(
   if (!ra || cupsArrayFind(ra, "system-current-time"))
     ippAddDate(client->response, IPP_TAG_SYSTEM, "system-current-time", ippTimeToDate(time(NULL)));
 
-  if (!ra || cupsArrayFind(ra, "system-state"))
+  if (!ra || cupsArrayFind(ra, "system-default-printer-id"))
   {
-    ipp_pstate_t	state = IPP_PSTATE_STOPPED;
-					/* System state */
-    server_printer_t	*printer;	/* Current printer */
+    if (DefaultPrinter)
+      ippAddInteger(client->response, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "system-default-printer-id", DefaultPrinter->id);
+    else
+      ippAddOutOfBand(client->response, IPP_TAG_SYSTEM, IPP_TAG_NOVALUE, "system-default-printer-id");
+  }
 
+  if (!ra || cupsArrayFind(ra, "system-state") || cupsArrayFind(ra, "system-state-change-date-time") || cupsArrayFind(ra, "system-state-change-time") || cupsArrayFind(ra, "system-state-message") || cupsArrayFind(ra, "system-state-reasons"))
+  {
     _cupsRWLockRead(&PrintersRWLock);
 
     for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
@@ -2401,24 +2408,57 @@ ipp_get_system_attributes(
         state = IPP_PSTATE_PROCESSING;
       else if (printer->state == IPP_PSTATE_IDLE && state == IPP_PSTATE_STOPPED)
         state = IPP_PSTATE_IDLE;
+
+      state_reasons |= printer->state_reasons | printer->dev_reasons;
+
+      if (printer->state_time > state_time)
+        state_time = printer->state_time;
     }
 
     _cupsRWUnlock(&PrintersRWLock);
-
-    ippAddInteger(client->response, IPP_TAG_SYSTEM, IPP_TAG_ENUM, "system-state", state);
   }
 
+  if (!ra || cupsArrayFind(ra, "system-state"))
+    ippAddInteger(client->response, IPP_TAG_SYSTEM, IPP_TAG_ENUM, "system-state", state);
+
   if (!ra || cupsArrayFind(ra, "system-state-change-date-time"))
-    ippAddDate(client->response, IPP_TAG_SYSTEM, "system-state-change-date-time", ippTimeToDate(SystemStateChangeTime));
+    ippAddDate(client->response, IPP_TAG_SYSTEM, "system-state-change-date-time", ippTimeToDate(state_time));
 
   if (!ra || cupsArrayFind(ra, "system-state-change-time"))
-    ippAddInteger(client->response, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "system-state-change-time", (int)(SystemStateChangeTime - SystemStartTime));
+    ippAddInteger(client->response, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "system-state-change-time", (int)(state_time - SystemStartTime));
 
   if (!ra || cupsArrayFind(ra, "system-state-message"))
-    ippAddString(client->response, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-state-message", NULL, "");
+  {
+    if (state == IPP_PSTATE_IDLE)
+      ippAddString(client->response, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-state-message", NULL, "Idle.");
+    else if (state == IPP_PSTATE_PROCESSING)
+      ippAddString(client->response, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-state-message", NULL, "Printing.");
+    else
+      ippAddString(client->response, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-state-message", NULL, "Stopped.");
+  }
 
   if (!ra || cupsArrayFind(ra, "system-state-reasons"))
-    ippAddString(client->response, IPP_TAG_SYSTEM, IPP_TAG_KEYWORD, "system-state-reasons", NULL, "none");
+  {
+    if (state_reasons == SERVER_PREASON_NONE)
+    {
+      ippAddString(client->response, IPP_TAG_SYSTEM, IPP_TAG_KEYWORD, "system-state-reasons", NULL, "none");
+    }
+    else
+    {
+      int		i,		/* Looping var */
+			num_reasons = 0;/* Number of reasons */
+      server_preason_t	reason;		/* Current reason */
+      const char	*reasons[32];	/* Reason strings */
+
+      for (i = 0, reason = 1; i < (int)(sizeof(server_preasons) / sizeof(server_preasons[0])); i ++, reason <<= 1)
+      {
+	if (state_reasons & reason)
+	  reasons[num_reasons ++] = server_preasons[i];
+      }
+
+      ippAddStrings(client->response, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "system-state-reasons", num_reasons, NULL, reasons);
+    }
+  }
 
   if (!ra || cupsArrayFind(ra, "system-up-time"))
     ippAddInteger(client->response, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "system-up-time", (int)(time(NULL) - SystemStartTime));
@@ -3765,18 +3805,18 @@ ipp_set_system_attributes(
 
   settable = ippFindAttribute(SystemAttributes, "system-settable-attributes-supported", IPP_TAG_KEYWORD);
 
-  for (attr = ippFirstAttribute(SystemAttributes); attr; attr = ippNextAttribute(SystemAttributes))
+  for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
   {
     const char *name = ippGetName(attr);
 
-    if (ippGetGroupTag(attr) != IPP_TAG_OPERATION && ippGetGroupTag(attr) != IPP_TAG_SYSTEM)
+    if (ippGetGroupTag(attr) == IPP_TAG_OPERATION || !name)
+      continue;
+
+    if (ippGetGroupTag(attr) != IPP_TAG_SYSTEM)
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Bad group in request.");
       goto unlock_system;
     }
-
-    if (!name)
-      continue;
 
     if (!ippContainsString(settable, name))
     {
@@ -3824,7 +3864,7 @@ ipp_set_system_attributes(
       {
         const char *mname = ippGetName(member);
 
-        if (strcmp(mname, "owner-uri") && strcmp(mname, "owner-user-name") && strcmp(mname, "owner-vcard"))
+        if (strcmp(mname, "owner-uri") && strcmp(mname, "owner-name") && strcmp(mname, "owner-vcard"))
         {
 	  serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Unknown member attribute \"%s\" in \"%s\".", mname, name);
 	  if ((unsupported = ippCopyAttribute(client->response, attr, 0)) != NULL)
@@ -3832,7 +3872,7 @@ ipp_set_system_attributes(
 	  goto unlock_system;
         }
         else if ((!strcmp(mname, "owner-uri") && (ippGetValueTag(member) != IPP_TAG_URI || ippGetCount(member) != 1)) ||
-                 (!strcmp(mname, "owner-user-name") && ((ippGetValueTag(member) != IPP_TAG_NAME && ippGetValueTag(member) != IPP_TAG_NAMELANG) || ippGetCount(member) != 1)) ||
+                 (!strcmp(mname, "owner-name") && ((ippGetValueTag(member) != IPP_TAG_NAME && ippGetValueTag(member) != IPP_TAG_NAMELANG) || ippGetCount(member) != 1)) ||
                  (!strcmp(mname, "owner-vcard") && ippGetValueTag(member) != IPP_TAG_TEXT && ippGetValueTag(member) != IPP_TAG_TEXTLANG))
         {
 	  serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Bad value for member attribute \"%s\" in \"%s\".", mname, name);
@@ -3844,7 +3884,7 @@ ipp_set_system_attributes(
     }
   }
 
-  for (attr = ippFirstAttribute(SystemAttributes); attr; attr = ippNextAttribute(SystemAttributes))
+  for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
   {
     const char		*name = ippGetName(attr);
 					/* Attribute name */

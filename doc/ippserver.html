@@ -175,12 +175,12 @@ The default is either "cups" or "other", depending on the platform.
 <dt><b>AuthTestPassword </b><i>password</i>
 <dd style="margin-left: 5.0em">Specifies a single password that can be used to authenticate against any user account.
 Note: This directive is provided for testing only and does not actually provide access to the "authenticated" user account.
-The default is to not have testing password enabled.
+The default is to not have a testing password enabled.
 <dt><b>AuthType </b><i>{None|Basic}</i>
 <dd style="margin-left: 5.0em">Specifies the type of authentication to require.
 "None" specifies that no authentication is required.
 "Basic" specifies that HTTP Basic authentication (username + password) is required.
-The default is "Basic".
+The default is "None" when authentication is turned off and "Basic" when authentication is turned on.
 <dt><b>BinDir </b><i>directory</i>
 <dd style="margin-left: 5.0em">Specifies the location of the
 <b>ipptransform</b>(1)
@@ -280,6 +280,8 @@ The default value is "default".
 "Owner" means that only the subscription owner can query private subscription attribute values.
 "None" means that no user can query private subscription attribute values.
 The default is "default".
+<dt><b>UUID </b><i>uuid</i>
+<dd style="margin-left: 5.0em">Specifies the UUID of the server.
 </dl>
 <h3><a name="PRINT_SERVICE_CONFIGURATION_FILES">Print Service Configuration Files</a></h3>
 Each 2D print service is configured by a <i>print/name.conf</i> configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print/name".

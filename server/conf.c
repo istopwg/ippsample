@@ -86,6 +86,8 @@ serverCreateSystem(
   server_pinfo_t pinfo;			/* Printer information */
 
 
+  SystemStartTime = SystemConfigChangeTime = time(NULL);
+
   if (directory)
   {
    /*
@@ -1032,10 +1034,25 @@ create_system_attributes(void)
 			num_groups;	/* Number of groups */
   char			**groups;	/* Group names */
   struct group		*grp;		/* Current group */
+  char			uuid[128];	/* system-uuid */
   static const char * const charset_supported[] =
   {					/* Values for charset-supported */
     "us-ascii",
     "utf-8"
+  };
+  static const char * const document_format_supported[] =
+  {					/* Values for document-format-supported */
+    "application/pdf",
+    "application/postscript",
+    "application/vnd.hp-pcl",
+    "application/vnd.pwg-safe-gcode",
+    "image/jpeg",
+    "image/png",
+    "image/pwg-raster",
+    "image/urf",
+    "model/3mf",
+    "model/3mf+slice",
+    "text/plain"
   };
   static const char * const ipp_features_supported[] =
   {					/* Values for ipp-features-supported */
@@ -1094,28 +1111,33 @@ create_system_attributes(void)
     IPP_OP_STARTUP_ALL_PRINTERS
   };
   static const char * const device_command_supported[] =
-  { /* TODO: Scan BinDir for commands? Or make this configurable? */
+  {					/* Values for device-command-supported */
+    /* TODO: Scan BinDir for commands? Or make this configurable? */
     "ippdoclint",
     "ipptransform",
     "ipptransform3d"
   };
   static const char * const device_format_supported[] =
-  {
+  {					/* Values for device-format-supported */
     "application/pdf",
     "application/postscript",
     "application/vnd.hp-pcl",
+    "application/vnd.pwg-safe-gcode",
     "image/pwg-raster",
-    "image/urf"
+    "image/urf",
+    "model/3mf",
+    "model/3mf+slice",
+    "text/plain"
   };
   static const char * const device_uri_schemes_supported[] =
-  {
+  {					/* Values for device-uri-schemes-supported */
     "ipp",
     "ipps",
     "socket",
     "usbserial"
   };
   static const char * const printer_creation_attributes_supported[] =
-  {
+  {					/* Values for printer-creation-attributes-supported */
     "auth-print-group",
     "auth-proxy-group",
     "color-supported",
@@ -1136,12 +1158,28 @@ create_system_attributes(void)
     "printer-make-and-model",
     "printer-name"
   };
+  static const char * const resource_format_supported[] =
+  {					/* Values for resource-format-supported */
+    "application/vnd.iccprofile",
+    "image/png",
+    "text/strings"
+  };
+  static const char * const resource_settable_attributes_supported[] =
+  {					/* Values for resource-settable-attributes-supported */
+    "resource-name"
+  };
+  static const char * const resource_type_supported[] =
+  {					/* Values for resource-type-supported */
+    "static-icc-profile",
+    "static-icon",
+    "static-strings"
+  };
   static const char * const system_mandatory_printer_attributes[] =
   {					/* Values for system-mandatory-printer-attributes */
     "printer-name"
   };
   static const char * const system_settable_attributes_supported[] =
-  {
+  {					/* Values for system-settable-attributes-supported */
     "system-default-printer-id",
     "system-geo-location",
     "system-info",
@@ -1161,6 +1199,9 @@ create_system_attributes(void)
   setgrent();
   while ((grp = getgrent()) != NULL)
   {
+    if (grp->gr_name[0] == '_')
+      continue;				/* Skip system groups */
+
     if (num_groups >= alloc_groups)
     {
       alloc_groups += 10;
@@ -1194,6 +1235,9 @@ create_system_attributes(void)
 
   /* device-uri-schemes-supported */
   ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "device-uri-schemes-supported", (int)(sizeof(device_uri_schemes_supported) / sizeof(device_uri_schemes_supported[0])), NULL, device_uri_schemes_supported);
+
+  /* document-format-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "document-format-supported", (int)(sizeof(document_format_supported) / sizeof(document_format_supported[0])), NULL, document_format_supported);
 
   /* generated-natural-language-supported */
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_LANGUAGE), "generated-natural-language-supported", NULL, "en");
@@ -1237,6 +1281,15 @@ create_system_attributes(void)
   /* printer-creation-attributes-supported */
   ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-creation-attributes-supported", sizeof(printer_creation_attributes_supported) / sizeof(printer_creation_attributes_supported[0]), NULL, printer_creation_attributes_supported);
 
+  /* resource-format-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "resource-format-supported", (int)(sizeof(resource_format_supported) / sizeof(resource_format_supported[0])), NULL, resource_format_supported);
+
+  /* resource-settable-attributes-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "resource-settable-attributes-supported", (int)(sizeof(resource_settable_attributes_supported) / sizeof(resource_settable_attributes_supported[0])), NULL, resource_settable_attributes_supported);
+
+  /* resource-type-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "resource-type-supported", (int)(sizeof(resource_type_supported) / sizeof(resource_type_supported[0])), NULL, resource_type_supported);
+
   /* system-device-id, TODO: maybe remove this, it has no purpose */
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-device-id", NULL, "MANU:None;MODEL:None;");
 
@@ -1274,7 +1327,7 @@ create_system_attributes(void)
   ippAddString(col, IPP_TAG_ZERO, IPP_TAG_URI, "owner-uri", NULL, uri);
 
   setting = cupsGetOption("OwnerName", SystemNumSettings, SystemSettings);
-  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_NAME, "owner-user-name", NULL, setting ? setting : cupsUser());
+  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_NAME, "owner-name", NULL, setting ? setting : cupsUser());
 
   serverMakeVCARD(NULL, cupsGetOption("OwnerName", SystemNumSettings, SystemSettings), cupsGetOption("OwnerLocation", SystemNumSettings, SystemSettings), cupsGetOption("OwnerEmail", SystemNumSettings, SystemSettings), cupsGetOption("OwnerPhone", SystemNumSettings, SystemSettings), vcard, sizeof(vcard));
   ippAddString(col, IPP_TAG_ZERO, IPP_TAG_TEXT, "owner-vcard", NULL, vcard);
@@ -1300,6 +1353,21 @@ create_system_attributes(void)
     }
   }
 #endif /* 0 */
+
+  /* system-uuid */
+  if ((setting = cupsGetOption("UUID", SystemNumSettings, SystemSettings)) == NULL)
+  {
+    lis = cupsArrayFirst(Listeners);
+    httpAssembleUUID(lis->host, lis->port, "", 0, uuid, sizeof(uuid));
+    setting = uuid;
+  }
+  else if (strncmp(setting, "urn:uuid:", 9))
+  {
+    snprintf(uuid, sizeof(uuid), "urn:uuid:%s", setting);
+    setting = uuid;
+  }
+
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_URI, "system-uuid", NULL, setting);
 
   /* system-xri-supported */
   uris = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
@@ -1340,6 +1408,25 @@ create_system_attributes(void)
   }
 
   cupsArrayDelete(uris);
+
+  /* xri-authentication-supported */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication-supported", NULL, Authentication ? "basic" : "none");
+
+  /* xri-security-supported */
+#ifdef HAVE_SSL
+  if (Encryption != HTTP_ENCRYPTION_NEVER)
+    ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "tls");
+  else
+#endif /* HAVE_SSL */
+    ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "none");
+
+  /* xri-uri-scheme-supported */
+#ifdef HAVE_SSL
+  if (Encryption != HTTP_ENCRYPTION_NEVER)
+    ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipps");
+  else
+#endif /* HAVE_SSL */
+    ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipp");
 }
 
 
@@ -1563,8 +1650,6 @@ finalize_system(void)
   add_job_privacy();
   add_subscription_privacy();
 
-  create_system_attributes();
-
  /*
   * Initialize Bonjour...
   */
@@ -1600,6 +1685,8 @@ finalize_system(void)
     if (!serverCreateListeners(strcmp(ServerName, "localhost") ? NULL : "localhost", DefaultPort))
       return (0);
   }
+
+  create_system_attributes();
 
   return (1);
 }
@@ -1668,7 +1755,8 @@ load_system(const char *conf)		/* I - Configuration file */
     "OwnerPhone",
     "SpoolDir",
     "SubscriptionPrivacyAttributes",
-    "SubscriptionPrivacyScope"
+    "SubscriptionPrivacyScope",
+    "UUID"
   };
 
 

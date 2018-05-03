@@ -612,8 +612,7 @@ VAR ipp_t		*PrivacyAttributes VALUE(NULL);
 VAR _cups_rwlock_t	SystemRWLock	VALUE(_CUPS_RWLOCK_INITIALIZER);
 VAR ipp_t		*SystemAttributes VALUE(NULL);
 VAR time_t		SystemStartTime,
-			SystemConfigChangeTime,
-			SystemStateChangeTime;
+			SystemConfigChangeTime;
 VAR int			SystemConfigChanges VALUE(0);
 VAR int			SystemNumSettings VALUE(0);
 VAR cups_option_t	*SystemSettings	VALUE(NULL);

@@ -289,11 +289,12 @@ static const char * const ipp_std_ops[] =
 					/* 0x06 */
 		  "event-notification-attributes-tag",
 					/* 0x07 */
-		  "(resource-attributes-tag)",
+		  "resource-attributes-tag",
 		  			/* 0x08 */
 		  "document-attributes-tag",
 					/* 0x09 */
-		  "0x0a",		/* 0x0a */
+		  "system-attributes-tag",
+		  			/* 0x0a */
 		  "0x0b",		/* 0x0b */
 		  "0x0c",		/* 0x0c */
 		  "0x0d",		/* 0x0d */
