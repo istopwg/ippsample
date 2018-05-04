@@ -1153,6 +1153,7 @@ create_system_attributes(void)
     "pages-per-minute-color",
     "pdl-override-supported",
     "printer-device-id",
+    "printer-geo-location",
     "printer-info",
     "printer-location",
     "printer-make-and-model",
@@ -1171,7 +1172,7 @@ create_system_attributes(void)
   static const char * const resource_type_supported[] =
   {					/* Values for resource-type-supported */
     "static-icc-profile",
-    "static-icon",
+    "static-image",
     "static-strings"
   };
   static const char * const system_mandatory_printer_attributes[] =
