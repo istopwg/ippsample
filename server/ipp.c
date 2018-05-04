@@ -9,6 +9,7 @@
  */
 
 #include "ippserver.h"
+#include <grp.h>
 
 
 /*
@@ -1259,9 +1260,47 @@ ipp_create_printer(
   */
 
   memset(&pinfo, 0, sizeof(pinfo));
-  pinfo.attrs = ippNew();
+  pinfo.attrs       = ippNew();
+  pinfo.print_group = SERVER_GROUP_NONE;
+  pinfo.proxy_group = SERVER_GROUP_NONE;
 
   serverCopyAttributes(pinfo.attrs, client->request, NULL, NULL, IPP_TAG_PRINTER, 0);
+
+  for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
+  {
+    const char		*aname = ippGetName(attr);
+					/* Attribute name */
+    struct group	*grp;		/* Group info */
+
+    if (!name)
+      continue;
+
+    if (!strcmp(aname, "auth-print-group"))
+    {
+      if ((grp = getgrnam(ippGetString(attr, 0, NULL))) != NULL)
+        pinfo.print_group = grp->gr_gid;
+    }
+    else if (!strcmp(aname, "auth-proxy-group"))
+    {
+      if ((grp = getgrnam(ippGetString(attr, 0, NULL))) != NULL)
+        pinfo.proxy_group = grp->gr_gid;
+    }
+    else if (!strcmp(aname, "device-command"))
+    {
+      /* TODO: Validate command */
+      pinfo.command = (char *)ippGetString(attr, 0, NULL);
+    }
+    else if (!strcmp(aname, "device-format"))
+    {
+      /* TODO: Validate format */
+      pinfo.output_format = (char *)ippGetString(attr, 0, NULL);
+    }
+    else if (!strcmp(aname, "device-uri"))
+    {
+      /* Validate URI scheme */
+      pinfo.device_uri = (char *)ippGetString(attr, 0, NULL);
+    }
+  }
 
   /* TODO: Make sure printer is created stopped and not accepting jobs */
   if ((client->printer = serverCreatePrinter(resource, name, &pinfo, 1)) == NULL)
