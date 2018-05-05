@@ -27,6 +27,7 @@ tools/ippproxy
 tools/ipptool
 tools/ipptransform
 tools/ipptransform3d
+vcnet/.vs
 xcuserdata
 *.dSYM
 *.log
