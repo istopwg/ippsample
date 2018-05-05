@@ -12,7 +12,7 @@
 #include <cups/cups.h>
 #include <cups/raster.h>
 #include <cups/string-private.h>
-#include <endian.h>
+#include <netinet/in.h>
 
 /*
  * Local globals...
@@ -400,13 +400,13 @@ lint_raster(const char    *filename,	/* I - File to check */
   else
     fprintf(stderr, "DEBUG: Incorrect Duplex value\n");
 
-  header.HWResolution[0] = be32toh(header.HWResolution[0]);
-  header.HWResolution[1] = be32toh(header.HWResolution[1]);
+  header.HWResolution[0] = ntohl(header.HWResolution[0]);
+  header.HWResolution[1] = ntohl(header.HWResolution[1]);
   fprintf(stderr, "DEBUG: Using cross-feed resolution of %u and feed resolution of %u\n", header.HWResolution[0], header.HWResolution[1]);
 
   /* [TODO]: This field is not zero in the test files but the spec requires it to be */
   for(int i=0; i<4; i++){
-    header.ImagingBoundingBox[i] = be32toh(header.ImagingBoundingBox[i]);
+    header.ImagingBoundingBox[i] = ntohl(header.ImagingBoundingBox[i]);
     if(header.ImagingBoundingBox[i]!=0){
       fprintf(stderr, "ERROR: Non-zero values present in Reserved[284-299] area\n");
       //return(1);
@@ -459,7 +459,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   else
     fprintf(stderr, "DEBUG: Reserved[332-339] field is zero as expected\n");
 
-  header.NumCopies = be32toh(header.NumCopies);
+  header.NumCopies = ntohl(header.NumCopies);
   if (header.NumCopies==0)
     fprintf(stderr, "DEBUG: Using default value for NumCopies\n");
   else 
@@ -478,8 +478,8 @@ lint_raster(const char    *filename,	/* I - File to check */
   else
     fprintf(stderr, "DEBUG: Reserved[348-351] field is zero as expected\n");
 
-  header.PageSize[0] = be32toh(header.PageSize[0]);
-  header.PageSize[1] = be32toh(header.PageSize[1]);
+  header.PageSize[0] = ntohl(header.PageSize[0]);
+  header.PageSize[1] = ntohl(header.PageSize[1]);
   fprintf(stderr, "DEBUG: Page size is %d x %d\n", header.PageSize[0], header.PageSize[1]);
 
   if (header.Separations != 0 || header.TraySwitch != 0){
@@ -496,8 +496,8 @@ lint_raster(const char    *filename,	/* I - File to check */
   else
     fprintf(stderr, "DEBUG: Incorrect Tumble value\n");
 
-  header.cupsWidth = be32toh(header.cupsWidth);
-  header.cupsHeight = be32toh(header.cupsHeight);
+  header.cupsWidth = ntohl(header.cupsWidth);
+  header.cupsHeight = ntohl(header.cupsHeight);
   fprintf(stderr, "DEBUG: Page width is %d and height is %d\n", header.cupsWidth, header.cupsHeight);
 
   if (header.cupsMediaType != 0){
@@ -507,7 +507,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   else
     fprintf(stderr, "DEBUG: Reserved[380-383] field is zero as expected\n");
 
-  header.cupsBitsPerColor = be32toh(header.cupsBitsPerColor);
+  header.cupsBitsPerColor = ntohl(header.cupsBitsPerColor);
   switch (header.cupsBitsPerColor) {
     case 1: break;
     case 8: break;
@@ -518,7 +518,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   }
   fprintf(stderr, "DEBUG: BitsPerColor value is %d\n", header.cupsBitsPerColor);
 
-  header.cupsBitsPerPixel = be32toh(header.cupsBitsPerPixel);
+  header.cupsBitsPerPixel = ntohl(header.cupsBitsPerPixel);
   switch (header.cupsBitsPerPixel) { // [TODO] Much more checks needed
     case 1: break;
     case 8: break;
@@ -550,7 +550,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   }
   fprintf(stderr, "DEBUG: BitsPerPixel value is %d\n", header.cupsBitsPerPixel);
 
-  header.cupsBytesPerLine = be32toh(header.cupsBytesPerLine);
+  header.cupsBytesPerLine = ntohl(header.cupsBytesPerLine);
   if (header.cupsBytesPerLine==(header.cupsBitsPerPixel * header.cupsWidth + 7)/8)
     fprintf(stderr, "DEBUG: BytesPerLine value is correct %d\n", header.cupsBytesPerLine);
   else {
@@ -565,7 +565,7 @@ lint_raster(const char    *filename,	/* I - File to check */
     return(1);
   }
 
-  header.cupsColorSpace = be32toh(header.cupsColorSpace);
+  header.cupsColorSpace = ntohl(header.cupsColorSpace);
   switch(header.cupsColorSpace) { // [TODO] Much more checks needed
     case 1: break;
     case 3: break;
@@ -601,7 +601,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   else
     fprintf(stderr, "DEBUG: Reserved[404-419] field is zero as expected\n");
 
-  header.cupsNumColors = be32toh(header.cupsNumColors);
+  header.cupsNumColors = ntohl(header.cupsNumColors);
   switch(header.cupsNumColors) { // [TODO] Much more checks needed
     case 1: break;
     case 2: break;
@@ -632,7 +632,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   else
     fprintf(stderr, "DEBUG: Reserved[424-451] field is zero as expected\n");
 
-  header.cupsInteger[0] = be32toh(header.cupsInteger[0]);
+  header.cupsInteger[0] = ntohl(header.cupsInteger[0]);
   if(header.cupsInteger[0]==0)
     fprintf(stderr, "DEBUG: TotalPageCount is not known when the file is produced\n");
   else if(header.cupsInteger[0]>0) 
@@ -661,19 +661,19 @@ lint_raster(const char    *filename,	/* I - File to check */
   }
 
   for(int i=0; i<4; i++)
-    header.cupsInteger[3+i] = be32toh(header.cupsInteger[3+i]);
+    header.cupsInteger[3+i] = ntohl(header.cupsInteger[3+i]);
   fprintf(stderr, "DEBUG: ImageBoxLeft value is %d\n", header.cupsInteger[3]);
   fprintf(stderr, "DEBUG: ImageBoxTop value is %d\n", header.cupsInteger[4]);
   fprintf(stderr, "DEBUG: ImageBoxBottom value is %d\n", header.cupsInteger[5]);
   fprintf(stderr, "DEBUG: ImageBoxRight value is %d\n", header.cupsInteger[6]);
 
-  header.cupsInteger[7] = be32toh(header.cupsInteger[7]);
+  header.cupsInteger[7] = ntohl(header.cupsInteger[7]);
   if(header.cupsInteger[7] >=0 && header.cupsInteger[7] < (1 << 25))
     fprintf(stderr, "DEBUG: AlternatePrimary value is %d\n", header.cupsInteger[7]);
   else
     fprintf(stderr, "DEBUG: AlternatePrimary value is incorrect %d\n", header.cupsInteger[7]);
 
-  header.cupsInteger[8] = be32toh(header.cupsInteger[8]);
+  header.cupsInteger[8] = ntohl(header.cupsInteger[8]);
   if(header.cupsInteger[8] == 0)
     fprintf(stderr, "DEBUG: PrintQuality value is %d(%s)\n", header.cupsInteger[8], print_quality_enum[header.cupsInteger[8]]);
   else if(header.cupsInteger[8] >=3 && header.cupsInteger[8] < 6)
@@ -689,7 +689,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   fprintf(stderr, "DEBUG: Reserved[488-507] field is zero as expected\n");
 
   for(int i=0; i<2; i++)
-    header.cupsInteger[14+i] = be32toh(header.cupsInteger[14+i]);
+    header.cupsInteger[14+i] = ntohl(header.cupsInteger[14+i]);
   fprintf(stderr, "DEBUG: VendorIdentifier value is %d\n", header.cupsInteger[14]);
   fprintf(stderr, "DEBUG: VendorLength value is %d\n", header.cupsInteger[15]);
 
