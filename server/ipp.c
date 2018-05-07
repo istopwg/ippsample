@@ -5366,6 +5366,7 @@ serverProcessIPP(
                 break;
 
             case IPP_OP_PAUSE_PRINTER :
+            case IPP_OP_PAUSE_PRINTER_AFTER_CURRENT_JOB :
 		ipp_pause_printer(client);
                 break;
 
