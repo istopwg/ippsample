@@ -50,6 +50,8 @@ static void		ipp_create_job(server_client_t *client);
 static void		ipp_create_printer(server_client_t *client);
 static void		ipp_create_xxx_subscriptions(server_client_t *client);
 static void		ipp_deregister_output_device(server_client_t *client);
+static void		ipp_disable_printer(server_client_t *client);
+static void		ipp_enable_printer(server_client_t *client);
 static void		ipp_fetch_document(server_client_t *client);
 static void		ipp_fetch_job(server_client_t *client);
 static void		ipp_get_document_attributes(server_client_t *client);
@@ -65,9 +67,11 @@ static void		ipp_get_subscriptions(server_client_t *client);
 static void		ipp_get_system_attributes(server_client_t *client);
 static void		ipp_get_system_supported_values(server_client_t *client);
 static void		ipp_identify_printer(server_client_t *client);
+static void		ipp_pause_printer(server_client_t *client);
 static void		ipp_print_job(server_client_t *client);
 static void		ipp_print_uri(server_client_t *client);
 static void		ipp_renew_subscription(server_client_t *client);
+static void		ipp_resume_printer(server_client_t *client);
 static void		ipp_send_document(server_client_t *client);
 static void		ipp_send_uri(server_client_t *client);
 //static void		ipp_set_job_attributes(server_client_t *client);
@@ -363,6 +367,9 @@ copy_printer_state(
     server_printer_t *printer,		/* I - Printer */
     cups_array_t     *ra)		/* I - Requested attributes */
 {
+  if (!ra || cupsArrayFind(ra, "printer-is-accepting-jobs"))
+    ippAddBoolean(ipp, IPP_TAG_PRINTER, "printer-is-accepting-jobs", printer->is_accepting);
+
   if (!ra || cupsArrayFind(ra, "printer-state"))
     ippAddInteger(ipp, IPP_TAG_PRINTER, IPP_TAG_ENUM, "printer-state", printer->state > printer->dev_state ? (int)printer->state : (int)printer->dev_state);
 
@@ -779,7 +786,9 @@ ipp_cancel_job(server_client_t *client)	/* I - Client */
 
 	if (job->state == IPP_JSTATE_PROCESSING ||
 	    (job->state == IPP_JSTATE_HELD && job->fd >= 0))
+        {
           job->cancel = 1;
+	}
 	else
 	{
 	  job->state     = IPP_JSTATE_CANCELED;
@@ -1102,6 +1111,12 @@ ipp_create_job(server_client_t *client)	/* I - Client */
     return;
   }
 
+  if (!client->printer->is_accepting)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_ACCEPTING_JOBS, "Not accepting jobs.");
+    return;
+  }
+
  /*
   * Validate print job attributes...
   */
@@ -1115,8 +1130,7 @@ ipp_create_job(server_client_t *client)	/* I - Client */
 
   if (httpGetState(client->http) == HTTP_STATE_POST_RECV)
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST,
-                "Unexpected document data following request.");
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Unexpected document data following request.");
     return;
   }
 
@@ -1683,6 +1697,76 @@ ipp_deregister_output_device(
   */
 
   serverDeleteDevice(device);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+}
+
+
+/*
+ * 'ipp_disable_printer()' - Stop accepting new jobs for a printer.
+ */
+
+static void
+ipp_disable_printer(
+    server_client_t *client)		/* I - Client */
+{
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+  client->printer->is_accepting = 0;
+
+  serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "No longer accepting jobs.");
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+}
+
+
+/*
+ * 'ipp_enable_printer()' - Start accepting new jobs for a printer.
+ */
+
+static void
+ipp_enable_printer(
+    server_client_t *client)		/* I - Client */
+{
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+  client->printer->is_accepting = 1;
+
+  serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Now accepting jobs.");
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -2935,6 +3019,52 @@ ipp_identify_printer(
 }
 
 
+/*
+ * 'ipp_pause_printer()' - Stop processing jobs for a printer.
+ */
+
+static void
+ipp_pause_printer(
+    server_client_t *client)		/* I - Client */
+{
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+  if (client->printer->state != IPP_PSTATE_STOPPED)
+  {
+    _cupsRWLockWrite(&client->printer->rwlock);
+    if (client->printer->state == IPP_PSTATE_IDLE)
+    {
+      client->printer->state = IPP_PSTATE_STOPPED;
+      client->printer->state_reasons |= SERVER_PREASON_PAUSED;
+    }
+    else if (client->printer->state == IPP_PSTATE_PROCESSING)
+    {
+      client->printer->state_reasons |= SERVER_PREASON_MOVING_TO_PAUSED;
+    }
+    _cupsRWUnlock(&client->printer->rwlock);
+  }
+
+  serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Stopping printer.");
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+}
 
 
 /*
@@ -2964,6 +3094,12 @@ ipp_print_job(server_client_t *client)	/* I - Client */
   if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
+    return;
+  }
+
+  if (!client->printer->is_accepting)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_ACCEPTING_JOBS, "Not accepting jobs.");
     return;
   }
 
@@ -3146,6 +3282,12 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
   if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
+    return;
+  }
+
+  if (!client->printer->is_accepting)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_ACCEPTING_JOBS, "Not accepting jobs.");
     return;
   }
 
@@ -3453,6 +3595,49 @@ ipp_renew_subscription(
     sub->expire = time(NULL) + sub->lease;
   else
     sub->expire = INT_MAX;
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+}
+
+
+/*
+ * 'ipp_resume_printer()' - Start processing jobs for a printer.
+ */
+
+static void
+ipp_resume_printer(
+    server_client_t *client)		/* I - Client */
+{
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+  if (client->printer->state == IPP_PSTATE_STOPPED)
+  {
+    _cupsRWLockWrite(&client->printer->rwlock);
+    client->printer->state = IPP_PSTATE_IDLE;
+    client->printer->state_reasons &= (server_preason_t)~(SERVER_PREASON_PAUSED | SERVER_PREASON_MOVING_TO_PAUSED);
+    _cupsRWUnlock(&client->printer->rwlock);
+
+    serverCheckJobs(client->printer);
+  }
+
+  serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Starting printer.");
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -5169,6 +5354,22 @@ serverProcessIPP(
             case IPP_OP_DEREGISTER_OUTPUT_DEVICE :
 	        ipp_deregister_output_device(client);
 		break;
+
+            case IPP_OP_DISABLE_PRINTER :
+		ipp_disable_printer(client);
+                break;
+
+            case IPP_OP_ENABLE_PRINTER :
+		ipp_enable_printer(client);
+                break;
+
+            case IPP_OP_PAUSE_PRINTER :
+		ipp_pause_printer(client);
+                break;
+
+            case IPP_OP_RESUME_PRINTER :
+		ipp_resume_printer(client);
+                break;
 
 	    default :
 		serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED,

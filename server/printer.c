@@ -165,6 +165,12 @@ serverCreatePrinter(
     IPP_OP_GET_JOB_ATTRIBUTES,
     IPP_OP_GET_JOBS,
     IPP_OP_GET_PRINTER_ATTRIBUTES,
+    IPP_OP_HOLD_JOB,
+    IPP_OP_RELEASE_JOB,
+    IPP_OP_PAUSE_PRINTER,
+    IPP_OP_RESUME_PRINTER,
+    IPP_OP_SET_PRINTER_ATTRIBUTES,
+    IPP_OP_SET_JOB_ATTRIBUTES,
     IPP_OP_GET_PRINTER_SUPPORTED_VALUES,
     IPP_OP_CREATE_PRINTER_SUBSCRIPTIONS,
     IPP_OP_CREATE_JOB_SUBSCRIPTIONS,
@@ -173,8 +179,19 @@ serverCreatePrinter(
     IPP_OP_RENEW_SUBSCRIPTION,
     IPP_OP_CANCEL_SUBSCRIPTION,
     IPP_OP_GET_NOTIFICATIONS,
+    IPP_OP_ENABLE_PRINTER,
+    IPP_OP_DISABLE_PRINTER,
+    IPP_OP_PAUSE_PRINTER_AFTER_CURRENT_JOB,
+    IPP_OP_HOLD_NEW_JOBS,
+    IPP_OP_RELEASE_HELD_NEW_JOBS,
+    IPP_OP_RESTART_PRINTER,
+    IPP_OP_SHUTDOWN_PRINTER,
+    IPP_OP_STARTUP_PRINTER,
+    IPP_OP_CANCEL_CURRENT_JOB,
+    IPP_OP_CANCEL_DOCUMENT,
     IPP_OP_GET_DOCUMENT_ATTRIBUTES,
     IPP_OP_GET_DOCUMENTS,
+    IPP_OP_SET_DOCUMENT_ATTRIBUTES,
     IPP_OP_CANCEL_MY_JOBS,
     IPP_OP_CLOSE_JOB,
     IPP_OP_IDENTIFY_PRINTER,
@@ -201,6 +218,12 @@ serverCreatePrinter(
     IPP_OP_GET_JOB_ATTRIBUTES,
     IPP_OP_GET_JOBS,
     IPP_OP_GET_PRINTER_ATTRIBUTES,
+    IPP_OP_HOLD_JOB,
+    IPP_OP_RELEASE_JOB,
+    IPP_OP_PAUSE_PRINTER,
+    IPP_OP_RESUME_PRINTER,
+    IPP_OP_SET_PRINTER_ATTRIBUTES,
+    IPP_OP_SET_JOB_ATTRIBUTES,
     IPP_OP_GET_PRINTER_SUPPORTED_VALUES,
     IPP_OP_CREATE_PRINTER_SUBSCRIPTIONS,
     IPP_OP_CREATE_JOB_SUBSCRIPTIONS,
@@ -209,8 +232,19 @@ serverCreatePrinter(
     IPP_OP_RENEW_SUBSCRIPTION,
     IPP_OP_CANCEL_SUBSCRIPTION,
     IPP_OP_GET_NOTIFICATIONS,
+    IPP_OP_ENABLE_PRINTER,
+    IPP_OP_DISABLE_PRINTER,
+    IPP_OP_PAUSE_PRINTER_AFTER_CURRENT_JOB,
+    IPP_OP_HOLD_NEW_JOBS,
+    IPP_OP_RELEASE_HELD_NEW_JOBS,
+    IPP_OP_RESTART_PRINTER,
+    IPP_OP_SHUTDOWN_PRINTER,
+    IPP_OP_STARTUP_PRINTER,
+    IPP_OP_CANCEL_CURRENT_JOB,
+    IPP_OP_CANCEL_DOCUMENT,
     IPP_OP_GET_DOCUMENT_ATTRIBUTES,
     IPP_OP_GET_DOCUMENTS,
+    IPP_OP_SET_DOCUMENT_ATTRIBUTES,
     IPP_OP_CANCEL_MY_JOBS,
     IPP_OP_CLOSE_JOB,
     IPP_OP_IDENTIFY_PRINTER,
@@ -435,8 +469,8 @@ serverCreatePrinter(
   printer->dnssd_name     = strdup(name);
   printer->start_time     = time(NULL);
   printer->config_time    = printer->start_time;
-  printer->state          = IPP_PSTATE_IDLE;
-  printer->state_reasons  = SERVER_PREASON_NONE;
+  printer->state          = IPP_PSTATE_STOPPED;
+  printer->state_reasons  = SERVER_PREASON_PAUSED;
   printer->state_time     = printer->start_time;
   printer->jobs           = cupsArrayNew3((cups_array_func_t)compare_jobs, NULL, NULL, 0, NULL, (cups_afree_func_t)serverDeleteJob);
   printer->active_jobs    = cupsArrayNew((cups_array_func_t)compare_active_jobs, NULL);
@@ -987,9 +1021,6 @@ serverCreatePrinter(
 
   /* printer-info */
   ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-info", NULL, name);
-
-  /* printer-is-accepting-jobs */
-  ippAddBoolean(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-is-accepting-jobs", 1);
 
   if (!is_print3d)
   {

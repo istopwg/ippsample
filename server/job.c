@@ -28,8 +28,25 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
     serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Printer is already processing job %d.", printer->processing_job->id);
     return;
   }
+  else if (printer->state == IPP_PSTATE_STOPPED)
+  {
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Printer is stopped.");
+    return;
+  }
+  else if (printer->state_reasons & SERVER_PREASON_MOVING_TO_PAUSED)
+  {
+    _cupsRWLockWrite(&printer->rwlock);
+    printer->state         = IPP_PSTATE_STOPPED;
+    printer->state_reasons |= SERVER_PREASON_PAUSED;
+    printer->state_reasons &= (server_preason_t)~SERVER_PREASON_MOVING_TO_PAUSED;
+    _cupsRWUnlock(&printer->rwlock);
 
-  _cupsRWLockWrite(&(printer->rwlock));
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Printer is now stopped.");
+    serverAddEvent(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer is now stopped.");
+    return;
+  }
+
+  _cupsRWLockWrite(&printer->rwlock);
   for (job = (server_job_t *)cupsArrayFirst(printer->active_jobs);
        job;
        job = (server_job_t *)cupsArrayNext(printer->active_jobs))
@@ -58,7 +75,7 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
   if (!job)
     serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "No jobs to process at this time.");
 
-  _cupsRWUnlock(&(printer->rwlock));
+  _cupsRWUnlock(&printer->rwlock);
 }
 
 

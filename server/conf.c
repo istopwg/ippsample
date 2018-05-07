@@ -145,6 +145,9 @@ serverCreateSystem(
 	  if ((printer = serverCreatePrinter(resource, dent->filename, &pinfo, 0)) == NULL)
             continue;
 
+          printer->state        = IPP_PSTATE_IDLE;
+          printer->is_accepting = 1;
+
 	  if (!Printers)
 	    Printers = cupsArrayNew((cups_array_func_t)compare_printers, NULL);
 

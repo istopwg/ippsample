@@ -263,6 +263,9 @@ main(int  argc,				/* I - Number of command-line args */
     if ((printer = serverCreatePrinter("/ipp/print", name, &pinfo, 1)) == NULL)
       return (1);
 
+    printer->state        = IPP_PSTATE_IDLE;
+    printer->is_accepting = 1;
+
     Printers = cupsArrayNew(NULL, NULL);
     cupsArrayAdd(Printers, printer);
   }

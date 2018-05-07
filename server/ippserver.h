@@ -315,7 +315,7 @@ VALUE({					/* Strings for bits */
 enum server_preason_e			/* printer-state-reasons bit values */
 {
   SERVER_PREASON_NONE = 0x0000,		/* none */
-  SERVER_PREASON_OTHER = 0x0001,		/* other */
+  SERVER_PREASON_OTHER = 0x0001,	/* other */
   SERVER_PREASON_COVER_OPEN = 0x0002,	/* cover-open */
   SERVER_PREASON_INPUT_TRAY_MISSING = 0x0004,
 					/* input-tray-missing */
@@ -472,6 +472,8 @@ typedef struct server_printer_s		/**** Printer data ****/
   ipp_t			*dev_attrs;	/* Current device attributes */
   time_t		start_time;	/* Startup time */
   time_t		config_time;	/* printer-config-change-time */
+  char			is_accepting,	/* printer-is-accepting-jobs value */
+			is_deleted;	/* Is the printer being deleted? */
   ipp_pstate_t		state,		/* printer-state value */
 			dev_state;	/* Current device printer-state value */
   server_preason_t	state_reasons,	/* printer-state-reasons values */
