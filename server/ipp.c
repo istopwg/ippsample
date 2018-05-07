@@ -1163,9 +1163,11 @@ static void
 ipp_create_printer(
     server_client_t *client)		/* I - Client connection */
 {
-  ipp_attribute_t	*attr;		/* Request attribute */
+  ipp_attribute_t	*attr,		/* Request attribute */
+			*supported;	/* Supported attribute */
   const char		*service_type,	/* printer-service-type value */
-			*name;		/* printer-name value */
+			*name,		/* printer-name value */
+			*group;		/* auth-xxx-group value */
   char			resource[256],	/* Resource path */
 			*resptr;	/* Pointer into path */
   server_pinfo_t	pinfo;		/* Printer information */
@@ -1255,6 +1257,60 @@ ipp_create_printer(
   if (!valid_values(client, IPP_TAG_PRINTER, ippFindAttribute(SystemAttributes, "printer-creation-attributes-supported", IPP_TAG_KEYWORD), (int)(sizeof(values) / sizeof(values[0])), values))
     return;
 
+  if ((attr = ippFindAttribute(client->request, "auth-print-group", IPP_TAG_NAME)) == NULL)
+    attr = ippFindAttribute(client->request, "auth-proxy-group", IPP_TAG_NAME);
+
+  if (attr && (group = ippGetString(attr, 0, NULL)) != NULL && !getgrnam(group))
+  {
+    serverRespondUnsupported(client, attr);
+    return;
+  }
+
+  if ((attr = ippFindAttribute(client->request, "device-command", IPP_TAG_NAME)) != NULL)
+  {
+    _cupsRWLockRead(&SystemRWLock);
+    supported = ippFindAttribute(SystemAttributes, "device-command-supported", IPP_TAG_NAME);
+    _cupsRWUnlock(&SystemRWLock);
+
+    if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
+    {
+      serverRespondUnsupported(client, attr);
+      return;
+    }
+  }
+
+  if ((attr = ippFindAttribute(client->request, "device-format", IPP_TAG_MIMETYPE)) != NULL)
+  {
+    _cupsRWLockRead(&SystemRWLock);
+    supported = ippFindAttribute(SystemAttributes, "device-format-supported", IPP_TAG_MIMETYPE);
+    _cupsRWUnlock(&SystemRWLock);
+
+    if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
+    {
+      serverRespondUnsupported(client, attr);
+      return;
+    }
+  }
+
+  if ((attr = ippFindAttribute(client->request, "device-uri", IPP_TAG_URI)) != NULL)
+  {
+    char	scheme[32],		/* URI scheme */
+		userpass[256],		/* URI username:password */
+		host[256],		/* URI host name */
+		path[256];		/* URI resource path */
+    int		port;			/* URI port */
+
+    _cupsRWLockRead(&SystemRWLock);
+    supported = ippFindAttribute(SystemAttributes, "device-uri-scheme-supported", IPP_TAG_URISCHEME);
+    _cupsRWUnlock(&SystemRWLock);
+
+    if (httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(attr, 0, NULL), scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, path, sizeof(path)) < HTTP_URI_STATUS_OK || !ippContainsString(supported, scheme))
+    {
+      serverRespondUnsupported(client, attr);
+      return;
+    }
+  }
+
  /*
   * Create the printer...
   */
@@ -1287,17 +1343,14 @@ ipp_create_printer(
     }
     else if (!strcmp(aname, "device-command"))
     {
-      /* TODO: Validate command */
       pinfo.command = (char *)ippGetString(attr, 0, NULL);
     }
     else if (!strcmp(aname, "device-format"))
     {
-      /* TODO: Validate format */
       pinfo.output_format = (char *)ippGetString(attr, 0, NULL);
     }
     else if (!strcmp(aname, "device-uri"))
     {
-      /* Validate URI scheme */
       pinfo.device_uri = (char *)ippGetString(attr, 0, NULL);
     }
   }
