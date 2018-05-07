@@ -1315,7 +1315,7 @@ ipp_create_printer(
     int		port;			/* URI port */
 
     _cupsRWLockRead(&SystemRWLock);
-    supported = ippFindAttribute(SystemAttributes, "device-uri-scheme-supported", IPP_TAG_URISCHEME);
+    supported = ippFindAttribute(SystemAttributes, "device-uri-schemes-supported", IPP_TAG_URISCHEME);
     _cupsRWUnlock(&SystemRWLock);
 
     if (httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(attr, 0, NULL), scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, path, sizeof(path)) < HTTP_URI_STATUS_OK || !ippContainsString(supported, scheme))
@@ -1375,6 +1375,8 @@ ipp_create_printer(
     serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to create printer.");
     return;
   }
+
+  serverAddPrinter(client->printer);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 

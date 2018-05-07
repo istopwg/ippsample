@@ -266,8 +266,7 @@ main(int  argc,				/* I - Number of command-line args */
     printer->state        = IPP_PSTATE_IDLE;
     printer->is_accepting = 1;
 
-    Printers = cupsArrayNew(NULL, NULL);
-    cupsArrayAdd(Printers, printer);
+    serverAddPrinter(printer);
   }
 
  /*

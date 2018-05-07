@@ -47,6 +47,25 @@ static int		token_cb(_ipp_file_t *f, _ipp_vars_t *vars, server_pinfo_t *pinfo, c
 
 
 /*
+ * 'serverAddPrinter()' - Add a printer object to the list of printers.
+ */
+
+void
+serverAddPrinter(
+    server_printer_t *printer)		/* I - Printer to add */
+{
+  _cupsRWLockWrite(&SystemRWLock);
+
+  if (!Printers)
+    Printers = cupsArrayNew((cups_array_func_t)compare_printers, NULL);
+
+  cupsArrayAdd(Printers, printer);
+
+  _cupsRWUnlock(&SystemRWLock);
+}
+
+
+/*
  * 'serverCleanAllJobs()' - Clean old jobs for all printers...
  */
 
@@ -148,10 +167,7 @@ serverCreateSystem(
           printer->state        = IPP_PSTATE_IDLE;
           printer->is_accepting = 1;
 
-	  if (!Printers)
-	    Printers = cupsArrayNew((cups_array_func_t)compare_printers, NULL);
-
-	  cupsArrayAdd(Printers, printer);
+          serverAddPrinter(printer);
 	}
       }
       else if (!strstr(dent->filename, ".png"))
