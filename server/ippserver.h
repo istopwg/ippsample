@@ -265,21 +265,22 @@ enum server_jreason_e			/* job-state-reasons bit values */
   SERVER_JREASON_JOB_COMPLETED_WITH_WARNINGS = 0x00002000,
   SERVER_JREASON_JOB_DATA_INSUFFICIENT = 0x00004000,
   SERVER_JREASON_JOB_FETCHABLE = 0x00008000,
-  SERVER_JREASON_JOB_INCOMING = 0x00010000,
-  SERVER_JREASON_JOB_PASSWORD_WAIT = 0x00020000,
-  SERVER_JREASON_JOB_PRINTING = 0x00040000,
-  SERVER_JREASON_JOB_QUEUED = 0x00080000,
-  SERVER_JREASON_JOB_SPOOLING = 0x00100000,
-  SERVER_JREASON_JOB_STOPPED = 0x00200000,
-  SERVER_JREASON_JOB_TRANSFORMING = 0x00400000,
-  SERVER_JREASON_PRINTER_STOPPED = 0x00800000,
-  SERVER_JREASON_PRINTER_STOPPED_PARTLY = 0x01000000,
-  SERVER_JREASON_PROCESSING_TO_STOP_POINT = 0x02000000,
-  SERVER_JREASON_QUEUED_IN_DEVICE = 0x04000000,
-  SERVER_JREASON_WARNINGS_DETECTED = 0x08000000
+  SERVER_JREASON_JOB_HOLD_UNTIL_SPECIFIED = 0x00010000,
+  SERVER_JREASON_JOB_INCOMING = 0x00020000,
+  SERVER_JREASON_JOB_PASSWORD_WAIT = 0x00040000,
+  SERVER_JREASON_JOB_PRINTING = 0x00080000,
+  SERVER_JREASON_JOB_QUEUED = 0x00100000,
+  SERVER_JREASON_JOB_SPOOLING = 0x00200000,
+  SERVER_JREASON_JOB_STOPPED = 0x00400000,
+  SERVER_JREASON_JOB_TRANSFORMING = 0x00800000,
+  SERVER_JREASON_PRINTER_STOPPED = 0x01000000,
+  SERVER_JREASON_PRINTER_STOPPED_PARTLY = 0x02000000,
+  SERVER_JREASON_PROCESSING_TO_STOP_POINT = 0x04000000,
+  SERVER_JREASON_QUEUED_IN_DEVICE = 0x08000000,
+  SERVER_JREASON_WARNINGS_DETECTED = 0x10000000
 };
 typedef unsigned int server_jreason_t;	/* Bitfield for job-state-reasons */
-VAR const char * const server_jreasons[28]
+VAR const char * const server_jreasons[29]
 VALUE({					/* Strings for bits */
   /* "none" is implied for no bits set */
   "aborted-by-system",
@@ -298,6 +299,7 @@ VALUE({					/* Strings for bits */
   "job-completed-with-warnings",
   "job-data-insufficient",
   "job-fetchable",
+  "job-hold-until-specified",
   "job-incoming",
   "job-password-wait",
   "job-printing",
@@ -509,7 +511,8 @@ struct server_job_s			/**** Job data ****/
 		      			/* output-device-job-state-reasons values */
   char			*dev_state_message;
 					/* output-device-job-state-message value */
-  time_t		created,	/* time-at-creation value */
+  time_t		hold_until,	/* job-hold-until time */
+			created,	/* time-at-creation value */
 			processing,	/* time-at-processing value */
 			completed;	/* time-at-completed value */
   int			impressions,	/* job-impressions value */
@@ -702,6 +705,7 @@ extern server_jreason_t	serverGetJobStateReasonsBits(ipp_attribute_t *attr);
 extern server_event_t	serverGetNotifyEventsBits(ipp_attribute_t *attr);
 extern const char	*serverGetNotifySubscribedEvent(server_event_t event);
 extern server_preason_t	serverGetPrinterStateReasonsBits(ipp_attribute_t *attr);
+extern int		serverHoldJob(server_job_t *job, ipp_attribute_t *hold_until);
 extern int		serverLoadAttributes(const char *filename, server_pinfo_t *pinfo);
 extern void		serverLog(server_loglevel_t level, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
 extern void		serverLogAttributes(server_client_t *client, const char *title, ipp_t *ipp, int type);
@@ -713,6 +717,7 @@ extern void		*serverProcessClient(server_client_t *client);
 extern int		serverProcessHTTP(server_client_t *client);
 extern int		serverProcessIPP(server_client_t *client);
 extern void		*serverProcessJob(server_job_t *job);
+extern int		serverReleaseJob(server_job_t *job);
 extern int		serverRespondHTTP(server_client_t *client, http_status_t code, const char *content_coding, const char *type, size_t length);
 extern void		serverRespondIPP(server_client_t *client, ipp_status_t status, const char *message, ...) __attribute__ ((__format__ (__printf__, 3, 4)));
 extern void		serverRespondUnsupported(server_client_t *client, ipp_attribute_t *attr);

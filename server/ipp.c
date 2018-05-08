@@ -68,11 +68,13 @@ static void		ipp_get_subscription_attributes(server_client_t *client);
 static void		ipp_get_subscriptions(server_client_t *client);
 static void		ipp_get_system_attributes(server_client_t *client);
 static void		ipp_get_system_supported_values(server_client_t *client);
+static void		ipp_hold_job(server_client_t *client);
 static void		ipp_identify_printer(server_client_t *client);
 static void		ipp_pause_all_printers(server_client_t *client);
 static void		ipp_pause_printer(server_client_t *client);
 static void		ipp_print_job(server_client_t *client);
 static void		ipp_print_uri(server_client_t *client);
+static void		ipp_release_job(server_client_t *client);
 static void		ipp_renew_subscription(server_client_t *client);
 static void		ipp_resume_all_printers(server_client_t *client);
 static void		ipp_resume_printer(server_client_t *client);
@@ -1097,6 +1099,7 @@ ipp_create_job(server_client_t *client)	/* I - Client */
 {
   server_job_t		*job;		/* New job */
   cups_array_t		*ra;		/* Attributes to send in response */
+  ipp_attribute_t	*hold_until;	/* job-hold-until-xxx attribute, if any */
 
 
   if (Authentication && !client->username[0])
@@ -1147,6 +1150,12 @@ ipp_create_job(server_client_t *client)	/* I - Client */
     serverRespondIPP(client, IPP_STATUS_ERROR_TOO_MANY_JOBS, "Too many jobs are queued.");
     return;
   }
+
+  if ((hold_until = ippFindAttribute(client->request, "job-hold-until", IPP_TAG_KEYWORD)) == NULL)
+    hold_until = ippFindAttribute(client->request, "job-hold-until-time", IPP_TAG_DATE);
+
+  if (hold_until)
+    serverHoldJob(job, hold_until);
 
  /*
   * Return the job info...
@@ -3045,6 +3054,53 @@ ipp_get_system_supported_values(
 
 
 /*
+ * 'ipp_hold_job()' - Hold a pending job.
+ */
+
+static void
+ipp_hold_job(server_client_t *client)	/* I - Client */
+{
+  server_job_t		*job;		/* Print job */
+  ipp_attribute_t	*hold_until;	/* job-hold-until-xxx attribute, if any */
+
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
+ /*
+  * Get the job...
+  */
+
+  if ((job = serverFindJob(client, 0)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Job does not exist.");
+    return;
+  }
+
+  if (Authentication && !serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this job.");
+    return;
+  }
+
+  if ((hold_until = ippFindAttribute(client->request, "job-hold-until", IPP_TAG_KEYWORD)) == NULL)
+    hold_until = ippFindAttribute(client->request, "job-hold-until-time", IPP_TAG_DATE);
+
+  if (serverHoldJob(job, hold_until))
+    serverRespondIPP(client, IPP_STATUS_OK, NULL);
+  else
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Unable to hold job.");
+}
+
+
+/*
  * 'ipp_identify_printer()' - Beep or display a message.
  */
 
@@ -3233,6 +3289,7 @@ ipp_print_job(server_client_t *client)	/* I - Client */
 			buffer[4096];	/* Copy buffer */
   ssize_t		bytes;		/* Bytes read */
   cups_array_t		*ra;		/* Attributes to send in response */
+  ipp_attribute_t	*hold_until;	/* job-hold-until-xxx attribute, if any */
 
 
   if (Authentication && !client->username[0])
@@ -3283,6 +3340,12 @@ ipp_print_job(server_client_t *client)	/* I - Client */
     serverRespondIPP(client, IPP_STATUS_ERROR_TOO_MANY_JOBS, "Too many jobs are queued.");
     return;
   }
+
+  if ((hold_until = ippFindAttribute(client->request, "job-hold-until", IPP_TAG_KEYWORD)) == NULL)
+    hold_until = ippFindAttribute(client->request, "job-hold-until-time", IPP_TAG_DATE);
+
+  if (hold_until)
+    serverHoldJob(job, hold_until);
 
  /*
   * Create a file for the request data...
@@ -3410,6 +3473,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
 			buffer[4096];	/* Copy buffer */
   ssize_t		bytes;		/* Bytes read */
   cups_array_t		*ra;		/* Attributes to send in response */
+  ipp_attribute_t	*hold_until;	/* job-hold-until-xxx attribute, if any */
   static const char * const uri_status_strings[] =
   {					/* URI decode errors */
     "URI too large.",
@@ -3511,6 +3575,12 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
     serverRespondIPP(client, IPP_STATUS_ERROR_TOO_MANY_JOBS, "Too many jobs are queued.");
     return;
   }
+
+  if ((hold_until = ippFindAttribute(client->request, "job-hold-until", IPP_TAG_KEYWORD)) == NULL)
+    hold_until = ippFindAttribute(client->request, "job-hold-until-time", IPP_TAG_DATE);
+
+  if (hold_until)
+    serverHoldJob(job, hold_until);
 
  /*
   * Create a file for the request data...
@@ -3686,6 +3756,51 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
 
   client->job = job;
   ipp_create_xxx_subscriptions(client);
+}
+
+
+/*
+ * 'ipp_release_job()' - Release a held job.
+ */
+
+static void
+ipp_release_job(server_client_t *client)	/* I - Client */
+{
+  server_job_t	*job;				/* Print job */
+
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
+ /*
+  * Get the job...
+  */
+
+  if ((job = serverFindJob(client, 0)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Job does not exist.");
+    return;
+  }
+
+  if (Authentication && !serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this job.");
+    return;
+  }
+
+  if (serverReleaseJob(job))
+    serverRespondIPP(client, IPP_STATUS_OK, NULL);
+  else
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Unable to release job.");
+
+  serverCheckJobs(client->printer);
 }
 
 
@@ -5476,6 +5591,14 @@ serverProcessIPP(
 	    case IPP_OP_CLOSE_JOB :
 	        ipp_close_job(client);
 		break;
+
+	    case IPP_OP_HOLD_JOB :
+	        ipp_hold_job(client);
+	        break;
+
+	    case IPP_OP_RELEASE_JOB :
+	        ipp_release_job(client);
+	        break;
 
 	    case IPP_OP_IDENTIFY_PRINTER :
 	        ipp_identify_printer(client);

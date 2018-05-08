@@ -308,6 +308,17 @@ serverCreatePrinter(
     "print-quality",
     "print-supports"
   };
+  static const char * const job_hold_until_supported[] =
+  {					/* job-hold-until-supported values */
+    "no-hold",
+    "indefinite",
+    "day-time",
+    "evening",
+    "night",
+    "second-shift",
+    "third-shift",
+    "weekend"
+  };
   static const int media_col_sizes[][2] =
   {					/* Default media-col sizes */
     { 21590, 27940 },			/* Letter */
@@ -720,6 +731,12 @@ serverCreatePrinter(
     else
       ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-creation-attributes-supported", sizeof(job_creation) / sizeof(job_creation[0]), NULL, job_creation);
   }
+
+  /* job-hold-until-supported */
+  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-hold-until-supported", sizeof(job_hold_until_supported) / sizeof(job_hold_until_supported[0]), NULL, job_hold_until_supported);
+
+  /* job-hold-until-time-supported */
+  ippAddRange(printer->pinfo.attrs, IPP_TAG_PRINTER, "job-hold-until-time-supported", 0, INT_MAX);
 
   /* job-ids-supported */
   ippAddBoolean(printer->pinfo.attrs, IPP_TAG_PRINTER, "job-ids-supported", 1);

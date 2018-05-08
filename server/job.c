@@ -51,6 +51,9 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
        job;
        job = (server_job_t *)cupsArrayNext(printer->active_jobs))
   {
+    if (job->state == IPP_JSTATE_HELD && job->hold_until && job->hold_until <= time(NULL))
+      serverReleaseJob(job);
+
     if (job->state == IPP_JSTATE_PENDING)
     {
       serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Starting job %d.", job->id);
@@ -451,6 +454,135 @@ serverGetJobStateReasonsBits(
 
 
 /*
+ * 'serverHoldJob()' - Hold a print job.
+ */
+
+int					/* O - 1 on success, 0 on failure */
+serverHoldJob(
+    server_job_t    *job,		/* I - Job to hold */
+    ipp_attribute_t *hold_until)	/* I - Hold-until condition */
+{
+  ipp_attribute_t	*attr;		/* job-hold-until-xxx attribute */
+  const char		*keyword;	/* job-hold-until keyword */
+
+
+  _cupsRWLockWrite(&job->rwlock);
+
+  if (job->state > IPP_JSTATE_HELD)
+  {
+    _cupsRWUnlock(&job->rwlock);
+    return (0);
+  }
+
+  job->state = IPP_JSTATE_HELD;
+
+  if (hold_until)
+    job->state_reasons |= SERVER_JREASON_JOB_HOLD_UNTIL_SPECIFIED;
+  else
+    job->state_reasons &= (server_jreason_t)~SERVER_JREASON_JOB_HOLD_UNTIL_SPECIFIED;
+
+  if (ippGetValueTag(hold_until) == IPP_TAG_DATE)
+  {
+    job->hold_until = ippDateToTime(ippGetDate(hold_until, 0));
+  }
+  else
+  {
+    time_t	curtime;		/* Current time */
+    struct tm	*curdate;		/* Current date */
+
+    curtime = time(NULL);
+    curdate = localtime(&curtime);
+
+    if ((keyword = ippGetString(hold_until, 0, NULL)) == NULL)
+      keyword = "indefinite";
+
+    if (!strcmp(keyword, "evening") || !strcmp(keyword, "night"))
+    {
+     /*
+      * Hold to 6pm unless local time is > 6pm or < 6am.
+      */
+
+      if (curdate->tm_hour < 6 || curdate->tm_hour >= 18)
+	job->hold_until = curtime;
+      else
+	job->hold_until = curtime + ((17 - curdate->tm_hour) * 60 + 59 - curdate->tm_min) * 60 + 60 - curdate->tm_sec;
+    }
+    else if (!strcmp(keyword, "second-shift"))
+    {
+     /*
+      * Hold to 4pm unless local time is > 4pm.
+      */
+
+      if (curdate->tm_hour >= 16)
+	job->hold_until = curtime;
+      else
+	job->hold_until = curtime + ((15 - curdate->tm_hour) * 60 + 59 - curdate->tm_min) * 60 + 60 - curdate->tm_sec;
+    }
+    else if (!strcmp(keyword, "third-shift"))
+    {
+     /*
+      * Hold to 12am unless local time is < 8am.
+      */
+
+      if (curdate->tm_hour < 8)
+	job->hold_until = curtime;
+      else
+	job->hold_until = curtime + ((23 - curdate->tm_hour) * 60 + 59 - curdate->tm_min) * 60 + 60 - curdate->tm_sec;
+    }
+    else if (!strcmp(keyword, "weekend"))
+    {
+     /*
+      * Hold to weekend unless we are in the weekend.
+      */
+
+      if (curdate->tm_wday == 0 || curdate->tm_wday == 6)
+	job->hold_until = curtime;
+      else
+	job->hold_until = curtime + (((5 - curdate->tm_wday) * 24 + (17 - curdate->tm_hour)) * 60 + 59 - curdate->tm_min) * 60 + 60 - curdate->tm_sec;
+    }
+    else
+    {
+     /*
+      * Any other value maps to "indefinite" - hold until released.
+      */
+
+      job->hold_until = 0;
+    }
+  }
+
+  if ((attr = ippFindAttribute(job->attrs, "job-hold-until", IPP_TAG_ZERO)) != NULL)
+  {
+    if (!hold_until)
+      ippSetString(job->attrs, &attr, 0, "indefinite");
+    else if (ippGetValueTag(hold_until) == IPP_TAG_DATE)
+      ippDeleteAttribute(job->attrs, attr);
+    else
+      ippSetString(job->attrs, &attr, 0, ippGetString(hold_until, 0, NULL));
+  }
+  else if (!hold_until)
+    ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_KEYWORD, "job-hold-until", NULL, "none");
+  else if (ippGetValueTag(hold_until) != IPP_TAG_DATE)
+    ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_KEYWORD, "job-hold-until", NULL, ippGetString(hold_until, 0, NULL));
+
+  if ((attr = ippFindAttribute(job->attrs, "job-hold-until-time", IPP_TAG_ZERO)) != NULL)
+  {
+    if (ippGetValueTag(hold_until) == IPP_TAG_DATE)
+      ippSetDate(job->attrs, &attr, 0, ippGetDate(hold_until, 0));
+    else
+      ippDeleteAttribute(job->attrs, attr);
+  }
+  else if (ippGetValueTag(hold_until) == IPP_TAG_DATE)
+    ippAddDate(job->attrs, IPP_TAG_JOB, "job-hold-until-time", ippGetDate(hold_until, 0));
+
+  _cupsRWUnlock(&job->rwlock);
+
+  serverAddEvent(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job held.");
+
+  return (1);
+}
+
+
+/*
  * 'serverProcessJob()' - Process a print job.
  */
 
@@ -541,4 +673,36 @@ serverProcessJob(server_job_t *job)	/* I - Job */
   serverCheckJobs(job->printer);
 
   return (NULL);
+}
+
+
+/*
+ * 'serverReleaseJob()' - Release a held print job.
+ */
+
+int					/* O - 1 on success, 0 on failure */
+serverReleaseJob(server_job_t *job)	/* I - Job to release */
+{
+  ipp_attribute_t	*attr;		/* Hold-until attribute */
+
+
+  if (job->state != IPP_JSTATE_HELD)
+    return (0);
+
+  _cupsRWLockWrite(&job->rwlock);
+
+  job->state         = IPP_JSTATE_PENDING;
+  job->state_reasons &= (server_jreason_t)~SERVER_JREASON_JOB_HOLD_UNTIL_SPECIFIED;
+
+  if ((attr = ippFindAttribute(job->attrs, "job-hold-until", IPP_TAG_ZERO)) != NULL)
+    ippDeleteAttribute(job->attrs, attr);
+
+  if ((attr = ippFindAttribute(job->attrs, "job-hold-until-time", IPP_TAG_ZERO)) != NULL)
+    ippDeleteAttribute(job->attrs, attr);
+
+  _cupsRWUnlock(&job->rwlock);
+
+  serverAddEvent(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job released.");
+
+  return (1);
 }
