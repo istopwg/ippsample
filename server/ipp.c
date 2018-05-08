@@ -10,6 +10,7 @@
 
 #include "ippserver.h"
 #include <grp.h>
+#include <math.h>
 
 
 /*
@@ -35,6 +36,7 @@ static inline int	check_attribute(const char *name, cups_array_t *ra, cups_array
 }
 static void		copy_doc_attributes(server_client_t *client, server_job_t *job, cups_array_t *ra, cups_array_t *pa);
 static void		copy_job_attributes(server_client_t *client, server_job_t *job, cups_array_t *ra, cups_array_t *pa);
+static void		copy_printer_attributes(server_client_t *client, server_printer_t *printer, cups_array_t *ra);
 static void		copy_printer_state(ipp_t *ipp, server_printer_t *printer, cups_array_t *ra);
 static void		copy_subscription_attributes(server_client_t *client, server_subscription_t *sub, cups_array_t *ra, cups_array_t *pa);
 static void		copy_system_state(ipp_t *ipp, cups_array_t *ra);
@@ -64,6 +66,7 @@ static void		ipp_get_notifications(server_client_t *client);
 static void		ipp_get_output_device_attributes(server_client_t *client);
 static void		ipp_get_printer_attributes(server_client_t *client);
 static void		ipp_get_printer_supported_values(server_client_t *client);
+static void		ipp_get_printers(server_client_t *client);
 static void		ipp_get_subscription_attributes(server_client_t *client);
 static void		ipp_get_subscriptions(server_client_t *client);
 static void		ipp_get_system_attributes(server_client_t *client);
@@ -93,6 +96,7 @@ static void		ipp_validate_job(server_client_t *client);
 static int		valid_doc_attributes(server_client_t *client);
 static int		valid_job_attributes(server_client_t *client);
 static int		valid_values(server_client_t *client, ipp_tag_t group_tag, ipp_attribute_t *supported, int num_values, server_value_t *values);
+static float		wgs84_distance(const char *a, const char *b);
 
 
 /*
@@ -360,6 +364,81 @@ copy_job_attributes(
 
   if (check_attribute("time-at-processing", ra, pa))
     ippAddInteger(client->response, IPP_TAG_JOB, job->processing ? IPP_TAG_INTEGER : IPP_TAG_NOVALUE, "time-at-processing", (int)(job->processing - client->printer->start_time));
+}
+
+
+/*
+ * 'copy_printer_attributes()' - Copy all printer attributes.
+ */
+
+static void
+copy_printer_attributes(
+    server_client_t  *client,		/* I - Client */
+    server_printer_t *printer,		/* I - Printer */
+    cups_array_t     *ra)		/* I - Requested attributes */
+{
+  serverCopyAttributes(client->response, printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
+  serverCopyAttributes(client->response, printer->dev_attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
+  serverCopyAttributes(client->response, PrivacyAttributes, ra, NULL, IPP_TAG_ZERO, IPP_TAG_CUPS_CONST);
+
+  if (!ra || cupsArrayFind(ra, "printer-config-change-date-time"))
+    ippAddDate(client->response, IPP_TAG_PRINTER, "printer-config-change-date-time", ippTimeToDate(printer->config_time));
+
+  if (!ra || cupsArrayFind(ra, "printer-config-change-time"))
+    ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "printer-config-change-time", (int)(printer->config_time - printer->start_time));
+
+  if (!ra || cupsArrayFind(ra, "printer-current-time"))
+    ippAddDate(client->response, IPP_TAG_PRINTER, "printer-current-time", ippTimeToDate(time(NULL)));
+
+  copy_printer_state(client->response, printer, ra);
+
+  if (printer->pinfo.strings && (!ra || cupsArrayFind(ra, "printer-strings-uri")))
+  {
+   /*
+    * See if we have a localization that matches the request language.
+    */
+
+    ipp_attribute_t	*attr;		/* attributes-natural-language attribute */
+    char		lang[32];	/* Copy of language string */
+    server_lang_t	key, *match;	/* Localization key and match */
+
+    ippFirstAttribute(client->request);
+    attr = ippNextAttribute(client->request);
+    strlcpy(lang, ippGetString(attr, 0, NULL), sizeof(lang));
+    key.lang = lang;
+    if ((match = cupsArrayFind(printer->pinfo.strings, &key)) == NULL && lang[2])
+    {
+     /*
+      * Try base language...
+      */
+
+      lang[2] = '\0';
+      match = cupsArrayFind(printer->pinfo.strings, &key);
+    }
+
+    if (match)
+    {
+      char		uri[1024];	/* printer-strings-uri value */
+      server_listener_t	*lis = cupsArrayFirst(Listeners);
+					/* Default listener */
+      const char	*scheme = "http";
+					/* URL scheme */
+
+#ifdef HAVE_SSL
+      if (Encryption != HTTP_ENCRYPTION_NEVER)
+        scheme = "https";
+#endif /* HAVE_SSL */
+
+      httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), scheme, NULL, lis->host, lis->port, "%s/%s.strings", printer->resource, match->lang);
+      ippAddString(client->response, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-strings-uri", NULL, uri);
+    }
+  }
+
+  if (!ra || cupsArrayFind(ra, "printer-up-time"))
+    ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "printer-up-time", (int)(time(NULL) - printer->start_time));
+
+  if (!ra || cupsArrayFind(ra, "queued-job-count"))
+    ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "queued-job-count", cupsArrayCount(printer->active_jobs));
 }
 
 
@@ -2626,68 +2705,7 @@ ipp_get_printer_attributes(
 
   _cupsRWLockRead(&(printer->rwlock));
 
-  serverCopyAttributes(client->response, printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
-  serverCopyAttributes(client->response, printer->dev_attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
-  serverCopyAttributes(client->response, PrivacyAttributes, ra, NULL, IPP_TAG_ZERO, IPP_TAG_CUPS_CONST);
-
-  if (!ra || cupsArrayFind(ra, "printer-config-change-date-time"))
-    ippAddDate(client->response, IPP_TAG_PRINTER, "printer-config-change-date-time", ippTimeToDate(printer->config_time));
-
-  if (!ra || cupsArrayFind(ra, "printer-config-change-time"))
-    ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "printer-config-change-time", (int)(printer->config_time - printer->start_time));
-
-  if (!ra || cupsArrayFind(ra, "printer-current-time"))
-    ippAddDate(client->response, IPP_TAG_PRINTER, "printer-current-time", ippTimeToDate(time(NULL)));
-
-  copy_printer_state(client->request, printer, ra);
-
-  if (printer->pinfo.strings && (!ra || cupsArrayFind(ra, "printer-strings-uri")))
-  {
-   /*
-    * See if we have a localization that matches the request language.
-    */
-
-    ipp_attribute_t	*attr;		/* attributes-natural-language attribute */
-    char		lang[32];	/* Copy of language string */
-    server_lang_t	key, *match;	/* Localization key and match */
-
-    ippFirstAttribute(client->request);
-    attr = ippNextAttribute(client->request);
-    strlcpy(lang, ippGetString(attr, 0, NULL), sizeof(lang));
-    key.lang = lang;
-    if ((match = cupsArrayFind(printer->pinfo.strings, &key)) == NULL && lang[2])
-    {
-     /*
-      * Try base language...
-      */
-
-      lang[2] = '\0';
-      match = cupsArrayFind(printer->pinfo.strings, &key);
-    }
-
-    if (match)
-    {
-      char		uri[1024];	/* printer-strings-uri value */
-      server_listener_t	*lis = cupsArrayFirst(Listeners);
-					/* Default listener */
-      const char	*scheme = "http";
-					/* URL scheme */
-
-#ifdef HAVE_SSL
-      if (Encryption != HTTP_ENCRYPTION_NEVER)
-        scheme = "https";
-#endif /* HAVE_SSL */
-
-      httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), scheme, NULL, lis->host, lis->port, "%s/%s.strings", printer->resource, match->lang);
-      ippAddString(client->response, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-strings-uri", NULL, uri);
-    }
-  }
-
-  if (!ra || cupsArrayFind(ra, "printer-up-time"))
-    ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "printer-up-time", (int)(time(NULL) - printer->start_time));
-
-  if (!ra || cupsArrayFind(ra, "queued-job-count"))
-    ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "queued-job-count", cupsArrayCount(printer->active_jobs));
+  copy_printer_attributes(client, printer, ra);
 
   _cupsRWUnlock(&(printer->rwlock));
 
@@ -2721,6 +2739,175 @@ ipp_get_printer_supported_values(
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
   serverCopyAttributes(client->response, client->printer->pinfo.attrs, ra, NULL, IPP_TAG_PRINTER, 1);
+
+  cupsArrayDelete(ra);
+}
+
+
+/*
+ * 'ipp_get_printers()' - Get a list of printers.
+ */
+
+static void
+ipp_get_printers(
+    server_client_t *client)		/* I - Client */
+{
+  int			i,		/* Looping var */
+			count;		/* Number of printers returned */
+  server_printer_t	*printer;	/* Current printer */
+  ipp_attribute_t	*printer_ids;	/* printer-ids operation attribute, if any */
+  int			first_index,	/* first-index operation attribute value, if any */
+			limit;		/* limit operation attribute value, if any */
+  const char		*geo_location,	/* printer-geo-location value, if any */
+			*location,	/* printer-location value, if any */
+			*service_type,	/* printer-service-type value, if any */
+			*document_format,/* document-format value, if any */
+			*which_printers;/* which-printers value, if any */
+  float			geo_distance = 30.0;
+					/* Distance for geographic filter */
+  cups_array_t		*ra;		/* requested-attributes */
+
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
+  printer_ids     = ippFindAttribute(client->request, "printer-ids", IPP_TAG_INTEGER);
+  first_index     = ippGetInteger(ippFindAttribute(client->request, "first-index", IPP_TAG_INTEGER), 0);
+  limit           = ippGetInteger(ippFindAttribute(client->request, "limit", IPP_TAG_INTEGER), 0);
+  geo_location    = ippGetString(ippFindAttribute(client->request, "printer-geo-location", IPP_TAG_URI), 0, NULL);
+  location        = ippGetString(ippFindAttribute(client->request, "printer-location", IPP_TAG_TEXT), 0, NULL);
+  service_type    = ippGetString(ippFindAttribute(client->request, "printer-service-type", IPP_TAG_KEYWORD), 0, NULL);
+  document_format = ippGetString(ippFindAttribute(client->request, "document-format", IPP_TAG_MIMETYPE), 0, NULL);
+  which_printers  = ippGetString(ippFindAttribute(client->request, "which-printers", IPP_TAG_KEYWORD), 0, NULL);
+
+  if (first_index <= 0)
+    first_index = 1;
+
+  if (geo_location)
+  {
+   /*
+    * Determine how close the printer needs to be...
+    */
+
+    const char	*u = strstr(geo_location, "u=");
+					/* Uncertainty value from URI */
+
+    if (u)
+      geo_distance = (float)atof(u + 2);
+  }
+
+  if (which_printers)
+  {
+    if (!strcmp(which_printers, "all"))
+    {
+      which_printers = NULL;
+    }
+    else if (!strcmp(which_printers, "shutdown") || !strcmp(which_printers, "testing"))
+    {
+      serverRespondIPP(client, IPP_STATUS_OK, NULL);
+      return;
+    }
+  }
+
+  ra = ippCreateRequestedArray(client->request);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+
+  _cupsRWLockRead(&PrintersRWLock);
+
+  for (i = 0, count = 0, printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  {
+    const char	*printer_geo_location;	/* Printer's geo-location value */
+
+    _cupsRWLockRead(&printer->rwlock);
+
+    if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+    {
+      _cupsRWUnlock(&printer->rwlock);
+      continue;
+    }
+
+    if (printer_ids && !ippContainsInteger(printer_ids, printer->id))
+    {
+      _cupsRWUnlock(&printer->rwlock);
+      continue;
+    }
+
+    printer_geo_location = ippGetString(ippFindAttribute(printer->pinfo.attrs, "printer-geo-location", IPP_TAG_URI), 0, NULL);
+
+    if (geo_location && (!printer_geo_location || wgs84_distance(printer_geo_location, geo_location) > geo_distance))
+    {
+      _cupsRWUnlock(&printer->rwlock);
+      continue;
+    }
+
+    if (location && (!printer->pinfo.location || strcmp(printer->pinfo.location, location)))
+    {
+      _cupsRWUnlock(&printer->rwlock);
+      continue;
+    }
+
+    if (document_format && !ippContainsString(ippFindAttribute(printer->pinfo.attrs, "document-format-supported", IPP_TAG_MIMETYPE), document_format))
+    {
+      _cupsRWUnlock(&printer->rwlock);
+      continue;
+    }
+
+    if (service_type && ((!strcmp(service_type, "print") && printer->type != SERVER_TYPE_PRINT) || (!strcmp(service_type, "print3d") && printer->type != SERVER_TYPE_PRINT3D) || (strcmp(service_type, "print") && strcmp(service_type, "print3d"))))
+    {
+      _cupsRWUnlock(&printer->rwlock);
+      continue;
+    }
+
+    if (which_printers)
+    {
+     /*
+      * Values are 'accepting', 'all', 'idle', 'not-accepting', 'processing',
+      * 'shutdown', 'stopped', and 'testing'.  The 'all' value gets filtered
+      * out, and right now 'shutdown' and 'testing' are not supported.
+      */
+
+      if ((!strcmp(which_printers, "accepting") && !printer->is_accepting) ||
+          (!strcmp(which_printers, "idle") && printer->state != IPP_PSTATE_IDLE) ||
+          (!strcmp(which_printers, "not-accepting") && printer->is_accepting) ||
+          (!strcmp(which_printers, "processing") && printer->state != IPP_PSTATE_PROCESSING) ||
+          (!strcmp(which_printers, "stopped") && printer->state != IPP_PSTATE_STOPPED))
+      {
+	_cupsRWUnlock(&printer->rwlock);
+	continue;
+      }
+    }
+
+   /*
+    * Whew, if we got this far we probably want to send this printer's info.
+    * Check whether the client specifies first-index/limit...
+    */
+
+    i ++;
+    if (first_index > 0 && i < first_index)
+      continue;
+
+    if (count)
+      ippAddSeparator(client->response);
+
+    copy_printer_attributes(client, printer, ra);
+
+    count ++;
+
+    _cupsRWUnlock(&printer->rwlock);
+
+    if (limit > 0 && count >= limit)
+      break;
+  }
+
+  _cupsRWUnlock(&PrintersRWLock);
 
   cupsArrayDelete(ra);
 }
@@ -5761,6 +5948,10 @@ serverProcessIPP(
                 ipp_create_printer(client);
                 break;
 
+            case IPP_OP_GET_PRINTERS :
+                ipp_get_printers(client);
+                break;
+
             case IPP_OP_DISABLE_ALL_PRINTERS :
 		ipp_disable_all_printers(client);
                 break;
@@ -6370,6 +6561,7 @@ valid_values(
       if (ippGetGroupTag(attr) != group_tag)
       {
         serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "'%s' attribute in the wrong group.", values->name);
+        serverRespondUnsupported(client, attr);
         return (0);
       }
 
@@ -6393,4 +6585,61 @@ valid_values(
   }
 
   return (1);
+}
+
+/*
+ * 'wgs84_distance()' - Approximate the distance between two geo: values.
+ */
+
+#define M_PER_DEG	111120.0	/* Meters per degree of latitude */
+
+static float				/* O - Distance in meters */
+wgs84_distance(const char *a,		/* I - First geo: value */
+               const char *b)		/* I - Second geo: value */
+{
+  char		*ptr;			/* Pointer into string */
+  double	a_lat, a_lon, a_alt;	/* First latitude, longitude, altitude */
+  double	b_lat, b_lon, b_alt;	/* First latitude, longitude, altitude */
+  double	d_lat, d_lon, d_alt;	/* Difference in positions */
+
+
+ /*
+  * Decode the geo: values...
+  */
+
+  a_lat = strtod(a + 4, &ptr);
+  if (*ptr != ',')
+    return (999999.0);			/* Large value = error */
+  a_lon = strtod(ptr + 1, &ptr);
+  if (*ptr != ',')
+    a_alt = 0.0;
+  else
+    a_alt = strtod(ptr + 1, NULL);
+
+  b_lat = strtod(b + 4, &ptr);
+  if (*ptr != ',')
+    return (999999.0);			/* Large value = error */
+  b_lon = strtod(ptr + 1, &ptr);
+  if (*ptr != ',')
+    b_alt = 0.0;
+  else
+    b_alt = strtod(ptr + 1, NULL);
+
+ /*
+  * Approximate the distance between the two points.
+  *
+  * Note: This calculation is not meant to be used for navigation or other
+  * serious uses of WGS-84 coordinates.  Rather, we are simply calculating the
+  * angular distance between the two coordinates on a sphere (vs. the WGS-84
+  * ellipsoid) and then multiplying by an approximate number of meters between
+  * each degree of latitude and longitude.  The error bars on this calculation
+  * are reasonable for local comparisons and completely unreasonable for
+  * distant comparisons.  You have been warned! :)
+  */
+
+  d_lat = M_PER_DEG * (a_lat - b_lat);
+  d_lon = M_PER_DEG * cos((a_lat + b_lat) * M_PI / 4.0) * (a_lon - b_lon);
+  d_alt = a_alt - b_alt;
+
+  return ((float)sqrt(d_lat * d_lat + d_lon * d_lon + d_alt * d_alt));
 }
