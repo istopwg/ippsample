@@ -1321,6 +1321,7 @@ ipp_create_printer(
 
   if ((attr = ippFindAttribute(client->request, "device-uri", IPP_TAG_URI)) != NULL)
   {
+    http_uri_status_t uri_status;	/* Decoding status */
     char	scheme[32],		/* URI scheme */
 		userpass[256],		/* URI username:password */
 		host[256],		/* URI host name */
@@ -1331,8 +1332,14 @@ ipp_create_printer(
     supported = ippFindAttribute(SystemAttributes, "device-uri-schemes-supported", IPP_TAG_URISCHEME);
     _cupsRWUnlock(&SystemRWLock);
 
-    if (httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(attr, 0, NULL), scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, path, sizeof(path)) < HTTP_URI_STATUS_OK || !ippContainsString(supported, scheme))
+    if ((uri_status = httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(attr, 0, NULL), scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, path, sizeof(path))) < HTTP_URI_STATUS_OK)
     {
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Bad device-uri: %s", httpURIStatusString(uri_status));
+      serverRespondUnsupported(client, attr);
+    }
+    else if (!ippContainsString(supported, scheme))
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_URI_SCHEME, "Unsupported device-uri scheme '%s'.", scheme);
       serverRespondUnsupported(client, attr);
       return;
     }
@@ -3474,17 +3481,6 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
   ssize_t		bytes;		/* Bytes read */
   cups_array_t		*ra;		/* Attributes to send in response */
   ipp_attribute_t	*hold_until;	/* job-hold-until-xxx attribute, if any */
-  static const char * const uri_status_strings[] =
-  {					/* URI decode errors */
-    "URI too large.",
-    "Bad arguments to function.",
-    "Bad resource in URI.",
-    "Bad port number in URI.",
-    "Bad hostname in URI.",
-    "Bad username in URI.",
-    "Bad scheme in URI.",
-    "Bad/empty URI."
-  };
 
 
   if (Authentication && !client->username[0])
@@ -3539,14 +3535,16 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
 
   if (ippGetCount(uri) != 1)
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Too many document-uri values.");
+    serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Too many document-uri values.");
+    serverRespondUnsupported(client, uri);
     return;
   }
 
   uri_status = httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(uri, 0, NULL), scheme, sizeof(scheme), userpass, sizeof(userpass), hostname, sizeof(hostname), &port, resource, sizeof(resource));
   if (uri_status < HTTP_URI_STATUS_OK)
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Bad document-uri: %s", uri_status_strings[uri_status - HTTP_URI_STATUS_OVERFLOW]);
+    serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Bad document-uri: %s", httpURIStatusString(uri_status));
+    serverRespondUnsupported(client, uri);
     return;
   }
 
@@ -3557,12 +3555,14 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
       strcmp(scheme, "http"))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_URI_SCHEME, "URI scheme \"%s\" not supported.", scheme);
+    serverRespondUnsupported(client, uri);
     return;
   }
 
   if (!strcmp(scheme, "file") && access(resource, R_OK))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to access URI: %s", strerror(errno));
+    serverRespondUnsupported(client, uri);
     return;
   }
 
@@ -3649,6 +3649,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
     if ((http = httpConnect2(hostname, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to connect to %s: %s", hostname, cupsLastErrorString());
+      serverRespondUnsupported(client, uri);
       job->state = IPP_JSTATE_ABORTED;
 
       close(job->fd);
@@ -3663,6 +3664,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
     if (httpGet(http, resource))
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to GET URI: %s", strerror(errno));
+      serverRespondUnsupported(client, uri);
 
       job->state = IPP_JSTATE_ABORTED;
 
@@ -3679,6 +3681,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
     if (status != HTTP_STATUS_OK)
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to GET URI: %s", httpStatus(status));
+      serverRespondUnsupported(client, uri);
 
       job->state = IPP_JSTATE_ABORTED;
 
@@ -4197,17 +4200,6 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
   ssize_t		bytes;		/* Bytes read */
   ipp_attribute_t	*attr;		/* Current attribute */
   cups_array_t		*ra;		/* Attributes to send in response */
-  static const char * const uri_status_strings[] =
-  {					/* URI decode errors */
-    "URI too large.",
-    "Bad arguments to function.",
-    "Bad resource in URI.",
-    "Bad port number in URI.",
-    "Bad hostname in URI.",
-    "Bad username in URI.",
-    "Bad scheme in URI.",
-    "Bad/empty URI."
-  };
 
 
   if (Authentication && !client->username[0])
@@ -4298,8 +4290,7 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
   * Do we have a document URI?
   */
 
-  if ((uri = ippFindAttribute(client->request, "document-uri",
-                              IPP_TAG_URI)) == NULL)
+  if ((uri = ippFindAttribute(client->request, "document-uri", IPP_TAG_URI)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing document-uri.");
     return;
@@ -4307,19 +4298,16 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
 
   if (ippGetCount(uri) != 1)
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST,
-                "Too many document-uri values.");
+    serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Too many document-uri values.");
+    serverRespondUnsupported(client, uri);
     return;
   }
 
-  uri_status = httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(uri, 0, NULL),
-                               scheme, sizeof(scheme), userpass,
-                               sizeof(userpass), hostname, sizeof(hostname),
-                               &port, resource, sizeof(resource));
+  uri_status = httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(uri, 0, NULL), scheme, sizeof(scheme), userpass, sizeof(userpass), hostname, sizeof(hostname), &port, resource, sizeof(resource));
   if (uri_status < HTTP_URI_STATUS_OK)
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Bad document-uri: %s",
-                uri_status_strings[uri_status - HTTP_URI_STATUS_OVERFLOW]);
+    serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Bad document-uri: %s", httpURIStatusString(uri_status));
+    serverRespondUnsupported(client, uri);
     return;
   }
 
@@ -4330,12 +4318,14 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
       strcmp(scheme, "http"))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_URI_SCHEME, "URI scheme \"%s\" not supported.", scheme);
+    serverRespondUnsupported(client, uri);
     return;
   }
 
   if (!strcmp(scheme, "file") && access(resource, R_OK))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to access URI: %s", strerror(errno));
+    serverRespondUnsupported(client, uri);
     return;
   }
 
@@ -4429,6 +4419,7 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
       serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS,
                   "Unable to connect to %s: %s", hostname,
 		  cupsLastErrorString());
+      serverRespondUnsupported(client, uri);
       job->state = IPP_JSTATE_ABORTED;
 
       close(job->fd);
@@ -4444,6 +4435,7 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS,
                   "Unable to GET URI: %s", strerror(errno));
+      serverRespondUnsupported(client, uri);
 
       job->state = IPP_JSTATE_ABORTED;
 
@@ -4461,6 +4453,7 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS,
                   "Unable to GET URI: %s", httpStatus(status));
+      serverRespondUnsupported(client, uri);
 
       job->state = IPP_JSTATE_ABORTED;
 
@@ -5865,10 +5858,8 @@ serverRespondUnsupported(
   ipp_attribute_t	*temp;		/* Copy of attribute */
 
 
-  serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES,
-              "Unsupported %s %s%s value.", ippGetName(attr),
-              ippGetCount(attr) > 1 ? "1setOf " : "",
-	      ippTagString(ippGetValueTag(attr)));
+  if (ippGetStatusCode(client->response) != IPP_STATUS_OK)
+    serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Unsupported %s %s%s value.", ippGetName(attr), ippGetCount(attr) > 1 ? "1setOf " : "", ippTagString(ippGetValueTag(attr)));
 
   temp = ippCopyAttribute(client->response, attr, 0);
   ippSetGroupTag(client->response, &temp, IPP_TAG_UNSUPPORTED_GROUP);
