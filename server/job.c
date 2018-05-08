@@ -54,7 +54,7 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
     if (job->state == IPP_JSTATE_HELD && job->hold_until && job->hold_until <= time(NULL))
       serverReleaseJob(job);
 
-    if (job->state == IPP_JSTATE_PENDING)
+    if (job->state == IPP_JSTATE_PENDING || (job->state == IPP_JSTATE_STOPPED && !(job->state_reasons & SERVER_JREASON_JOB_FETCHABLE)))
     {
       serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Starting job %d.", job->id);
 
@@ -638,14 +638,25 @@ serverProcessJob(server_job_t *job)	/* I - Job */
   else if (job->state == IPP_JSTATE_PROCESSING)
     job->state = IPP_JSTATE_COMPLETED;
 
-  job->printer->state          = IPP_PSTATE_IDLE;
+  _cupsRWLockWrite(&job->printer->rwlock);
+
+  if (job->printer->state_reasons & SERVER_PREASON_MOVING_TO_PAUSED)
+  {
+    job->printer->state         = IPP_PSTATE_STOPPED;
+    job->printer->state_reasons &= (server_preason_t)~SERVER_PREASON_MOVING_TO_PAUSED;
+    job->printer->state_reasons |= SERVER_PREASON_PAUSED;
+  }
+  else
+  {
+    job->printer->state = IPP_PSTATE_IDLE;
+  }
+
   job->printer->processing_job = NULL;
 
   if (job->state >= IPP_JSTATE_CANCELED)
   {
     job->completed = time(NULL);
 
-    _cupsRWLockWrite(&job->printer->rwlock);
     cupsArrayAdd(job->printer->completed_jobs, job);
     cupsArrayRemove(job->printer->active_jobs, job);
 
@@ -666,9 +677,9 @@ serverProcessJob(server_job_t *job)	/* I - Job */
 	cupsArrayRemove(job->printer->jobs, tjob); /* Removing here calls serverDeleteJob */
       }
     }
-
-    _cupsRWUnlock(&job->printer->rwlock);
   }
+
+  _cupsRWUnlock(&job->printer->rwlock);
 
   serverCheckJobs(job->printer);
 

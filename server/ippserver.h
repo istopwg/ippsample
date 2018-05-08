@@ -521,6 +521,7 @@ struct server_job_s			/**** Job data ****/
   int			cancel;		/* Non-zero when job canceled */
   char			*filename;	/* Print file name */
   int			fd;		/* Print file descriptor */
+  int			transform_pid;	/* Transform process ID, if any */
   server_printer_t	*printer;	/* Printer */
   int			num_resources,	/* Number of job resources */
 			resources[SERVER_RESOURCES_MAX];
@@ -722,6 +723,7 @@ extern int		serverRespondHTTP(server_client_t *client, http_status_t code, const
 extern void		serverRespondIPP(server_client_t *client, ipp_status_t status, const char *message, ...) __attribute__ ((__format__ (__printf__, 3, 4)));
 extern void		serverRespondUnsupported(server_client_t *client, ipp_attribute_t *attr);
 extern void		serverRun(void);
+extern void		serverStopJob(server_job_t *job);
 extern char		*serverTimeString(time_t tv, char *buffer, size_t bufsize);
 extern int		serverTransformJob(server_client_t *client, server_job_t *job, const char *command, const char *format, server_transform_t mode);
 extern void		serverUpdateDeviceAttributesNoLock(server_printer_t *printer);

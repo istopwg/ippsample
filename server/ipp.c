@@ -3409,6 +3409,9 @@ ipp_pause_all_printers(
       }
       else if (printer->state == IPP_PSTATE_PROCESSING)
       {
+	if (ippGetOperation(client->request) == IPP_OP_PAUSE_ALL_PRINTERS)
+	  serverStopJob(client->printer->processing_job);
+
 	printer->state_reasons |= SERVER_PREASON_MOVING_TO_PAUSED;
       }
       _cupsRWUnlock(&printer->rwlock);
@@ -3460,6 +3463,9 @@ ipp_pause_printer(
     }
     else if (client->printer->state == IPP_PSTATE_PROCESSING)
     {
+      if (ippGetOperation(client->request) == IPP_OP_PAUSE_PRINTER)
+        serverStopJob(client->printer->processing_job);
+
       client->printer->state_reasons |= SERVER_PREASON_MOVING_TO_PAUSED;
     }
     _cupsRWUnlock(&client->printer->rwlock);
