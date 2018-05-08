@@ -45,7 +45,7 @@ static void		ipp_acknowledge_document(server_client_t *client);
 static void		ipp_acknowledge_identify_printer(server_client_t *client);
 static void		ipp_acknowledge_job(server_client_t *client);
 static void		ipp_cancel_job(server_client_t *client);
-static void		ipp_cancel_my_jobs(server_client_t *client);
+static void		ipp_cancel_jobs(server_client_t *client);
 static void		ipp_cancel_subscription(server_client_t *client);
 static void		ipp_close_job(server_client_t *client);
 static void		ipp_create_job(server_client_t *client);
@@ -873,6 +873,9 @@ ipp_cancel_job(server_client_t *client)	/* I - Client */
 	    (job->state == IPP_JSTATE_HELD && job->fd >= 0))
         {
           job->cancel = 1;
+
+          if (job->state == IPP_JSTATE_PROCESSING)
+	    serverStopJob(job);
 	}
 	else
 	{
@@ -891,20 +894,22 @@ ipp_cancel_job(server_client_t *client)	/* I - Client */
 
 
 /*
- * 'ipp_cancel_my_jobs()' - Cancel a user's jobs.
+ * 'ipp_cancel_jobs()' - Cancel multiple jobs.
  */
 
 static void
-ipp_cancel_my_jobs(
+ipp_cancel_jobs(
     server_client_t *client)		/* I - Client */
 {
   ipp_attribute_t	*attr,		/* Current attribute */
 			*job_ids,	/* List of job-id's to cancel */
 			*bad_job_ids = NULL;
 					/* List of bad job-id values */
-  const char		*username;	/* Username */
+  const char		*username = NULL;/* Username */
   server_job_t		*job;		/* Current job pointer */
   cups_array_t		*to_cancel;	/* Jobs to cancel */
+  ipp_op_t		op = ippGetOperation(client->request);
+					/* Operation code */
 
 
  /*
@@ -923,9 +928,10 @@ ipp_cancel_my_jobs(
       return;
     }
 
-    username = client->username;
+    if (op == IPP_OP_CANCEL_MY_JOBS)
+      username = client->username;
   }
-  else if ((attr = ippFindAttribute(client->request, "requesting-user-name", IPP_TAG_NAME)) == NULL)
+  else if ((attr = ippFindAttribute(client->request, "requesting-user-name", IPP_TAG_NAME)) == NULL && op == IPP_OP_CANCEL_MY_JOBS)
   {
    /*
     * No authentication and no requesting-user-name...
@@ -934,7 +940,7 @@ ipp_cancel_my_jobs(
     serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Need requesting-user-name with Cancel-My-Jobs.");
     return;
   }
-  else
+  else if (op == IPP_OP_CANCEL_MY_JOBS)
   {
    /*
     * Use requesting-user-name value...
@@ -943,7 +949,18 @@ ipp_cancel_my_jobs(
     username = ippGetString(attr, 0, NULL);
   }
 
-  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Cancel-My-Jobs username='%s'", username);
+  if (op == IPP_OP_CANCEL_JOBS)
+  {
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+  else
+  {
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Cancel-My-Jobs username='%s'", username);
+  }
 
  /*
   * and then see if a list of jobs was provided...
@@ -979,7 +996,7 @@ ipp_cancel_my_jobs(
 	* Validate this job...
 	*/
 
-	if (_cups_strcasecmp(username, job->username))
+	if (username && _cups_strcasecmp(username, job->username))
 	{
 	  if (!bad_job_ids)
 	  {
@@ -1022,7 +1039,7 @@ ipp_cancel_my_jobs(
 
     for (job = (server_job_t *)cupsArrayFirst(client->printer->jobs); job; job = (server_job_t *)cupsArrayNext(client->printer->jobs))
     {
-      if (!_cups_strcasecmp(username, job->username) && job->state < IPP_JSTATE_CANCELED)
+      if (job->state < IPP_JSTATE_CANCELED && (op == IPP_OP_CANCEL_JOBS || (username && !_cups_strcasecmp(username, job->username))))
         cupsArrayAdd(to_cancel, job);
     }
   }
@@ -1038,6 +1055,8 @@ ipp_cancel_my_jobs(
       if (job->state == IPP_JSTATE_PROCESSING || (job->state == IPP_JSTATE_HELD && job->fd >= 0))
       {
 	job->cancel = 1;
+
+	serverStopJob(job);
       }
       else
       {
@@ -5754,8 +5773,12 @@ serverProcessIPP(
 		ipp_cancel_job(client);
 		break;
 
+	    case IPP_OP_CANCEL_JOBS :
+		ipp_cancel_jobs(client);
+		break;
+
 	    case IPP_OP_CANCEL_MY_JOBS :
-		ipp_cancel_my_jobs(client);
+		ipp_cancel_jobs(client);
 		break;
 
 	    case IPP_OP_GET_JOB_ATTRIBUTES :

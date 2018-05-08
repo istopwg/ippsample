@@ -311,6 +311,8 @@ serverTransformJob(
     goto transform_failure;
   }
 
+  job->transform_pid = pid;
+
   serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Started job processing command, pid=%d", pid);
 
  /*
@@ -423,6 +425,8 @@ serverTransformJob(
 #  else
   while (wait(&status) < 0);
 #  endif /* HAVE_WAITPID */
+
+  job->transform_pid = 0;
 #endif /* WIN32 */
 
   end = time_seconds();
