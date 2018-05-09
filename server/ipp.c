@@ -91,10 +91,8 @@ static void		ipp_send_uri(server_client_t *client);
 //static void		ipp_set_subscription_attributes(server_client_t *client);
 static void		ipp_set_system_attributes(server_client_t *client);
 static void		ipp_shutdown_all_printers(server_client_t *client);
-static void		ipp_shutdown_one_printer(server_client_t *client);
 static void		ipp_shutdown_printer(server_client_t *client);
 static void		ipp_startup_all_printers(server_client_t *client);
-static void		ipp_startup_one_printer(server_client_t *client);
 static void		ipp_startup_printer(server_client_t *client);
 static void		ipp_update_active_jobs(server_client_t *client);
 static void		ipp_update_document_status(server_client_t *client);
@@ -1776,9 +1774,6 @@ static void
 ipp_delete_printer(
     server_client_t *client)		/* I - Client */
 {
-  ipp_attribute_t	*attr;		/* printer-id attribute */
-  int			printer_id;	/* printer-id value */
-  server_printer_t	*printer;	/* Current printer */
   server_job_t		*job;		/* Current job */
   server_subscription_t	*sub;		/* Current subscription */
 
@@ -1802,92 +1797,67 @@ ipp_delete_printer(
     }
   }
 
-  if ((attr = ippFindAttribute(client->request, "printer-id", IPP_TAG_ZERO)) == NULL)
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing required printer-id attribute.");
-    return;
-  }
-
-  if ((printer_id = ippGetInteger(attr, 0)) <= 0 || ippGetGroupTag(attr) != IPP_TAG_OPERATION || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetCount(attr) != 1)
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Bad printer-id attribute.");
-    serverRespondUnsupported(client, attr);
-    return;
-  }
-
   _cupsRWLockWrite(&PrintersRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
-    if (printer->id == printer_id)
-      break;
+  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, client->printer, "Removing printer %d from printers list.", client->printer->id);
 
-  if (printer)
+  cupsArrayRemove(Printers, client->printer);
+
+  client->printer->is_deleted = 1;
+
+  if (client->printer->processing_job)
   {
-    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Removing printer %d from printers list.", printer->id);
+    client->printer->state_reasons |= SERVER_PREASON_MOVING_TO_PAUSED | SERVER_PREASON_DELETING;
+    serverStopJob(client->printer->processing_job);
 
-    cupsArrayRemove(Printers, printer);
-
-    printer->is_deleted = 1;
-
-    if (printer->processing_job)
-    {
-      printer->state_reasons |= SERVER_PREASON_MOVING_TO_PAUSED | SERVER_PREASON_DELETING;
-      serverStopJob(printer->processing_job);
-
-      serverAddEvent(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer being deleted.");
-    }
-    else
-    {
-      printer->state         = IPP_PSTATE_STOPPED;
-      printer->state_reasons |= SERVER_PREASON_DELETING;
-
-      serverAddEvent(printer, NULL, NULL, SERVER_EVENT_PRINTER_DELETED, "Printer deleted.");
-
-      serverDeletePrinter(printer);
-    }
-
-   /*
-    * Abort all jobs for this printer...
-    */
-
-    _cupsRWLockWrite(&printer->rwlock);
-
-    for (job = (server_job_t *)cupsArrayFirst(printer->active_jobs); job; job = (server_job_t *)cupsArrayNext(printer->active_jobs))
-    {
-      if (job->state == IPP_JSTATE_PENDING || job->state == IPP_JSTATE_HELD)
-      {
-        job->state = IPP_JSTATE_ABORTED;
-        serverAddEvent(job->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, "Job aborted because printer has been deleted.");
-      }
-    }
-
-    _cupsRWUnlock(&printer->rwlock);
-
-   /*
-    * Mark all subscriptions for this printer to expire in 30 seconds...
-    */
-
-    _cupsRWLockRead(&SubscriptionsRWLock);
-
-    for (sub = (server_subscription_t *)cupsArrayFirst(Subscriptions); sub; sub = (server_subscription_t *)cupsArrayNext(Subscriptions))
-    {
-      if (sub->printer == printer || (sub->job && sub->job->printer == printer))
-      {
-        sub->printer = NULL;
-        sub->job     = NULL;
-        sub->expire  = time(NULL) + 30;
-      }
-    }
-
-    _cupsRWUnlock(&SubscriptionsRWLock);
-
-    serverRespondIPP(client, IPP_STATUS_OK, NULL);
+    serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer being deleted.");
   }
   else
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "printer-id not found.");
-    serverRespondUnsupported(client, attr);
+    client->printer->state         = IPP_PSTATE_STOPPED;
+    client->printer->state_reasons |= SERVER_PREASON_DELETING;
+
+    serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_DELETED, "Printer deleted.");
+
+    serverDeletePrinter(client->printer);
   }
+
+ /*
+  * Abort all jobs for this printer...
+  */
+
+  _cupsRWLockWrite(&client->printer->rwlock);
+
+  for (job = (server_job_t *)cupsArrayFirst(client->printer->active_jobs); job; job = (server_job_t *)cupsArrayNext(client->printer->active_jobs))
+  {
+    if (job->state == IPP_JSTATE_PENDING || job->state == IPP_JSTATE_HELD)
+    {
+      job->state = IPP_JSTATE_ABORTED;
+      serverAddEvent(job->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, "Job aborted because printer has been deleted.");
+    }
+  }
+
+  _cupsRWUnlock(&client->printer->rwlock);
+
+ /*
+  * Mark all subscriptions for this printer to expire in 30 seconds...
+  */
+
+  _cupsRWLockRead(&SubscriptionsRWLock);
+
+  for (sub = (server_subscription_t *)cupsArrayFirst(Subscriptions); sub; sub = (server_subscription_t *)cupsArrayNext(Subscriptions))
+  {
+    if (sub->printer == client->printer || (sub->job && sub->job->printer == client->printer))
+    {
+      sub->printer = NULL;
+      sub->job     = NULL;
+      sub->expire  = time(NULL) + 30;
+    }
+  }
+
+  _cupsRWUnlock(&SubscriptionsRWLock);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
   _cupsRWUnlock(&PrintersRWLock);
 }
@@ -4245,12 +4215,25 @@ ipp_restart_printer(
     }
   }
 
+  client->printer->is_accepting = 1;
+
   if (client->printer->processing_job)
   {
     _cupsRWLockWrite(&client->printer->rwlock);
     serverStopJob(client->printer->processing_job);
     _cupsRWUnlock(&client->printer->rwlock);
   }
+  else if (client->printer->state == IPP_PSTATE_STOPPED)
+  {
+    _cupsRWLockWrite(&client->printer->rwlock);
+    client->printer->state = IPP_PSTATE_IDLE;
+    client->printer->state_reasons &= (server_preason_t)~(SERVER_PREASON_PAUSED | SERVER_PREASON_MOVING_TO_PAUSED);
+    _cupsRWUnlock(&client->printer->rwlock);
+
+    serverCheckJobs(client->printer);
+  }
+
+  serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer restarted.");
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -5074,31 +5057,87 @@ static void
 ipp_shutdown_all_printers(
     server_client_t *client)		/* I - Client */
 {
-  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
+  server_printer_t	*printer;	/* Current printer */
+
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+  _cupsRWLockRead(&PrintersRWLock);
+
+  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  {
+    _cupsRWLockWrite(&printer->rwlock);
+
+    printer->is_shutdown = 1;
+    printer->state_reasons |= SERVER_PREASON_PRINTER_SHUTDOWN;
+
+    if (printer->processing_job)
+      serverStopJob(printer->processing_job);
+
+    _cupsRWUnlock(&printer->rwlock);
+  }
+
+  _cupsRWUnlock(&PrintersRWLock);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
 
 
 /*
- * 'ipp_shutdown_one_printer()' - Shutdown a printer (system object version).
- */
-
-static void
-ipp_shutdown_one_printer(
-    server_client_t *client)		/* I - Client */
-{
-  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
-}
-
-
-/*
- * 'ipp_shutdown_printer()' - Shutdown a printer (printer object version).
+ * 'ipp_shutdown_printer()' - Shutdown a printer.
  */
 
 static void
 ipp_shutdown_printer(
     server_client_t *client)		/* I - Client */
 {
-  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+  _cupsRWLockWrite(&client->printer->rwlock);
+
+  client->printer->is_shutdown = 1;
+  client->printer->state_reasons |= SERVER_PREASON_PRINTER_SHUTDOWN;
+
+  if (client->printer->processing_job)
+    serverStopJob(client->printer->processing_job);
+
+  _cupsRWUnlock(&client->printer->rwlock);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
 
 
@@ -5110,31 +5149,81 @@ static void
 ipp_startup_all_printers(
     server_client_t *client)		/* I - Client */
 {
-  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
+  server_printer_t	*printer;	/* Current printer */
+
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+  _cupsRWLockRead(&PrintersRWLock);
+
+  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  {
+    _cupsRWLockWrite(&printer->rwlock);
+
+    printer->is_shutdown = 0;
+    printer->state_reasons &= (server_preason_t)~SERVER_PREASON_PRINTER_SHUTDOWN;
+
+    _cupsRWUnlock(&printer->rwlock);
+  }
+
+  _cupsRWUnlock(&PrintersRWLock);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
 
 
 /*
- * 'ipp_startup_one_printer()' - Start a printer (system object version).
- */
-
-static void
-ipp_startup_one_printer(
-    server_client_t *client)		/* I - Client */
-{
-  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
-}
-
-
-/*
- * 'ipp_startup_printer()' - Start a printer (printer object version).
+ * 'ipp_startup_printer()' - Start a printer.
  */
 
 static void
 ipp_startup_printer(
     server_client_t *client)		/* I - Client */
 {
-  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+  _cupsRWLockWrite(&client->printer->rwlock);
+
+  client->printer->is_shutdown = 0;
+  client->printer->state_reasons &= (server_preason_t)~SERVER_PREASON_PRINTER_SHUTDOWN;
+
+  _cupsRWUnlock(&client->printer->rwlock);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
 
 
@@ -6194,108 +6283,143 @@ serverProcessIPP(
 	  * Try processing the System operation...
 	  */
 
-	  switch ((int)ippGetOperation(client->request))
-	  {
-	    case IPP_OP_GET_PRINTER_ATTRIBUTES :
-	        if (DefaultPrinter)
-	        {
-	          client->printer = DefaultPrinter;
-		  ipp_get_printer_attributes(client);
-		}
-		else
-		{
-		  serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "No default printer.");
-		}
-		break;
+          if ((attr = ippFindAttribute(client->request, "printer-id", IPP_TAG_INTEGER)) != NULL)
+          {
+            int			printer_id = ippGetInteger(attr, 0);
+					/* printer-id value */
+            server_printer_t	*printer;
+					/* Current printer */
 
-	    case IPP_OP_CANCEL_SUBSCRIPTION :
-	        ipp_cancel_subscription(client);
-		break;
 
-	    case IPP_OP_CREATE_SYSTEM_SUBSCRIPTIONS :
-	        ipp_create_xxx_subscriptions(client);
-		break;
+            if (ippGetCount(attr) != 1 || ippGetGroupTag(attr) != IPP_TAG_OPERATION || printer_id <= 0)
+            {
+              serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Bad printer-id attribute.");
+              serverRespondUnsupported(client, attr);
+	    }
 
-	    case IPP_OP_GET_NOTIFICATIONS :
-	        ipp_get_notifications(client);
-		break;
-
-	    case IPP_OP_GET_SUBSCRIPTION_ATTRIBUTES :
-	        ipp_get_subscription_attributes(client);
-		break;
-
-	    case IPP_OP_GET_SUBSCRIPTIONS :
-	        ipp_get_subscriptions(client);
-		break;
-
-	    case IPP_OP_RENEW_SUBSCRIPTION :
-	        ipp_renew_subscription(client);
-		break;
-
-	    case IPP_OP_GET_SYSTEM_ATTRIBUTES :
-	        ipp_get_system_attributes(client);
-	        break;
-
-	    case IPP_OP_GET_SYSTEM_SUPPORTED_VALUES :
-	        ipp_get_system_supported_values(client);
-	        break;
-
-	    case IPP_OP_SET_SYSTEM_ATTRIBUTES :
-	        ipp_set_system_attributes(client);
-	        break;
-
-            case IPP_OP_CREATE_PRINTER :
-                ipp_create_printer(client);
+            _cupsRWLockRead(&PrintersRWLock);
+            for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+	    {
+              if (printer->id == printer_id)
+              {
+                client->printer = printer;
                 break;
+	      }
+	    }
+            _cupsRWUnlock(&PrintersRWLock);
 
-            case IPP_OP_GET_PRINTERS :
-                ipp_get_printers(client);
-                break;
+            if (!client->printer)
+            {
+	      serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Unknown printer-id.");
+              serverRespondUnsupported(client, attr);
+	    }
+	  }
 
-            case IPP_OP_DELETE_PRINTER :
-                ipp_delete_printer(client);
-                break;
+          if (ippGetStatusCode(client->response) == IPP_STATUS_OK)
+          {
+	    switch ((int)ippGetOperation(client->request))
+	    {
+	      case IPP_OP_GET_PRINTER_ATTRIBUTES :
+		  if (DefaultPrinter)
+		  {
+		    client->printer = DefaultPrinter;
+		    ipp_get_printer_attributes(client);
+		  }
+		  else
+		  {
+		    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "No default printer.");
+		  }
+		  break;
 
-            case IPP_OP_DISABLE_ALL_PRINTERS :
-		ipp_disable_all_printers(client);
-                break;
+	      case IPP_OP_CANCEL_SUBSCRIPTION :
+		  ipp_cancel_subscription(client);
+		  break;
 
-            case IPP_OP_ENABLE_ALL_PRINTERS :
-		ipp_enable_all_printers(client);
-                break;
+	      case IPP_OP_CREATE_SYSTEM_SUBSCRIPTIONS :
+		  ipp_create_xxx_subscriptions(client);
+		  break;
 
-            case IPP_OP_PAUSE_ALL_PRINTERS :
-            case IPP_OP_PAUSE_ALL_PRINTERS_AFTER_CURRENT_JOB :
-		ipp_pause_all_printers(client);
-                break;
+	      case IPP_OP_GET_NOTIFICATIONS :
+		  ipp_get_notifications(client);
+		  break;
 
-            case IPP_OP_RESUME_ALL_PRINTERS :
-		ipp_resume_all_printers(client);
-                break;
+	      case IPP_OP_GET_SUBSCRIPTION_ATTRIBUTES :
+		  ipp_get_subscription_attributes(client);
+		  break;
 
-            case IPP_OP_RESTART_SYSTEM :
-                ipp_restart_system(client);
-                break;
+	      case IPP_OP_GET_SUBSCRIPTIONS :
+		  ipp_get_subscriptions(client);
+		  break;
 
-            case IPP_OP_SHUTDOWN_ALL_PRINTERS :
-		ipp_shutdown_all_printers(client);
-                break;
+	      case IPP_OP_RENEW_SUBSCRIPTION :
+		  ipp_renew_subscription(client);
+		  break;
 
-            case IPP_OP_SHUTDOWN_ONE_PRINTER :
-		ipp_shutdown_one_printer(client);
-                break;
+	      case IPP_OP_GET_SYSTEM_ATTRIBUTES :
+		  ipp_get_system_attributes(client);
+		  break;
 
-            case IPP_OP_STARTUP_ALL_PRINTERS :
-		ipp_startup_all_printers(client);
-                break;
+	      case IPP_OP_GET_SYSTEM_SUPPORTED_VALUES :
+		  ipp_get_system_supported_values(client);
+		  break;
 
-            case IPP_OP_STARTUP_ONE_PRINTER :
-		ipp_startup_one_printer(client);
-                break;
+	      case IPP_OP_SET_SYSTEM_ATTRIBUTES :
+		  ipp_set_system_attributes(client);
+		  break;
 
-	    default :
-		serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "Operation not supported.");
-		break;
+	      case IPP_OP_CREATE_PRINTER :
+		  ipp_create_printer(client);
+		  break;
+
+	      case IPP_OP_GET_PRINTERS :
+		  ipp_get_printers(client);
+		  break;
+
+	      case IPP_OP_DELETE_PRINTER :
+		  ipp_delete_printer(client);
+		  break;
+
+	      case IPP_OP_DISABLE_ALL_PRINTERS :
+		  ipp_disable_all_printers(client);
+		  break;
+
+	      case IPP_OP_ENABLE_ALL_PRINTERS :
+		  ipp_enable_all_printers(client);
+		  break;
+
+	      case IPP_OP_PAUSE_ALL_PRINTERS :
+	      case IPP_OP_PAUSE_ALL_PRINTERS_AFTER_CURRENT_JOB :
+		  ipp_pause_all_printers(client);
+		  break;
+
+	      case IPP_OP_RESUME_ALL_PRINTERS :
+		  ipp_resume_all_printers(client);
+		  break;
+
+	      case IPP_OP_RESTART_SYSTEM :
+		  ipp_restart_system(client);
+		  break;
+
+	      case IPP_OP_SHUTDOWN_ALL_PRINTERS :
+		  ipp_shutdown_all_printers(client);
+		  break;
+
+	      case IPP_OP_SHUTDOWN_ONE_PRINTER :
+		  ipp_shutdown_printer(client);
+		  break;
+
+	      case IPP_OP_STARTUP_ALL_PRINTERS :
+		  ipp_startup_all_printers(client);
+		  break;
+
+	      case IPP_OP_STARTUP_ONE_PRINTER :
+		  ipp_startup_printer(client);
+		  break;
+
+	      default :
+		  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "Operation not supported.");
+		  break;
+	    }
 	  }
 	}
       }

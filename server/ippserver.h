@@ -336,16 +336,18 @@ enum server_preason_e			/* printer-state-reasons bit values */
   SERVER_PREASON_MOVING_TO_PAUSED = 0x0800,
 					/* moving-to-paused */
   SERVER_PREASON_PAUSED = 0x1000,	/* paused */
-  SERVER_PREASON_SPOOL_AREA_FULL = 0x2000,
+  SERVER_PREASON_PRINTER_SHUTDOWN = 0x2000,
+					/* printer-shutdown */
+  SERVER_PREASON_SPOOL_AREA_FULL = 0x4000,
 					/* spool-area-full */
-  SERVER_PREASON_TONER_EMPTY = 0x4000,	/* toner-empty */
-  SERVER_PREASON_TONER_LOW = 0x8000,	/* toner-low */
-  SERVER_PREASON_IDENTIFY_PRINTER_REQUESTED = 0x10000,
+  SERVER_PREASON_TONER_EMPTY = 0x8000,	/* toner-empty */
+  SERVER_PREASON_TONER_LOW = 0x10000,	/* toner-low */
+  SERVER_PREASON_IDENTIFY_PRINTER_REQUESTED = 0x20000,
 					/* identify-printer-requested */
-  SERVER_PREASON_DELETING = 0x20000	/* deleting */
+  SERVER_PREASON_DELETING = 0x40000	/* deleting */
 };
 typedef unsigned int server_preason_t;	/* Bitfield for printer-state-reasons */
-VAR const char * const server_preasons[18]
+VAR const char * const server_preasons[19]
 VALUE({					/* Strings for bits */
   /* "none" is implied for no bits set */
   "other",
@@ -361,6 +363,7 @@ VALUE({					/* Strings for bits */
   "media-needed",
   "moving-to-paused",
   "paused",
+  "printer-shutdown",
   "spool-area-full",
   "toner-empty",
   "toner-low",
