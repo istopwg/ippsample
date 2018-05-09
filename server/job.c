@@ -35,8 +35,12 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
   }
   else if (printer->is_shutdown)
   {
+    _cupsRWLockWrite(&printer->rwlock);
+
     printer->state = IPP_PSTATE_STOPPED;
-    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Printer is shutdown.");
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Printer is now shutdown.");
+    serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED | SERVER_EVENT_PRINTER_SHUTDOWN, "Printer shutdown.");
+    _cupsRWUnlock(&printer->rwlock);
     return;
   }
   else if (printer->is_deleted)
@@ -50,10 +54,10 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
     printer->state         = IPP_PSTATE_STOPPED;
     printer->state_reasons |= SERVER_PREASON_PAUSED;
     printer->state_reasons &= (server_preason_t)~SERVER_PREASON_MOVING_TO_PAUSED;
-    _cupsRWUnlock(&printer->rwlock);
 
     serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Printer is now stopped.");
     serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer is now stopped.");
+    _cupsRWUnlock(&printer->rwlock);
     return;
   }
 
@@ -77,10 +81,14 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
       }
       else
       {
+        _cupsRWLockWrite(&job->rwlock);
+
         job->state     = IPP_JSTATE_ABORTED;
 	job->completed = time(NULL);
 
         serverAddEventNoLock(printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, "Job aborted because creation of processing thread failed.");
+
+        _cupsRWUnlock(&job->rwlock);
       }
       break;
     }
@@ -119,6 +127,15 @@ serverCleanJobs(server_printer_t *printer)	/* I - Printer */
        job = (server_job_t *)cupsArrayNext(printer->completed_jobs))
     if (job->completed && job->completed < cleantime)
     {
+     /*
+      * Grab the write lock to make sure there are no readers of the job
+      * object.  The printer write lock will prevent subsequent lookups of
+      * jobs until we are done...
+      */
+
+      _cupsRWLockWrite(&job->rwlock);
+      _cupsRWUnlock(&job->rwlock);
+
       serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Cleaning job #%d.", job->id);
       cupsArrayRemove(printer->completed_jobs, job);
       cupsArrayRemove(printer->jobs, job); /* Last since removing a job from here calls serverDeleteJob() */
@@ -137,8 +154,8 @@ serverCleanJobs(server_printer_t *printer)	/* I - Printer */
 
 void
 serverCopyJobStateReasons(
-    ipp_t      *ipp,			/* I - Attributes */
-    ipp_tag_t  group_tag,		/* I - Group */
+    ipp_t        *ipp,			/* I - Attributes */
+    ipp_tag_t    group_tag,		/* I - Group */
     server_job_t *job)			/* I - Printer */
 {
   server_jreason_t	creasons;	/* Combined job-state-reasons */
@@ -323,7 +340,19 @@ void serverCreateJobFilename(
   if (!format)
     format = job->format;
 
-  if (!strcasecmp(format, "image/jpeg"))
+  if (!strcasecmp(format, "application/pdf"))
+    ext = "pdf";
+  else if (!strcasecmp(format, "application/postscript"))
+    ext = "ps";
+  else if (!strcasecmp(format, "application/sla"))
+    ext = "stl";
+  else if (!strcasecmp(format, "application/vnd.hp-pcl"))
+    ext = "pcl";
+  else if (!strcasecmp(format, "application/vnd.pwg-safegcode"))
+    ext = "gcode";
+  else if (!strcasecmp(format, "application/vnd.pwg-xhtml-print+xml") || !strcasecmp(format, "application/xml+xhtml"))
+    ext = "xhtml";
+  else if (!strcasecmp(format, "image/jpeg"))
     ext = "jpg";
   else if (!strcasecmp(format, "image/png"))
     ext = "png";
@@ -331,16 +360,16 @@ void serverCreateJobFilename(
     ext = "ras";
   else if (!strcasecmp(format, "image/urf"))
     ext = "apple";
-  else if (!strcasecmp(format, "model/3mf"))
+  else if (!strcasecmp(format, "model/3mf") || !strcasecmp(format, "model/3mf+slice"))
     ext = "3mf";
   else if (!strcasecmp(format, "model/amf"))
     ext = "amf";
-  else if (!strcasecmp(format, "application/pdf"))
-    ext = "pdf";
-  else if (!strcasecmp(format, "application/postscript"))
-    ext = "ps";
-  else if (!strcasecmp(format, "application/sla"))
-    ext = "stl";
+  else if (!strcasecmp(format, "text/html"))
+    ext = "html";
+  else if (!strcasecmp(format, "text/markdown"))
+    ext = "md";
+  else if (!strcasecmp(format, "text/plain"))
+    ext = "txt";
   else
     ext = "prn";
 
@@ -585,9 +614,9 @@ serverHoldJob(
   else if (ippGetValueTag(hold_until) == IPP_TAG_DATE)
     ippAddDate(job->attrs, IPP_TAG_JOB, "job-hold-until-time", ippGetDate(hold_until, 0));
 
-  _cupsRWUnlock(&job->rwlock);
-
   serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job held.");
+
+  _cupsRWUnlock(&job->rwlock);
 
   return (1);
 }
@@ -600,6 +629,8 @@ serverHoldJob(
 void *					/* O - Thread exit status */
 serverProcessJob(server_job_t *job)	/* I - Job */
 {
+  _cupsRWLockWrite(&job->rwlock);
+
   job->state                   = IPP_JSTATE_PROCESSING;
   job->printer->state          = IPP_PSTATE_PROCESSING;
   job->processing              = time(NULL);
@@ -607,14 +638,20 @@ serverProcessJob(server_job_t *job)	/* I - Job */
 
   serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job processing.");
 
+  _cupsRWUnlock(&job->rwlock);
+
   while (job->printer->state_reasons & SERVER_PREASON_MEDIA_EMPTY)
   {
+    _cupsRWLockWrite(&job->printer->rwlock);
     job->printer->state_reasons |= SERVER_PREASON_MEDIA_NEEDED;
+    _cupsRWUnlock(&job->printer->rwlock);
 
     sleep(1);
   }
 
+  _cupsRWLockWrite(&job->printer->rwlock);
   job->printer->state_reasons &= (server_preason_t)~SERVER_PREASON_MEDIA_NEEDED;
+  _cupsRWUnlock(&job->printer->rwlock);
 
   if (job->printer->pinfo.command)
   {
@@ -630,10 +667,14 @@ serverProcessJob(server_job_t *job)	/* I - Job */
     * Prepare the job for the proxy...
     */
 
+    _cupsRWLockWrite(&job->rwlock);
+
     job->state         = IPP_JSTATE_STOPPED;
     job->state_reasons |= SERVER_JREASON_JOB_FETCHABLE;
 
     serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED | SERVER_EVENT_JOB_FETCHABLE, "Job fetchable.");
+
+    _cupsRWUnlock(&job->rwlock);
   }
   else
   {
@@ -643,6 +684,8 @@ serverProcessJob(server_job_t *job)	/* I - Job */
 
     sleep((unsigned)(1 + (CUPS_RAND() % 4)));
   }
+
+  _cupsRWLockWrite(&job->rwlock);
 
   if (job->cancel)
     job->state = IPP_JSTATE_CANCELED;
@@ -706,6 +749,7 @@ serverProcessJob(server_job_t *job)	/* I - Job */
   }
 
   _cupsRWUnlock(&job->printer->rwlock);
+  _cupsRWUnlock(&job->rwlock);
 
   if (job->printer->is_deleted)
     serverDeletePrinter(job->printer);
@@ -740,9 +784,9 @@ serverReleaseJob(server_job_t *job)	/* I - Job to release */
   if ((attr = ippFindAttribute(job->attrs, "job-hold-until-time", IPP_TAG_ZERO)) != NULL)
     ippDeleteAttribute(job->attrs, attr);
 
-  _cupsRWUnlock(&job->rwlock);
-
   serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job released.");
+
+  _cupsRWUnlock(&job->rwlock);
 
   return (1);
 }
