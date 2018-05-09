@@ -4226,7 +4226,33 @@ static void
 ipp_restart_printer(
     server_client_t *client)		/* I - Client */
 {
-  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+  if (client->printer->processing_job)
+  {
+    _cupsRWLockWrite(&client->printer->rwlock);
+    serverStopJob(client->printer->processing_job);
+    _cupsRWUnlock(&client->printer->rwlock);
+  }
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
 
 
