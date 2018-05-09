@@ -80,6 +80,7 @@ static void		ipp_print_job(server_client_t *client);
 static void		ipp_print_uri(server_client_t *client);
 static void		ipp_release_job(server_client_t *client);
 static void		ipp_renew_subscription(server_client_t *client);
+static void		ipp_restart_system(server_client_t *client);
 static void		ipp_resume_all_printers(server_client_t *client);
 static void		ipp_resume_printer(server_client_t *client);
 static void		ipp_send_document(server_client_t *client);
@@ -88,6 +89,12 @@ static void		ipp_send_uri(server_client_t *client);
 //static void		ipp_set_printer_attributes(server_client_t *client);
 //static void		ipp_set_subscription_attributes(server_client_t *client);
 static void		ipp_set_system_attributes(server_client_t *client);
+static void		ipp_shutdown_all_printers(server_client_t *client);
+static void		ipp_shutdown_one_printer(server_client_t *client);
+static void		ipp_shutdown_printer(server_client_t *client);
+static void		ipp_startup_all_printers(server_client_t *client);
+static void		ipp_startup_one_printer(server_client_t *client);
+static void		ipp_startup_printer(server_client_t *client);
 static void		ipp_update_active_jobs(server_client_t *client);
 static void		ipp_update_document_status(server_client_t *client);
 static void		ipp_update_job_status(server_client_t *client);
@@ -4211,6 +4218,18 @@ ipp_renew_subscription(
 
 
 /*
+ * 'ipp_restart_system()' - Restart the system.
+ */
+
+static void
+ipp_restart_system(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
+}
+
+
+/*
  * 'ipp_resume_all_printers()' - Start processing jobs for all printers.
  */
 
@@ -5005,6 +5024,78 @@ ipp_set_system_attributes(
   unlock_system:
 
   _cupsRWUnlock(&SystemRWLock);
+}
+
+
+/*
+ * 'ipp_shutdown_all_printers()' - Shutdown all printers.
+ */
+
+static void
+ipp_shutdown_all_printers(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
+}
+
+
+/*
+ * 'ipp_shutdown_one_printer()' - Shutdown a printer (system object version).
+ */
+
+static void
+ipp_shutdown_one_printer(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
+}
+
+
+/*
+ * 'ipp_shutdown_printer()' - Shutdown a printer (printer object version).
+ */
+
+static void
+ipp_shutdown_printer(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
+}
+
+
+/*
+ * 'ipp_startup_all_printers()' - Start all printers.
+ */
+
+static void
+ipp_startup_all_printers(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
+}
+
+
+/*
+ * 'ipp_startup_one_printer()' - Start a printer (system object version).
+ */
+
+static void
+ipp_startup_one_printer(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
+}
+
+
+/*
+ * 'ipp_startup_printer()' - Start a printer (printer object version).
+ */
+
+static void
+ipp_startup_printer(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
 }
 
 
@@ -5863,7 +5954,11 @@ serverProcessIPP(
 	    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "\"%s\" '%s' not found.", name, ippGetString(uri, 0, NULL));
         }
 
-	if (client->printer)
+	if (client->printer && client->printer->is_shutdown && ippGetOperation(client->request) != IPP_OP_STARTUP_PRINTER)
+	{
+	  serverRespondIPP(client, IPP_STATUS_ERROR_SERVICE_UNAVAILABLE, "\"%s\" is shutdown.", client->printer->name);
+	}
+	else if (client->printer)
 	{
 	 /*
 	  * Try processing the Printer operation...
@@ -6020,6 +6115,14 @@ serverProcessIPP(
 	        ipp_deregister_output_device(client);
 		break;
 
+            case IPP_OP_SHUTDOWN_PRINTER :
+		ipp_shutdown_printer(client);
+                break;
+
+            case IPP_OP_STARTUP_PRINTER :
+		ipp_startup_printer(client);
+                break;
+
             case IPP_OP_DISABLE_PRINTER :
 		ipp_disable_printer(client);
                 break;
@@ -6038,8 +6141,7 @@ serverProcessIPP(
                 break;
 
 	    default :
-		serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED,
-			    "Operation not supported.");
+		serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "Operation not supported.");
 		break;
 	  }
 	}
@@ -6128,9 +6230,28 @@ serverProcessIPP(
 		ipp_resume_all_printers(client);
                 break;
 
+            case IPP_OP_RESTART_SYSTEM :
+                ipp_restart_system(client);
+                break;
+
+            case IPP_OP_SHUTDOWN_ALL_PRINTERS :
+		ipp_shutdown_all_printers(client);
+                break;
+
+            case IPP_OP_SHUTDOWN_ONE_PRINTER :
+		ipp_shutdown_one_printer(client);
+                break;
+
+            case IPP_OP_STARTUP_ALL_PRINTERS :
+		ipp_startup_all_printers(client);
+                break;
+
+            case IPP_OP_STARTUP_ONE_PRINTER :
+		ipp_startup_one_printer(client);
+                break;
+
 	    default :
-		serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED,
-			    "Operation not supported.");
+		serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "Operation not supported.");
 		break;
 	  }
 	}

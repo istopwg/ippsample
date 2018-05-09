@@ -477,7 +477,8 @@ typedef struct server_printer_s		/**** Printer data ****/
   time_t		start_time;	/* Startup time */
   time_t		config_time;	/* printer-config-change-time */
   char			is_accepting,	/* printer-is-accepting-jobs value */
-			is_deleted;	/* Is the printer being deleted? */
+			is_deleted,	/* Is the printer being deleted? */
+			is_shutdown;	/* Is the printer shutdown? */
   ipp_pstate_t		state,		/* printer-state value */
 			dev_state;	/* Current device printer-state value */
   server_preason_t	state_reasons,	/* printer-state-reasons values */
