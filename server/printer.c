@@ -1349,6 +1349,42 @@ serverDeletePrinter(server_printer_t *printer)	/* I - Printer */
 
 
 /*
+ * 'serverDisablePrinter()' - Stop accepting new jobs for a printer.
+ */
+
+void
+serverDisablePrinter(
+    server_printer_t *printer)		/* I - Printer */
+{
+  _cupsRWLockWrite(&printer->rwlock);
+
+  printer->is_accepting = 0;
+
+  serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "No longer accepting jobs.");
+
+  _cupsRWUnlock(&printer->rwlock);
+}
+
+
+/*
+ * 'serverEnablePrinter()' - Start accepting new jobs for a printer.
+ */
+
+void
+serverEnablePrinter(
+    server_printer_t *printer)		/* I - Printer */
+{
+  _cupsRWLockWrite(&printer->rwlock);
+
+  printer->is_accepting = 1;
+
+  serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Now accepting jobs.");
+
+  _cupsRWUnlock(&printer->rwlock);
+}
+
+
+/*
  * 'serverGetPrinterStateReasonsBits()' - Get the bits associated with "printer-state-reasons" values.
  */
 
@@ -1379,6 +1415,112 @@ serverGetPrinterStateReasonsBits(
   }
 
   return (preasons);
+}
+
+
+/*
+ * 'serverPausePrinter()' - Stop processing jobs for a printer.
+ */
+
+void
+serverPausePrinter(
+    server_printer_t *printer,		/* I - Printer */
+    int              immediately)	/* I - Pause immediately? */
+{
+  _cupsRWLockWrite(&printer->rwlock);
+
+  if (printer->state != IPP_PSTATE_STOPPED)
+  {
+    if (printer->state == IPP_PSTATE_IDLE)
+    {
+      printer->state         = IPP_PSTATE_STOPPED;
+      printer->state_reasons |= SERVER_PREASON_PAUSED;
+
+      serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED |  SERVER_EVENT_PRINTER_STOPPED, "Printer stopped.");
+    }
+    else if (printer->state == IPP_PSTATE_PROCESSING)
+    {
+      if (immediately)
+	serverStopJob(printer->processing_job);
+
+      printer->state_reasons |= SERVER_PREASON_MOVING_TO_PAUSED;
+
+      serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Stopping printer.");
+    }
+  }
+
+  _cupsRWUnlock(&printer->rwlock);
+}
+
+
+/*
+ * 'serverRestartPrinter()' - Restart a printer.
+ */
+
+void
+serverRestartPrinter(
+    server_printer_t *printer)		/* I - Printer */
+{
+  server_event_t	event = SERVER_EVENT_NONE;
+					/* Notification event */
+
+
+  _cupsRWLockWrite(&printer->rwlock);
+
+  if (!printer->is_accepting)
+  {
+    printer->is_accepting = 1;
+    event                 = SERVER_EVENT_PRINTER_STATE_CHANGED | SERVER_EVENT_PRINTER_RESTARTED;
+  }
+
+  if (printer->processing_job)
+  {
+    serverStopJob(printer->processing_job);
+
+    printer->state_reasons |= SERVER_PREASON_PRINTER_RESTARTED;
+    event                  = SERVER_EVENT_PRINTER_STATE_CHANGED;
+  }
+  else if (printer->state == IPP_PSTATE_STOPPED)
+  {
+    printer->state         = IPP_PSTATE_IDLE;
+    printer->state_reasons = SERVER_PREASON_PRINTER_RESTARTED;
+    event                  = SERVER_EVENT_PRINTER_STATE_CHANGED | SERVER_EVENT_PRINTER_RESTARTED;
+  }
+
+  if (event)
+    serverAddEventNoLock(printer, NULL, NULL, event, printer->state == IPP_PSTATE_IDLE ? "Printer restarted." : "Printer restarting.");
+
+  if (printer->state != IPP_PSTATE_PROCESSING)
+    printer->state_reasons &= (server_preason_t)~SERVER_PREASON_PRINTER_RESTARTED;
+
+  _cupsRWUnlock(&printer->rwlock);
+
+  if (printer->state == IPP_PSTATE_IDLE)
+    serverCheckJobs(printer);
+}
+
+
+/*
+ * 'serverResumePrinter()' - Start processing jobs for a printer.
+ */
+
+void
+serverResumePrinter(
+    server_printer_t *printer)		/* I - Printer */
+{
+  if (printer->state == IPP_PSTATE_STOPPED)
+  {
+    _cupsRWLockWrite(&printer->rwlock);
+
+    printer->state         = IPP_PSTATE_IDLE;
+    printer->state_reasons &= (server_preason_t)~SERVER_PREASON_PAUSED;
+
+    serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Starting printer.");
+
+    _cupsRWUnlock(&printer->rwlock);
+
+    serverCheckJobs(printer);
+  }
 }
 
 

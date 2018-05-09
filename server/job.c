@@ -656,6 +656,8 @@ serverProcessJob(server_job_t *job)	/* I - Job */
     job->printer->state         = IPP_PSTATE_STOPPED;
     job->printer->state_reasons &= (server_preason_t)~SERVER_PREASON_MOVING_TO_PAUSED;
     job->printer->state_reasons |= SERVER_PREASON_PAUSED;
+
+    serverAddEventNoLock(job->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED | SERVER_EVENT_PRINTER_STOPPED, "Printer stopped.");
   }
   else if (job->printer->is_deleted)
   {
@@ -664,6 +666,13 @@ serverProcessJob(server_job_t *job)	/* I - Job */
   else
   {
     job->printer->state = IPP_PSTATE_IDLE;
+
+    if (job->printer->state_reasons & SERVER_PREASON_PRINTER_RESTARTED)
+    {
+      serverAddEventNoLock(job->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED | SERVER_EVENT_PRINTER_RESTARTED, "Printer restarted.");
+
+      job->printer->state_reasons &= (server_preason_t)~SERVER_PREASON_PRINTER_RESTARTED;
+    }
   }
 
   job->printer->processing_job = NULL;
@@ -671,6 +680,8 @@ serverProcessJob(server_job_t *job)	/* I - Job */
   if (job->state >= IPP_JSTATE_CANCELED)
   {
     job->completed = time(NULL);
+
+    serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED | SERVER_EVENT_JOB_COMPLETED, job->state == IPP_JSTATE_COMPLETED ? "Job completed." : job->state == IPP_JSTATE_ABORTED ? "Job aborted." : "Job canceled.");
 
     cupsArrayAdd(job->printer->completed_jobs, job);
     cupsArrayRemove(job->printer->active_jobs, job);

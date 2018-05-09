@@ -336,18 +336,20 @@ enum server_preason_e			/* printer-state-reasons bit values */
   SERVER_PREASON_MOVING_TO_PAUSED = 0x0800,
 					/* moving-to-paused */
   SERVER_PREASON_PAUSED = 0x1000,	/* paused */
-  SERVER_PREASON_PRINTER_SHUTDOWN = 0x2000,
+  SERVER_PREASON_PRINTER_RESTARTED = 0x2000,
+					/* printer-restarted */
+  SERVER_PREASON_PRINTER_SHUTDOWN = 0x4000,
 					/* printer-shutdown */
-  SERVER_PREASON_SPOOL_AREA_FULL = 0x4000,
+  SERVER_PREASON_SPOOL_AREA_FULL = 0x8000,
 					/* spool-area-full */
-  SERVER_PREASON_TONER_EMPTY = 0x8000,	/* toner-empty */
-  SERVER_PREASON_TONER_LOW = 0x10000,	/* toner-low */
-  SERVER_PREASON_IDENTIFY_PRINTER_REQUESTED = 0x20000,
+  SERVER_PREASON_TONER_EMPTY = 0x10000,	/* toner-empty */
+  SERVER_PREASON_TONER_LOW = 0x20000,	/* toner-low */
+  SERVER_PREASON_IDENTIFY_PRINTER_REQUESTED = 0x40000,
 					/* identify-printer-requested */
-  SERVER_PREASON_DELETING = 0x40000	/* deleting */
+  SERVER_PREASON_DELETING = 0x80000	/* deleting */
 };
 typedef unsigned int server_preason_t;	/* Bitfield for printer-state-reasons */
-VAR const char * const server_preasons[19]
+VAR const char * const server_preasons[20]
 VALUE({					/* Strings for bits */
   /* "none" is implied for no bits set */
   "other",
@@ -363,6 +365,7 @@ VALUE({					/* Strings for bits */
   "media-needed",
   "moving-to-paused",
   "paused",
+  "printer-restarted",
   "printer-shutdown",
   "spool-area-full",
   "toner-empty",
@@ -702,6 +705,8 @@ extern void		serverDeleteJob(server_job_t *job);
 extern void		serverDeletePrinter(server_printer_t *printer);
 extern void		serverDeleteResource(server_resource_t *res);
 extern void		serverDeleteSubscription(server_subscription_t *sub);
+extern void		serverDisablePrinter(server_printer_t *printer);
+extern void		serverEnablePrinter(server_printer_t *printer);
 extern server_device_t	*serverFindDevice(server_client_t *client);
 extern server_job_t	*serverFindJob(server_client_t *client, int job_id);
 extern server_printer_t	*serverFindPrinter(const char *resource);
@@ -720,6 +725,7 @@ extern void		serverLogClient(server_loglevel_t level, server_client_t *client, c
 extern void		serverLogJob(server_loglevel_t level, server_job_t *job, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
 extern void		serverLogPrinter(server_loglevel_t level, server_printer_t *printer, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
 extern char		*serverMakeVCARD(const char *user, const char *name, const char *location, const char *email, const char *phone, char *buffer, size_t bufsize);
+extern void		serverPausePrinter(server_printer_t *printer, int immediately);
 extern void		*serverProcessClient(server_client_t *client);
 extern int		serverProcessHTTP(server_client_t *client);
 extern int		serverProcessIPP(server_client_t *client);
@@ -728,6 +734,8 @@ extern int		serverReleaseJob(server_job_t *job);
 extern int		serverRespondHTTP(server_client_t *client, http_status_t code, const char *content_coding, const char *type, size_t length);
 extern void		serverRespondIPP(server_client_t *client, ipp_status_t status, const char *message, ...) __attribute__ ((__format__ (__printf__, 3, 4)));
 extern void		serverRespondUnsupported(server_client_t *client, ipp_attribute_t *attr);
+extern void		serverRestartPrinter(server_printer_t *printer);
+extern void		serverResumePrinter(server_printer_t *printer);
 extern void		serverRun(void);
 extern void		serverStopJob(server_job_t *job);
 extern char		*serverTimeString(time_t tv, char *buffer, size_t bufsize);

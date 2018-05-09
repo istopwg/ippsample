@@ -81,6 +81,7 @@ static void		ipp_print_uri(server_client_t *client);
 static void		ipp_release_job(server_client_t *client);
 static void		ipp_renew_subscription(server_client_t *client);
 static void		ipp_restart_printer(server_client_t *client);
+static void		ipp_restart_system(server_client_t *client);
 static void		ipp_resume_all_printers(server_client_t *client);
 static void		ipp_resume_printer(server_client_t *client);
 static void		ipp_send_document(server_client_t *client);
@@ -1958,11 +1959,7 @@ ipp_disable_all_printers(
   _cupsRWLockRead(&SystemRWLock);
 
   for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
-  {
-    printer->is_accepting = 0;
-
-    serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "No longer accepting jobs.");
-  }
+    serverDisablePrinter(printer);
 
   _cupsRWUnlock(&SystemRWLock);
 
@@ -1997,9 +1994,7 @@ ipp_disable_printer(
     }
   }
 
-  client->printer->is_accepting = 0;
-
-  serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "No longer accepting jobs.");
+  serverDisablePrinter(client->printer);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -2038,11 +2033,7 @@ ipp_enable_all_printers(
   _cupsRWLockRead(&SystemRWLock);
 
   for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
-  {
-    printer->is_accepting = 1;
-
-    serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Now accepting jobs.");
-  }
+    serverEnablePrinter(printer);
 
   _cupsRWUnlock(&SystemRWLock);
 
@@ -2077,9 +2068,7 @@ ipp_enable_printer(
     }
   }
 
-  client->printer->is_accepting = 1;
-
-  serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Now accepting jobs.");
+  serverEnablePrinter(client->printer);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -3520,27 +3509,7 @@ ipp_pause_all_printers(
   _cupsRWLockRead(&SystemRWLock);
 
   for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
-  {
-    if (printer->state != IPP_PSTATE_STOPPED)
-    {
-      _cupsRWLockWrite(&printer->rwlock);
-      if (printer->state == IPP_PSTATE_IDLE)
-      {
-	printer->state = IPP_PSTATE_STOPPED;
-	printer->state_reasons |= SERVER_PREASON_PAUSED;
-      }
-      else if (printer->state == IPP_PSTATE_PROCESSING)
-      {
-	if (ippGetOperation(client->request) == IPP_OP_PAUSE_ALL_PRINTERS)
-	  serverStopJob(client->printer->processing_job);
-
-	printer->state_reasons |= SERVER_PREASON_MOVING_TO_PAUSED;
-      }
-      _cupsRWUnlock(&printer->rwlock);
-    }
-
-    serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Stopping printer.");
-  }
+    serverPausePrinter(printer, ippGetOperation(client->request) == IPP_OP_PAUSE_ALL_PRINTERS);
 
   _cupsRWUnlock(&SystemRWLock);
 
@@ -3575,25 +3544,7 @@ ipp_pause_printer(
     }
   }
 
-  if (client->printer->state != IPP_PSTATE_STOPPED)
-  {
-    _cupsRWLockWrite(&client->printer->rwlock);
-    if (client->printer->state == IPP_PSTATE_IDLE)
-    {
-      client->printer->state = IPP_PSTATE_STOPPED;
-      client->printer->state_reasons |= SERVER_PREASON_PAUSED;
-    }
-    else if (client->printer->state == IPP_PSTATE_PROCESSING)
-    {
-      if (ippGetOperation(client->request) == IPP_OP_PAUSE_PRINTER)
-        serverStopJob(client->printer->processing_job);
-
-      client->printer->state_reasons |= SERVER_PREASON_MOVING_TO_PAUSED;
-    }
-    _cupsRWUnlock(&client->printer->rwlock);
-  }
-
-  serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Stopping printer.");
+  serverPausePrinter(client->printer, ippGetOperation(client->request) == IPP_OP_PAUSE_PRINTER);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -4214,25 +4165,48 @@ ipp_restart_printer(
     }
   }
 
-  _cupsRWLockWrite(&client->printer->rwlock);
+  serverRestartPrinter(client->printer);
 
-  client->printer->is_accepting = 1;
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+}
 
-  if (client->printer->processing_job)
+
+/*
+ * 'ipp_restart_system()' - Restart all printers.
+ */
+
+static void
+ipp_restart_system(
+    server_client_t *client)		/* I - Client */
+{
+  server_printer_t	*printer;	/* Current printer */
+
+
+  if (Authentication)
   {
-    serverStopJob(client->printer->processing_job);
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
   }
-  else if (client->printer->state == IPP_PSTATE_STOPPED)
-  {
-    client->printer->state         = IPP_PSTATE_IDLE;
-    client->printer->state_reasons = SERVER_PREASON_NONE;
 
-    serverCheckJobs(client->printer);
-  }
+  _cupsRWLockRead(&SystemRWLock);
 
-  _cupsRWUnlock(&client->printer->rwlock);
+  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+    serverRestartPrinter(printer);
 
-  serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer restarted.");
+  _cupsRWUnlock(&SystemRWLock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -4271,19 +4245,7 @@ ipp_resume_all_printers(
   _cupsRWLockRead(&SystemRWLock);
 
   for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
-  {
-    if (printer->state == IPP_PSTATE_STOPPED)
-    {
-      _cupsRWLockWrite(&printer->rwlock);
-      printer->state = IPP_PSTATE_IDLE;
-      printer->state_reasons &= (server_preason_t)~(SERVER_PREASON_PAUSED | SERVER_PREASON_MOVING_TO_PAUSED);
-      _cupsRWUnlock(&printer->rwlock);
-
-      serverCheckJobs(client->printer);
-    }
-
-    serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Starting printer.");
-  }
+    serverResumePrinter(printer);
 
   _cupsRWUnlock(&SystemRWLock);
 
@@ -4318,17 +4280,7 @@ ipp_resume_printer(
     }
   }
 
-  if (client->printer->state == IPP_PSTATE_STOPPED)
-  {
-    _cupsRWLockWrite(&client->printer->rwlock);
-    client->printer->state = IPP_PSTATE_IDLE;
-    client->printer->state_reasons &= (server_preason_t)~(SERVER_PREASON_PAUSED | SERVER_PREASON_MOVING_TO_PAUSED);
-    _cupsRWUnlock(&client->printer->rwlock);
-
-    serverCheckJobs(client->printer);
-  }
-
-  serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Starting printer.");
+  serverResumePrinter(client->printer);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -6434,6 +6386,9 @@ serverProcessIPP(
 		  break;
 
 	      case IPP_OP_RESTART_SYSTEM :
+		  ipp_restart_system(client);
+		  break;
+
 	      case IPP_OP_STARTUP_ALL_PRINTERS :
 		  ipp_startup_all_printers(client);
 		  break;
