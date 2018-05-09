@@ -735,7 +735,7 @@ ipp_acknowledge_identify_printer(
 
     client->printer->state_reasons &= (unsigned)~SERVER_PREASON_IDENTIFY_PRINTER_REQUESTED;
 
-    serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Identify-Printer request received.");
+    serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Identify-Printer request received.");
   }
   else
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "No pending Identify-Printer request.");
@@ -804,7 +804,7 @@ ipp_acknowledge_job(
 
   job->state_reasons &= (server_jreason_t)~SERVER_JREASON_JOB_FETCHABLE;
 
-  serverAddEvent(client->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job acknowledged.");
+  serverAddEventNoLock(client->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job acknowledged.");
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -891,7 +891,7 @@ ipp_cancel_job(server_client_t *client)	/* I - Client */
 
 	_cupsRWUnlock(&(client->printer->rwlock));
 
-        serverAddEvent(client->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, NULL);
+        serverAddEventNoLock(client->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, NULL);
 
 	serverRespondIPP(client, IPP_STATUS_OK, NULL);
         break;
@@ -1070,7 +1070,7 @@ ipp_cancel_jobs(
 	job->completed = time(NULL);
       }
 
-      serverAddEvent(client->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, NULL);
+      serverAddEventNoLock(client->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, NULL);
     }
 
     serverRespondIPP(client, IPP_STATUS_OK, NULL);
@@ -1809,14 +1809,14 @@ ipp_delete_printer(
     client->printer->state_reasons |= SERVER_PREASON_MOVING_TO_PAUSED | SERVER_PREASON_DELETING;
     serverStopJob(client->printer->processing_job);
 
-    serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer being deleted.");
+    serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer being deleted.");
   }
   else
   {
     client->printer->state         = IPP_PSTATE_STOPPED;
     client->printer->state_reasons |= SERVER_PREASON_DELETING;
 
-    serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_DELETED, "Printer deleted.");
+    serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_DELETED, "Printer deleted.");
 
     serverDeletePrinter(client->printer);
   }
@@ -1832,7 +1832,7 @@ ipp_delete_printer(
     if (job->state == IPP_JSTATE_PENDING || job->state == IPP_JSTATE_HELD)
     {
       job->state = IPP_JSTATE_ABORTED;
-      serverAddEvent(job->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, "Job aborted because printer has been deleted.");
+      serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, "Job aborted because printer has been deleted.");
     }
   }
 
@@ -1961,7 +1961,7 @@ ipp_disable_all_printers(
   {
     printer->is_accepting = 0;
 
-    serverAddEvent(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "No longer accepting jobs.");
+    serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "No longer accepting jobs.");
   }
 
   _cupsRWUnlock(&SystemRWLock);
@@ -1999,7 +1999,7 @@ ipp_disable_printer(
 
   client->printer->is_accepting = 0;
 
-  serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "No longer accepting jobs.");
+  serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "No longer accepting jobs.");
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -2041,7 +2041,7 @@ ipp_enable_all_printers(
   {
     printer->is_accepting = 1;
 
-    serverAddEvent(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Now accepting jobs.");
+    serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Now accepting jobs.");
   }
 
   _cupsRWUnlock(&SystemRWLock);
@@ -2079,7 +2079,7 @@ ipp_enable_printer(
 
   client->printer->is_accepting = 1;
 
-  serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Now accepting jobs.");
+  serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Now accepting jobs.");
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -3480,7 +3480,7 @@ ipp_identify_printer(
 
     _cupsRWUnlock(&client->printer->rwlock);
 
-    serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Identify-Printer request received.");
+    serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Identify-Printer request received.");
   }
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
@@ -3539,7 +3539,7 @@ ipp_pause_all_printers(
       _cupsRWUnlock(&printer->rwlock);
     }
 
-    serverAddEvent(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Stopping printer.");
+    serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Stopping printer.");
   }
 
   _cupsRWUnlock(&SystemRWLock);
@@ -3593,7 +3593,7 @@ ipp_pause_printer(
     _cupsRWUnlock(&client->printer->rwlock);
   }
 
-  serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Stopping printer.");
+  serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Stopping printer.");
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -4232,7 +4232,7 @@ ipp_restart_printer(
 
   _cupsRWUnlock(&client->printer->rwlock);
 
-  serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer restarted.");
+  serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer restarted.");
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -4282,7 +4282,7 @@ ipp_resume_all_printers(
       serverCheckJobs(client->printer);
     }
 
-    serverAddEvent(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Starting printer.");
+    serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Starting printer.");
   }
 
   _cupsRWUnlock(&SystemRWLock);
@@ -4328,7 +4328,7 @@ ipp_resume_printer(
     serverCheckJobs(client->printer);
   }
 
-  serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Starting printer.");
+  serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Starting printer.");
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -5441,7 +5441,7 @@ ipp_update_document_status(
   if ((attr = ippFindAttribute(client->request, "impressions-completed", IPP_TAG_INTEGER)) != NULL)
   {
     job->impcompleted = ippGetInteger(attr, 0);
-    serverAddEvent(client->printer, job, NULL, SERVER_EVENT_JOB_PROGRESS, NULL);
+    serverAddEventNoLock(client->printer, job, NULL, SERVER_EVENT_JOB_PROGRESS, NULL);
   }
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
@@ -5519,7 +5519,7 @@ ipp_update_job_status(
   }
 
   if (events)
-    serverAddEvent(client->printer, job, NULL, events, NULL);
+    serverAddEventNoLock(client->printer, job, NULL, events, NULL);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -5843,7 +5843,7 @@ ipp_update_output_device_attributes(
       serverUpdateDeviceStateNoLock(client->printer);
     _cupsRWUnlock(&client->printer->rwlock);
 
-    serverAddEvent(client->printer, NULL, NULL, events, NULL);
+    serverAddEventNoLock(client->printer, NULL, NULL, events, NULL);
   }
 }
 

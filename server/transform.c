@@ -47,7 +47,7 @@ serverStopJob(server_job_t *job)	/* I - Job to stop */
 
   _cupsRWUnlock(&job->rwlock);
 
-  serverAddEvent(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job stopped.");
+  serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job stopped.");
 }
 
 

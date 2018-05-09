@@ -676,7 +676,7 @@ VAR int			NextSubscriptionId VALUE(1);
  * Functions...
  */
 
-extern void		serverAddEvent(server_printer_t *printer, server_job_t *job, server_resource_t *res, server_event_t event, const char *message, ...) __attribute__((__format__(__printf__, 5, 6)));
+extern void		serverAddEventNoLock(server_printer_t *printer, server_job_t *job, server_resource_t *res, server_event_t event, const char *message, ...) __attribute__((__format__(__printf__, 5, 6)));
 extern void		serverAddPrinter(server_printer_t *printer);
 extern void		serverAddResourceFile(server_resource_t *res, const char *filename, const char *format);
 extern http_status_t	serverAuthenticateClient(server_client_t *client);

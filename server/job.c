@@ -53,7 +53,7 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
     _cupsRWUnlock(&printer->rwlock);
 
     serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Printer is now stopped.");
-    serverAddEvent(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer is now stopped.");
+    serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer is now stopped.");
     return;
   }
 
@@ -80,7 +80,7 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
         job->state     = IPP_JSTATE_ABORTED;
 	job->completed = time(NULL);
 
-        serverAddEvent(printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, "Job aborted because creation of processing thread failed.");
+        serverAddEventNoLock(printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, "Job aborted because creation of processing thread failed.");
       }
       break;
     }
@@ -587,7 +587,7 @@ serverHoldJob(
 
   _cupsRWUnlock(&job->rwlock);
 
-  serverAddEvent(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job held.");
+  serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job held.");
 
   return (1);
 }
@@ -605,7 +605,7 @@ serverProcessJob(server_job_t *job)	/* I - Job */
   job->processing              = time(NULL);
   job->printer->processing_job = job;
 
-  serverAddEvent(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job processing.");
+  serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job processing.");
 
   while (job->printer->state_reasons & SERVER_PREASON_MEDIA_EMPTY)
   {
@@ -633,7 +633,7 @@ serverProcessJob(server_job_t *job)	/* I - Job */
     job->state         = IPP_JSTATE_STOPPED;
     job->state_reasons |= SERVER_JREASON_JOB_FETCHABLE;
 
-    serverAddEvent(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED | SERVER_EVENT_JOB_FETCHABLE, "Job fetchable.");
+    serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED | SERVER_EVENT_JOB_FETCHABLE, "Job fetchable.");
   }
   else
   {
@@ -731,7 +731,7 @@ serverReleaseJob(server_job_t *job)	/* I - Job to release */
 
   _cupsRWUnlock(&job->rwlock);
 
-  serverAddEvent(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job released.");
+  serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job released.");
 
   return (1);
 }

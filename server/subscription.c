@@ -19,11 +19,13 @@ static int	compare_subscriptions(server_subscription_t *a, server_subscription_t
 
 
 /*
- * 'serverAddEvent()' - Add an event to a subscription.
+ * 'serverAddEventNoLock()' - Add an event to a subscription.
+ *
+ * Note: Printer, job, resource, and subscription objects are not locked.
  */
 
 void
-serverAddEvent(
+serverAddEventNoLock(
     server_printer_t  *printer,		/* I - Printer, if any */
     server_job_t      *job,		/* I - Job, if any */
     server_resource_t *res,		/* I - Resource, if any */
@@ -46,7 +48,7 @@ serverAddEvent(
   else
     text[0] = '\0';
 
-  serverLog(SERVER_LOGLEVEL_DEBUG, "serverAddEvent(printer=%p(%s), job=%p(%d), event=0x%x, message=\"%s\")", (void *)printer, printer->name, (void *)job, job ? job->id : -1, event, text);
+  serverLog(SERVER_LOGLEVEL_DEBUG, "serverAddEventNoLock(printer=%p(%s), job=%p(%d), event=0x%x, message=\"%s\")", (void *)printer, printer->name, (void *)job, job ? job->id : -1, event, text);
 
   _cupsRWLockRead(&SubscriptionsRWLock);
 

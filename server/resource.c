@@ -56,7 +56,7 @@ serverAddResourceFile(
   else
     ippAddInteger(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_INTEGER, "resource-k-octets", 0);
 
-  serverAddEvent(NULL, NULL, res, SERVER_EVENT_RESOURCE_STATE_CHANGED, "Resource %d now available.", res->id);
+  serverAddEventNoLock(NULL, NULL, res, SERVER_EVENT_RESOURCE_STATE_CHANGED, "Resource %d now available.", res->id);
 
   _cupsRWUnlock(&res->rwlock);
 }
@@ -222,7 +222,7 @@ serverCreateResource(
 
   _cupsRWUnlock(&ResourcesRWLock);
 
-  serverAddEvent(NULL, NULL, res, SERVER_EVENT_RESOURCE_CREATED | SERVER_EVENT_RESOURCE_STATE_CHANGED, "Resource %d created.", res->id);
+  serverAddEventNoLock(NULL, NULL, res, SERVER_EVENT_RESOURCE_CREATED | SERVER_EVENT_RESOURCE_STATE_CHANGED, "Resource %d created.", res->id);
 
   _cupsRWUnlock(&res->rwlock);
 
