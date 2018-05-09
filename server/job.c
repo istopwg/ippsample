@@ -33,6 +33,16 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
     serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Printer is stopped.");
     return;
   }
+  else if (printer->is_shutdown)
+  {
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Printer is shutdown.");
+    return;
+  }
+  else if (printer->is_deleted)
+  {
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Printer is being deleted.");
+    return;
+  }
   else if (printer->state_reasons & SERVER_PREASON_MOVING_TO_PAUSED)
   {
     _cupsRWLockWrite(&printer->rwlock);
@@ -687,7 +697,7 @@ serverProcessJob(server_job_t *job)	/* I - Job */
 
   if (job->printer->is_deleted)
     serverDeletePrinter(job->printer);
-  else
+  else if (!job->printer->is_shutdown)
     serverCheckJobs(job->printer);
 
   return (NULL);

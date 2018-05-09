@@ -80,6 +80,7 @@ static void		ipp_print_job(server_client_t *client);
 static void		ipp_print_uri(server_client_t *client);
 static void		ipp_release_job(server_client_t *client);
 static void		ipp_renew_subscription(server_client_t *client);
+static void		ipp_restart_printer(server_client_t *client);
 static void		ipp_restart_system(server_client_t *client);
 static void		ipp_resume_all_printers(server_client_t *client);
 static void		ipp_resume_printer(server_client_t *client);
@@ -4218,6 +4219,18 @@ ipp_renew_subscription(
 
 
 /*
+ * 'ipp_restart_printer()' - Restart a printer.
+ */
+
+static void
+ipp_restart_printer(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
+}
+
+
+/*
  * 'ipp_restart_system()' - Restart the system.
  */
 
@@ -6121,6 +6134,10 @@ serverProcessIPP(
 
             case IPP_OP_STARTUP_PRINTER :
 		ipp_startup_printer(client);
+                break;
+
+            case IPP_OP_RESTART_PRINTER :
+		ipp_restart_printer(client);
                 break;
 
             case IPP_OP_DISABLE_PRINTER :
