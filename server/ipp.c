@@ -81,7 +81,6 @@ static void		ipp_print_uri(server_client_t *client);
 static void		ipp_release_job(server_client_t *client);
 static void		ipp_renew_subscription(server_client_t *client);
 static void		ipp_restart_printer(server_client_t *client);
-static void		ipp_restart_system(server_client_t *client);
 static void		ipp_resume_all_printers(server_client_t *client);
 static void		ipp_resume_printer(server_client_t *client);
 static void		ipp_send_document(server_client_t *client);
@@ -4215,39 +4214,27 @@ ipp_restart_printer(
     }
   }
 
+  _cupsRWLockWrite(&client->printer->rwlock);
+
   client->printer->is_accepting = 1;
 
   if (client->printer->processing_job)
   {
-    _cupsRWLockWrite(&client->printer->rwlock);
     serverStopJob(client->printer->processing_job);
-    _cupsRWUnlock(&client->printer->rwlock);
   }
   else if (client->printer->state == IPP_PSTATE_STOPPED)
   {
-    _cupsRWLockWrite(&client->printer->rwlock);
-    client->printer->state = IPP_PSTATE_IDLE;
-    client->printer->state_reasons &= (server_preason_t)~(SERVER_PREASON_PAUSED | SERVER_PREASON_MOVING_TO_PAUSED);
-    _cupsRWUnlock(&client->printer->rwlock);
+    client->printer->state         = IPP_PSTATE_IDLE;
+    client->printer->state_reasons = SERVER_PREASON_NONE;
 
     serverCheckJobs(client->printer);
   }
 
+  _cupsRWUnlock(&client->printer->rwlock);
+
   serverAddEvent(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer restarted.");
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
-}
-
-
-/*
- * 'ipp_restart_system()' - Restart the system.
- */
-
-static void
-ipp_restart_system(
-    server_client_t *client)		/* I - Client */
-{
-  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, NULL);
 }
 
 
@@ -5090,6 +5077,8 @@ ipp_shutdown_all_printers(
 
     if (printer->processing_job)
       serverStopJob(printer->processing_job);
+    else
+      printer->state = IPP_PSTATE_STOPPED;
 
     _cupsRWUnlock(&printer->rwlock);
   }
@@ -5134,6 +5123,8 @@ ipp_shutdown_printer(
 
   if (client->printer->processing_job)
     serverStopJob(client->printer->processing_job);
+  else
+    client->printer->state = IPP_PSTATE_STOPPED;
 
   _cupsRWUnlock(&client->printer->rwlock);
 
@@ -5177,8 +5168,27 @@ ipp_startup_all_printers(
   {
     _cupsRWLockWrite(&printer->rwlock);
 
-    printer->is_shutdown = 0;
-    printer->state_reasons &= (server_preason_t)~SERVER_PREASON_PRINTER_SHUTDOWN;
+    if (printer->is_shutdown)
+    {
+      printer->is_shutdown = 0;
+      printer->state_reasons &= (server_preason_t)~SERVER_PREASON_PRINTER_SHUTDOWN;
+    }
+    else
+    {
+      printer->is_accepting = 1;
+
+      if (printer->processing_job)
+      {
+	serverStopJob(printer->processing_job);
+      }
+      else if (printer->state == IPP_PSTATE_STOPPED)
+      {
+	printer->state         = IPP_PSTATE_IDLE;
+	printer->state_reasons = SERVER_PREASON_NONE;
+
+	serverCheckJobs(printer);
+      }
+    }
 
     _cupsRWUnlock(&printer->rwlock);
   }
@@ -5218,8 +5228,27 @@ ipp_startup_printer(
 
   _cupsRWLockWrite(&client->printer->rwlock);
 
-  client->printer->is_shutdown = 0;
-  client->printer->state_reasons &= (server_preason_t)~SERVER_PREASON_PRINTER_SHUTDOWN;
+  if (client->printer->is_shutdown)
+  {
+    client->printer->is_shutdown = 0;
+    client->printer->state_reasons &= (server_preason_t)~SERVER_PREASON_PRINTER_SHUTDOWN;
+  }
+  else
+  {
+    client->printer->is_accepting = 1;
+
+    if (client->printer->processing_job)
+    {
+      serverStopJob(client->printer->processing_job);
+    }
+    else if (client->printer->state == IPP_PSTATE_STOPPED)
+    {
+      client->printer->state         = IPP_PSTATE_IDLE;
+      client->printer->state_reasons = SERVER_PREASON_NONE;
+
+      serverCheckJobs(client->printer);
+    }
+  }
 
   _cupsRWUnlock(&client->printer->rwlock);
 
@@ -6396,10 +6425,6 @@ serverProcessIPP(
 		  ipp_resume_all_printers(client);
 		  break;
 
-	      case IPP_OP_RESTART_SYSTEM :
-		  ipp_restart_system(client);
-		  break;
-
 	      case IPP_OP_SHUTDOWN_ALL_PRINTERS :
 		  ipp_shutdown_all_printers(client);
 		  break;
@@ -6408,6 +6433,7 @@ serverProcessIPP(
 		  ipp_shutdown_printer(client);
 		  break;
 
+	      case IPP_OP_RESTART_SYSTEM :
 	      case IPP_OP_STARTUP_ALL_PRINTERS :
 		  ipp_startup_all_printers(client);
 		  break;

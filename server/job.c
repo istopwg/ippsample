@@ -35,6 +35,7 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
   }
   else if (printer->is_shutdown)
   {
+    printer->state = IPP_PSTATE_STOPPED;
     serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "Printer is shutdown.");
     return;
   }
