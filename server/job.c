@@ -646,6 +646,10 @@ serverProcessJob(server_job_t *job)	/* I - Job */
     job->printer->state_reasons &= (server_preason_t)~SERVER_PREASON_MOVING_TO_PAUSED;
     job->printer->state_reasons |= SERVER_PREASON_PAUSED;
   }
+  else if (job->printer->is_deleted)
+  {
+    job->printer->state = IPP_PSTATE_STOPPED;
+  }
   else
   {
     job->printer->state = IPP_PSTATE_IDLE;
@@ -681,7 +685,10 @@ serverProcessJob(server_job_t *job)	/* I - Job */
 
   _cupsRWUnlock(&job->printer->rwlock);
 
-  serverCheckJobs(job->printer);
+  if (job->printer->is_deleted)
+    serverDeletePrinter(job->printer);
+  else
+    serverCheckJobs(job->printer);
 
   return (NULL);
 }

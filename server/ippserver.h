@@ -340,11 +340,12 @@ enum server_preason_e			/* printer-state-reasons bit values */
 					/* spool-area-full */
   SERVER_PREASON_TONER_EMPTY = 0x4000,	/* toner-empty */
   SERVER_PREASON_TONER_LOW = 0x8000,	/* toner-low */
-  SERVER_PREASON_IDENTIFY_PRINTER_REQUESTED = 0x10000
+  SERVER_PREASON_IDENTIFY_PRINTER_REQUESTED = 0x10000,
 					/* identify-printer-requested */
+  SERVER_PREASON_DELETING = 0x20000	/* deleting */
 };
 typedef unsigned int server_preason_t;	/* Bitfield for printer-state-reasons */
-VAR const char * const server_preasons[17]
+VAR const char * const server_preasons[18]
 VALUE({					/* Strings for bits */
   /* "none" is implied for no bits set */
   "other",
@@ -363,7 +364,8 @@ VALUE({					/* Strings for bits */
   "spool-area-full",
   "toner-empty",
   "toner-low",
-  "identify-printer-requested"
+  "identify-printer-requested",
+  "deleting"
 });
 
 typedef enum server_transform_e		/* Transform modes for server */

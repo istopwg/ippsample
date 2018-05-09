@@ -51,6 +51,7 @@ static void		ipp_close_job(server_client_t *client);
 static void		ipp_create_job(server_client_t *client);
 static void		ipp_create_printer(server_client_t *client);
 static void		ipp_create_xxx_subscriptions(server_client_t *client);
+static void		ipp_delete_printer(server_client_t *client);
 static void		ipp_deregister_output_device(server_client_t *client);
 static void		ipp_disable_all_printers(server_client_t *client);
 static void		ipp_disable_printer(server_client_t *client);
@@ -1756,6 +1757,129 @@ ipp_create_xxx_subscriptions(
     ippSetStatusCode(client->response, IPP_STATUS_ERROR_IGNORED_ALL_SUBSCRIPTIONS);
   else if (ok_subs != num_subs)
     ippSetStatusCode(client->response, IPP_STATUS_OK_IGNORED_SUBSCRIPTIONS);
+}
+
+
+/*
+ * 'ipp_delete_printer()' - Delete a printer.
+ */
+
+static void
+ipp_delete_printer(
+    server_client_t *client)		/* I - Client */
+{
+  ipp_attribute_t	*attr;		/* printer-id attribute */
+  int			printer_id;	/* printer-id value */
+  server_printer_t	*printer;	/* Current printer */
+  server_job_t		*job;		/* Current job */
+  server_subscription_t	*sub;		/* Current subscription */
+
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+  if ((attr = ippFindAttribute(client->request, "printer-id", IPP_TAG_ZERO)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing required printer-id attribute.");
+    return;
+  }
+
+  if ((printer_id = ippGetInteger(attr, 0)) <= 0 || ippGetGroupTag(attr) != IPP_TAG_OPERATION || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetCount(attr) != 1)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Bad printer-id attribute.");
+    serverRespondUnsupported(client, attr);
+    return;
+  }
+
+  _cupsRWLockWrite(&PrintersRWLock);
+
+  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+    if (printer->id == printer_id)
+      break;
+
+  if (printer)
+  {
+    cupsArrayRemove(Printers, printer);
+
+    printer->is_deleted = 1;
+
+    if (printer->processing_job)
+    {
+      printer->state_reasons |= SERVER_PREASON_MOVING_TO_PAUSED | SERVER_PREASON_DELETING;
+      serverStopJob(printer->processing_job);
+
+      serverAddEvent(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer being deleted.");
+    }
+    else
+    {
+      printer->state         = IPP_PSTATE_STOPPED;
+      printer->state_reasons |= SERVER_PREASON_DELETING;
+
+      serverAddEvent(printer, NULL, NULL, SERVER_EVENT_PRINTER_DELETED, "Printer deleted.");
+
+      serverDeletePrinter(printer);
+    }
+
+   /*
+    * Abort all jobs for this printer...
+    */
+
+    _cupsRWLockWrite(&printer->rwlock);
+
+    for (job = (server_job_t *)cupsArrayFirst(printer->active_jobs); job; job = (server_job_t *)cupsArrayNext(printer->active_jobs))
+    {
+      if (job->state == IPP_JSTATE_PENDING || job->state == IPP_JSTATE_HELD)
+      {
+        job->state = IPP_JSTATE_ABORTED;
+        serverAddEvent(job->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, "Job aborted because printer has been deleted.");
+      }
+    }
+
+    _cupsRWUnlock(&printer->rwlock);
+
+   /*
+    * Mark all subscriptions for this printer to expire in 30 seconds...
+    */
+
+    _cupsRWLockRead(&SubscriptionsRWLock);
+
+    for (sub = (server_subscription_t *)cupsArrayFirst(Subscriptions); sub; sub = (server_subscription_t *)cupsArrayNext(Subscriptions))
+    {
+      if (sub->printer == printer || (sub->job && sub->job->printer == printer))
+      {
+        sub->printer = NULL;
+        sub->job     = NULL;
+        sub->expire  = time(NULL) + 30;
+      }
+    }
+
+    _cupsRWUnlock(&SubscriptionsRWLock);
+
+    serverRespondIPP(client, IPP_STATUS_OK, NULL);
+  }
+  else
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "printer-id not found.");
+    serverRespondUnsupported(client, attr);
+  }
+
+  _cupsRWUnlock(&PrintersRWLock);
 }
 
 
@@ -5979,6 +6103,10 @@ serverProcessIPP(
 
             case IPP_OP_GET_PRINTERS :
                 ipp_get_printers(client);
+                break;
+
+            case IPP_OP_DELETE_PRINTER :
+                ipp_delete_printer(client);
                 break;
 
             case IPP_OP_DISABLE_ALL_PRINTERS :
