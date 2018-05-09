@@ -1819,9 +1819,6 @@ ipp_delete_printer(
 
     cupsArrayRemove(Printers, printer);
 
-    if (cupsArrayFind(Printers, printer))
-      serverLogPrinter(SERVER_LOGLEVEL_ERROR, printer, "Printer removal failed.");
-
     printer->is_deleted = 1;
 
     if (printer->processing_job)
