@@ -1081,7 +1081,8 @@ serverCreatePrinter(
   ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-more-info", NULL, adminurl);
 
   /* printer-name */
-  ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_NAME, "printer-name", NULL, name);
+  if (!cupsArrayFind(existing, (void *)"printer-name"))
+    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_NAME, "printer-name", NULL, name);
 
   /* printer-organization */
   if (!cupsArrayFind(existing, (void *)"printer-organization"))

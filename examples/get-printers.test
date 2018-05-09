@@ -1,0 +1,16 @@
+{
+	NAME "Get-Printers"
+
+	OPERATION Get-Printers
+	VERSION 2.0
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+
+	STATUS successful-ok
+	DISPLAY printer-name
+	DISPLAY printer-state
+	DISPLAY printer-uri-supported
+}
