@@ -323,7 +323,7 @@ serverGetNotifyEventsBits(
 
     for (j = 0; j < (int)(sizeof(server_events) / sizeof(server_events[0])); j ++)
     {
-      if (!strcmp(keyword, server_jreasons[j]))
+      if (!strcmp(keyword, server_events[j]))
       {
         events |= (server_event_t)(1 << j);
 	break;
