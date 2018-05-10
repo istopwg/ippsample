@@ -101,6 +101,7 @@ static void		ipp_update_output_device_attributes(server_client_t *client);
 static void		ipp_validate_document(server_client_t *client);
 static void		ipp_validate_job(server_client_t *client);
 static int		valid_doc_attributes(server_client_t *client);
+static int		valid_filename(const char *filename);
 static int		valid_job_attributes(server_client_t *client);
 static int		valid_values(server_client_t *client, ipp_tag_t group_tag, ipp_attribute_t *supported, int num_values, server_value_t *values);
 static float		wgs84_distance(const char *a, const char *b);
@@ -3751,6 +3752,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
   ssize_t		bytes;		/* Bytes read */
   cups_array_t		*ra;		/* Attributes to send in response */
   ipp_attribute_t	*hold_until;	/* job-hold-until-xxx attribute, if any */
+  struct stat		fileinfo;	/* File information */
 
 
   if (Authentication && !client->username[0])
@@ -3829,7 +3831,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
     return;
   }
 
-  if (!strcmp(scheme, "file") && access(resource, R_OK))
+  if (!strcmp(scheme, "file") && (!valid_filename(resource) || access(resource, R_OK) || stat(resource, &fileinfo) || !S_ISREG(fileinfo.st_mode)))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to access URI: %s", strerror(errno));
     serverRespondUnsupported(client, uri);
@@ -4522,6 +4524,7 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
   ssize_t		bytes;		/* Bytes read */
   ipp_attribute_t	*attr;		/* Current attribute */
   cups_array_t		*ra;		/* Attributes to send in response */
+  struct stat		fileinfo;	/* File information */
 
 
   if (Authentication && !client->username[0])
@@ -4644,7 +4647,7 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
     return;
   }
 
-  if (!strcmp(scheme, "file") && access(resource, R_OK))
+  if (!strcmp(scheme, "file") && (!valid_filename(resource) || access(resource, R_OK) || stat(resource, &fileinfo) || !S_ISREG(fileinfo.st_mode)))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to access URI: %s", strerror(errno));
     serverRespondUnsupported(client, uri);
@@ -6626,6 +6629,47 @@ valid_doc_attributes(
     ippAddString(client->request, IPP_TAG_JOB, IPP_TAG_NAME, "document-name-supplied", NULL, ippGetString(attr, 0, NULL));
 
   return (valid);
+}
+
+
+/*
+ * 'valid_filename()' - Make sure the filename in a file: URI is allowed.
+ */
+
+static int				/* O - 1 if OK, 0 otherwise */
+valid_filename(const char *filename)	/* I - Filename to validate */
+{
+  int		i,			/* Looping var */
+		count = cupsArrayCount(FileDirectories);
+					/* Number of directories */
+  char		*dir;			/* Current directory */
+  size_t	filelen = strlen(filename),
+					/* Length of filename */
+		dirlen;			/* Length of directory */
+
+
+ /*
+  * Do not allow filenames containing "something/../something" or
+  * "something/./something"...
+  */
+
+  if (strstr(filename, "/../") || strstr(filename, "/./"))
+    return (0);
+
+ /*
+  * Check for prefix matches on any of the directories...
+  */
+
+  for (i = 0; i < count; i ++)
+  {
+    dir    = (char *)cupsArrayIndex(FileDirectories, i);
+    dirlen = strlen(dir);
+
+    if (filelen >= dirlen && strncmp(filename, dir, dirlen) && (filename[dirlen] == '/' || !filename[dirlen]))
+      return (1);
+  }
+
+  return (0);
 }
 
 

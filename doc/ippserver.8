@@ -7,7 +7,7 @@
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ippserver 8 "ippsample" "2018-05-02" "Apple Inc."
+.TH ippserver 8 "ippsample" "2018-05-10" "Apple Inc."
 .SH NAME
 ippserver \- a simple ipp server
 .SH SYNOPSIS
@@ -245,6 +245,11 @@ Specifies when to use TLS encryption for client connections.
 "IfRequested" means that connections are encrypted when an upgrade is requested by the client.
 "Never" means that encryption is not allowed or supported.
 "Required" means that all connections are encrypted, either when established (HTTPS) or immediately thereafter using HTTP Upgrade.
+.TP 5
+\fBFileDirectory \fIdirectory [ ... directory ]\fR
+Specifies one or more directories that are allowed for local printing by reference.
+Directories with spaces must be put inside single ('some directory') or double ("some directory") quotes.
+The default is to not allow file: URIs for printing.
 .TP 5
 \fBGeoLocation \fIgeo:latitude,longitude[,altitude]\fR
 Specifies the physical location of the server using a "geo" URI (RFC 5870).

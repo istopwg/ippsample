@@ -1760,6 +1760,7 @@ load_system(const char *conf)		/* I - Configuration file */
     "DocumentPrivacyAttributes",
     "DocumentPrivacyScope",
     "Encryption",
+    "FileDirectory",
     "GeoLocation",
     "Info",
     "JobPrivacyAttributes",
@@ -1812,14 +1813,14 @@ load_system(const char *conf)		/* I - Configuration file */
       * Already have this setting, check whether this is OK...
       */
 
-      if (!_cups_strcasecmp(line, "Listen"))
+      if (!_cups_strcasecmp(line, "FileDirectory") || !_cups_strcasecmp(line, "Listen"))
       {
        /*
         * Listen allows multiple values, others do not...
         */
 
 	snprintf(temp, sizeof(temp), "%s %s", setting, value);
-	SystemNumSettings = cupsAddOption("Listen", temp, SystemNumSettings, &SystemSettings);
+	SystemNumSettings = cupsAddOption(line, temp, SystemNumSettings, &SystemSettings);
       }
       else
       {
@@ -1961,6 +1962,63 @@ load_system(const char *conf)		/* I - Configuration file */
         fprintf(stderr, "ippserver: Bad Encryption value \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
         status = 0;
         break;
+      }
+    }
+    else if (!_cups_strcasecmp(line, "FileDirectory"))
+    {
+      char		*dir,		/* Directory value */
+			dirabs[PATH_MAX];
+					/* Absolute directory path */
+      struct stat	dirinfo;	/* Directory information */
+
+      while (*value)
+      {
+        while (isspace(*value & 255))
+          value ++;
+
+        if (*value == '\'' || *value == '\"')
+        {
+          char	quote = *value++;	/* Quote to look for */
+
+          dir = value;
+          while (*value && *value != quote)
+            value ++;
+
+          if (*value == quote)
+          {
+            *value++ = '\0';
+	  }
+	  else
+	  {
+	    fprintf(stderr, "ippserver: Missing closing quote for FileDirectory on line %d of \"%s\".\n", linenum, conf);
+	    status = 0;
+	    break;
+	  }
+	}
+	else
+	{
+          dir = value;
+          while (*value && !isspace(*value & 255))
+            value ++;
+
+          if (*value)
+            *value++ = '\0';
+	}
+
+        if (!FileDirectories)
+          FileDirectories = cupsArrayNew3(NULL, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+
+        if (dir[0] != '/')
+          dir = realpath(dir, dirabs);
+
+        if (!dir || access(dir, X_OK) || stat(dir, &dirinfo) || !S_ISDIR(dirinfo.st_mode))
+        {
+	  fprintf(stderr, "ippserver: Bad FileDirectory on line %d of \"%s\".\n", linenum, conf);
+	  status = 0;
+	  break;
+        }
+
+        cupsArrayAdd(FileDirectories, dir);
       }
     }
     else if (!_cups_strcasecmp(line, "JobPrivacyAttributes"))

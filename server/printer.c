@@ -412,12 +412,12 @@ serverCreatePrinter(
   };
   static const char * const reference_uri_schemes_supported[] =
   {					/* reference-uri-schemes-supported */
-    "file",
     "ftp",
-    "http"
+    "http",
 #ifdef HAVE_SSL
-    , "https"
+    "https",
 #endif /* HAVE_SSL */
+    "file"
   };
   static const char * const sides_supported[] =
   {					/* sides-supported values */
@@ -1188,7 +1188,7 @@ serverCreatePrinter(
   }
 
   /* reference-uri-scheme-supported */
-  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_URISCHEME), "reference-uri-schemes-supported", (int)(sizeof(reference_uri_schemes_supported) / sizeof(reference_uri_schemes_supported[0])), NULL, reference_uri_schemes_supported);
+  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_URISCHEME), "reference-uri-schemes-supported", (int)(sizeof(reference_uri_schemes_supported) / sizeof(reference_uri_schemes_supported[0])) - !FileDirectories, NULL, reference_uri_schemes_supported);
 
   /* sides-default */
   if (!is_print3d && !cupsArrayFind(existing, (void *)"sides-default"))
