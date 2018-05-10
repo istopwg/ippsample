@@ -1325,7 +1325,11 @@ ipp_create_printer(
     { "printer-info", IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
     { "printer-location", IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
     { "printer-make-and-model", IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
-    { "printer-name", IPP_TAG_NAME, IPP_TAG_ZERO, 0 }
+    { "printer-name", IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
+    { "pwg-raster-document-resolution-supported", IPP_TAG_RESOLUTION, IPP_TAG_ZERO, 1 },
+    { "pwg-raster-document-sheet-back", IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "pwg-raster-document-type-supported", IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
+    { "urf-supported", IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 }
   };
 
 

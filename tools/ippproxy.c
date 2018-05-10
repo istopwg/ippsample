@@ -1784,6 +1784,7 @@ update_device_attrs(
   ipp_attribute_t	*attr;		/* New attribute */
   const char		*name;		/* New attribute name */
 
+
  /*
   * Update the configuration of the output device...
   */
@@ -1816,6 +1817,7 @@ update_device_attrs(
     }
   }
 
+  httpReconnect(http);
   ippDelete(cupsDoRequest(http, request, resource));
 
   if (cupsLastError() != IPP_STATUS_OK)

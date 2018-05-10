@@ -1176,7 +1176,11 @@ create_system_attributes(void)
     "printer-info",
     "printer-location",
     "printer-make-and-model",
-    "printer-name"
+    "printer-name",
+    "pwg-raster-document-resolution-supported",
+    "pwg-raster-document-sheet-back",
+    "pwg-raster-document-type-supported",
+    "urf-supported"
   };
   static const char * const resource_format_supported[] =
   {					/* Values for resource-format-supported */
