@@ -348,9 +348,9 @@ lint_raster(const char    *filename,	/* I - File to check */
   rewind(file);
   
   char sync_word[4];
-  fscanf(file, "%4s", sync_word);
-  
-  if(strcmp(sync_word, "RaS2")){
+  fread(sync_word, 4, 1, file);
+
+  if(strncmp(sync_word, "RaS2", 4)){
     fprintf(stderr, "ERROR: Synchronization word mismatch\n");
     return (1);
   }
@@ -358,7 +358,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   
   cups_page_header2_t header;
   fread(&header, 4, 449, file);
-  
+
   if(strncmp(header.MediaClass, "PwgRaster", 64)){
     fprintf(stderr, "ERROR: PwgRaster value in header is incorrect\n");
     return (1);
@@ -404,12 +404,12 @@ lint_raster(const char    *filename,	/* I - File to check */
   header.HWResolution[1] = ntohl(header.HWResolution[1]);
   fprintf(stderr, "DEBUG: Using cross-feed resolution of %u and feed resolution of %u\n", header.HWResolution[0], header.HWResolution[1]);
 
-  /* [TODO]: This field is not zero in the test files but the spec requires it to be */
   for(int i=0; i<4; i++){
     header.ImagingBoundingBox[i] = ntohl(header.ImagingBoundingBox[i]);
     if(header.ImagingBoundingBox[i]!=0){
-      fprintf(stderr, "ERROR: Non-zero values present in Reserved[284-299] area\n");
-      //return(1);
+      // Non-critical
+      fprintf(stderr, "WARNING: Non-zero values present in Reserved[284-299] area\n");
+      break;
     }
   }
   fprintf(stderr, "DEBUG: Reserved[284-299] field is zero as expected\n");
@@ -647,8 +647,8 @@ lint_raster(const char    *filename,	/* I - File to check */
   if(header.cupsInteger[1]==1 || header.cupsInteger[1]==-1)
     fprintf(stderr, "DEBUG: CrossFeedTransform value is %d\n", header.cupsInteger[1]);
   else {
-    fprintf(stderr, "ERROR: CrossFeedTransform is incorrect %d\n", header.cupsInteger[1]);
-    //return(1);
+    // Non-critical
+    fprintf(stderr, "WARNING: CrossFeedTransform is incorrect %d\n", header.cupsInteger[1]);
   }
 
   /* [TODO]: The value in the test pwg files is 0 whereas the spec requires it to be +-1 */
@@ -656,7 +656,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   if(header.cupsInteger[2]==1 || header.cupsInteger[2]==-1)
     fprintf(stderr, "DEBUG: FeedTransform value is %d\n", header.cupsInteger[2]);
   else {
-    fprintf(stderr, "ERROR: FeedTransform is incorrect %d\n", header.cupsInteger[2]);
+    fprintf(stderr, "WARNING: FeedTransform is incorrect %d\n", header.cupsInteger[2]);
     //return(1);
   }
 
@@ -723,25 +723,33 @@ lint_raster(const char    *filename,	/* I - File to check */
     buffer = malloc(1);
     fread(buffer, 1, 1, file);
     height_count += *buffer + 1;
-    if(height_count > header.cupsHeight) { // [TODO] height_count is exceeding Height
-      fprintf(stderr, "DEBUG: Old height_count: %d New height_count: %d Height: %d\n", height_count, height_count - *buffer - 1, header.cupsHeight);
+    if(height_count > header.cupsHeight) {
+      if(height_count - *buffer - 1 == header.cupsHeight)
+        fprintf(stderr, "DEBUG: Traversed bitmap and found no errors\n");
+      else
+        fprintf(stderr, "ERROR: Bitmap height mismatch with height in the header. Expected height: %d. Bitmap height: %d\n", header.cupsHeight, height_count - *buffer - 1);
       break;
     }
     while(width_count < header.cupsWidth){
       fread(buffer, 1, 1, file);
       int unit_size = header.cupsBitsPerPixel == 1 ? (header.cupsBitsPerPixel / 8) + 1 : (header.cupsBitsPerPixel / 8);
-      int size = *buffer > 127 ? 257-*buffer : *buffer + 1;
-      if (width_count+size > header.cupsWidth) // [TODO] width_count is exceeding Width
-        size = header.cupsWidth - width_count;
-      buffer2 = malloc(unit_size * size);
-      fread(buffer2, unit_size, size, file);
-      width_count += size;
+      if(*buffer > 127){ // Non-repeating colors
+        buffer2 = malloc(unit_size * (257 - *buffer));
+        fread(buffer2, unit_size, (257 - *buffer), file);
+        width_count += 257 - *buffer;
+      }
+      else{ // Repeating colors
+        buffer2 = malloc(unit_size * 1);
+        fread(buffer2, unit_size, 1, file);
+        width_count += *buffer + 1;
+      }
+      free(buffer2);
     }
     if(width_count != header.cupsWidth){
-      printf("%d %d\n", width_count, header.cupsWidth);
-      fprintf(stderr, "ERROR: Bitmap width didn't match specified Width value in the header\n");
+      fprintf(stderr, "ERROR: Bitmap width didn't match specified Width value in the header. Expected: %d, Found: %d\n", header.cupsWidth, width_count);
       return(1);
     }
+    free(buffer);
   }
   return(1);
 
