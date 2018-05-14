@@ -642,7 +642,6 @@ lint_raster(const char    *filename,	/* I - File to check */
     return(1);
   }
 
-  /* [TODO]: The value in the test pwg files is 0 whereas the spec requires it to be +-1 */
   header.cupsInteger[1] = (int32_t)(header.cupsInteger[1]);
   if(header.cupsInteger[1]==1 || header.cupsInteger[1]==-1)
     fprintf(stderr, "DEBUG: CrossFeedTransform value is %d\n", header.cupsInteger[1]);
@@ -651,7 +650,6 @@ lint_raster(const char    *filename,	/* I - File to check */
     fprintf(stderr, "WARNING: CrossFeedTransform is incorrect %d\n", header.cupsInteger[1]);
   }
 
-  /* [TODO]: The value in the test pwg files is 0 whereas the spec requires it to be +-1 */
   header.cupsInteger[2] = (int32_t)(header.cupsInteger[2]);
   if(header.cupsInteger[2]==1 || header.cupsInteger[2]==-1)
     fprintf(stderr, "DEBUG: FeedTransform value is %d\n", header.cupsInteger[2]);
@@ -724,7 +722,7 @@ lint_raster(const char    *filename,	/* I - File to check */
     fread(buffer, 1, 1, file);
     height_count += *buffer + 1;
     if(height_count > header.cupsHeight) {
-      if(height_count - *buffer - 1 == header.cupsHeight)
+      if((header.cupsBitsPerPixel == 1 && abs(height_count - *buffer - 1 - header.cupsHeight) < 8) || height_count - *buffer - 1 == header.cupsHeight)
         fprintf(stderr, "DEBUG: Traversed bitmap and found no errors\n");
       else
         fprintf(stderr, "ERROR: Bitmap height mismatch with height in the header. Expected height: %d. Bitmap height: %d\n", header.cupsHeight, height_count - *buffer - 1);
@@ -732,20 +730,22 @@ lint_raster(const char    *filename,	/* I - File to check */
     }
     while(width_count < header.cupsWidth){
       fread(buffer, 1, 1, file);
-      int unit_size = header.cupsBitsPerPixel == 1 ? (header.cupsBitsPerPixel / 8) + 1 : (header.cupsBitsPerPixel / 8);
+      int unit_size = header.cupsBitsPerPixel == 1 ? 1 : (header.cupsBitsPerPixel / 8);
       if(*buffer > 127){ // Non-repeating colors
         buffer2 = malloc(unit_size * (257 - *buffer));
         fread(buffer2, unit_size, (257 - *buffer), file);
-        width_count += 257 - *buffer;
+        width_count += header.cupsBitsPerPixel == 1 ? (257 - *buffer) * 8 : (257 - *buffer);
       }
       else{ // Repeating colors
         buffer2 = malloc(unit_size * 1);
         fread(buffer2, unit_size, 1, file);
-        width_count += *buffer + 1;
+        width_count += header.cupsBitsPerPixel == 1 ? (*buffer + 1) * 8 : (*buffer + 1);
       }
       free(buffer2);
     }
     if(width_count != header.cupsWidth){
+      if(header.cupsBitsPerPixel == 1 && abs(width_count - header.cupsWidth) < 8)
+          continue;
       fprintf(stderr, "ERROR: Bitmap width didn't match specified Width value in the header. Expected: %d, Found: %d\n", header.cupsWidth, width_count);
       return(1);
     }
