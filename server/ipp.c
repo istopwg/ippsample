@@ -2177,9 +2177,6 @@ ipp_fetch_document(
       httpClearFields(client->http);
       httpSetField(client->http, HTTP_FIELD_CONTENT_TYPE, "application/ipp");
 
-      if (compression)
-	httpSetField(client->http, HTTP_FIELD_CONTENT_ENCODING, "gzip");
-
       httpSetLength(client->http, 0);
       if (httpWriteResponse(client->http, HTTP_STATUS_OK) < 0)
 	return;
@@ -2195,6 +2192,9 @@ ipp_fetch_document(
       }
 
       serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sent IPP response.");
+
+      if (compression)
+	httpSetField(client->http, HTTP_FIELD_CONTENT_ENCODING, "gzip");
 
       job->state = IPP_JSTATE_PROCESSING;
       serverTransformJob(client, job, "ipptransform", format, SERVER_TRANSFORM_TO_CLIENT);

@@ -1177,6 +1177,7 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
     if (doc_format)
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format-accepted", NULL, doc_format);
+    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression-accepted", NULL, "gzip");
 
     cupsSendRequest(info->http, request, info->resource, ippLength(request));
     doc_attrs = cupsGetResponse(info->http, info->resource);
@@ -1446,10 +1447,14 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
 		service[32];		/* Service port */
   int		port;			/* URI port number */
   http_addrlist_t *list;		/* Address list for socket */
+  const char	*doc_compression;	/* Document compression, if any */
   size_t	doc_total = 0;		/* Total bytes read */
   ssize_t	doc_bytes;		/* Bytes read/written */
   char		doc_buffer[16384];	/* Copy buffer */
 
+
+  if ((doc_compression = ippGetString(ippFindAttribute(doc_attrs, "compression", IPP_TAG_KEYWORD), 0, NULL)) != NULL && !strcmp(doc_compression, "none"))
+    doc_compression = NULL;
 
   if (httpSeparateURI(HTTP_URI_CODING_ALL, info->device_uri, scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, resource, sizeof(resource)) < HTTP_URI_STATUS_OK)
   {
@@ -1487,6 +1492,9 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
     if (verbosity)
       plogf(pjob, "Connected to '%s'.", info->device_uri);
 
+    if (doc_compression)
+      httpSetField(info->http, HTTP_FIELD_CONTENT_ENCODING, doc_compression);
+
     while ((doc_bytes = cupsReadResponseData(info->http, doc_buffer, sizeof(doc_buffer))) > 0)
     {
       char	*doc_ptr = doc_buffer,	/* Pointer into buffer */
@@ -1517,6 +1525,11 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
     int			create_job = 0;	/* Support for Create-Job/Send-Document? */
     const char		*doc_format;	/* Document format */
     ipp_jstate_t	job_state;	/* Current job-state value */
+    static const char * const pattrs[] =/* Printer attributes we are interested in */
+    {
+      "compression-supported",
+      "operations-supported"
+    };
     static const char * const operation[] =
     {					/* Operation attributes to copy */
       "job-name",
@@ -1573,7 +1586,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
     request = ippNewRequest(IPP_OP_GET_PRINTER_ATTRIBUTES);
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, info->device_uri);
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
-    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", NULL, "operations-supported");
+    ippAddStrings(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", (int)(sizeof(pattrs) / sizeof(pattrs[0])), NULL, pattrs);
 
     response = cupsDoRequest(http, request, resource);
 
@@ -1588,6 +1601,16 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
 
     create_job = ippContainsInteger(attr, IPP_OP_CREATE_JOB) && ippContainsInteger(attr, IPP_OP_SEND_DOCUMENT);
 
+    if (doc_compression && !ippContainsString(ippFindAttribute(response, "compression-supported", IPP_TAG_KEYWORD), doc_compression))
+    {
+     /*
+      * Decompress raster data to send to printer without compression...
+      */
+
+      httpSetField(info->http, HTTP_FIELD_CONTENT_ENCODING, doc_compression);
+      doc_compression = NULL;
+    }
+
     ippDelete(response);
 
    /*
@@ -1599,6 +1622,8 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
     if (!create_job)
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, doc_format);
+    if (!create_job && doc_compression)
+      ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression", NULL, doc_compression);
     for (i = 0; i < (int)(sizeof(operation) / sizeof(operation[0])); i ++)
     {
       if ((attr = ippFindAttribute(job_attrs, operation[i], IPP_TAG_ZERO)) != NULL)
@@ -1653,6 +1678,8 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
       ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "job-id", pjob->local_job_id);
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, doc_format);
+      if (doc_compression)
+	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression", NULL, doc_compression);
       ippAddBoolean(request, IPP_TAG_OPERATION, "last-document", 1);
 
       if (verbosity)
