@@ -13,6 +13,7 @@
 #include <cups/raster.h>
 #include <cups/string-private.h>
 #include <netinet/in.h>
+#include <mupdf/fitz.h>
 
 /*
  * Local globals...
@@ -206,6 +207,19 @@ lint_jpeg(const char    *filename,	/* I - File to check */
 }
 
 
+static int
+mupdf_exit(fz_context *context,
+  fz_document *document,
+  fz_pixmap *pixmap)
+{
+  if(pixmap)
+    fz_drop_pixmap(context, pixmap);
+  if(document)
+    fz_drop_document(context, document);
+  if(context)
+    fz_drop_context(context);
+}
+
 /*
  * 'lint_pdf()' - Check a PDF file.
  */
@@ -234,11 +248,78 @@ lint_pdf(const char    *filename,	/* I - File to check */
   * - job-pages-completed-col
   */
 
-  (void)filename;
+  fz_context *pdf_context = NULL;
+  fz_document *pdf_document = NULL;
+  fz_pixmap *pdf_pixmap = NULL;
+  fz_matrix pdf_matrix;
+  int page_count = 0;
+
+  /* Create a context to hold the exception stack and various caches. */
+  pdf_context = fz_new_context(NULL, NULL, FZ_STORE_UNLIMITED);
+  if (!pdf_context)
+  {
+    fprintf(stderr, "ERROR: Failed to create a mupdf context\n");
+    mupdf_exit(pdf_context, pdf_document, pdf_pixmap);
+    return(1);
+  }
+  fprintf(stderr, "DEBUG: Created a mupdf context\n");
+
+  /* Register the default file types to handle. */
+  fz_try(pdf_context)
+    fz_register_document_handlers(pdf_context);
+  fz_catch(pdf_context)
+  {
+    fprintf(stderr, "ERROR: Failed to register document handlers: %s\n", fz_caught_message(pdf_context));
+    mupdf_exit(pdf_context, pdf_document, pdf_pixmap);
+    return(1);
+  }
+  fprintf(stderr, "DEBUG: Registered mupdf document handlers\n");
+
+  /* Open the document. */
+  fz_try(pdf_context)
+    pdf_document = fz_open_document(pdf_context, filename);
+  fz_catch(pdf_context)
+  {
+    fprintf(stderr, "ERROR: Failed to open the document: %s\n", fz_caught_message(pdf_context));
+    mupdf_exit(pdf_context, pdf_document, pdf_pixmap);
+    return(1);
+  }
+  fprintf(stderr, "DEBUG: Opened the document using mupdf\n");
+
+  /* Count the number of pages. */
+  fz_try(pdf_context)
+    page_count = fz_count_pages(pdf_context, pdf_document);
+  fz_catch(pdf_context)
+  {
+    fprintf(stderr, "ERROR: Failed to count the number of pages: %s\n", fz_caught_message(pdf_context));
+    mupdf_exit(pdf_context, pdf_document, pdf_pixmap);
+    return(1);
+  }
+  if(page_count <= 0){
+    fprintf(stderr, "ERROR: Corrupt PDF file. Number of pages %d\n", page_count);
+    mupdf_exit(pdf_context, pdf_document, pdf_pixmap);
+    return(1);
+  }
+  fprintf(stderr, "DEBUG: The document has %d pages\n", page_count);
+
+  /* Render RGB pixmaps for each page */
+  for(int i=0; i<page_count; i++){
+    fz_try(pdf_context)
+      pdf_pixmap = fz_new_pixmap_from_page_number(pdf_context, pdf_document, i, &pdf_matrix, fz_device_rgb(pdf_context), 0);
+    fz_catch(pdf_context)
+    {
+      fprintf(stderr, "ERROR: Failed to render page %d: %s\n", i, fz_caught_message(pdf_context));
+      mupdf_exit(pdf_context, pdf_document, pdf_pixmap);
+      return(1);
+    }
+    fprintf(stderr, "DEBUG: Successfully rendered page %d\n", i);
+  }
+
   (void)num_options;
   (void)options;
 
-  return (1);
+  mupdf_exit(pdf_context, pdf_document, pdf_pixmap);
+  return(0);
 }
 
 char when_enum[5][20] = {
@@ -757,7 +838,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   (void)options;
 
   fclose(file);
-  return (1);
+  return (0);
 }
 
 
