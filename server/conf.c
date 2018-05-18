@@ -2188,7 +2188,8 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
     * return...
     */
 
-    f->attrs = ippNew();
+    f->attrs     = ippNew();
+    f->group_tag = IPP_TAG_PRINTER;
 
     return (1);
   }
