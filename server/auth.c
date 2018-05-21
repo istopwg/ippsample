@@ -41,8 +41,9 @@ typedef struct server_authdata_s	/* Authentication data */
  */
 
 #ifdef HAVE_LIBPAM
-static int pam_func(int num_msg, const struct pam_message **msg, struct pam_response **resp, server_authdata_t *data);
+static int	pam_func(int num_msg, const struct pam_message **msg, struct pam_response **resp, server_authdata_t *data);
 #endif /* HAVE_LIBPAM */
+static char	*vcard_escape(const char *s, char *buffer, size_t bufsize);
 
 
 /*
@@ -347,6 +348,106 @@ serverAuthorizeUser(
 }
 
 
+/*
+ * 'serverMakeVCARD()' - Make a VCARD for the named user.
+ */
+
+char *					/* O - VCARD as a string */
+serverMakeVCARD(const char *user,	/* I - User name or `NULL` for current user */
+                const char *name,	/* I - Full name or `NULL` */
+                const char *location,	/* I - Office location or `NULL` */
+                const char *email,	/* I - Email address or `NULL` */
+                const char *phone,	/* I - Phone number or `NULL` */
+                char       *buffer,	/* I - Buffer to hold VCARD */
+                size_t     bufsize)	/* I - Size of buffer */
+{
+  struct passwd	*pw;			/* User information */
+  char		nameval[256],		/* Name value */
+		locationval[256],	/* Location value */
+		emailval[256],		/* Email address value */
+		phoneval[256];		/* Phone number value (URI) */
+
+
+  if (user)
+    pw = getpwnam(user);
+  else
+    pw = getpwuid(getuid());
+
+  if (pw)
+  {
+   /*
+    * Copy GECOS information from user account, using the format:
+    *
+    *     NAME,LOCATION,PHONE
+    */
+
+    char	gecos[2048],		/* Copy of GECOS information */
+		*gecosval,		/* Current GECOS value */
+		*gecosptr;		/* Pointer into GECOS information */
+
+    strlcpy(gecos, pw->pw_gecos, sizeof(gecos));
+    gecosptr = gecos;
+
+    gecosval = strsep(&gecosptr, ",");
+    if (gecosval && *gecosval && !name)
+      name = gecosval;
+
+    gecosval = strsep(&gecosptr, ",");
+    if (gecosval && *gecosval && !location)
+      location = gecosval;
+
+    gecosval = strsep(&gecosptr, ",");
+    if (gecosval && *gecosval && !phone)
+      phone = gecosval;
+  }
+
+  if (!name || !*name)
+    name = cupsUser();
+
+  vcard_escape(name, nameval, sizeof(nameval));
+
+  if (!location || !*location)
+    location = "Unknown location.";
+
+  vcard_escape(location, locationval, sizeof(locationval));
+
+  if (email && !*email)
+    email = NULL;
+
+  vcard_escape(email, emailval, sizeof(emailval));
+
+  if (phone)
+  {
+    if (!*phone)
+    {
+      phone = NULL;
+    }
+    else
+    {
+      char uri[256];			/* tel: URI */
+
+      httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "tel", NULL, NULL, 0, phone);
+      vcard_escape(uri, phoneval, sizeof(phoneval));
+    }
+  }
+
+  snprintf(buffer, bufsize,
+           "BEGIN:VCARD\r\n"
+           "VERSION:4.0\r\n"
+           "FN:%s\r\n"
+           "%s%s%s"
+           "%s%s%s"
+           "NOTE:%s\r\n"
+           "END:VCARD\r\n",
+           nameval,
+           email ? "EMAIL;TYPE=work:" : "", email ? emailval : "", email ? "\r\n" : "",
+           phone ? "TEL;VALUE=uri;TYPE=work:" : "", phone ? phoneval : "", phone ? "\r\n" : "",
+           locationval);
+
+  return (buffer);
+}
+
+
 #ifdef HAVE_LIBPAM
 /*
  * 'pam_func()' - PAM conversation function.
@@ -405,3 +506,36 @@ pam_func(
 }
 #endif /* HAVE_LIBPAM */
 
+
+/*
+ * 'vcard_escape()' - Escape a string value for use in a VCARD.
+ */
+
+static char *				/* O - Escaped string */
+vcard_escape(const char *s,		/* I - String to escape */
+             char       *buffer,	/* I - Buffer */
+             size_t     bufsize)	/* I - Size of buffer */
+{
+  char	*bufptr,			/* Pointer into buffer */
+	*bufend;			/* End of buffer */
+
+
+  for (bufptr = buffer, bufend = buffer + bufsize - 2; s && *s && bufptr < bufend; s ++)
+  {
+   /*
+    * Escape COMMA, SEMICOLON, BACKSLASH, and NEWLINE per RFC 6350, Section 3.4.
+    */
+
+    if (strchr(",;\\\n", *s))
+      *bufptr++ = '\\';
+
+    if (*s == '\n')
+      *bufptr++ = 'n';
+    else
+      *bufptr++ = *s;
+  }
+
+  *bufptr = '\0';
+
+  return (buffer);
+}

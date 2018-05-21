@@ -363,9 +363,15 @@ main(int  argc,				/* I - Number of command-line args */
 			*response;	/* IPP response */
       ipp_attribute_t	*attr;		/* operations-supported */
       int		create_job = 0;	/* Support for Create-Job/Send-Document? */
+      int		gzip;		/* gzip compression supported? */
       const char	*job_name;	/* Title of job */
       const char	*media;		/* Value of "media" option */
       const char	*sides;		/* Value of "sides" option */
+      static const char * const pattrs[] =
+      {					/* requested-attributes */
+        "compression-supported",
+        "operations-supported"
+      };
 
      /*
       * Connect to the IPP/IPPS printer...
@@ -389,7 +395,7 @@ main(int  argc,				/* I - Number of command-line args */
       request = ippNewRequest(IPP_OP_GET_PRINTER_ATTRIBUTES);
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
-      ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", NULL, "operations-supported");
+      ippAddStrings(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", (int)(sizeof(pattrs) / sizeof(pattrs[0])), NULL, pattrs);
 
       response = cupsDoRequest(http, request, resource);
       if (cupsLastError() > IPP_STATUS_OK_EVENTS_COMPLETE)
@@ -405,6 +411,7 @@ main(int  argc,				/* I - Number of command-line args */
       }
 
       create_job = ippContainsInteger(attr, IPP_OP_CREATE_JOB) && ippContainsInteger(attr, IPP_OP_SEND_DOCUMENT);
+      gzip       = ippContainsString(ippFindAttribute(response, "compression-supported", IPP_TAG_KEYWORD), "gzip");
 
       ippDelete(response);
 
@@ -450,6 +457,8 @@ main(int  argc,				/* I - Number of command-line args */
 	ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "job-id", job_id);
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, output_type);
+	if (gzip)
+	  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression", NULL, "gzip");
         ippAddBoolean(request, IPP_TAG_OPERATION, "last-document", 1);
       }
       else
@@ -458,6 +467,8 @@ main(int  argc,				/* I - Number of command-line args */
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, output_type);
+	if (gzip)
+	  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression", NULL, "gzip");
       }
 
       if ((media = cupsGetOption("media", num_options, options)) != NULL)
@@ -473,6 +484,9 @@ main(int  argc,				/* I - Number of command-line args */
       }
 
       ippDelete(request);
+
+      if (gzip)
+        httpSetField(http, HTTP_FIELD_CONTENT_ENCODING, "gzip");
 
       write_cb  = (xform_write_cb_t)httpWrite2;
       write_ptr = http;

@@ -161,7 +161,6 @@ _ippFileParse(
         if (!parse_value(&f, v, user_data, attrs, &attr, 0))
           break;
       }
-
     }
     else if (attr && !_cups_strcasecmp(token, ","))
     {

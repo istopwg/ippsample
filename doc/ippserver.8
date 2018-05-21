@@ -7,7 +7,7 @@
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ippserver 8 "ippsample" "15 March 2018" "Apple Inc."
+.TH ippserver 8 "ippsample" "2018-05-10" "Apple Inc."
 .SH NAME
 ippserver \- a simple ipp server
 .SH SYNOPSIS
@@ -202,13 +202,13 @@ The default is either "cups" or "other", depending on the platform.
 \fBAuthTestPassword \fIpassword\fR
 Specifies a single password that can be used to authenticate against any user account.
 Note: This directive is provided for testing only and does not actually provide access to the "authenticated" user account.
-The default is to not have testing password enabled.
+The default is to not have a testing password enabled.
 .TP 5
 \fBAuthType \fI{None|Basic}\fR
 Specifies the type of authentication to require.
 "None" specifies that no authentication is required.
 "Basic" specifies that HTTP Basic authentication (username + password) is required.
-The default is "Basic".
+The default is "None" when authentication is turned off and "Basic" when authentication is turned on.
 .TP 5
 \fBBinDir \fIdirectory\fR
 Specifies the location of the
@@ -217,7 +217,7 @@ and
 .BR ipptransform3d (1)
 programs.
 .TP 5
-\fBDataDirectory \fIdirectory\fR
+\fBDataDir \fIdirectory\fR
 Specifies the location of server data files.
 .TP 5
 \fBDefaultPrinter \fIname\fR
@@ -246,6 +246,17 @@ Specifies when to use TLS encryption for client connections.
 "Never" means that encryption is not allowed or supported.
 "Required" means that all connections are encrypted, either when established (HTTPS) or immediately thereafter using HTTP Upgrade.
 .TP 5
+\fBFileDirectory \fIdirectory [ ... directory ]\fR
+Specifies one or more directories that are allowed for local printing by reference.
+Directories with spaces must be put inside single ('some directory') or double ("some directory") quotes.
+The default is to not allow file: URIs for printing.
+.TP 5
+\fBGeoLocation \fIgeo:latitude,longitude[,altitude]\fR
+Specifies the physical location of the server using a "geo" URI (RFC 5870).
+.TP 5
+\fBInfo \fIdescription\fR
+Specifies a description of the server.
+.TP 5
 \fBJobPrivacyAttributes \fI{all|default|none|list of attributes and groups}\fR
 Specifies which job object attribute values are considered private.
 "All" will hide all attributes except "job-id", "job-printer-uri", and "job-uuid".
@@ -265,10 +276,13 @@ The default is "default".
 \fBKeepFiles \fI{No|Yes}\fR
 Specifies whether job data files are retained after processing.
 .TP 5
-\fBListen \fIaddress[:port]\fR
-Listens for client connections on the specified address and port.
+\fBListen \fIaddress[:port] [ ... address[:port] ]\fR
+Listens for client connections on the specified addresses and ports.
 If the address is "*" the server will listen for connections on all network interfaces.
 If the port is omitted, a port between 8000 and 8999 will be used.
+.TP 5
+\fBLocation \fIlocation of server\fR
+Specifies a human-readable location of the server.
 .TP 5
 \fBLogFile \fIpath\fR
 Specifies a log file to use.
@@ -280,6 +294,9 @@ Specifies the verbosity of logged messages.
 "Info" provides basic progress and status messages.
 "Error" provides only error messages.
 .TP 5
+\fBMakeAndModel \fImake model\fR
+Specifies the make and model of the server.
+.TP 5
 \fBMaxCompletedJobs \fInumber\fR
 Specifies the maximum number of completed jobs that are retained for job history.
 The value 0 specifies there is no limit.
@@ -289,7 +306,22 @@ Note: \fBippserver\fR currently removes completed jobs from the job history afte
 Specifies the maximum number of pending and active jobs that can be queued at any given time.
 The value 0 specifies there is no limit.
 .TP 5
-\fBSpoolDirectory \fIpath\fR
+\fBName \fIname of server\fR
+Specifies the human-readable name of the server.
+.TP 5
+\fBOwnerEmail \fIname@example.com\fR
+Specifies the email address of the owner or administrator of the server.
+.TP 5
+\fBOwnerLocation \fIlocation\fR
+Specifies the human-readable location of the owner or administrator of the server.
+.TP 5
+\fBOwnerName \fIname\fR
+Specifies the name of the owner or administrator of the server.
+.TP 5
+\fBOwnerPhone \fIphone-number\fR
+Specifies the telephone number of the owner or administrator of the server.
+.TP 5
+\fBSpoolDir \fIpath\fR
 Specifies the location of print job spool files.
 .TP 5
 \fBSubscriptionPrivacyAttributes \fI{all|default|none|list of attributes and groups}\fR
@@ -307,6 +339,9 @@ Specifies which users can query private subscription attribute values.
 "Owner" means that only the subscription owner can query private subscription attribute values.
 "None" means that no user can query private subscription attribute values.
 The default is "default".
+.TP 5
+\fBUUID \fIuuid\fR
+Specifies the UUID of the server.
 .SS PRINT SERVICE CONFIGURATION FILES
 Each 2D print service is configured by a \fIprint/name.conf\fR configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print/name".
 Each 3D print service is configured by a \fIprint3d/name.conf\fR configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print3d/name".

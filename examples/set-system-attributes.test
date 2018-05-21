@@ -1,0 +1,32 @@
+{
+	# The name of the test...
+	NAME "Set-System-Attributes"
+
+	# Always IPP/2.0
+	VERSION 2.0
+
+	# The operation to use
+	OPERATION Set-System-Attributes
+
+	# Attributes, starting in the operation group...
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri system-uri $uri
+
+	GROUP system-attributes-tag
+	ATTR integer system-default-printer-id 3
+	ATTR uri system-geo-location "geo:37.334722,-122.008889"
+	ATTR text system-info "System description changed."
+	ATTR text system-location "System location changed."
+	ATTR text system-make-and-model "System make and model changed."
+	ATTR name system-name "System name changed."
+	ATTR collection system-owner-col {
+		MEMBER name owner-name "John Adams"
+		MEMBER uri owner-uri "mailto:john.adams@example.com"
+		MEMBER text owner-vcard "BEGIN:VCARD\r\n","VERSION:4.0\r\n","FN:John Adams\r\n","EMAIL;TYPE=work:john.adams@example.com\r\n","NOTE:Unknown location.\r\n","END:VCARD\r\n"
+	}
+
+	# What statuses are OK?
+	STATUS successful-ok
+}

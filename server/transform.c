@@ -13,6 +13,7 @@
 #ifdef WIN32
 #  include <sys/timeb.h>
 #else
+#  include <signal.h>
 #  include <spawn.h>
 #endif /* WIN32 */
 
@@ -24,6 +25,30 @@
 static void	process_attr_message(server_job_t *job, char *message, server_transform_t mode);
 static void	process_state_message(server_job_t *job, char *message);
 static double	time_seconds(void);
+
+
+/*
+ * 'serverStopJob()' - Stop processing/transforming a job.
+ */
+
+void
+serverStopJob(server_job_t *job)	/* I - Job to stop */
+{
+  if (job->state != IPP_JSTATE_PROCESSING)
+    return;
+
+  _cupsRWLockWrite(&job->rwlock);
+
+  job->state         = IPP_JSTATE_STOPPED;
+  job->state_reasons |= SERVER_JREASON_JOB_STOPPED;
+
+  if (job->transform_pid)
+    kill(job->transform_pid, SIGTERM);
+
+  _cupsRWUnlock(&job->rwlock);
+
+  serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job stopped.");
+}
 
 
 /*
@@ -286,6 +311,8 @@ serverTransformJob(
     goto transform_failure;
   }
 
+  job->transform_pid = pid;
+
   serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Started job processing command, pid=%d", pid);
 
  /*
@@ -398,10 +425,26 @@ serverTransformJob(
 #  else
   while (wait(&status) < 0);
 #  endif /* HAVE_WAITPID */
+
+  job->transform_pid = 0;
 #endif /* WIN32 */
 
   end = time_seconds();
   serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Total transform time is %.3f seconds.", end - start);
+
+#ifdef WIN32
+  if (status)
+    serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Transform command exited with status %d.", status);
+
+#else
+  if (status)
+  {
+    if (WIFEXITED(status))
+      serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Transform command exited with status %d.", WEXITSTATUS(status));
+    else if (WIFSIGNALED(status) && WTERMSIG(status) != SIGTERM)
+      serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Transform command crashed on signal %d.", WTERMSIG(status));
+  }
+#endif /* WIN32 */
 
   return (status);
 
