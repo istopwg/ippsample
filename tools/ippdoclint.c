@@ -14,6 +14,8 @@
 #include <cups/string-private.h>
 #include <netinet/in.h>
 #include <mupdf/fitz.h>
+#include <stdlib.h>
+#include <pthread.h>
 
 /*
  * Local globals...
@@ -209,15 +211,67 @@ lint_jpeg(const char    *filename,	/* I - File to check */
 
 static int
 mupdf_exit(fz_context *context,
-  fz_document *document,
-  fz_pixmap *pixmap)
+  fz_document *document)
 {
-  if(pixmap)
-    fz_drop_pixmap(context, pixmap);
   if(document)
     fz_drop_document(context, document);
   if(context)
     fz_drop_context(context);
+}
+
+typedef struct _thread_data {
+  fz_context *context;
+  int pagenumber;
+  fz_display_list *list;
+  fz_rect bbox;
+  fz_pixmap *pix;
+} thread_data;
+
+void *
+renderer(void *data)
+{
+  int pagenumber = ((thread_data *) data)->pagenumber;
+  fz_context *context = ((thread_data *) data)->context;
+  fz_display_list *list = ((thread_data *) data)->list;
+  fz_rect bbox = ((thread_data *) data)->bbox;
+  fz_pixmap *pix = ((thread_data *) data)->pix;
+  fz_device *dev;
+
+  fprintf(stderr, "DEBUG: Thread at page %d loading\n", pagenumber);
+
+  context = fz_clone_context(context);
+
+  fprintf(stderr, "DEBUG: Thread at page %d rendering\n", pagenumber);
+  dev = fz_new_draw_device(context, &fz_identity, pix);
+  fz_run_display_list(context, list, dev, &fz_identity, &bbox, NULL);
+  fz_close_device(context, dev);
+  fz_drop_device(context, dev);
+
+  fz_drop_context(context);
+
+  fprintf(stderr, "DEBUG: Thread at page %d done\n", pagenumber);
+
+  return data;
+}
+
+void lock_mutex(void *user, int lock)
+{
+  pthread_mutex_t *mutex = (pthread_mutex_t *) user;
+
+  if (pthread_mutex_lock(&mutex[lock]) != 0) {
+    fprintf(stderr, "ERROR: Failed to lock mutex\n");
+    abort();
+  }
+}
+
+void unlock_mutex(void *user, int lock)
+{
+  pthread_mutex_t *mutex = (pthread_mutex_t *) user;
+
+  if (pthread_mutex_unlock(&mutex[lock]) != 0){
+    fprintf(stderr, "ERROR: Failed to unlock mutex\n");
+    abort();
+  }
 }
 
 /*
@@ -248,77 +302,142 @@ lint_pdf(const char    *filename,	/* I - File to check */
   * - job-pages-completed-col
   */
 
-  fz_context *pdf_context = NULL;
-  fz_document *pdf_document = NULL;
-  fz_pixmap *pdf_pixmap = NULL;
-  fz_matrix pdf_matrix;
-  int page_count = 0;
+  fz_context *context = NULL;
+  fz_document *document = NULL;
+  int page_count;
+  pthread_t *thread = NULL;
+  fz_locks_context locks;
+  pthread_mutex_t mutex[FZ_LOCK_MAX];
+  int num_threads;
+  int i;
+
+  /* Initialize FZ_LOCK_MAX number of non-recursive mutexes */
+  for (i = 0; i < FZ_LOCK_MAX; i++)
+  {
+    if (pthread_mutex_init(&mutex[i], NULL) != 0){
+      fprintf(stderr, "ERROR: Failed to initialize mmutex\n");
+      return(1);
+    }
+  }
+
+  locks.user = mutex;
+  locks.lock = lock_mutex;
+  locks.unlock = unlock_mutex;
 
   /* Create a context to hold the exception stack and various caches. */
-  pdf_context = fz_new_context(NULL, NULL, FZ_STORE_UNLIMITED);
-  if (!pdf_context)
+  context = fz_new_context(NULL, &locks, FZ_STORE_UNLIMITED);
+  if (!context)
   {
     fprintf(stderr, "ERROR: Failed to create a mupdf context\n");
-    mupdf_exit(pdf_context, pdf_document, pdf_pixmap);
+    mupdf_exit(context, document);
     return(1);
   }
   fprintf(stderr, "DEBUG: Created a mupdf context\n");
 
   /* Register the default file types to handle. */
-  fz_try(pdf_context)
-    fz_register_document_handlers(pdf_context);
-  fz_catch(pdf_context)
+  fz_try(context)
+    fz_register_document_handlers(context);
+  fz_catch(context)
   {
-    fprintf(stderr, "ERROR: Failed to register document handlers: %s\n", fz_caught_message(pdf_context));
-    mupdf_exit(pdf_context, pdf_document, pdf_pixmap);
+    fprintf(stderr, "ERROR: Failed to register document handlers: %s\n", fz_caught_message(context));
+    mupdf_exit(context, document);
     return(1);
   }
   fprintf(stderr, "DEBUG: Registered mupdf document handlers\n");
 
   /* Open the document. */
-  fz_try(pdf_context)
-    pdf_document = fz_open_document(pdf_context, filename);
-  fz_catch(pdf_context)
+  fz_try(context)
+    document = fz_open_document(context, filename);
+  fz_catch(context)
   {
-    fprintf(stderr, "ERROR: Failed to open the document: %s\n", fz_caught_message(pdf_context));
-    mupdf_exit(pdf_context, pdf_document, pdf_pixmap);
+    fprintf(stderr, "ERROR: Failed to open the document: %s\n", fz_caught_message(context));
+    mupdf_exit(context, document);
     return(1);
   }
   fprintf(stderr, "DEBUG: Opened the document using mupdf\n");
 
   /* Count the number of pages. */
-  fz_try(pdf_context)
-    page_count = fz_count_pages(pdf_context, pdf_document);
-  fz_catch(pdf_context)
+  fz_try(context)
+    page_count = fz_count_pages(context, document);
+  fz_catch(context)
   {
-    fprintf(stderr, "ERROR: Failed to count the number of pages: %s\n", fz_caught_message(pdf_context));
-    mupdf_exit(pdf_context, pdf_document, pdf_pixmap);
+    fprintf(stderr, "ERROR: Failed to count the number of pages: %s\n", fz_caught_message(context));
+    mupdf_exit(context, document);
     return(1);
   }
   if(page_count <= 0){
     fprintf(stderr, "ERROR: Corrupt PDF file. Number of pages %d\n", page_count);
-    mupdf_exit(pdf_context, pdf_document, pdf_pixmap);
+    mupdf_exit(context, document);
     return(1);
   }
   fprintf(stderr, "DEBUG: The document has %d pages\n", page_count);
 
-  /* Render RGB pixmaps for each page */
-  for(int i=0; i<page_count; i++){
-    fz_try(pdf_context)
-      pdf_pixmap = fz_new_pixmap_from_page_number(pdf_context, pdf_document, i, &pdf_matrix, fz_device_rgb(pdf_context), 0);
-    fz_catch(pdf_context)
-    {
-      fprintf(stderr, "ERROR: Failed to render page %d: %s\n", i, fz_caught_message(pdf_context));
-      mupdf_exit(pdf_context, pdf_document, pdf_pixmap);
+  num_threads = page_count; // [TODO] Put a cap on max number of threads
+  fprintf(stderr, "DEBUG: Spawning %d threads, one per page\n", num_threads);
+
+  thread = malloc(num_threads * sizeof (pthread_t));
+
+  for (i = 0; i < num_threads; i++)
+  {
+    fz_page *page;
+    fz_rect bbox;
+    fz_irect rbox;
+    fz_display_list *list;
+    fz_device *dev;
+    fz_pixmap *pix;
+    thread_data *data;
+
+    page = fz_load_page(context, document, i);
+    fz_bound_page(context, page, &bbox);
+    list = fz_new_display_list(context, &bbox);
+
+    dev = fz_new_list_device(context, list);
+    fz_run_page(context, page, dev, &fz_identity, NULL);
+    fz_close_device(context, dev);
+    fz_drop_device(context, dev);
+
+    fz_drop_page(context, page);
+
+    pix = fz_new_pixmap_with_bbox(context, fz_device_rgb(context), fz_round_rect(&rbox, &bbox), NULL, 0);
+    fz_clear_pixmap_with_value(context, pix, 0xff);
+
+    data = malloc(sizeof (thread_data));
+    data->pagenumber = i + 1;
+    data->context = context;
+    data->list = list;
+    data->bbox = bbox;
+    data->pix = pix;
+
+    if (pthread_create(&thread[i], NULL, renderer, data) != 0){
+      fprintf(stderr, "ERROR: Failed to create a pthread\n");
       return(1);
     }
-    fprintf(stderr, "DEBUG: Successfully rendered page %d\n", i);
   }
+
+  fprintf(stderr, "DEBUG: Joining %d threads\n", num_threads);
+  for (i = num_threads - 1; i >= 0; i--)
+  {
+    thread_data *data;
+
+    if (pthread_join(thread[i], (void **) &data) != 0){
+      fprintf(stderr, "ERROR: Failed to join threads\n");
+      return(1);
+    }
+
+    fz_drop_pixmap(context, data->pix);
+    fz_drop_display_list(context, data->list);
+    free(data);
+  }
+
+  fprintf(stderr, "DEBUG: PDF linting completed without any errors\n");
+  fflush(NULL);
+
+  free(thread);
+  mupdf_exit(context, document);
 
   (void)num_options;
   (void)options;
 
-  mupdf_exit(pdf_context, pdf_document, pdf_pixmap);
   return(0);
 }
 
