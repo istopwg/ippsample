@@ -16,6 +16,7 @@
 #include <mupdf/fitz.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <turbojpeg.h>
 
 /*
  * Local globals...

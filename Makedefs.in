@@ -85,6 +85,7 @@ DNSSDLIBS	=	@DNSSDLIBS@
 LDFLAGS		=	@LDARCHFLAGS@ @LDFLAGS@ $(OPTIM)
 LINKCUPS	=	../cups/libcups.a $(SSLLIBS) $(DNSSDLIBS) $(LIBZ)
 LINKMUPDF 	= 	/usr/local/lib/libmupdf.a /usr/local/lib/libmupdf-third.a
+LINKTURBOJPEG	=	/opt/libjpeg-turbo/lib/libturbojpeg.0.2.0.dylib
 LIBS		=	$(LINKMUPDF) $(LINKCUPS) $(COMMONLIBS)
 OPTIM		=	@OPTIM@
 OPTIONS		=
