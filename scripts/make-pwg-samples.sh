@@ -42,6 +42,7 @@ log="$dir.log"
 
 # Remove any existing raster directory for this resolution and recreate it...
 test -d $dir && rm -rf $dir
+test -f $log && rm -f $log
 
 mkdir -p $dir/originals
 for file in $files; do
@@ -53,24 +54,31 @@ lasttypes=""
 
 for file in $files; do
 	echo Generating raster data for $file...
+        quality="4"
+        mimetype="application/pdf"
 
 	case $file in
 		*color*.jpg)
-			file="$file-4x6.pdf"
-			types="black_1 sgray_8 srgb_8"
+			base="`basename $file .jpg`-4x6"
+			types="black_1 black_8 sgray_8 srgb_8 adobe-rgb_8 adobe-rgb_16 cmyk_8"
 			media="na_index_4x6in"
+			quality="5"
+			mimetype="image/jpeg"
 			;;
 		*gray*.jpg)
-			file="$file-4x6.pdf"
-			types="black_1 sgray_8"
+			base="`basename $file .jpg`-4x6"
+			types="black_1 black_8 sgray_8"
 			media="na_index_4x6in"
+			mimetype="image/jpeg"
 			;;
 		*-a4.pdf)
-			types="black_1 sgray_8 srgb_8"
+			base="`basename $file .pdf`"
+			types="black_1 black_8 sgray_8 srgb_8 adobe-rgb_8 adobe-rgb_16 cmyk_8"
 			media="iso_a4_210x297mm"
 			;;
 		*-letter.pdf)
-			types="black_1 sgray_8 srgb_8"
+			base="`basename $file .pdf`"
+			types="black_1 black_8 sgray_8 srgb_8 adobe-rgb_8 adobe-rgb_16 cmyk_8"
 			media="na_letter_8.5x11in"
 			;;
 	esac
@@ -78,19 +86,13 @@ for file in $files; do
 	for type in $types; do
 		typename=`echo $type | sed -e '1,$s/_/-/g'`
 
-		if test $type = black_1; then
-			colormode=bi-level
-		else
-			colormode=auto
-		fi
-
 		test -d $dir/$typename || mkdir $dir/$typename
 
-		base="`basename $file .pdf`"
 		output="$base-$typename-$resolution.pwg"
 
 		echo "$output: \c"
-		tools/ipptransform -m image/pwg-raster -t $type -r $resolution -o media=$media -o print-color-mode=$colormode -v examples/$file  >"$dir/$typename/$output" 2>>"$log"
+		echo "$output:" >>$log
+		tools/ipptransform -m image/pwg-raster -t $type -r $resolution -o media=$media -o print-quality=$quality -i $mimetype -vvv examples/$file  >"$dir/$typename/$output" 2>>"$log"
 		ls -l "$dir/$typename/$output" | awk '{if ($5 > 1048575) printf "%.1fMiB\n", $5 / 1048576; else printf "%.0fkiB\n", $5 / 1024;}'
 	done
 done
