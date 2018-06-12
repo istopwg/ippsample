@@ -1847,11 +1847,14 @@ register_printer(
   server_txt_t		ipp_txt;	/* Bonjour IPP TXT record */
   ipp_attribute_t	*format_sup = ippFindAttribute(printer->pinfo.attrs, "document-format-supported", IPP_TAG_MIMETYPE),
 					/* document-formats-supported */
+			*kind = ippFindAttribute(printer->pinfo.attrs, "printer-kind", IPP_TAG_KEYWORD),
+					/* printer-kind */
 			*urf_sup = ippFindAttribute(printer->pinfo.attrs, "urf-supported", IPP_TAG_KEYWORD),
 					/* urf-supported */
 			*uuid = ippFindAttribute(printer->pinfo.attrs, "printer-uuid", IPP_TAG_URI);
 					/* printer-uuid */
-  const char		*uuidval;	/* String value of UUID */
+  const char		*location,	/* printer-location string */
+			*uuidval;	/* String value of UUID */
   int			i,		/* Looping var */
 			count;		/* Number for formats */
   char			temp[256],	/* Temporary list */
@@ -1875,12 +1878,15 @@ register_printer(
   snprintf(make_model, sizeof(make_model), "%s %s", printer->pinfo.make, printer->pinfo.model);
   snprintf(product, sizeof(product), "(%s)", printer->pinfo.model);
 
+  if ((location = printer->pinfo.location) == NULL)
+    location = ippGetString(ippFindAttribute(printer->pinfo.attrs, "printer-location", IPP_TAG_TEXT), 0, NULL);
+
   TXTRecordCreate(&ipp_txt, 1024, NULL);
   TXTRecordSetValue(&ipp_txt, "rp", (uint8_t)strlen(printer->resource) - 1, printer->resource + 1);
   TXTRecordSetValue(&ipp_txt, "ty", (uint8_t)strlen(make_model), make_model);
   TXTRecordSetValue(&ipp_txt, "adminurl", (uint8_t)strlen(adminurl), adminurl);
-  if (printer->pinfo.location && *(printer->pinfo.location))
-    TXTRecordSetValue(&ipp_txt, "note", (uint8_t)strlen(printer->pinfo.location), printer->pinfo.location);
+  if (location && *location)
+    TXTRecordSetValue(&ipp_txt, "note", (uint8_t)strlen(location), location);
   if (format_sup)
   {
     for (i = 0, count = ippGetCount(format_sup), ptr = temp; i < count; i ++)
@@ -1900,6 +1906,23 @@ register_printer(
 
     serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "document-format-supported(%d)=%s", count, temp);
     TXTRecordSetValue(&ipp_txt, "pdl", (uint8_t)strlen(temp), temp);
+  }
+  if (kind)
+  {
+    for (i = 0, count = ippGetCount(kind), ptr = temp; i < count; i ++)
+    {
+      const char *tempkind = ippGetString(kind, i, NULL);
+
+      if (ptr > temp && ptr < (temp + sizeof(temp) - 1))
+	*ptr++ = ',';
+
+      strlcpy(ptr, tempkind, sizeof(temp) - (size_t)(ptr - temp));
+      ptr += strlen(ptr);
+    }
+    *ptr = '\0';
+
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-kind(%d)=%s", count, temp);
+    TXTRecordSetValue(&ipp_txt, "kind", (uint8_t)strlen(temp), temp);
   }
 
   if (!is_print3d)
