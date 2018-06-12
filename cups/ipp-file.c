@@ -652,7 +652,7 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
     		}
     		else
     		{
-    			return (ippSetOctetString(ipp, attr, element, value, (int)strlen(value))); // If a quoted string like "..", pass it on
+    			return (ippSetOctetString(ipp, attr, element, value, (int)strlen(value))); /* If a quoted string like "..", pass it on */
     		}
     		
     	}
@@ -660,7 +660,33 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
         break;
 
     case IPP_TAG_TEXTLANG :
+    {
+    	(*attr)->values[element].string.text = _cupsStrAlloc(value);
+    	if (!_ippFileReadToken(f, value, sizeof(value)))	
+		  {
+		    report_error(f, v, user_data, "No Language Data in line %d of \"%s\".", f->linenum, f->filename);
+		    return (0);
+		  }
+		  memmove(value, value+1, strlen(value));
+		  value[strlen(value)-1]='\0';		/* Purge parenthesis */
+		(*attr)->values[element].string.language = _cupsStrAlloc(value);
+
+    }
+    break;
     case IPP_TAG_NAMELANG :
+    {
+    	(*attr)->values[element].string.text = _cupsStrAlloc(value);
+    	if (!_ippFileReadToken(f, value, sizeof(value)))	
+		  {
+		    report_error(f, v, user_data, "No Language Data in line %d of \"%s\".", f->linenum, f->filename);
+		    return (0);
+		  }
+		  memmove(value, value+1, strlen(value));
+		  value[strlen(value)-1]='\0';		/* Purge parenthesis */
+		  (*attr)->values[element].string.language = _cupsStrAlloc(value);
+
+    }
+    break;
     case IPP_TAG_TEXT :
     case IPP_TAG_NAME :
     case IPP_TAG_KEYWORD :
