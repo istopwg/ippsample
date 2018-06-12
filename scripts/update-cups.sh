@@ -17,4 +17,4 @@ oldrev=`cat .cups-upstream`
 newrev=`cd ../cups; git show | head -1 | awk '{print $2}'`
 
 (cd ../cups; git diff $oldrev cups ':!cups/Dependencies' ':!cups/Makefile' ':!cups/libcups2.def' ':!cups/ppd*' ':!cups/test*') >$newrev.patch
-git apply $newrev.patch && (echo $newrev >.cups-upstream; git commit -a -m "Sync up libcups changes from CUPS master@$newrev")
+git apply $newrev.patch && (echo $newrev >.cups-upstream; git commit -a -m "Sync up libcups changes from CUPS master@$newrev"; rm -f $newrev.patch)
