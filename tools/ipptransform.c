@@ -74,6 +74,8 @@ struct xform_raster_s
   unsigned char		*out_buffer;	/* Output (bit) buffer */
   unsigned char		*comp_buffer;	/* Compression buffer */
 
+  unsigned char		dither[64][64];	/* Dither array */
+
   /* Callbacks */
   void			(*end_job)(xform_raster_t *, xform_write_cb_t, void *);
   void			(*end_page)(xform_raster_t *, unsigned, xform_write_cb_t, void *);
@@ -100,6 +102,7 @@ static void	*monitor_ipp(const char *device_uri);
 static void	pack_graya(unsigned char *row, size_t num_pixels);
 #endif /* HAVE_MUPDF */
 static void	pack_rgba(unsigned char *row, size_t num_pixels);
+static void	pack_rgba16(unsigned char *row, size_t num_pixels);
 static void	pcl_end_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	pcl_end_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	pcl_init(xform_raster_t *ras);
@@ -769,6 +772,39 @@ pack_rgba(unsigned char *row,		/* I - Row of pixels to pack */
 
 
 /*
+ * 'pack_rgba16()' - Pack 16 bit per component RGBX scanlines into RGB scanlines.
+ *
+ * This routine is suitable only for 16 bit RGBX data packed into RGB bytes.
+ */
+
+static void
+pack_rgba16(unsigned char *row,		/* I - Row of pixels to pack */
+	    size_t        num_pixels)	/* I - Number of pixels in row */
+{
+  const unsigned	*from = (unsigned *)row;
+					/* 32 bits from row */
+  unsigned		*dest = (unsigned *)row;
+					/* Destination pointer */
+
+
+  while (num_pixels > 1)
+  {
+    *dest++ = from[0];
+    *dest++ = (from[1] & 0x0000ffff) | ((from[2] & 0x0000ffff) << 16);
+    *dest++ = ((from[2] & 0xffff0000) >> 16) | ((from[3] & 0x0000ffff) << 16);
+    from += 4;
+    num_pixels -= 2;
+  }
+
+  if (num_pixels)
+  {
+    *dest++ = *from++;
+    *dest++ = *from++;
+  }
+}
+
+
+/*
  * 'pcl_end_job()' - End a PCL "job".
  */
 
@@ -1031,6 +1067,7 @@ pcl_write_line(
 		*start,			/* Start of sequence */
 		*compptr;		/* Pointer into compression buffer */
   unsigned	count;			/* Count of bytes for output */
+  const unsigned char	*ditherline;	/* Pointer into dither table */
 
 
   if (line[0] == 255 && !memcmp(line, line + 1, ras->right - ras->left))
@@ -1048,10 +1085,11 @@ pcl_write_line(
   */
 
   y &= 63;
+  ditherline = ras->dither[y];
 
   for (x = ras->left, bit = 128, byte = 0, outptr = ras->out_buffer; x <= ras->right; x ++, line ++)
   {
-    if (*line <= threshold[x & 63][y])
+    if (*line <= ditherline[x & 63])
       byte |= bit;
 
     if (bit == 1)
@@ -1272,14 +1310,16 @@ raster_write_line(
     unsigned char	bit,		/* Current bit */
 			byte,		/* Current byte */
 			*outptr;	/* Pointer into output buffer */
+    const unsigned char	*ditherline;	/* Pointer into dither table */
 
     y &= 63;
+    ditherline = ras->dither[y];
 
     if (ras->header.cupsColorSpace == CUPS_CSPACE_SW)
     {
       for (x = ras->left, bit = 128, byte = 0, outptr = ras->out_buffer; x <= ras->right; x ++, line ++)
       {
-	if (*line > threshold[x % 25][y])
+	if (*line > ditherline[x & 63])
 	  byte |= bit;
 
 	if (bit == 1)
@@ -1296,7 +1336,7 @@ raster_write_line(
     {
       for (x = ras->left, bit = 128, byte = 0, outptr = ras->out_buffer; x <= ras->right; x ++, line ++)
       {
-	if (*line <= threshold[x & 63][y])
+	if (*line <= ditherline[x & 63])
 	  byte |= bit;
 
 	if (bit == 1)
@@ -1408,6 +1448,7 @@ xform_document(
   xform_raster_t	ras;		/* Raster info */
   size_t		max_raster;	/* Maximum raster memory to use */
   const char		*max_raster_env;/* IPPTRANSFORM_MAX_RASTER env var */
+  size_t		bpc;		/* Bits per color */
   CGColorSpaceRef	cs;		/* Quartz color space */
   CGContextRef		context;	/* Quartz bitmap context */
   CGBitmapInfo		info;		/* Bitmap flags */
@@ -1549,7 +1590,7 @@ xform_document(
     return (1);
   }
 
-  if (ras.header.cupsBitsPerPixel != 24)
+  if (ras.header.cupsBitsPerPixel <= 8)
   {
    /*
     * Grayscale output...
@@ -1557,17 +1598,41 @@ xform_document(
 
     ras.band_bpp = 1;
     info         = kCGImageAlphaNone;
-    cs           = CGColorSpaceCreateWithName(kCGColorSpaceGenericGrayGamma2_2);
+    cs           = CGColorSpaceCreateWithName(ras.header.cupsColorSpace == CUPS_CSPACE_SW ? kCGColorSpaceGenericGrayGamma2_2 : kCGColorSpaceLinearGray);
+    bpc          = 8;
   }
-  else
+  else if (ras.header.cupsBitsPerPixel == 24)
   {
    /*
-    * Color (sRGB) output...
+    * Color (sRGB or AdobeRGB) output...
     */
 
     ras.band_bpp = 4;
     info         = kCGImageAlphaNoneSkipLast;
-    cs           = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+    cs           = CGColorSpaceCreateWithName(ras.header.cupsColorSpace == CUPS_CSPACE_SRGB ? kCGColorSpaceSRGB : kCGColorSpaceAdobeRGB1998);
+    bpc          = 8;
+  }
+  else if (ras.header.cupsBitsPerPixel == 32)
+  {
+   /*
+    * Color (CMYK) output...
+    */
+
+    ras.band_bpp = 4;
+    info         = kCGImageAlphaNone;
+    cs           = CGColorSpaceCreateWithName(kCGColorSpaceGenericCMYK);
+    bpc          = 8;
+  }
+  else
+  {
+   /*
+    * Color (AdobeRGB) output...
+    */
+
+    ras.band_bpp = 8;
+    info         = kCGImageAlphaNoneSkipLast;
+    cs           = CGColorSpaceCreateWithName(kCGColorSpaceAdobeRGB1998);
+    bpc          = 16;
   }
 
   max_raster     = XFORM_MAX_RASTER;
@@ -1582,7 +1647,7 @@ xform_document(
     ras.band_height = ras.header.cupsHeight;
 
   ras.band_buffer = malloc(ras.band_height * band_size);
-  context         = CGBitmapContextCreate(ras.band_buffer, ras.header.cupsWidth, ras.band_height, 8, band_size, cs, info);
+  context         = CGBitmapContextCreate(ras.band_buffer, ras.header.cupsWidth, ras.band_height, bpc, band_size, cs, info);
 
   CGColorSpaceRelease(cs);
 
@@ -1616,6 +1681,14 @@ xform_document(
  /*
   * Start the conversion...
   */
+
+  fprintf(stderr, "ATTR: job-impressions=%d\n", pages);
+  fprintf(stderr, "ATTR: job-pages=%d\n", pages);
+
+  if (ras.header.Duplex)
+    fprintf(stderr, "ATTR: job-media-sheets=%d\n", (pages + 1) / 2);
+  else
+    fprintf(stderr, "ATTR: job-media-sheets=%d\n", pages);
 
   if (Verbosity > 1)
     fprintf(stderr, "DEBUG: cupsPageSize=[%g %g]\n", ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
@@ -1719,8 +1792,10 @@ xform_document(
 	  */
 
 	  lineptr = ras.band_buffer + (y - band_starty) * band_size + ras.left * ras.band_bpp;
-	  if (ras.band_bpp == 4)
+	  if (ras.header.cupsBitsPerPixel == 24)
 	    pack_rgba(lineptr, ras.right - ras.left + 1);
+	  else if (ras.header.cupsBitsPerPixel == 48)
+	    pack_rgba16(lineptr, ras.right - ras.left + 1);
 
 	  (*(ras.write_line))(&ras, y, lineptr, cb, ctx);
 	}
@@ -1913,8 +1988,10 @@ xform_document(
 	*/
 
 	lineptr = ras.band_buffer + (y - band_starty) * band_size + ras.left * ras.band_bpp;
-	if (ras.band_bpp == 4)
+	if (ras.header.cupsBitsPerPixel == 24)
 	  pack_rgba(lineptr, ras.right - ras.left + 1);
+	else if (ras.header.cupsBitsPerPixel == 48)
+	  pack_rgba16(lineptr, ras.right - ras.left + 1);
 
 	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
       }
@@ -2389,8 +2466,8 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
 		*print_quality,		/* "print-quality" option */
 		*printer_resolution,	/* "printer-resolution" option */
 		*sides,			/* "sides" option */
-		*type;			/* Raster type to use */
-  int		draft = 0,		/* Draft quality? */
+		*type = NULL;		/* Raster type to use */
+  int		pq = IPP_QUALITY_NORMAL,/* Print quality value */
 		xdpi, ydpi;		/* Resolution to use */
   cups_array_t	*res_array,		/* Resolutions in array */
 		*type_array;		/* Types in array */
@@ -2545,10 +2622,9 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   {
     if ((print_quality = cupsGetOption("print-quality", num_options, options)) != NULL)
     {
-      switch (atoi(print_quality))
+      switch (pq = atoi(print_quality))
       {
         case IPP_QUALITY_DRAFT :
-	    draft              = 1;
 	    printer_resolution = cupsArrayIndex(res_array, 0);
 	    break;
 
@@ -2612,20 +2688,69 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     else if (!strcmp(print_color_mode, "bi-level") || !strcmp(print_color_mode, "process-bi-level"))
     {
       color = 0;
-      draft = 1;
+      pq    = IPP_QUALITY_DRAFT;
     }
   }
 
   type_array = _cupsArrayNewStrings(types, ',');
 
-  if (color && cupsArrayFind(type_array, "srgb_8"))
-    type = "srgb_8";
-  else if (draft && cupsArrayFind(type_array, "black_1"))
-    type = "black_1";
-  else if (draft && cupsArrayFind(type_array, "sgray_1"))
-    type = "sgray_1";
-  else
-    type = "sgray_8";
+  if (color)
+  {
+    if (pq == IPP_QUALITY_HIGH)
+    {
+      if (cupsArrayFind(type_array, "adobe-rgb_16"))
+	type = "adobe-rgb_16";
+      else if (cupsArrayFind(type_array, "adobe-rgb_8"))
+	type = "adobe-rgb_8";
+    }
+
+    if (!type && cupsArrayFind(type_array, "srgb_8"))
+      type = "srgb_8";
+    if (!type && cupsArrayFind(type_array, "cmyk_8"))
+      type = "cmyk_8";
+  }
+
+  if (!type)
+  {
+    if (pq == IPP_QUALITY_DRAFT)
+    {
+      if (cupsArrayFind(type_array, "black_1"))
+	type = "black_1";
+      else if (cupsArrayFind(type_array, "sgray_1"))
+	type = "sgray_1";
+    }
+    else
+    {
+      if (cupsArrayFind(type_array, "black_8"))
+	type = "black_8";
+      else if (cupsArrayFind(type_array, "sgray_8"))
+	type = "sgray_8";
+    }
+  }
+
+  if (!type)
+  {
+   /*
+    * No type yet, find any of the supported formats...
+    */
+
+    if (cupsArrayFind(type_array, "black_8"))
+      type = "black_8";
+    else if (cupsArrayFind(type_array, "sgray_8"))
+      type = "sgray_8";
+    else if (cupsArrayFind(type_array, "black_1"))
+      type = "black_1";
+    else if (cupsArrayFind(type_array, "sgray_1"))
+      type = "sgray_1";
+    else if (cupsArrayFind(type_array, "srgb_8"))
+      type = "srgb_8";
+    else if (cupsArrayFind(type_array, "adobe-rgb_8"))
+      type = "adobe-rgb_8";
+    else if (cupsArrayFind(type_array, "adobe-rgb_16"))
+      type = "adobe-rgb_16";
+    else if (cupsArrayFind(type_array, "cmyk_8"))
+      type = "cmyk_8";
+  }
 
  /*
   * Initialize the raster header...
@@ -2657,8 +2782,26 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     }
   }
 
+  if (ras->header.cupsBitsPerPixel == 1)
+  {
+    if (print_color_mode && (!strcmp(print_color_mode, "bi-level") || !strcmp(print_color_mode, "process-bi-level")))
+      memset(ras->dither, 127, sizeof(ras->dither));
+    else
+      memcpy(ras->dither, threshold, sizeof(ras->dither));
+  }
+
   ras->header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount]      = ras->copies * pages;
   ras->back_header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount] = ras->copies * pages;
+
+  if (Verbosity)
+  {
+    fprintf(stderr, "DEBUG: cupsColorSpace=%u\n", ras->header.cupsColorSpace);
+    fprintf(stderr, "DEBUG: cupsBitsPerColor=%u\n", ras->header.cupsBitsPerColor);
+    fprintf(stderr, "DEBUG: cupsBitsPerPixel=%u\n", ras->header.cupsBitsPerPixel);
+    fprintf(stderr, "DEBUG: cupsNumColors=%u\n", ras->header.cupsNumColors);
+    fprintf(stderr, "DEBUG: cupsWidth=%u\n", ras->header.cupsWidth);
+    fprintf(stderr, "DEBUG: cupsHeight=%u\n", ras->header.cupsHeight);
+  }
 
   return (0);
 }

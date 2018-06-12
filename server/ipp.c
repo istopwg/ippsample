@@ -6057,6 +6057,8 @@ serverProcessIPP(
 
             if ((resptr = strchr(resource + 11, '/')) != NULL)
               *resptr = '\0';
+	    else
+	      resource[11] = '\0';
 
             if ((client->printer = serverFindPrinter(resource)) == NULL)
             {
