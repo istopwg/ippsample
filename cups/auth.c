@@ -212,7 +212,7 @@ cupsDoAuthentication(
       if (!cg->lang_default)
 	cg->lang_default = cupsLangDefault();
 
-      if (cups_auth_param(scheme, "username", default_username, sizeof(default_username)))
+      if (cups_auth_param(schemedata, "username", default_username, sizeof(default_username)))
 	cupsSetUser(default_username);
 
       snprintf(prompt, sizeof(prompt), _cupsLangString(cg->lang_default, _("Password for %s on %s? ")), cupsUser(), http->hostname[0] == '/' ? "localhost" : http->hostname);
@@ -614,7 +614,7 @@ cups_auth_find(const char *www_authenticate,	/* I - Pointer into WWW-Authenticat
     * See if this is "Scheme" followed by whitespace or the end of the string.
     */
 
-    if (!strncmp(www_authenticate, scheme, schemelen) && (isspace(www_authenticate[schemelen] & 255) || !www_authenticate[schemelen]))
+    if (!strncmp(www_authenticate, scheme, schemelen) && (isspace(www_authenticate[schemelen] & 255) || www_authenticate[schemelen] == ',' || !www_authenticate[schemelen]))
     {
      /*
       * Yes, this is the start of the scheme-specific information...
@@ -795,7 +795,7 @@ cups_auth_scheme(const char *www_authenticate,	/* I - Pointer into WWW-Authentic
     * Parse the scheme name or param="value" string...
     */
 
-    for (sptr = scheme, start = www_authenticate, param = 0; *www_authenticate && !isspace(*www_authenticate & 255); www_authenticate ++)
+    for (sptr = scheme, start = www_authenticate, param = 0; *www_authenticate && *www_authenticate != ',' && !isspace(*www_authenticate & 255); www_authenticate ++)
     {
       if (*www_authenticate == '=')
         param = 1;
