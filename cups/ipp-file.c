@@ -85,7 +85,7 @@ _ippFileParse(
         {
 	  _ippVarsExpand(v, value, temp, sizeof(value));
 	  _ippVarsSet(v, name, value);
-	}
+		}
       }
       else
       {
@@ -623,7 +623,40 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
 	break;
 
     case IPP_TAG_STRING :
-        return (ippSetOctetString(ipp, attr, element, value, (int)strlen(value)));
+    	{
+    		if(value[0]=='<')				/* Input is binary(in form of hex) values*/
+    		{
+    			memmove(value, value+1, strlen(value));		/* Eliminate the '<' sign */
+    			char value_concat[50000];		/* Concatenated string with hexadecimal values without whitespace */
+    			int starting_line_number = f->linenum;
+    			while(value[strlen(value)-1] != '>') 
+    			{
+    				strcat(value_concat,value);
+    				if (!_ippFileReadToken(f, value, sizeof(value)))
+					  {
+					    report_error(f, v, user_data, "hexadecimal value not terminated starting line %d of \"%s\".", starting_line_number, f->filename);
+					    return (0);
+					  }
+    			}
+    			value[(strlen(value)-1)]='\0'; 		/* Eliminate the last '>' sign */
+    			strcat(value_concat,value);			/* Final concatenation for hexadecimal value to be complete*/
+    			for(int i=0;i<strlen(value_concat);i++)		/* Sanity Check*/
+    			{
+    				if(!(value_concat[i] >= '0' && value_concat[i]<= '9') || (value_concat[i]>='a' && value_concat[i]<='f'))
+    				{
+    					report_error(f, v, user_data, "Bad hexadecimal value \"%s\" on line %d of \"%s\".", value_concat, starting_line_number, f->filename);
+	    				return (0);
+    				}
+    			}
+    			return (ippSetOctetString(ipp, attr, element, value_concat, (int)strlen(value_concat))); 
+    		}
+    		else
+    		{
+    			return (ippSetOctetString(ipp, attr, element, value, (int)strlen(value))); // If a quoted string like "..", pass it on
+    		}
+    		
+    	}
+        
         break;
 
     case IPP_TAG_TEXTLANG :
