@@ -294,6 +294,7 @@ serverCreatePrinter(
     "media-col",
     "multiple-document-handling",
     "orientation-requested",
+    "output-bin",
     "print-color-mode",
     "print-quality",
     "sides"
