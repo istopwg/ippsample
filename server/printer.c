@@ -1928,7 +1928,7 @@ register_printer(
   if (!is_print3d)
   {
     TXTRecordSetValue(&ipp_txt, "product", (uint8_t)strlen(product), product);
-    TXTRecordSetValue(&ipp_txt, "Color", 1, printer->pinfo.ppm_color ? "T" : "F");
+    TXTRecordSetValue(&ipp_txt, "Color", 1, ippGetBoolean(ippFindAttribute(printer->pinfo.attrs, "color-supported", IPP_TAG_BOOLEAN), 0) ? "T" : "F");
     TXTRecordSetValue(&ipp_txt, "Duplex", 1, printer->pinfo.duplex ? "T" : "F");
     if (printer->pinfo.make)
       TXTRecordSetValue(&ipp_txt, "usb_MFG", (uint8_t)strlen(printer->pinfo.make), printer->pinfo.make);
