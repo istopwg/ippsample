@@ -2088,6 +2088,9 @@ register_printer(
 
   is_print3d = !strncmp(printer->resource, "/ipp/print3d/", 13);
 
+  if ((location = printer->pinfo.location) == NULL)
+    location = ippGetString(ippFindAttribute(printer->pinfo.attrs, "printer-location", IPP_TAG_TEXT), 0, NULL);
+
  /*
   * Create the TXT record...
   */
@@ -2096,8 +2099,8 @@ register_printer(
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "rp=%s", printer->resource + 1);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "ty=%s %s", printer->pinfo.make, printer->pinfo.model);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "adminurl=%s", adminurl);
-  if (printer->pinfo.location && *(printer->pinfo.location))
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "note=%s", printer->pinfo.location);
+  if (location && *location)
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "note=%s", location);
   if (format_sup)
   {
     for (i = 0, count = ippGetCount(format_sup), ptr = temp; i < count; i ++)
@@ -2117,11 +2120,28 @@ register_printer(
 
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "pdl=%s", temp);
   }
+  if (kind)
+  {
+    for (i = 0, count = ippGetCount(kind), ptr = temp; i < count; i ++)
+    {
+      const char *tempkind = ippGetString(kind, i, NULL);
+
+      if (ptr > temp && ptr < (temp + sizeof(temp) - 1))
+	*ptr++ = ',';
+
+      strlcpy(ptr, tempkind, sizeof(temp) - (size_t)(ptr - temp));
+      ptr += strlen(ptr);
+    }
+    *ptr = '\0';
+
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-kind(%d)=%s", count, temp);
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "kind=%s", temp);
+  }
 
   if (!is_print3d)
   {
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "product=(%s)", printer->pinfo.model);
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "Color=%s", printer->pinfo.ppm_color ? "T" : "F");
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "Color=%s", ippGetBoolean(ippFindAttribute(printer->pinfo.attrs, "color-supported", IPP_TAG_BOOLEAN), 0) ? "T" : "F");
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "Duplex=%s", printer->pinfo.duplex ? "T" : "F");
     if (printer->pinfo.make)
       ipp_txt = avahi_string_list_add_printf(ipp_txt, "usb_MFG=%s", printer->pinfo.make);
