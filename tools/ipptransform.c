@@ -102,7 +102,9 @@ static void	*monitor_ipp(const char *device_uri);
 static void	pack_graya(unsigned char *row, size_t num_pixels);
 #endif /* HAVE_MUPDF */
 static void	pack_rgba(unsigned char *row, size_t num_pixels);
+#ifdef __APPLE__
 static void	pack_rgba16(unsigned char *row, size_t num_pixels);
+#endif /* __APPLE__ */
 static void	pcl_end_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	pcl_end_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	pcl_init(xform_raster_t *ras);
@@ -771,6 +773,7 @@ pack_rgba(unsigned char *row,		/* I - Row of pixels to pack */
 }
 
 
+#ifdef __APPLE__
 /*
  * 'pack_rgba16()' - Pack 16 bit per component RGBX scanlines into RGB scanlines.
  *
@@ -802,6 +805,7 @@ pack_rgba16(unsigned char *row,		/* I - Row of pixels to pack */
     *dest++ = *from++;
   }
 }
+#endif /* __APPLE__ */
 
 
 /*
@@ -2142,7 +2146,7 @@ xform_document(
     return (1);
   }
 
-  if (ras.header.cupsBitsPerPixel != 24)
+  if (ras.header.cupsBitsPerPixel == 8)
   {
    /*
     * Grayscale output...
@@ -2151,7 +2155,7 @@ xform_document(
     ras.band_bpp = 2; /* TODO: Update to not use alpha (Issue #93) */
     cs           = fz_device_gray(context);
   }
-  else
+  else if (ras.header.cupsBitsPerPixel == 24)
   {
    /*
     * Color (sRGB) output...
@@ -2159,6 +2163,15 @@ xform_document(
 
     ras.band_bpp = 4; /* TODO: Update to not use alpha (Issue #93) */
     cs           = fz_device_rgb(context);
+  }
+  else if (ras.header.cupsBitsPerPixel == 32)
+  {
+   /*
+    * CMYK output...
+    */
+
+    ras.band_bpp = 4;
+    cs           = fz_device_cmyk(context);
   }
 
   max_raster     = XFORM_MAX_RASTER;
@@ -2378,9 +2391,9 @@ xform_document(
 	*/
 
 	lineptr = pixmap->samples + (y - band_starty) * band_size + ras.left * ras.band_bpp;
-        if (ras.band_bpp == 4)
+        if (ras.header.cupsBitsPerPixel == 24)
           pack_rgba(lineptr, ras.right - ras.left + 1);
-        else
+        else if (ras.header.cupsBitsPerPixel == 8)
           pack_graya(lineptr, ras.right - ras.left + 1);
 
 	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
@@ -2408,7 +2421,7 @@ xform_document(
       if (Verbosity > 1)
         fprintf(stderr, "DEBUG: Printing blank page %u for duplex.\n", pages + 1);
 
-      memset(pixmap->samples, 255, ras.header.cupsBytesPerLine);
+      memset(pixmap->samples, ras.header.cupsBitsPerPixel == 32 ? 0 : 255, ras.header.cupsBytesPerLine);
 
       (*(ras.start_page))(&ras, page, cb, ctx);
 
@@ -2698,9 +2711,12 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   {
     if (pq == IPP_QUALITY_HIGH)
     {
+#ifdef __APPLE__
       if (cupsArrayFind(type_array, "adobe-rgb_16"))
 	type = "adobe-rgb_16";
-      else if (cupsArrayFind(type_array, "adobe-rgb_8"))
+      else
+#endif /* __APPLE__ */
+      if (cupsArrayFind(type_array, "adobe-rgb_8"))
 	type = "adobe-rgb_8";
     }
 
@@ -2746,8 +2762,10 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
       type = "srgb_8";
     else if (cupsArrayFind(type_array, "adobe-rgb_8"))
       type = "adobe-rgb_8";
+#ifdef __APPLE__
     else if (cupsArrayFind(type_array, "adobe-rgb_16"))
       type = "adobe-rgb_16";
+#endif /* __APPLE__ */
     else if (cupsArrayFind(type_array, "cmyk_8"))
       type = "cmyk_8";
   }
