@@ -357,6 +357,45 @@ lint_pdf(const char    *filename,	/* I - File to check */
   }
   fprintf(stderr, "DEBUG: Opened the document using mupdf\n");
 
+  /* Metadata retrieval */
+
+  char buffer[100]; // To temporarily store the data
+  int size; // To temporarily store the size of the result
+
+  size = fz_lookup_metadata(context, document, "format", buffer, 100);
+  fprintf(stderr, "DEBUG: Format : %s\n", (size != -1 && buffer[0] != '\0') ? buffer : "Not available");
+
+  size = fz_lookup_metadata(context, document, "encryption", buffer, 100);
+  fprintf(stderr, "DEBUG: Encryption : %s\n", (size != -1 && buffer[0] != '\0') ? buffer : "Not available");
+
+  size = fz_lookup_metadata(context, document, "info:Title", buffer, 100);
+  fprintf(stderr, "DEBUG: Title : %s\n", (size != -1 && buffer[0] != '\0') ? buffer : "Not available");
+
+  size = fz_lookup_metadata(context, document, "info:Author", buffer, 100);
+  fprintf(stderr, "DEBUG: Author : %s\n", (size != -1 && buffer[0] != '\0') ? buffer : "Not available");
+
+  size = fz_lookup_metadata(context, document, "info:Subject", buffer, 100);
+  fprintf(stderr, "DEBUG: Subject : %s\n", (size != -1 && buffer[0] != '\0') ? buffer : "Not available");
+
+  size = fz_lookup_metadata(context, document, "info:Keywords", buffer, 100);
+  fprintf(stderr, "DEBUG: Keywords : %s\n", (size != -1 && buffer[0] != '\0') ? buffer : "Not available");
+
+  size = fz_lookup_metadata(context, document, "info:Creator", buffer, 100);
+  fprintf(stderr, "DEBUG: Creator : %s\n", (size != -1 && buffer[0] != '\0') ? buffer : "Not available");
+
+  size = fz_lookup_metadata(context, document, "info:Producer", buffer, 100);
+  fprintf(stderr, "DEBUG: Producer : %s\n", (size != -1 && buffer[0] != '\0') ? buffer : "Not available");
+
+  // [TODO] Make dates human readable
+  size = fz_lookup_metadata(context, document, "info:CreationDate", buffer, 100);
+  fprintf(stderr, "DEBUG: Creation Date : %s\n", (size != -1 && buffer[0] != '\0') ? buffer : "Not available");
+
+  // [TODO] Make dates human readable
+  size = fz_lookup_metadata(context, document, "info:ModDate", buffer, 100);
+  fprintf(stderr, "DEBUG: Modification Date : %s\n", (size != -1 && buffer[0] != '\0') ? buffer : "Not available");
+
+
+
   /* Count the number of pages. */
   fz_try(context)
     page_count = fz_count_pages(context, document);
