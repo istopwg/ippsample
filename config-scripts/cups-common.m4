@@ -199,12 +199,21 @@ case $uname in
 			IPPTRANSFORM_BIN="ipptransform"
 			IPPTRANSFORM_HTML="ipptransform.html"
 			IPPTRANSFORM_MAN="ipptransform.1"
+
                         AC_MSG_CHECKING(for version of fz_new_pixmap function)
                         AC_TRY_COMPILE([#include <mupdf/fitz.h>],[
                                 fz_pixmap *p = fz_new_pixmap(0,0,100,100,1);],
                              	[AC_MSG_RESULT(5 argument)
 	                         AC_DEFINE(HAVE_FZ_NEW_PIXMAP_5_ARG)],
 	                        [AC_MSG_RESULT(6 argument)])
+
+                        AC_MSG_CHECKING(whether MuPDF has ICC support)
+                        AC_TRY_LINK([#include <mupdf/fitz.h>],[
+                                fz_context *ctx = fz_new_context(NULL, NULL, FZ_STORE_UNLIMITED);
+                                fz_set_cmm_engine(ctx, &fz_cmm_engine_lcms);],
+                             	[AC_MSG_RESULT(yes)
+	                         AC_DEFINE(HAVE_FZ_CMM_ENGINE_LCMS)],
+	                        [AC_MSG_RESULT(no)])
 		])
 		;;
 esac

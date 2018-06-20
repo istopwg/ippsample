@@ -2158,11 +2158,40 @@ xform_document(
   else if (ras.header.cupsBitsPerPixel == 24)
   {
    /*
-    * Color (sRGB) output...
+    * Color (sRGB/AdobeRGB) output...
     */
 
     ras.band_bpp = 4; /* TODO: Update to not use alpha (Issue #93) */
-    cs           = fz_device_rgb(context);
+
+#ifdef HAVE_FZ_CMM_ENGINE_LCMS
+    if (ras.header.cupsColorSpace == CUPS_CSPACE_ADOBERGB)
+    {
+      fz_set_cmm_engine(context, &fz_cmm_engine_lcms);
+
+     /*
+      * Create a calibrated colorspace using the AdobeRGB values.
+      */
+
+      static float wp_val[] = { 0.9505f, 1.0f, 1.0891f };
+      static float bp_val[] = { 0.0f, 0.0f, 0.0f };
+      static float gamma_val[] = { 2.19921875f, 2.19921875f, 2.19921875f };
+      static float matrix_val[] = {  2.04159f, -0.56501f, -0.34473f,
+                                    -0.96924f,  1.87597f,  0.05156f,
+                                     0.01344f, -0.11836f,  1.01517f };
+
+      cs = fz_new_cal_colorspace(context, "AdobeRGB", wp_val, bp_val, gamma_val, matrix_val);
+
+//      cs = fz_new_icc_colorspace_from_file(context, "AdobeRGB", "/usr/share/color/icc/colord/AdobeRGB1998.icc");
+    }
+    else
+#endif /* HAVE_FZ_CMM_ENGINE_LCMS */
+    {
+     /*
+      * Use the "device RGB" colorspace which is sRGB for MuPDF...
+      */
+
+      cs = fz_device_rgb(context);
+    }
   }
   else if (ras.header.cupsBitsPerPixel == 32)
   {
@@ -2714,10 +2743,12 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
 #ifdef __APPLE__
       if (cupsArrayFind(type_array, "adobe-rgb_16"))
 	type = "adobe-rgb_16";
-      else
-#endif /* __APPLE__ */
+      else if (cupsArrayFind(type_array, "adobe-rgb_8"))
+	type = "adobe-rgb_8";
+#elif defined(HAVE_FZ_CMM_ENGINE_LCMS)
       if (cupsArrayFind(type_array, "adobe-rgb_8"))
 	type = "adobe-rgb_8";
+#endif /* __APPLE__ */
     }
 
     if (!type && cupsArrayFind(type_array, "srgb_8"))
@@ -2760,14 +2791,23 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
       type = "sgray_1";
     else if (cupsArrayFind(type_array, "srgb_8"))
       type = "srgb_8";
+#ifdef __APPLE__
     else if (cupsArrayFind(type_array, "adobe-rgb_8"))
       type = "adobe-rgb_8";
-#ifdef __APPLE__
     else if (cupsArrayFind(type_array, "adobe-rgb_16"))
       type = "adobe-rgb_16";
+#elif defined(HAVE_FZ_CMM_ENGINE_LCMS)
+    else if (cupsArrayFind(type_array, "adobe-rgb_8"))
+	type = "adobe-rgb_8";
 #endif /* __APPLE__ */
     else if (cupsArrayFind(type_array, "cmyk_8"))
       type = "cmyk_8";
+  }
+
+  if (!type)
+  {
+    fputs("ERROR: No supported raster types are available.\n", stderr);
+    return (-1);
   }
 
  /*
