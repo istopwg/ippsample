@@ -13,8 +13,9 @@
 #include <cups/string-private.h>
 #include <cups/thread-private.h>
 
-#ifdef __APPLE__
-#  include <ApplicationServices/ApplicationServices.h>
+#ifdef HAVE_COREGRAPHICS
+#  include <CoreGraphics/CoreGraphics.h>
+#  include <ImageIO/ImageIO.h>
 
 extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
 #elif defined(HAVE_MUPDF)
@@ -23,7 +24,7 @@ static inline fz_matrix fz_make_matrix(float a, float b, float c, float d, float
   fz_matrix ret = { a, b, c, d, e, f };
   return (ret);
 }
-#endif /* __APPLE__ */
+#endif /* HAVE_COREGRAPHICS */
 
 #include "dither.h"
 
@@ -102,9 +103,9 @@ static void	*monitor_ipp(const char *device_uri);
 static void	pack_graya(unsigned char *row, size_t num_pixels);
 #endif /* HAVE_MUPDF */
 static void	pack_rgba(unsigned char *row, size_t num_pixels);
-#ifdef __APPLE__
+#ifdef HAVE_COREGRAPHICS
 static void	pack_rgba16(unsigned char *row, size_t num_pixels);
-#endif /* __APPLE__ */
+#endif /* HAVE_COREGRAPHICS */
 static void	pcl_end_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	pcl_end_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	pcl_init(xform_raster_t *ras);
@@ -773,7 +774,7 @@ pack_rgba(unsigned char *row,		/* I - Row of pixels to pack */
 }
 
 
-#ifdef __APPLE__
+#ifdef HAVE_COREGRAPHICS
 /*
  * 'pack_rgba16()' - Pack 16 bit per component RGBX scanlines into RGB scanlines.
  *
@@ -805,7 +806,7 @@ pack_rgba16(unsigned char *row,		/* I - Row of pixels to pack */
     *dest++ = *from++;
   }
 }
-#endif /* __APPLE__ */
+#endif /* HAVE_COREGRAPHICS */
 
 
 /*
@@ -1426,7 +1427,7 @@ write_fd(int                 *fd,	/* I - File descriptor */
 
 
 
-#ifdef __APPLE__
+#ifdef HAVE_COREGRAPHICS
 /*
  * 'xform_document()' - Transform a file for printing.
  */
@@ -2482,7 +2483,7 @@ xform_document(
 
   return (1);
 }
-#endif /* __APPLE__ */
+#endif /* HAVE_COREGRAPHICS */
 
 
 /*
@@ -2740,7 +2741,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   {
     if (pq == IPP_QUALITY_HIGH)
     {
-#ifdef __APPLE__
+#ifdef HAVE_COREGRAPHICS
       if (cupsArrayFind(type_array, "adobe-rgb_16"))
 	type = "adobe-rgb_16";
       else if (cupsArrayFind(type_array, "adobe-rgb_8"))
@@ -2748,7 +2749,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
 #elif defined(HAVE_FZ_CMM_ENGINE_LCMS)
       if (cupsArrayFind(type_array, "adobe-rgb_8"))
 	type = "adobe-rgb_8";
-#endif /* __APPLE__ */
+#endif /* HAVE_COREGRAPHICS */
     }
 
     if (!type && cupsArrayFind(type_array, "srgb_8"))
@@ -2791,7 +2792,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
       type = "sgray_1";
     else if (cupsArrayFind(type_array, "srgb_8"))
       type = "srgb_8";
-#ifdef __APPLE__
+#ifdef HAVE_COREGRAPHICS
     else if (cupsArrayFind(type_array, "adobe-rgb_8"))
       type = "adobe-rgb_8";
     else if (cupsArrayFind(type_array, "adobe-rgb_16"))
@@ -2799,7 +2800,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
 #elif defined(HAVE_FZ_CMM_ENGINE_LCMS)
     else if (cupsArrayFind(type_array, "adobe-rgb_8"))
 	type = "adobe-rgb_8";
-#endif /* __APPLE__ */
+#endif /* HAVE_COREGRAPHICS */
     else if (cupsArrayFind(type_array, "cmyk_8"))
       type = "cmyk_8";
   }

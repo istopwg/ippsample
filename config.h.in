@@ -323,10 +323,10 @@
 
 
 /*
- * Do we have ApplicationServices public headers?
+ * Do we have CoreGraphics?
  */
 
-#undef HAVE_APPLICATIONSERVICES_H
+#undef HAVE_COREGRAPHICS
 
 
 /*
