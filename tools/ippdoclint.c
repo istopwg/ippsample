@@ -238,11 +238,11 @@ renderer(void *data)
   fz_pixmap *pix = ((thread_data *) data)->pix;
   fz_device *dev;
 
-  fprintf(stderr, "DEBUG: Thread at page %d loading\n", pagenumber);
+  //fprintf(stderr, "DEBUG: Thread at page %d loading\n", pagenumber);
 
   context = fz_clone_context(context);
 
-  fprintf(stderr, "DEBUG: Thread at page %d rendering\n", pagenumber);
+  //fprintf(stderr, "DEBUG: Thread at page %d rendering\n", pagenumber);
   dev = fz_new_draw_device(context, &fz_identity, pix);
   fz_run_display_list(context, list, dev, &fz_identity, &bbox, NULL);
   fz_close_device(context, dev);
@@ -250,7 +250,7 @@ renderer(void *data)
 
   fz_drop_context(context);
 
-  fprintf(stderr, "DEBUG: Thread at page %d done\n", pagenumber);
+  //fprintf(stderr, "DEBUG: Thread at page %d done\n", pagenumber);
 
   return data;
 }
@@ -394,7 +394,10 @@ lint_pdf(const char    *filename,	/* I - File to check */
   size = fz_lookup_metadata(context, document, "info:ModDate", buffer, 100);
   fprintf(stderr, "DEBUG: Modification Date : %s\n", (size != -1 && buffer[0] != '\0') ? buffer : "Not available");
 
+  char *colorspace = fz_colorspace_name(context, fz_document_output_intent(context, document));
+  fprintf(stderr, "DEBUG: Output intent colorspace : %s\n", colorspace[0]!='\0' ? colorspace : "Not available" );
 
+  
 
   /* Count the number of pages. */
   fz_try(context)
