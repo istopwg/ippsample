@@ -2,6 +2,7 @@
  * Utility for converting PDF and JPEG files to raster data or HP PCL.
  *
  * Copyright © 2016-2018 by the IEEE-ISTO Printer Working Group.
+ * Copyright © 2016-2018 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -203,15 +204,32 @@ main(int  argc,				/* I - Number of command-line args */
 	  case 'd' :
 	      i ++;
 	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-d'.\n", stderr);
 	        usage(1);
+	      }
 
 	      device_uri = argv[i];
+	      break;
+
+	  case 'f' :
+	      i ++;
+	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-f'.\n", stderr);
+	        usage(1);
+	      }
+
+	      stdout = freopen(argv[i], "w", stdout);
 	      break;
 
 	  case 'i' :
 	      i ++;
 	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-i'.\n", stderr);
 	        usage(1);
+	      }
 
 	      content_type = argv[i];
 	      break;
@@ -219,7 +237,10 @@ main(int  argc,				/* I - Number of command-line args */
 	  case 'm' :
 	      i ++;
 	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-m'.\n", stderr);
 	        usage(1);
+	      }
 
 	      output_type = argv[i];
 	      break;
@@ -227,7 +248,10 @@ main(int  argc,				/* I - Number of command-line args */
 	  case 'o' :
 	      i ++;
 	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-o'.\n", stderr);
 	        usage(1);
+	      }
 
 	      num_options = cupsParseOptions(argv[i], num_options, &options);
 	      break;
@@ -235,7 +259,10 @@ main(int  argc,				/* I - Number of command-line args */
 	  case 'r' : /* pwg-raster-document-resolution-supported values */
 	      i ++;
 	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-r'.\n", stderr);
 	        usage(1);
+	      }
 
 	      resolutions = argv[i];
 	      break;
@@ -243,7 +270,10 @@ main(int  argc,				/* I - Number of command-line args */
 	  case 's' : /* pwg-raster-document-sheet-back value */
 	      i ++;
 	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-s'.\n", stderr);
 	        usage(1);
+	      }
 
 	      sheet_back = argv[i];
 	      break;
@@ -251,7 +281,10 @@ main(int  argc,				/* I - Number of command-line args */
 	  case 't' : /* pwg-raster-document-type-supported values */
 	      i ++;
 	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-t'.\n", stderr);
 	        usage(1);
+	      }
 
 	      types = argv[i];
 	      break;
@@ -270,7 +303,10 @@ main(int  argc,				/* I - Number of command-line args */
     else if (!filename)
       filename = argv[i];
     else
+    {
+      fprintf(stderr, "ERROR: Unknown argument '%s'.\n", argv[i]);
       usage(1);
+    }
   }
 
  /*
@@ -1391,6 +1427,7 @@ usage(int status)			/* I - Exit status */
   puts("Options:");
   puts("  --help");
   puts("  -d device-uri");
+  puts("  -f output-filename");
   puts("  -i input/format");
   puts("  -m output/format");
   puts("  -o \"name=value [... name=value]\"");
@@ -1403,7 +1440,13 @@ usage(int status)			/* I - Exit status */
   puts("Output Formats: application/vnd.hp-pcl, image/pwg-raster, image/urf");
   puts("Options: copies, media, media-col, page-ranges, print-color-mode, print-quality, print-scaling, printer-resolution, sides");
   puts("Resolutions: NNNdpi or NNNxNNNdpi");
-  puts("Types: black_1, sgray_1, sgray_8, srgb_8");
+#ifdef HAVE_COREGRAPHICS
+  puts("Types: adobe-rgb_8, adobe-rgb_16, black_1, black_8, cmyk_8, sgray_1, sgray_8, srgb_8");
+#elif defined(HAVE_FZ_CMM_ENGINE_LCMS)
+  puts("Types: adobe-rgb_8, black_1, black_8, cmyk_8, sgray_1, sgray_8, srgb_8");
+#else
+  puts("Types: black_1, black_8, cmyk_8, sgray_1, sgray_8, srgb_8");
+#endif /* HAVE_COREGRAPHICS */
 
   exit(status);
 }
