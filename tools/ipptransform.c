@@ -2184,9 +2184,9 @@ xform_document(
     {
       fz_set_cmm_engine(context, &fz_cmm_engine_lcms);
 
-# if 0
+# if 0 /* MuPDF crashes - known bug */
      /*
-      * Create a calibrated colorspace using the AdobeRGB values.
+      * Create a calibrated colorspace using the AdobeRGB (1998) values.
       */
 
       static float wp_val[] = { 0.9505f, 1.0f, 1.0891f };
@@ -2197,7 +2197,6 @@ xform_document(
                                      0.01344f, -0.11836f,  1.01517f };
 
       cs = fz_new_cal_colorspace(context, "AdobeRGB", wp_val, bp_val, gamma_val, matrix_val);
-
 #  endif // 0
 
 #  ifdef __APPLE__
