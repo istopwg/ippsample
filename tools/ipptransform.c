@@ -20,10 +20,12 @@
 extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
 #elif defined(HAVE_MUPDF)
 #  include <mupdf/fitz.h>
+#  ifndef HAVE_FZ_MAKE_MATRIX
 static inline fz_matrix fz_make_matrix(float a, float b, float c, float d, float e, float f) {
   fz_matrix ret = { a, b, c, d, e, f };
   return (ret);
 }
+#  endif /* !HAVE_FZ_MAKE_MATRIX */
 #endif /* HAVE_COREGRAPHICS */
 
 #include "dither.h"
@@ -97,13 +99,13 @@ static int	Verbosity = 0;		/* Log level */
  * Local functions...
  */
 
+#ifdef HAVE_MUPDF
+static void	invert_gray(unsigned char *row, size_t num_pixels);
+#endif /* HAVE_MUPDF */
 static int	load_env_options(cups_option_t **options);
 static void	*monitor_ipp(const char *device_uri);
-#ifdef HAVE_MUPDF
-static void	pack_graya(unsigned char *row, size_t num_pixels);
-#endif /* HAVE_MUPDF */
-static void	pack_rgba(unsigned char *row, size_t num_pixels);
 #ifdef HAVE_COREGRAPHICS
+static void	pack_rgba(unsigned char *row, size_t num_pixels);
 static void	pack_rgba16(unsigned char *row, size_t num_pixels);
 #endif /* HAVE_COREGRAPHICS */
 static void	pcl_end_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
@@ -532,6 +534,40 @@ main(int  argc,				/* I - Number of command-line args */
 
 
 /*
+ * 'invert_gray()' - Invert grayscale to black.
+ */
+
+#ifdef HAVE_MUPDF
+static void
+invert_gray(unsigned char *row,		/* I - Current row */
+            size_t        num_pixels)	/* I - Number of pixels */
+{
+  unsigned	*ptr;			/* Pointer to 32-bits worth of pixels */
+
+
+  ptr = (unsigned *)row;
+  while (num_pixels > 3)
+  {
+    *ptr = ~*ptr;
+    ptr ++;
+    num_pixels -= 4;
+  }
+
+  if (num_pixels > 0)
+  {
+    row = (unsigned char *)ptr;
+    while (num_pixels > 0)
+    {
+      *row = ~*row;
+      row ++;
+      num_pixels --;
+    }
+  }
+}
+#endif /* HAVE_MUPDF */
+
+
+/*
  * 'load_env_options()' - Load options from the environment.
  */
 
@@ -700,27 +736,7 @@ monitor_ipp(const char *device_uri)	/* I - Device URI */
 }
 
 
-#ifdef HAVE_MUPDF
-/*
- * 'pack_graya()' - Pack GRAYX scanlines into GRAY scanlines.
- *
- * This routine is suitable only for 8 bit GRAYX data packed into GRAY bytes.
- */
-
-static void
-pack_graya(unsigned char *row,		/* I - Row of pixels to pack */
-	   size_t        num_pixels)	/* I - Number of pixels in row */
-{
-  unsigned char *src_byte;		/* Remaining source bytes */
-  unsigned char *dest_byte;		/* Remaining destination bytes */
-
-
-  for (src_byte = row + 2, dest_byte = row + 1, num_pixels --; num_pixels > 0; num_pixels --, src_byte += 2)
-    *dest_byte++ = *src_byte;
-}
-#endif /* HAVE_MUPDF */
-
-
+#ifdef HAVE_COREGRAPHICS
 /*
  * 'pack_rgba()' - Pack RGBX scanlines into RGB scanlines.
  *
@@ -774,7 +790,6 @@ pack_rgba(unsigned char *row,		/* I - Row of pixels to pack */
 }
 
 
-#ifdef HAVE_COREGRAPHICS
 /*
  * 'pack_rgba16()' - Pack 16 bit per component RGBX scanlines into RGB scanlines.
  *
@@ -2153,7 +2168,7 @@ xform_document(
     * Grayscale output...
     */
 
-    ras.band_bpp = 2; /* TODO: Update to not use alpha (Issue #93) */
+    ras.band_bpp = 1;
     cs           = fz_device_gray(context);
   }
   else if (ras.header.cupsBitsPerPixel == 24)
@@ -2162,7 +2177,7 @@ xform_document(
     * Color (sRGB/AdobeRGB) output...
     */
 
-    ras.band_bpp = 4; /* TODO: Update to not use alpha (Issue #93) */
+    ras.band_bpp = 3;
 
 #ifdef HAVE_FZ_CMM_ENGINE_LCMS
     if (ras.header.cupsColorSpace == CUPS_CSPACE_ADOBERGB)
@@ -2215,11 +2230,10 @@ xform_document(
   else if (ras.band_height > ras.header.cupsHeight)
     ras.band_height = ras.header.cupsHeight;
 
-  /* TODO: Update code to not use RGBA/GrayA pixmap now that MuPDF supports it (Issue #93) */
 #  if HAVE_FZ_NEW_PIXMAP_5_ARG
-  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth,  (int)ras.band_height, 1);
+  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth,  (int)ras.band_height, 0);
 #  else
-  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth,  (int)ras.band_height, NULL, 1);
+  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth,  (int)ras.band_height, NULL, 0);
   pixmap->flags = 0;
 #  endif /* HAVE_FZ_NEW_PIXMAP_5_ARG */
 
@@ -2238,11 +2252,8 @@ xform_document(
 
   device = fz_new_draw_device(context, &base_transform, pixmap);
 
-#  ifndef HAVE_FZ_NEW_PIXMAP_5_ARG /* Bug in MuPDF 1.11 */
   /* Don't anti-alias or interpolate when creating raster data */
   fz_set_aa_level(context, 0);
-#  endif /* !HAVE_FZ_NEW_PIXMAP_5_ARG */
-
   fz_enable_device_hints(context, device, FZ_DONT_INTERPOLATE_IMAGES);
 
  /*
@@ -2421,10 +2432,9 @@ xform_document(
 	*/
 
 	lineptr = pixmap->samples + (y - band_starty) * band_size + ras.left * ras.band_bpp;
-        if (ras.header.cupsBitsPerPixel == 24)
-          pack_rgba(lineptr, ras.right - ras.left + 1);
-        else if (ras.header.cupsBitsPerPixel == 8)
-          pack_graya(lineptr, ras.right - ras.left + 1);
+
+        if (ras.header.cupsColorSpace == CUPS_CSPACE_K)
+          invert_gray(lineptr, ras.right - ras.left + 1);
 
 	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
       }

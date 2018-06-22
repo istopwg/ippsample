@@ -240,6 +240,13 @@ case "$use_pdfrip" in
 	                         AC_DEFINE(HAVE_FZ_NEW_PIXMAP_5_ARG)],
 	                        [AC_MSG_RESULT(6 argument)])
 
+                        AC_MSG_CHECKING(for fz_make_matrix function)
+                        AC_TRY_COMPILE([#include <mupdf/fitz.h>],[
+                                fz_matrix m = fz_make_matrix(0.0f,1.0f,1.0f,0.0f,0.0f,0.0f);],
+                             	[AC_MSG_RESULT(yes)
+	                         AC_DEFINE(HAVE_FZ_MAKE_MATRIX)],
+	                        [AC_MSG_RESULT(no)])
+
                         AC_MSG_CHECKING(whether MuPDF has ICC support)
                         AC_TRY_LINK([#include <mupdf/fitz.h>],[
                                 fz_context *ctx = fz_new_context(NULL, NULL, FZ_STORE_UNLIMITED);
