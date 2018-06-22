@@ -2184,6 +2184,7 @@ xform_document(
     {
       fz_set_cmm_engine(context, &fz_cmm_engine_lcms);
 
+# if 0
      /*
       * Create a calibrated colorspace using the AdobeRGB values.
       */
@@ -2197,7 +2198,13 @@ xform_document(
 
       cs = fz_new_cal_colorspace(context, "AdobeRGB", wp_val, bp_val, gamma_val, matrix_val);
 
-//      cs = fz_new_icc_colorspace_from_file(context, "AdobeRGB", "/usr/share/color/icc/colord/AdobeRGB1998.icc");
+#  endif // 0
+
+#  ifdef __APPLE__
+      cs = fz_new_icc_colorspace_from_file(context, "AdobeRGB1998", "/System/Library/ColorSync/Profiles/AdobeRGB1998.icc");
+#  else
+      cs = fz_new_icc_colorspace_from_file(context, "AdobeRGB1998", "/usr/share/color/icc/colord/AdobeRGB1998.icc");
+#  endif /* __APPLE__ */
     }
     else
 #endif /* HAVE_FZ_CMM_ENGINE_LCMS */
