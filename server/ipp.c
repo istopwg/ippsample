@@ -791,10 +791,10 @@ copy_subscription_attributes(
 {
   serverCopyAttributes(client->response, sub->attrs, ra, pa, IPP_TAG_SUBSCRIPTION, 0);
 
-  if (check_attribute("notify-lease-expiration-time", ra, pa))
+  if (!sub->job && check_attribute("notify-lease-expiration-time", ra, pa))
     ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-lease-expiration-time", (int)(sub->expire - client->printer->start_time));
 
-  if (check_attribute("notify-printer-up-time", ra, pa))
+  if (!sub->job && check_attribute("notify-printer-up-time", ra, pa))
     ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-printer-up-time", (int)(time(NULL) - client->printer->start_time));
 
   if (check_attribute("notify-sequence-number", ra, pa))
