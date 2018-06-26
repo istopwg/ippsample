@@ -641,7 +641,8 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
     			}
     			value[(strlen(value)-1)]='\0'; 		/* Eliminate the last '>' sign */
     			strcat(value_concat,value);			/* Final concatenation for hexadecimal value to be complete*/
-    			for(int i=0;i<strlen(value_concat);i++)		/* Sanity Check*/
+    			int i;                         /* Iterating variable*/
+          for(i=0;i<strlen(value_concat);i++)		/* Sanity Check*/
     			{
     				if(!(value_concat[i] >= '0' && value_concat[i]<= '9') || (value_concat[i]>='a' && value_concat[i]<='f'))
     				{
