@@ -153,6 +153,41 @@ serverCreatePrinter(
     "system-service",
     "infrastructure-printer"
   };
+  static const char * const notify_events_supported[] =
+  {					/* notify-events-supported values */
+    "document-completed",
+    "document-config-changed",
+    "document-created",
+    "document-fetchable",
+    "document-state-changed",
+    "document-stopped",
+    "job-completed",
+    "job-config-changed",
+    "job-created",
+    "job-fetchable",
+    "job-progress",
+    "job-state-changed",
+    "job-stopped",
+    "none",
+    "printer-config-changed",
+    "printer-created",
+    "printer-deleted",
+    "printer-finishings-changed",
+    "printer-media-changed",
+    "printer-queue-order-changed",
+    "printer-restarted",
+    "printer-shutdown",
+    "printer-state-changed",
+    "printer-stopped",
+    "resource-canceled",
+    "resource-config-changed",
+    "resource-created",
+    "resource-installed",
+    "resource-changed",
+    "system-config-changed",
+    "system-state-changed",
+    "system-stopped"
+  };
   static const int	ops[] =		/* operations-supported values */
   {
     IPP_OP_PRINT_JOB,
@@ -887,7 +922,7 @@ serverCreatePrinter(
   ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-events-default", NULL, "job-completed");
 
   /* notify-events-supported */
-  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-events-supported", sizeof(server_events) / sizeof(server_events[0]), NULL, server_events);
+  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-events-supported", sizeof(notify_events_supported) / sizeof(notify_events_supported[0]), NULL, notify_events_supported);
 
   /* notify-lease-duration-default */
   ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "notify-lease-duration-default", SERVER_NOTIFY_LEASE_DURATION_DEFAULT);
