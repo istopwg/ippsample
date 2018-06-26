@@ -35,12 +35,15 @@ static inline int	check_attribute(const char *name, cups_array_t *ra, cups_array
   return ((!pa || !cupsArrayFind(pa, (void *)name)) && (!ra || cupsArrayFind(ra, (void *)name)));
 }
 static void		copy_doc_attributes(server_client_t *client, server_job_t *job, cups_array_t *ra, cups_array_t *pa);
+static int		copy_document_uri(server_client_t *client, server_job_t *job, const char *uri);
 static void		copy_job_attributes(server_client_t *client, server_job_t *job, cups_array_t *ra, cups_array_t *pa);
 static void		copy_printer_attributes(server_client_t *client, server_printer_t *printer, cups_array_t *ra);
 static void		copy_printer_state(ipp_t *ipp, server_printer_t *printer, cups_array_t *ra);
 static void		copy_subscription_attributes(server_client_t *client, server_subscription_t *sub, cups_array_t *ra, cups_array_t *pa);
 static void		copy_system_state(ipp_t *ipp, cups_array_t *ra);
+static const char	*detect_format(const unsigned char *header);
 static int		filter_cb(server_filter_t *filter, ipp_t *dst, ipp_attribute_t *attr);
+static const char	*get_document_uri(server_client_t *client);
 static void		ipp_acknowledge_document(server_client_t *client);
 static void		ipp_acknowledge_identify_printer(server_client_t *client);
 static void		ipp_acknowledge_job(server_client_t *client);
@@ -259,6 +262,294 @@ copy_doc_attributes(
 
   if (check_attribute("time-at-processing", ra, pa))
     ippAddInteger(client->response, IPP_TAG_DOCUMENT, job->processing ? IPP_TAG_INTEGER : IPP_TAG_NOVALUE, "time-at-processing", (int)(job->processing - client->printer->start_time));
+}
+
+
+/*
+ * 'copy_document_uri()' - Make a copy of the referenced document for printing.
+ */
+
+static int				/* O - 1 on success, 0 on failure */
+copy_document_uri(
+    server_client_t *client,		/* I - Client connection */
+    server_job_t    *job,		/* I - Print job */
+    const char      *uri)		/* I - Document URI */
+{
+  ipp_attribute_t	*attr;		/* document-format-detected attribute */
+  char			redirect[1024],	/* Redirect URI */
+			scheme[256],	/* URI scheme */
+			userpass[256],	/* Username and password info */
+			hostname[256],	/* Hostname */
+			resource[1024];	/* Resource path */
+  const  char		*content_type;	/* Content-Type from server */
+  int			port;		/* Port number */
+  http_uri_status_t	uri_status;	/* URI decode status */
+  http_encryption_t	encryption;	/* Encryption to use, if any */
+  http_t		*http;		/* Connection for http/https URIs */
+  http_status_t		status;		/* Access status for http/https URIs */
+  char			filename[1024],	/* Filename buffer */
+			buffer[16384];	/* Copy buffer */
+  ssize_t		bytes;		/* Bytes read */
+
+
+ /*
+  * Pull the URI apart...  We already know it will work here since we validated
+  * the URI in get_document_uri().
+  */
+
+  httpSeparateURI(HTTP_URI_CODING_ALL, uri, scheme, sizeof(scheme), userpass, sizeof(userpass), hostname, sizeof(hostname), &port, resource, sizeof(resource));
+
+ /*
+  * "file" URIs refer to local files...
+  */
+
+  if (!strcmp(scheme, "file"))
+  {
+    int infile;			/* Input file for local file URIs */
+
+    if ((infile = open(resource, O_RDONLY | O_NOFOLLOW)) < 0)
+    {
+      job->state = IPP_JSTATE_ABORTED;
+
+      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to access URI: %s", strerror(errno));
+      return (0);
+    }
+
+    if (!strcmp(job->format, "application/octet-stream"))
+    {
+      memset(buffer, 0, 8);
+
+      if (read(infile, buffer, 8) > 0 && (content_type = detect_format((unsigned char *)buffer)) != NULL)
+      {
+	_cupsRWLockWrite(&job->rwlock);
+
+	attr = ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_MIMETYPE, "document-format-detected", NULL, content_type);
+
+	_cupsRWUnlock(&job->rwlock);
+
+	job->format = ippGetString(attr, 0, NULL);
+      }
+
+      lseek(infile, 0, SEEK_SET);
+    }
+
+   /*
+    * Create a file for the request data...
+    */
+
+    serverCreateJobFilename(job, job->format, filename, sizeof(filename));
+
+    if ((job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0)
+    {
+      close(infile);
+
+      job->state = IPP_JSTATE_ABORTED;
+
+      serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to create print file: %s", strerror(errno));
+      return (0);
+    }
+
+   /*
+    * Copy the file...
+    */
+
+    do
+    {
+      if ((bytes = read(infile, buffer, sizeof(buffer))) < 0 && (errno == EAGAIN || errno == EINTR))
+      {
+       /*
+        * Force a retry of the read...
+        */
+
+        bytes = 1;
+      }
+      else if (bytes > 0 && write(job->fd, buffer, (size_t)bytes) < bytes)
+      {
+	int error = errno;		/* Write error */
+
+	job->state = IPP_JSTATE_ABORTED;
+
+	close(job->fd);
+	job->fd = -1;
+
+	unlink(filename);
+	close(infile);
+
+	serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to write print file: %s", strerror(error));
+	return (0);
+      }
+    }
+    while (bytes > 0);
+
+    close(infile);
+
+    goto finalize_copy;
+  }
+
+ /*
+  * Loop until we find the network resource...
+  */
+
+  for (;;)
+  {
+    serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "GET %s", uri);
+
+#ifdef HAVE_SSL
+    if (port == 443 || !strcmp(scheme, "https"))
+      encryption = HTTP_ENCRYPTION_ALWAYS;
+    else
+#endif /* HAVE_SSL */
+    encryption = HTTP_ENCRYPTION_IF_REQUESTED;
+
+    if ((http = httpConnect2(hostname, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to connect to %s: %s", hostname, cupsLastErrorString());
+      job->state = IPP_JSTATE_ABORTED;
+
+      return (0);
+    }
+
+    httpClearFields(http);
+    httpSetField(http, HTTP_FIELD_ACCEPT_LANGUAGE, "en");
+    if (httpGet(http, resource))
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to GET URI: %s", strerror(errno));
+
+      job->state = IPP_JSTATE_ABORTED;
+
+      httpClose(http);
+      return (0);
+    }
+
+    while ((status = httpUpdate(http)) == HTTP_STATUS_CONTINUE);
+
+    serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "GET returned status %d", status);
+
+    if (status == HTTP_STATUS_MOVED_PERMANENTLY || status == HTTP_STATUS_FOUND || status == HTTP_STATUS_SEE_OTHER)
+    {
+     /*
+      * Follow redirection...
+      */
+
+      strlcpy(redirect, httpGetField(http, HTTP_FIELD_LOCATION), sizeof(redirect));
+      httpClose(http);
+
+      uri_status = httpSeparateURI(HTTP_URI_CODING_ALL, redirect, scheme, sizeof(scheme), userpass, sizeof(userpass), hostname, sizeof(hostname), &port, resource, sizeof(resource));
+      if (uri_status < HTTP_URI_STATUS_OK)
+      {
+	serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Redirected to bad URI \"%s\": %s", redirect, httpURIStatusString(uri_status));
+
+	job->state = IPP_JSTATE_ABORTED;
+
+	return (0);
+      }
+
+#ifdef HAVE_SSL
+      if (strcmp(scheme, "http") && strcmp(scheme, "https"))
+#else
+      if (strcmp(scheme, "http"))
+#endif /* HAVE_SSL */
+      {
+	serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Redirected to unsupported URI scheme \"%s\".", scheme);
+
+	job->state = IPP_JSTATE_ABORTED;
+
+	return (0);
+      }
+
+      uri = redirect;
+
+      continue;
+    }
+    else if (status != HTTP_STATUS_OK)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to GET URI: %s", httpStatus(status));
+
+      job->state = IPP_JSTATE_ABORTED;
+
+      httpClose(http);
+
+      return (0);
+    }
+
+   /*
+    * If we get this far, get the document from the URI...
+    */
+
+    content_type = httpGetField(http, HTTP_FIELD_CONTENT_TYPE);
+    if (*content_type)
+    {
+      serverLogJob(SERVER_LOGLEVEL_INFO, job, "URI Content-Type=\"%s\"", content_type);
+
+      _cupsRWLockWrite(&job->rwlock);
+
+      attr = ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_MIMETYPE, "document-format-detected", NULL, content_type);
+
+      _cupsRWUnlock(&job->rwlock);
+
+      job->format = ippGetString(attr, 0, NULL);
+    }
+    else
+      content_type = job->format;
+
+    serverCreateJobFilename(job, content_type, filename, sizeof(filename));
+
+    if ((job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0)
+    {
+      job->state = IPP_JSTATE_ABORTED;
+
+      httpClose(http);
+
+      serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to create print file: %s", strerror(errno));
+
+      return (0);
+    }
+
+    while ((bytes = httpRead2(http, buffer, sizeof(buffer))) > 0)
+    {
+      if (write(job->fd, buffer, (size_t)bytes) < bytes)
+      {
+	int error = errno;		/* Write error */
+
+	job->state = IPP_JSTATE_ABORTED;
+
+	close(job->fd);
+	job->fd = -1;
+
+	unlink(filename);
+	httpClose(http);
+
+	serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to write print file: %s", strerror(error));
+	return (0);
+      }
+    }
+
+    httpClose(http);
+    break;
+  }
+
+ /*
+  * Finalize copy...
+  */
+
+  finalize_copy:
+
+  if (close(job->fd))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to write print file: %s", strerror(errno));
+
+    job->state = IPP_JSTATE_ABORTED;
+    job->fd    = -1;
+
+    unlink(filename);
+
+    return (0);
+  }
+
+  job->fd       = -1;
+  job->filename = strdup(filename);
+
+  return (1);
 }
 
 
@@ -592,6 +883,32 @@ copy_system_state(ipp_t        *ipp,	/* I - IPP message */
 
 
 /*
+ * 'detect_format()' - Auto-detect the file format from the initial header
+ *                     bytes.
+ */
+
+static const char *			/* O - MIME type or `NULL` if none */
+detect_format(
+    const unsigned char *header)	/* I - First 8 bytes of file */
+{
+  if (!memcmp(header, "%PDF", 4))
+    return ("application/pdf");
+  else if (!memcmp(header, "%!", 2))
+    return ("application/postscript");
+  else if (!memcmp(header, "\377\330\377", 3) && header[3] >= 0xe0 && header[3] <= 0xef)
+    return ("image/jpeg");
+  else if (!memcmp(header, "\211PNG", 4))
+    return ("image/png");
+  else if (!memcmp(header, "RAS2", 4))
+    return ("image/pwg-raster");
+  else if (!memcmp(header, "UNIRAST", 8))
+    return ("image/urf");
+  else
+    return (NULL);
+}
+
+
+/*
  * 'filter_cb()' - Filter printer attributes based on the requested array.
  */
 
@@ -618,6 +935,72 @@ filter_cb(server_filter_t   *filter,	/* I - Filter parameters */
     return (0);
 
   return (!filter->ra || cupsArrayFind(filter->ra, (void *)name) != NULL);
+}
+
+
+/*
+ * 'get_document_uri()' - Get and validate the document-uri for printing.
+ */
+
+static const char *			/* O - Document URI or `NULL` on error */
+get_document_uri(
+    server_client_t *client)		/* I - Client connection */
+{
+  ipp_attribute_t	*uri;		/* document-uri */
+  char			scheme[256],	/* URI scheme */
+			userpass[256],	/* Username and password info */
+			hostname[256],	/* Hostname */
+			resource[1024];	/* Resource path */
+  int			port;		/* Port number */
+  http_uri_status_t	uri_status;	/* URI decode status */
+  struct stat		fileinfo;	/* File information */
+
+
+  if ((uri = ippFindAttribute(client->request, "document-uri", IPP_TAG_URI)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing document-uri.");
+    return (NULL);
+  }
+
+  if (ippGetCount(uri) != 1)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Too many document-uri values.");
+    serverRespondUnsupported(client, uri);
+    return (NULL);
+  }
+
+  uri_status = httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(uri, 0, NULL), scheme, sizeof(scheme), userpass, sizeof(userpass), hostname, sizeof(hostname), &port, resource, sizeof(resource));
+  if (uri_status < HTTP_URI_STATUS_OK)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Bad document-uri: %s", httpURIStatusString(uri_status));
+    serverRespondUnsupported(client, uri);
+    return (NULL);
+  }
+
+  if (strcmp(scheme, "file") &&
+#ifdef HAVE_SSL
+      strcmp(scheme, "https") &&
+#endif /* HAVE_SSL */
+      strcmp(scheme, "http"))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_URI_SCHEME, "URI scheme \"%s\" not supported.", scheme);
+    serverRespondUnsupported(client, uri);
+    return (NULL);
+  }
+
+  if (!strcmp(scheme, "file") && (!valid_filename(resource) || access(resource, R_OK) || lstat(resource, &fileinfo) || !S_ISREG(fileinfo.st_mode)))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to access URI: %s", strerror(errno));
+    serverRespondUnsupported(client, uri);
+    return (NULL);
+  }
+
+ /*
+  * If we get this far the URI is valid.  We'll check for accessibility in
+  * copy_document_uri()...
+  */
+
+  return (ippGetString(uri, 0, NULL));
 }
 
 
@@ -2215,7 +2598,7 @@ ipp_fetch_document(
 
   if (job->format)
   {
-    serverCreateJobFilename(client->printer, job, job->format, filename, sizeof(filename));
+    serverCreateJobFilename(job, job->format, filename, sizeof(filename));
 
     if (access(filename, R_OK))
     {
@@ -3629,7 +4012,7 @@ ipp_print_job(server_client_t *client)	/* I - Client */
   * Create a file for the request data...
   */
 
-  serverCreateJobFilename(client->printer, job, NULL, filename, sizeof(filename));
+  serverCreateJobFilename(job, NULL, filename, sizeof(filename));
 
   serverLogJob(SERVER_LOGLEVEL_INFO, job, "Creating job file \"%s\", format \"%s\".", filename, job->format);
 
@@ -3736,23 +4119,9 @@ static void
 ipp_print_uri(server_client_t *client)	/* I - Client */
 {
   server_job_t		*job;		/* New job */
-  ipp_attribute_t	*uri;		/* document-uri */
-  char			scheme[256],	/* URI scheme */
-			userpass[256],	/* Username and password info */
-			hostname[256],	/* Hostname */
-			resource[1024];	/* Resource path */
-  int			port;		/* Port number */
-  http_uri_status_t	uri_status;	/* URI decode status */
-  http_encryption_t	encryption;	/* Encryption to use, if any */
-  http_t		*http;		/* Connection for http/https URIs */
-  http_status_t		status;		/* Access status for http/https URIs */
-  int			infile;		/* Input file for local file URIs */
-  char			filename[1024],	/* Filename buffer */
-			buffer[4096];	/* Copy buffer */
-  ssize_t		bytes;		/* Bytes read */
+  const char		*uri;		/* document-uri */
   cups_array_t		*ra;		/* Attributes to send in response */
   ipp_attribute_t	*hold_until;	/* job-hold-until-xxx attribute, if any */
-  struct stat		fileinfo;	/* File information */
 
 
   if (Authentication && !client->username[0])
@@ -3799,44 +4168,8 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
   * Do we have a document URI?
   */
 
-  if ((uri = ippFindAttribute(client->request, "document-uri", IPP_TAG_URI)) == NULL)
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing document-uri.");
+  if ((uri = get_document_uri(client)) == NULL)
     return;
-  }
-
-  if (ippGetCount(uri) != 1)
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Too many document-uri values.");
-    serverRespondUnsupported(client, uri);
-    return;
-  }
-
-  uri_status = httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(uri, 0, NULL), scheme, sizeof(scheme), userpass, sizeof(userpass), hostname, sizeof(hostname), &port, resource, sizeof(resource));
-  if (uri_status < HTTP_URI_STATUS_OK)
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Bad document-uri: %s", httpURIStatusString(uri_status));
-    serverRespondUnsupported(client, uri);
-    return;
-  }
-
-  if (strcmp(scheme, "file") &&
-#ifdef HAVE_SSL
-      strcmp(scheme, "https") &&
-#endif /* HAVE_SSL */
-      strcmp(scheme, "http"))
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_URI_SCHEME, "URI scheme \"%s\" not supported.", scheme);
-    serverRespondUnsupported(client, uri);
-    return;
-  }
-
-  if (!strcmp(scheme, "file") && (!valid_filename(resource) || access(resource, R_OK) || stat(resource, &fileinfo) || !S_ISREG(fileinfo.st_mode)))
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to access URI: %s", strerror(errno));
-    serverRespondUnsupported(client, uri);
-    return;
-  }
 
  /*
   * Print the job...
@@ -3854,161 +4187,15 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
   if (hold_until)
     serverHoldJob(job, hold_until);
 
- /*
-  * Create a file for the request data...
-  */
-
-  if (!strcasecmp(job->format, "image/jpeg"))
-    snprintf(filename, sizeof(filename), "%s/%d.jpg", SpoolDirectory, job->id);
-  else if (!strcasecmp(job->format, "image/png"))
-    snprintf(filename, sizeof(filename), "%s/%d.png", SpoolDirectory, job->id);
-  else if (!strcasecmp(job->format, "application/pdf"))
-    snprintf(filename, sizeof(filename), "%s/%d.pdf", SpoolDirectory, job->id);
-  else if (!strcasecmp(job->format, "application/postscript"))
-    snprintf(filename, sizeof(filename), "%s/%d.ps", SpoolDirectory, job->id);
-  else
-    snprintf(filename, sizeof(filename), "%s/%d.prn", SpoolDirectory, job->id);
-
-  if ((job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0)
-  {
-    job->state = IPP_JSTATE_ABORTED;
-
-    serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to create print file: %s", strerror(errno));
-    return;
-  }
-
-  if (!strcmp(scheme, "file"))
-  {
-    if ((infile = open(resource, O_RDONLY)) < 0)
-    {
-      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to access URI: %s", strerror(errno));
-      return;
-    }
-
-    do
-    {
-      if ((bytes = read(infile, buffer, sizeof(buffer))) < 0 && (errno == EAGAIN || errno == EINTR))
-        bytes = 1;
-      else if (bytes > 0 && write(job->fd, buffer, (size_t)bytes) < bytes)
-      {
-	int error = errno;		/* Write error */
-
-	job->state = IPP_JSTATE_ABORTED;
-
-	close(job->fd);
-	job->fd = -1;
-
-	unlink(filename);
-	close(infile);
-
-	serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to write print file: %s", strerror(error));
-	return;
-      }
-    }
-    while (bytes > 0);
-
-    close(infile);
-  }
-  else
-  {
-#ifdef HAVE_SSL
-    if (port == 443 || !strcmp(scheme, "https"))
-      encryption = HTTP_ENCRYPTION_ALWAYS;
-    else
-#endif /* HAVE_SSL */
-    encryption = HTTP_ENCRYPTION_IF_REQUESTED;
-
-    if ((http = httpConnect2(hostname, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
-    {
-      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to connect to %s: %s", hostname, cupsLastErrorString());
-      serverRespondUnsupported(client, uri);
-      job->state = IPP_JSTATE_ABORTED;
-
-      close(job->fd);
-      job->fd = -1;
-
-      unlink(filename);
-      return;
-    }
-
-    httpClearFields(http);
-    httpSetField(http, HTTP_FIELD_ACCEPT_LANGUAGE, "en");
-    if (httpGet(http, resource))
-    {
-      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to GET URI: %s", strerror(errno));
-      serverRespondUnsupported(client, uri);
-
-      job->state = IPP_JSTATE_ABORTED;
-
-      close(job->fd);
-      job->fd = -1;
-
-      unlink(filename);
-      httpClose(http);
-      return;
-    }
-
-    while ((status = httpUpdate(http)) == HTTP_STATUS_CONTINUE);
-
-    if (status != HTTP_STATUS_OK)
-    {
-      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to GET URI: %s", httpStatus(status));
-      serverRespondUnsupported(client, uri);
-
-      job->state = IPP_JSTATE_ABORTED;
-
-      close(job->fd);
-      job->fd = -1;
-
-      unlink(filename);
-      httpClose(http);
-      return;
-    }
-
-    while ((bytes = httpRead2(http, buffer, sizeof(buffer))) > 0)
-    {
-      if (write(job->fd, buffer, (size_t)bytes) < bytes)
-      {
-	int error = errno;		/* Write error */
-
-	job->state = IPP_JSTATE_ABORTED;
-
-	close(job->fd);
-	job->fd = -1;
-
-	unlink(filename);
-	httpClose(http);
-
-	serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to write print file: %s", strerror(error));
-	return;
-      }
-    }
-
-    httpClose(http);
-  }
-
-  if (close(job->fd))
-  {
-    int error = errno;		/* Write error */
-
-    job->state = IPP_JSTATE_ABORTED;
-    job->fd    = -1;
-
-    unlink(filename);
-
-    serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to write print file: %s", strerror(error));
-    return;
-  }
-
-  job->fd       = -1;
-  job->filename = strdup(filename);
-  job->state    = IPP_JSTATE_PENDING;
+  if (copy_document_uri(client, job, uri) && !job->hold_until)
+    job->state = IPP_JSTATE_PENDING;
 
  /*
   * Process the job...
   */
 
-  serverCheckJobs(client->printer);
+  if (job->state == IPP_JSTATE_PENDING)
+    serverCheckJobs(client->printer);
 
  /*
   * Return the job info...
@@ -4400,7 +4587,7 @@ ipp_send_document(server_client_t *client)/* I - Client */
   * Create a file for the request data...
   */
 
-  serverCreateJobFilename(client->printer, job, NULL, filename, sizeof(filename));
+  serverCreateJobFilename(job, NULL, filename, sizeof(filename));
 
   serverLogJob(SERVER_LOGLEVEL_INFO, job, "Creating job file \"%s\", format \"%s\".", filename, job->format);
 
@@ -4508,23 +4695,9 @@ static void
 ipp_send_uri(server_client_t *client)	/* I - Client */
 {
   server_job_t		*job;		/* Job information */
-  ipp_attribute_t	*uri;		/* document-uri */
-  char			scheme[256],	/* URI scheme */
-			userpass[256],	/* Username and password info */
-			hostname[256],	/* Hostname */
-			resource[1024];	/* Resource path */
-  int			port;		/* Port number */
-  http_uri_status_t	uri_status;	/* URI decode status */
-  http_encryption_t	encryption;	/* Encryption to use, if any */
-  http_t		*http;		/* Connection for http/https URIs */
-  http_status_t		status;		/* Access status for http/https URIs */
-  int			infile;		/* Input file for local file URIs */
-  char			filename[1024],	/* Filename buffer */
-			buffer[4096];	/* Copy buffer */
-  ssize_t		bytes;		/* Bytes read */
+  const char		*uri;		/* document-uri */
   ipp_attribute_t	*attr;		/* Current attribute */
   cups_array_t		*ra;		/* Attributes to send in response */
-  struct stat		fileinfo;	/* File information */
 
 
   if (Authentication && !client->username[0])
@@ -4615,231 +4788,35 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
   * Do we have a document URI?
   */
 
-  if ((uri = ippFindAttribute(client->request, "document-uri", IPP_TAG_URI)) == NULL)
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing document-uri.");
+  if ((uri = get_document_uri(client)) == NULL)
     return;
-  }
-
-  if (ippGetCount(uri) != 1)
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Too many document-uri values.");
-    serverRespondUnsupported(client, uri);
-    return;
-  }
-
-  uri_status = httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(uri, 0, NULL), scheme, sizeof(scheme), userpass, sizeof(userpass), hostname, sizeof(hostname), &port, resource, sizeof(resource));
-  if (uri_status < HTTP_URI_STATUS_OK)
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Bad document-uri: %s", httpURIStatusString(uri_status));
-    serverRespondUnsupported(client, uri);
-    return;
-  }
-
-  if (strcmp(scheme, "file") &&
-#ifdef HAVE_SSL
-      strcmp(scheme, "https") &&
-#endif /* HAVE_SSL */
-      strcmp(scheme, "http"))
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_URI_SCHEME, "URI scheme \"%s\" not supported.", scheme);
-    serverRespondUnsupported(client, uri);
-    return;
-  }
-
-  if (!strcmp(scheme, "file") && (!valid_filename(resource) || access(resource, R_OK) || stat(resource, &fileinfo) || !S_ISREG(fileinfo.st_mode)))
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to access URI: %s", strerror(errno));
-    serverRespondUnsupported(client, uri);
-    return;
-  }
 
  /*
   * Get the document format for the job...
   */
 
-  _cupsRWLockWrite(&(client->printer->rwlock));
+  if ((attr = ippFindAttribute(client->request, "document-format", IPP_TAG_MIMETYPE)) != NULL)
+  {
+    _cupsRWLockWrite(&job->rwlock);
 
-  if ((attr = ippFindAttribute(job->attrs, "document-format",
-                               IPP_TAG_MIMETYPE)) != NULL)
+    attr = ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_MIMETYPE, "document-format-supplied", NULL, ippGetString(attr, 0, NULL));
+
     job->format = ippGetString(attr, 0, NULL);
+
+    _cupsRWUnlock(&job->rwlock);
+  }
   else
     job->format = "application/octet-stream";
 
- /*
-  * Create a file for the request data...
-  */
-
-  if (!strcasecmp(job->format, "image/jpeg"))
-    snprintf(filename, sizeof(filename), "%s/%d.jpg", SpoolDirectory, job->id);
-  else if (!strcasecmp(job->format, "image/png"))
-    snprintf(filename, sizeof(filename), "%s/%d.png", SpoolDirectory, job->id);
-  else if (!strcasecmp(job->format, "application/pdf"))
-    snprintf(filename, sizeof(filename), "%s/%d.pdf", SpoolDirectory, job->id);
-  else if (!strcasecmp(job->format, "application/postscript"))
-    snprintf(filename, sizeof(filename), "%s/%d.ps", SpoolDirectory, job->id);
-  else
-    snprintf(filename, sizeof(filename), "%s/%d.prn", SpoolDirectory, job->id);
-
-  job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-
-  _cupsRWUnlock(&(client->printer->rwlock));
-
-  if (job->fd < 0)
-  {
-    job->state = IPP_JSTATE_ABORTED;
-
-    serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL,
-                "Unable to create print file: %s", strerror(errno));
-    return;
-  }
-
-  if (!strcmp(scheme, "file"))
-  {
-    if ((infile = open(resource, O_RDONLY)) < 0)
-    {
-      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS,
-                  "Unable to access URI: %s", strerror(errno));
-      return;
-    }
-
-    do
-    {
-      if ((bytes = read(infile, buffer, sizeof(buffer))) < 0 &&
-          (errno == EAGAIN || errno == EINTR))
-        bytes = 1;
-      else if (bytes > 0 && write(job->fd, buffer, (size_t)bytes) < bytes)
-      {
-	int error = errno;		/* Write error */
-
-	job->state = IPP_JSTATE_ABORTED;
-
-	close(job->fd);
-	job->fd = -1;
-
-	unlink(filename);
-	close(infile);
-
-	serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL,
-		    "Unable to write print file: %s", strerror(error));
-	return;
-      }
-    }
-    while (bytes > 0);
-
-    close(infile);
-  }
-  else
-  {
-#ifdef HAVE_SSL
-    if (port == 443 || !strcmp(scheme, "https"))
-      encryption = HTTP_ENCRYPTION_ALWAYS;
-    else
-#endif /* HAVE_SSL */
-    encryption = HTTP_ENCRYPTION_IF_REQUESTED;
-
-    if ((http = httpConnect2(hostname, port, NULL, AF_UNSPEC, encryption,
-                             1, 30000, NULL)) == NULL)
-    {
-      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS,
-                  "Unable to connect to %s: %s", hostname,
-		  cupsLastErrorString());
-      serverRespondUnsupported(client, uri);
-      job->state = IPP_JSTATE_ABORTED;
-
-      close(job->fd);
-      job->fd = -1;
-
-      unlink(filename);
-      return;
-    }
-
-    httpClearFields(http);
-    httpSetField(http, HTTP_FIELD_ACCEPT_LANGUAGE, "en");
-    if (httpGet(http, resource))
-    {
-      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS,
-                  "Unable to GET URI: %s", strerror(errno));
-      serverRespondUnsupported(client, uri);
-
-      job->state = IPP_JSTATE_ABORTED;
-
-      close(job->fd);
-      job->fd = -1;
-
-      unlink(filename);
-      httpClose(http);
-      return;
-    }
-
-    while ((status = httpUpdate(http)) == HTTP_STATUS_CONTINUE);
-
-    if (status != HTTP_STATUS_OK)
-    {
-      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS,
-                  "Unable to GET URI: %s", httpStatus(status));
-      serverRespondUnsupported(client, uri);
-
-      job->state = IPP_JSTATE_ABORTED;
-
-      close(job->fd);
-      job->fd = -1;
-
-      unlink(filename);
-      httpClose(http);
-      return;
-    }
-
-    while ((bytes = httpRead2(http, buffer, sizeof(buffer))) > 0)
-    {
-      if (write(job->fd, buffer, (size_t)bytes) < bytes)
-      {
-	int error = errno;		/* Write error */
-
-	job->state = IPP_JSTATE_ABORTED;
-
-	close(job->fd);
-	job->fd = -1;
-
-	unlink(filename);
-	httpClose(http);
-
-	serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL,
-		    "Unable to write print file: %s", strerror(error));
-	return;
-      }
-    }
-
-    httpClose(http);
-  }
-
-  if (close(job->fd))
-  {
-    int error = errno;		/* Write error */
-
-    job->state = IPP_JSTATE_ABORTED;
-    job->fd    = -1;
-
-    unlink(filename);
-
-    serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL,
-                "Unable to write print file: %s", strerror(error));
-    return;
-  }
-
-  _cupsRWLockWrite(&(client->printer->rwlock));
-
-  job->fd       = -1;
-  job->filename = strdup(filename);
-  job->state    = IPP_JSTATE_PENDING;
-
-  _cupsRWUnlock(&(client->printer->rwlock));
+  if (copy_document_uri(client, job, uri) && !job->hold_until)
+    job->state = IPP_JSTATE_PENDING;
 
  /*
   * Process the job, if possible...
   */
 
-  serverCheckJobs(client->printer);
+  if (job->state == IPP_JSTATE_PENDING)
+    serverCheckJobs(client->printer);
 
  /*
   * Return the job info...
@@ -6594,22 +6571,7 @@ valid_doc_attributes(
     memset(header, 0, sizeof(header));
     httpPeek(client->http, (char *)header, sizeof(header));
 
-    if (!memcmp(header, "%PDF", 4))
-      format = "application/pdf";
-    else if (!memcmp(header, "%!", 2))
-      format = "application/postscript";
-    else if (!memcmp(header, "\377\330\377", 3) && header[3] >= 0xe0 && header[3] <= 0xef)
-      format = "image/jpeg";
-    else if (!memcmp(header, "\211PNG", 4))
-      format = "image/png";
-    else if (!memcmp(header, "RAS2", 4))
-      format = "image/pwg-raster";
-    else if (!memcmp(header, "UNIRAST", 8))
-      format = "image/urf";
-    else
-      format = NULL;
-
-    if (format)
+    if ((format = detect_format(header)) != NULL)
     {
       serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s Auto-typed document-format='%s'", op_name, format);
 

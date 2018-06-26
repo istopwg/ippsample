@@ -694,7 +694,7 @@ extern void		serverCopyPrinterStateReasons(ipp_t *ipp, ipp_tag_t group_tag, serv
 extern server_client_t	*serverCreateClient(int sock);
 extern server_device_t	*serverCreateDevice(server_client_t *client);
 extern server_job_t	*serverCreateJob(server_client_t *client);
-extern void		serverCreateJobFilename(server_printer_t *printer, server_job_t *job, const char *format, char *fname, size_t fnamesize);
+extern void		serverCreateJobFilename(server_job_t *job, const char *format, char *fname, size_t fnamesize);
 extern int		serverCreateListeners(const char *host, int port);
 extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, server_pinfo_t *pinfo, int dupe_pinfo);
 extern server_resource_t *serverCreateResource(const char *resource, const char *filename, const char *format, const char *name, const char *info, const char *type, const char *owner);
