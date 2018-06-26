@@ -127,14 +127,16 @@ serverAddEventNoLock(
 
 server_subscription_t *			/* O - Subscription object */
 serverCreateSubscription(
-    server_printer_t *printer,		/* I - Printer */
-    server_job_t     *job,		/* I - Job, if any */
-    int              interval,		/* I - Interval for progress events */
-    int              lease,		/* I - Lease duration */
-    const char       *username,		/* I - User creating the subscription */
-    ipp_attribute_t  *notify_events,	/* I - Events to monitor */
-    ipp_attribute_t  *notify_attributes,/* I - Attributes to report */
-    ipp_attribute_t  *notify_user_data)	/* I - User data, if any */
+    server_client_t *client,		/* I - Client */
+    int             interval,		/* I - Interval for progress events */
+    int             lease,		/* I - Lease duration */
+    const char      *username,		/* I - User creating the subscription */
+    ipp_attribute_t *notify_charset,	/* I - Character set for notifications */
+    ipp_attribute_t *notify_natural_language,
+					/* I - Language for notifications */
+    ipp_attribute_t *notify_events,	/* I - Events to monitor */
+    ipp_attribute_t *notify_attributes,	/* I - Attributes to report */
+    ipp_attribute_t *notify_user_data)	/* I - User data, if any */
 {
   server_listener_t *lis = (server_listener_t *)cupsArrayFirst(Listeners);
 					/* First listener */
@@ -157,13 +159,13 @@ serverCreateSubscription(
 
   sub->id       = NextSubscriptionId ++;
   sub->mask     = notify_events ? serverGetNotifyEventsBits(notify_events) : SERVER_EVENT_DEFAULT;
-  sub->printer  = printer;
-  sub->job      = job;
+  sub->printer  = client->printer;
+  sub->job      = client->job;
   sub->interval = interval;
   sub->lease    = lease;
   sub->attrs    = ippNew();
 
-  serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreateSubscription: notify-subscription-id=%d, printer=%p(%s)", sub->id, (void *)printer, printer ? printer->name : "(null)");
+  serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreateSubscription: notify-subscription-id=%d, printer=%p(%s)", sub->id, (void *)client->printer, client->printer ? client->printer->name : "(null)");
 
   if (lease)
     sub->expire = time(NULL) + sub->lease;
@@ -177,19 +179,23 @@ serverCreateSubscription(
   * array...
   */
 
+  ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_CHARSET, "notify-charset", NULL, ippGetString(notify_charset ? notify_charset : ippFindAttribute(client->request, "attributes-charset", IPP_TAG_CHARSET), 0, NULL));
+
+  ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_LANGUAGE, "notify-natural-language", NULL, ippGetString(notify_natural_language ? notify_natural_language : ippFindAttribute(client->request, "attributes-natural-language", IPP_TAG_LANGUAGE), 0, NULL));
+
   ippAddInteger(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-subscription-id", sub->id);
 
-  httpAssembleUUID(lis->host, lis->port, printer ? printer->name : "_system_", -sub->id, uuid, sizeof(uuid));
+  httpAssembleUUID(lis->host, lis->port, client->printer ? client->printer->name : "_system_", -sub->id, uuid, sizeof(uuid));
   attr = ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-subscription-uuid", NULL, uuid);
   sub->uuid = ippGetString(attr, 0, NULL);
 
-  if (printer)
-    ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-printer-uri", NULL, printer->default_uri);
+  if (client->printer)
+    ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-printer-uri", NULL, client->printer->default_uri);
   else
     ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-system-uri", NULL, DefaultSystemURI);
 
-  if (job)
-    ippAddInteger(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-job-id", job->id);
+  if (client->job)
+    ippAddInteger(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-job-id", client->job->id);
   else
     ippAddInteger(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-lease-duration", sub->lease);
 

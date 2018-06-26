@@ -698,7 +698,7 @@ extern void		serverCreateJobFilename(server_job_t *job, const char *format, char
 extern int		serverCreateListeners(const char *host, int port);
 extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, server_pinfo_t *pinfo, int dupe_pinfo);
 extern server_resource_t *serverCreateResource(const char *resource, const char *filename, const char *format, const char *name, const char *info, const char *type, const char *owner);
-extern server_subscription_t *serverCreateSubscription(server_printer_t *printer, server_job_t *job, int interval, int lease, const char *username, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
+extern server_subscription_t *serverCreateSubscription(server_client_t *client, int interval, int lease, const char *username, ipp_attribute_t *notify_charset, ipp_attribute_t *notify_natural_language, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
 extern int		serverCreateSystem(const char *directory);
 extern void		serverDeleteClient(server_client_t *client);
 extern void		serverDeleteDevice(server_device_t *device);

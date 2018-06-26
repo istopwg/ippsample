@@ -1992,8 +1992,12 @@ ipp_create_xxx_subscriptions(
     					/* notify-pull-method */
     ipp_attribute_t	*notify_attributes = NULL,
 					/* notify-attributes */
+			*notify_charset = NULL,
+					/* notify_charset */
 			*notify_events = NULL,
 					/* notify-events */
+			*notify_natural_language = NULL,
+					/* notify-natural-language */
 			*notify_user_data = NULL;
 					/* notify-user-data */
     int			interval = 0,	/* notify-time-interval */
@@ -2047,6 +2051,8 @@ ipp_create_xxx_subscriptions(
 	  status = IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES;
 	  ippCopyAttribute(client->response, attr, 0);
 	}
+	else
+	  notify_charset = attr;
       }
       else if (!strcmp(attrname, "notify-natural-language"))
       {
@@ -2055,6 +2061,8 @@ ipp_create_xxx_subscriptions(
 	  status = IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES;
 	  ippCopyAttribute(client->response, attr, 0);
 	}
+	else
+	  notify_natural_language = attr;
       }
       else if (!strcmp(attrname, "notify-user-data"))
       {
@@ -2137,7 +2145,7 @@ ipp_create_xxx_subscriptions(
 	    break;
       }
 
-      if ((sub = serverCreateSubscription(client->printer, job, interval, lease, username, notify_events, notify_attributes, notify_user_data)) != NULL)
+      if ((sub = serverCreateSubscription(client, interval, lease, username, notify_charset, notify_natural_language, notify_events, notify_attributes, notify_user_data)) != NULL)
       {
         ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-subscription-id", sub->id);
         ok_subs ++;
