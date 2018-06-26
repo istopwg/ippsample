@@ -17,6 +17,9 @@ ipptransform - convert document data to alternate formats
 <b>-d</b>
 <i>device-uri</i>
 ] [
+<b>-f</b>
+<i>output-filename</i>
+] [
 <b>-i</b>
 <i>input/format</i>
 ] [
@@ -72,7 +75,12 @@ HP PCL output only supports resolutions of "300dpi" and "600dpi".
 <dd style="margin-left: 5.0em">Specifies the coordinate system for the back side of duplex sheets.
 <dt><b>-t</b> type[,...,type]
 <dd style="margin-left: 5.0em">Specifies the output color spaces and bit depths, separated by commas.
-Currently only the "sgray_8" (8-bit grayscale with 2.2 gamma), "sgray_1" (1-bit grayscale), "black_1" (1-bit black), and "srgb_8" (8-bit sRGB color) color spaces and bit depths are supported.
+Types include "adobe-rgb_8" and "adobe-rgb_16" for 8-bit and 16-bit AdobeRGB, "black_1" and "black_8" for 1-bit and 8-bit black, "cmyk_8" for 8-bit CMYK, "sgray_1" and "sgray_8" for 1-bit and 8-bit grayscale with a 2.2 gamma correction, and "srgb_8" for 8-bit sRGB color.
+Run
+<b>ipptransform</b>
+with the
+<i>--help</i>
+option to see the list of supported color spaces and bit depths.
 <dt><b>-v</b>
 <dd style="margin-left: 5.0em">Increases the verbosity for any diagnostics.
 </dl>
@@ -124,6 +132,9 @@ recognizes the following environment variables:
 <dt><b>IPP_xxx</b>
 <dd style="margin-left: 5.0em">Specifies the value of the "xxx" Job Template attribute, where "xxx" is converted to uppercase.
 For example, the "media" Job Template attribute is stored as the "IPP_MEDIA" environment variable.
+<dt>IPPTRANSFORM_MAX_RASTER
+<dd style="margin-left: 5.0em">Specifies the maximum number of bytes to use when generating raster data.
+The default is 16MB.
 <dt><b>OUTPUT_TYPE</b>
 <dd style="margin-left: 5.0em">Specifies the MIME media type of the output file.
 <dt><b>PRINTER_xxx_DEFAULT</b>
@@ -158,8 +169,8 @@ Print a PDF file to a PCL printer at 10.0.1.42:
         filename.jpg >filename.ras
 </pre>
 <h2 class="title"><a name="COPYRIGHT">Copyright</a></h2>
-Copyright &copy; 2016 by the IEEE-ISTO Printer Working Group.
-Copyright &copy; 2016 by Apple Inc.
+Copyright &copy; 2016-2018 by the IEEE-ISTO Printer Working Group.
+Copyright &copy; 2016-2018 by Apple Inc.
 
 </body>
 </html>

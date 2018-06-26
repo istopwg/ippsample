@@ -1,10 +1,11 @@
 /*
  * Internet Printing Protocol functions for CUPS.
  *
- * Copyright 2007-2017 by Apple Inc.
- * Copyright 1997-2007 by Easy Software Products, all rights reserved.
+ * Copyright © 2007-2018 by Apple Inc.
+ * Copyright © 1997-2007 by Easy Software Products, all rights reserved.
  *
- * Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more
+ * information.
  */
 
 /*
@@ -3083,6 +3084,13 @@ ippReadIO(void       *src,		/* I - Data source */
 	    ipp->state = IPP_STATE_DATA;
 	    break;
 	  }
+	  else if (tag == IPP_TAG_ZERO || (tag == IPP_TAG_OPERATION && ipp->curtag != IPP_TAG_ZERO))
+	  {
+	    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Invalid group tag."), 1);
+	    DEBUG_printf(("1ippReadIO: bad tag 0x%02x.", tag));
+	    _cupsBufferRelease((char *)buffer);
+	    return (IPP_STATE_ERROR);
+	  }
           else if (tag < IPP_TAG_UNSUPPORTED_VALUE)
 	  {
 	   /*
@@ -3380,7 +3388,10 @@ ippReadIO(void       *src,		/* I - Data source */
                 value->boolean = (char)buffer[0];
 	        break;
 
-            case IPP_TAG_NOVALUE :
+	    case IPP_TAG_UNSUPPORTED_VALUE :
+	    case IPP_TAG_DEFAULT :
+	    case IPP_TAG_UNKNOWN :
+	    case IPP_TAG_NOVALUE :
 	    case IPP_TAG_NOTSETTABLE :
 	    case IPP_TAG_DELETEATTR :
 	    case IPP_TAG_ADMINDEFINE :
@@ -3400,6 +3411,7 @@ ippReadIO(void       *src,		/* I - Data source */
 
 	    case IPP_TAG_TEXT :
 	    case IPP_TAG_NAME :
+	    case IPP_TAG_RESERVED_STRING :
 	    case IPP_TAG_KEYWORD :
 	    case IPP_TAG_URI :
 	    case IPP_TAG_URISCHEME :
@@ -5017,13 +5029,23 @@ ippValidateAttribute(
 	    }
 	    else if (*ptr & 0x80)
 	      break;
+	    else if ((*ptr < ' ' && *ptr != '\n' && *ptr != '\r' && *ptr != '\t') || *ptr == 0x7f)
+	      break;
 	  }
 
-	  if (*ptr)
-	  {
-	    ipp_set_error(IPP_STATUS_ERROR_BAD_REQUEST, _("\"%s\": Bad text value \"%s\" - bad UTF-8 sequence (RFC 8011 section 5.1.2)."), attr->name, attr->values[i].string.text);
-	    return (0);
-	  }
+          if (*ptr)
+          {
+	    if (*ptr < ' ' || *ptr == 0x7f)
+	    {
+	      ipp_set_error(IPP_STATUS_ERROR_BAD_REQUEST, _("\"%s\": Bad text value \"%s\" - bad control character (PWG 5100.14 section 8.3)."), attr->name, attr->values[i].string.text);
+	      return (0);
+	    }
+	    else
+	    {
+	      ipp_set_error(IPP_STATUS_ERROR_BAD_REQUEST, _("\"%s\": Bad text value \"%s\" - bad UTF-8 sequence (RFC 8011 section 5.1.2)."), attr->name, attr->values[i].string.text);
+	      return (0);
+	    }
+          }
 
 	  if ((ptr - attr->values[i].string.text) > (IPP_MAX_TEXT - 1))
 	  {
@@ -5068,13 +5090,23 @@ ippValidateAttribute(
 	    }
 	    else if (*ptr & 0x80)
 	      break;
+	    else if (*ptr < ' ' || *ptr == 0x7f)
+	      break;
 	  }
 
 	  if (*ptr)
 	  {
-	    ipp_set_error(IPP_STATUS_ERROR_BAD_REQUEST, _("\"%s\": Bad name value \"%s\" - bad UTF-8 sequence (RFC 8011 section 5.1.3)."), attr->name, attr->values[i].string.text);
-	    return (0);
-	  }
+	    if (*ptr < ' ' || *ptr == 0x7f)
+	    {
+	      ipp_set_error(IPP_STATUS_ERROR_BAD_REQUEST, _("\"%s\": Bad name value \"%s\" - bad control character (PWG 5100.14 section 8.1)."), attr->name, attr->values[i].string.text);
+	      return (0);
+	    }
+	    else
+	    {
+	      ipp_set_error(IPP_STATUS_ERROR_BAD_REQUEST, _("\"%s\": Bad name value \"%s\" - bad UTF-8 sequence (RFC 8011 section 5.1.3)."), attr->name, attr->values[i].string.text);
+	      return (0);
+	    }
+          }
 
 	  if ((ptr - attr->values[i].string.text) > (IPP_MAX_NAME - 1))
 	  {
@@ -6361,6 +6393,7 @@ ipp_free_values(ipp_attribute_t *attr,	/* I - Attribute to free values from */
 	  }
 	  break;
 
+      case IPP_TAG_UNSUPPORTED_VALUE :
       case IPP_TAG_DEFAULT :
       case IPP_TAG_UNKNOWN :
       case IPP_TAG_NOVALUE :
@@ -6840,9 +6873,7 @@ ipp_set_value(ipp_t           *ipp,	/* IO - IPP message */
     * Reset pointers in the list...
     */
 
-#ifndef __clang_analyzer__
     DEBUG_printf(("4debug_free: %p %s", (void *)*attr, temp->name));
-#endif /* !__clang_analyzer__ */
     DEBUG_printf(("4debug_alloc: %p %s %s%s (%d)", (void *)temp, temp->name, temp->num_values > 1 ? "1setOf " : "", ippTagString(temp->value_tag), temp->num_values));
 
     if (ipp->current == *attr && ipp->prev)

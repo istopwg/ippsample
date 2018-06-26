@@ -294,6 +294,7 @@ serverCreatePrinter(
     "media-col",
     "multiple-document-handling",
     "orientation-requested",
+    "output-bin",
     "print-color-mode",
     "print-quality",
     "sides"
@@ -1847,11 +1848,14 @@ register_printer(
   server_txt_t		ipp_txt;	/* Bonjour IPP TXT record */
   ipp_attribute_t	*format_sup = ippFindAttribute(printer->pinfo.attrs, "document-format-supported", IPP_TAG_MIMETYPE),
 					/* document-formats-supported */
+			*kind = ippFindAttribute(printer->pinfo.attrs, "printer-kind", IPP_TAG_KEYWORD),
+					/* printer-kind */
 			*urf_sup = ippFindAttribute(printer->pinfo.attrs, "urf-supported", IPP_TAG_KEYWORD),
 					/* urf-supported */
 			*uuid = ippFindAttribute(printer->pinfo.attrs, "printer-uuid", IPP_TAG_URI);
 					/* printer-uuid */
-  const char		*uuidval;	/* String value of UUID */
+  const char		*location,	/* printer-location string */
+			*uuidval;	/* String value of UUID */
   int			i,		/* Looping var */
 			count;		/* Number for formats */
   char			temp[256],	/* Temporary list */
@@ -1875,12 +1879,15 @@ register_printer(
   snprintf(make_model, sizeof(make_model), "%s %s", printer->pinfo.make, printer->pinfo.model);
   snprintf(product, sizeof(product), "(%s)", printer->pinfo.model);
 
+  if ((location = printer->pinfo.location) == NULL)
+    location = ippGetString(ippFindAttribute(printer->pinfo.attrs, "printer-location", IPP_TAG_TEXT), 0, NULL);
+
   TXTRecordCreate(&ipp_txt, 1024, NULL);
   TXTRecordSetValue(&ipp_txt, "rp", (uint8_t)strlen(printer->resource) - 1, printer->resource + 1);
   TXTRecordSetValue(&ipp_txt, "ty", (uint8_t)strlen(make_model), make_model);
   TXTRecordSetValue(&ipp_txt, "adminurl", (uint8_t)strlen(adminurl), adminurl);
-  if (printer->pinfo.location && *(printer->pinfo.location))
-    TXTRecordSetValue(&ipp_txt, "note", (uint8_t)strlen(printer->pinfo.location), printer->pinfo.location);
+  if (location && *location)
+    TXTRecordSetValue(&ipp_txt, "note", (uint8_t)strlen(location), location);
   if (format_sup)
   {
     for (i = 0, count = ippGetCount(format_sup), ptr = temp; i < count; i ++)
@@ -1901,11 +1908,28 @@ register_printer(
     serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "document-format-supported(%d)=%s", count, temp);
     TXTRecordSetValue(&ipp_txt, "pdl", (uint8_t)strlen(temp), temp);
   }
+  if (kind)
+  {
+    for (i = 0, count = ippGetCount(kind), ptr = temp; i < count; i ++)
+    {
+      const char *tempkind = ippGetString(kind, i, NULL);
+
+      if (ptr > temp && ptr < (temp + sizeof(temp) - 1))
+	*ptr++ = ',';
+
+      strlcpy(ptr, tempkind, sizeof(temp) - (size_t)(ptr - temp));
+      ptr += strlen(ptr);
+    }
+    *ptr = '\0';
+
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-kind(%d)=%s", count, temp);
+    TXTRecordSetValue(&ipp_txt, "kind", (uint8_t)strlen(temp), temp);
+  }
 
   if (!is_print3d)
   {
     TXTRecordSetValue(&ipp_txt, "product", (uint8_t)strlen(product), product);
-    TXTRecordSetValue(&ipp_txt, "Color", 1, printer->pinfo.ppm_color ? "T" : "F");
+    TXTRecordSetValue(&ipp_txt, "Color", 1, ippGetBoolean(ippFindAttribute(printer->pinfo.attrs, "color-supported", IPP_TAG_BOOLEAN), 0) ? "T" : "F");
     TXTRecordSetValue(&ipp_txt, "Duplex", 1, printer->pinfo.duplex ? "T" : "F");
     if (printer->pinfo.make)
       TXTRecordSetValue(&ipp_txt, "usb_MFG", (uint8_t)strlen(printer->pinfo.make), printer->pinfo.make);
@@ -2064,6 +2088,9 @@ register_printer(
 
   is_print3d = !strncmp(printer->resource, "/ipp/print3d/", 13);
 
+  if ((location = printer->pinfo.location) == NULL)
+    location = ippGetString(ippFindAttribute(printer->pinfo.attrs, "printer-location", IPP_TAG_TEXT), 0, NULL);
+
  /*
   * Create the TXT record...
   */
@@ -2072,8 +2099,8 @@ register_printer(
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "rp=%s", printer->resource + 1);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "ty=%s %s", printer->pinfo.make, printer->pinfo.model);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "adminurl=%s", adminurl);
-  if (printer->pinfo.location && *(printer->pinfo.location))
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "note=%s", printer->pinfo.location);
+  if (location && *location)
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "note=%s", location);
   if (format_sup)
   {
     for (i = 0, count = ippGetCount(format_sup), ptr = temp; i < count; i ++)
@@ -2093,11 +2120,28 @@ register_printer(
 
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "pdl=%s", temp);
   }
+  if (kind)
+  {
+    for (i = 0, count = ippGetCount(kind), ptr = temp; i < count; i ++)
+    {
+      const char *tempkind = ippGetString(kind, i, NULL);
+
+      if (ptr > temp && ptr < (temp + sizeof(temp) - 1))
+	*ptr++ = ',';
+
+      strlcpy(ptr, tempkind, sizeof(temp) - (size_t)(ptr - temp));
+      ptr += strlen(ptr);
+    }
+    *ptr = '\0';
+
+    serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-kind(%d)=%s", count, temp);
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "kind=%s", temp);
+  }
 
   if (!is_print3d)
   {
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "product=(%s)", printer->pinfo.model);
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "Color=%s", printer->pinfo.ppm_color ? "T" : "F");
+    ipp_txt = avahi_string_list_add_printf(ipp_txt, "Color=%s", ippGetBoolean(ippFindAttribute(printer->pinfo.attrs, "color-supported", IPP_TAG_BOOLEAN), 0) ? "T" : "F");
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "Duplex=%s", printer->pinfo.duplex ? "T" : "F");
     if (printer->pinfo.make)
       ipp_txt = avahi_string_list_add_printf(ipp_txt, "usb_MFG=%s", printer->pinfo.make);
