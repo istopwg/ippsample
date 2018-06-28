@@ -1416,7 +1416,7 @@ do_test(_ipp_file_t      *f,		/* I - IPP data file */
 	    _ippVarsGet(vars, expect->if_not_defined))
 	  continue;
 
-	if ((found = ippFindAttribute(response, expect->name, IPP_TAG_ZERO)) != NULL && expect->in_group != ippGetGroupTag(found))
+	if ((found = ippFindAttribute(response, expect->name, IPP_TAG_ZERO)) != NULL && expect->in_group && expect->in_group != ippGetGroupTag(found))
 	{
 	  while ((found = ippFindNextAttribute(response, expect->name, IPP_TAG_ZERO)) != NULL)
 	    if (expect->in_group == ippGetGroupTag(found))
