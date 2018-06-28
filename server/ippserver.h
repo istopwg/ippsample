@@ -559,7 +559,10 @@ typedef struct server_subscription_s	/**** Subscription data ****/
   server_job_t		*job;		/* Job, if any */
   server_resource_t	*resource;	/* Resource, if any */
   ipp_t			*attrs;		/* Attributes */
-  const char		*username;	/* notify-subscriber-user-name */
+  const char		*charset,	/* notify-charset */
+			*language,	/* notify-language */
+			*username;	/* notify-subscriber-user-name */
+  ipp_attribute_t	*userdata;	/* notify-user-data */
   int			lease;		/* notify-lease-duration */
   int			interval;	/* notify-time-interval */
   time_t		expire;		/* Lease expiration time */

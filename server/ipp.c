@@ -3103,6 +3103,10 @@ ipp_get_notifications(
 	{
 	  serverRespondIPP(client, IPP_STATUS_OK, NULL);
 	  ippAddInteger(client->response, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "notify-get-interval", 30);
+	  if (client->printer)
+	    ippAddInteger(client->response, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "printer-up-time", (int)(time(NULL) - client->printer->start_time));
+	  else
+	    ippAddInteger(client->response, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "system-up-time", (int)(time(NULL) - SystemStartTime));
 	}
 	else
 	  ippAddSeparator(client->response);
@@ -3474,7 +3478,11 @@ ipp_get_subscriptions(
   server_subscription_t	*sub;		/* Current subscription */
   cups_array_t		*ra = ippCreateRequestedArray(client->request);
 					/* Requested attributes */
-  int			first = 1;	/* First time? */
+  int			job_id,		/* notify-job-id value */
+			limit,		/* limit value, if any */
+			my_subs,	/* my-subscriptions value */
+			count = 0;	/* Number of subscriptions reported */
+  const char		*username;	/* Most authenticated user name */
 
 
   if (Authentication && !client->username[0])
@@ -3493,16 +3501,33 @@ ipp_get_subscriptions(
     return;
   }
 
+  job_id  = ippGetInteger(ippFindAttribute(client->request, "notify-job-id", IPP_TAG_INTEGER), 0);
+  limit   = ippGetInteger(ippFindAttribute(client->request, "limit", IPP_TAG_INTEGER), 0);
+  my_subs = ippGetBoolean(ippFindAttribute(client->request, "my-subscriptions", IPP_TAG_BOOLEAN), 0);
+
+  if (client->username[0])
+    username = client->username;
+  else if ((username = ippGetString(ippFindAttribute(client->request, "requesting-user-name", IPP_TAG_NAME), 0, NULL)) == NULL)
+    username = "anonymous";
+
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
   _cupsRWLockRead(&SubscriptionsRWLock);
   for (sub = (server_subscription_t *)cupsArrayFirst(Subscriptions); sub; sub = (server_subscription_t *)cupsArrayNext(Subscriptions))
   {
-    if (first)
-      first = 0;
-    else
+    if ((job_id > 0 && (!sub->job || sub->job->id != job_id)) || (job_id <= 0 && sub->job))
+      continue;
+
+    if (my_subs && strcmp(username, sub->username))
+      continue;
+
+    if (count > 0)
       ippAddSeparator(client->response);
 
     copy_subscription_attributes(client, sub, ra, serverAuthorizeUser(client, sub->username, SERVER_GROUP_NONE, SubscriptionPrivacyScope) ? NULL : SubscriptionPrivacyArray);
+
+    count ++;
+    if (limit > 0 && count >= limit)
+      break;
   }
   _cupsRWUnlock(&SubscriptionsRWLock);
 
