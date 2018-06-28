@@ -4342,7 +4342,7 @@ ipp_renew_subscription(
 
   if ((attr = ippFindAttribute(client->request, "notify-lease-duration", IPP_TAG_ZERO)) != NULL)
   {
-    if (ippGetGroupTag(attr) != IPP_TAG_SUBSCRIPTION || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetCount(attr) != 1 || ippGetInteger(attr, 0) < 0)
+    if (ippGetGroupTag(attr) != IPP_TAG_OPERATION || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetCount(attr) != 1 || ippGetInteger(attr, 0) < 0)
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Bad notify-lease-duration.");
       return;
@@ -4361,6 +4361,8 @@ ipp_renew_subscription(
     sub->expire = INT_MAX;
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
+
+  ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-lease-duration", (int)(sub->expire - time(NULL)));
 }
 
 
