@@ -559,7 +559,10 @@ typedef struct server_subscription_s	/**** Subscription data ****/
   server_job_t		*job;		/* Job, if any */
   server_resource_t	*resource;	/* Resource, if any */
   ipp_t			*attrs;		/* Attributes */
-  const char		*username;	/* notify-subscriber-user-name */
+  const char		*charset,	/* notify-charset */
+			*language,	/* notify-language */
+			*username;	/* notify-subscriber-user-name */
+  ipp_attribute_t	*userdata;	/* notify-user-data */
   int			lease;		/* notify-lease-duration */
   int			interval;	/* notify-time-interval */
   time_t		expire;		/* Lease expiration time */
@@ -694,11 +697,11 @@ extern void		serverCopyPrinterStateReasons(ipp_t *ipp, ipp_tag_t group_tag, serv
 extern server_client_t	*serverCreateClient(int sock);
 extern server_device_t	*serverCreateDevice(server_client_t *client);
 extern server_job_t	*serverCreateJob(server_client_t *client);
-extern void		serverCreateJobFilename(server_printer_t *printer, server_job_t *job, const char *format, char *fname, size_t fnamesize);
+extern void		serverCreateJobFilename(server_job_t *job, const char *format, char *fname, size_t fnamesize);
 extern int		serverCreateListeners(const char *host, int port);
 extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, server_pinfo_t *pinfo, int dupe_pinfo);
 extern server_resource_t *serverCreateResource(const char *resource, const char *filename, const char *format, const char *name, const char *info, const char *type, const char *owner);
-extern server_subscription_t *serverCreateSubscription(server_printer_t *printer, server_job_t *job, int interval, int lease, const char *username, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
+extern server_subscription_t *serverCreateSubscription(server_client_t *client, int interval, int lease, const char *username, ipp_attribute_t *notify_charset, ipp_attribute_t *notify_natural_language, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
 extern int		serverCreateSystem(const char *directory);
 extern void		serverDeleteClient(server_client_t *client);
 extern void		serverDeleteDevice(server_device_t *device);

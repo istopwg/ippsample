@@ -271,7 +271,7 @@ serverTransformJob(
 
     if (mode == SERVER_TRANSFORM_TO_FILE)
     {
-      serverCreateJobFilename(job->printer, job, format, line, sizeof(line));
+      serverCreateJobFilename(job, format, line, sizeof(line));
       mystdout[1] = open(line, O_WRONLY | O_CREAT | O_TRUNC | O_EXCL, 0666);
     }
     else

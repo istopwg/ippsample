@@ -34,9 +34,10 @@ serverAddEventNoLock(
     ...)				/* I - Additional printf arguments */
 {
   server_subscription_t *sub;		/* Current subscription */
-  ipp_t		*n;			/* Notify attributes */
-  char		text[1024];		/* notify-text value */
-  va_list	ap;			/* Argument pointer */
+  ipp_t			*n;		/* Notify event attributes */
+  ipp_attribute_t	*attr;		/* Event attribute */
+  char			text[1024];	/* notify-text value */
+  va_list		ap;		/* Argument pointer */
 
 
   if (message)
@@ -61,18 +62,12 @@ serverAddEventNoLock(
       _cupsRWLockWrite(&sub->rwlock);
 
       n = ippNew();
-      ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_CHARSET, "notify-charset", NULL, "utf-8");
-      ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_LANGUAGE, "notify-natural-language", NULL, "en");
+      ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_CHARSET, "notify-charset", NULL, sub->charset);
+      ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_LANGUAGE, "notify-natural-language", NULL, sub->language);
       if (printer)
-      {
-	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-printer-up-time", (int)(time(NULL) - printer->start_time));
 	ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_URI, "notify-printer-uri", NULL, printer->default_uri);
-      }
       else
-      {
-	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-system-up-time", (int)(time(NULL) - SystemStartTime));
 	ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_URI, "notify-system-uri", NULL, DefaultSystemURI);
-      }
 
       if (job)
 	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-job-id", job->id);
@@ -83,10 +78,10 @@ serverAddEventNoLock(
       ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-sequence-number", ++ sub->last_sequence);
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_KEYWORD, "notify-subscribed-event", NULL, serverGetNotifySubscribedEvent(event));
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_TEXT, "notify-text", NULL, text);
-      if (printer && (event & SERVER_EVENT_PRINTER_ALL))
+      if (sub->userdata)
       {
-	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_ENUM, "printer-state", printer->state);
-	serverCopyPrinterStateReasons(n, IPP_TAG_EVENT_NOTIFICATION, printer);
+        attr = ippCopyAttribute(n, sub->userdata, 0);
+        ippSetGroupTag(n, &attr, IPP_TAG_EVENT_NOTIFICATION);
       }
       if (job && (event & SERVER_EVENT_JOB_ALL))
       {
@@ -98,6 +93,16 @@ serverAddEventNoLock(
 	  ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_NAME, "job-originating-user-name", NULL, job->username);
 	}
       }
+      if (!sub->job && printer && (event & SERVER_EVENT_PRINTER_ALL))
+      {
+	ippAddBoolean(n, IPP_TAG_EVENT_NOTIFICATION, "printer-is-accepting-jobs", printer->is_accepting);
+	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_ENUM, "printer-state", printer->state);
+	serverCopyPrinterStateReasons(n, IPP_TAG_EVENT_NOTIFICATION, printer);
+      }
+      if (printer)
+	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "printer-up-time", (int)(time(NULL) - printer->start_time));
+      else
+	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "system-up-time", (int)(time(NULL) - SystemStartTime));
 
       cupsArrayAdd(sub->events, n);
       if (cupsArrayCount(sub->events) > 100)
@@ -127,14 +132,16 @@ serverAddEventNoLock(
 
 server_subscription_t *			/* O - Subscription object */
 serverCreateSubscription(
-    server_printer_t *printer,		/* I - Printer */
-    server_job_t     *job,		/* I - Job, if any */
-    int              interval,		/* I - Interval for progress events */
-    int              lease,		/* I - Lease duration */
-    const char       *username,		/* I - User creating the subscription */
-    ipp_attribute_t  *notify_events,	/* I - Events to monitor */
-    ipp_attribute_t  *notify_attributes,/* I - Attributes to report */
-    ipp_attribute_t  *notify_user_data)	/* I - User data, if any */
+    server_client_t *client,		/* I - Client */
+    int             interval,		/* I - Interval for progress events */
+    int             lease,		/* I - Lease duration */
+    const char      *username,		/* I - User creating the subscription */
+    ipp_attribute_t *notify_charset,	/* I - Character set for notifications */
+    ipp_attribute_t *notify_natural_language,
+					/* I - Language for notifications */
+    ipp_attribute_t *notify_events,	/* I - Events to monitor */
+    ipp_attribute_t *notify_attributes,	/* I - Attributes to report */
+    ipp_attribute_t *notify_user_data)	/* I - User data, if any */
 {
   server_listener_t *lis = (server_listener_t *)cupsArrayFirst(Listeners);
 					/* First listener */
@@ -157,13 +164,13 @@ serverCreateSubscription(
 
   sub->id       = NextSubscriptionId ++;
   sub->mask     = notify_events ? serverGetNotifyEventsBits(notify_events) : SERVER_EVENT_DEFAULT;
-  sub->printer  = printer;
-  sub->job      = job;
+  sub->printer  = client->printer;
+  sub->job      = client->job;
   sub->interval = interval;
   sub->lease    = lease;
   sub->attrs    = ippNew();
 
-  serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreateSubscription: notify-subscription-id=%d, printer=%p(%s)", sub->id, (void *)printer, printer ? printer->name : "(null)");
+  serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreateSubscription: notify-subscription-id=%d, printer=%p(%s)", sub->id, (void *)client->printer, client->printer ? client->printer->name : "(null)");
 
   if (lease)
     sub->expire = time(NULL) + sub->lease;
@@ -177,19 +184,25 @@ serverCreateSubscription(
   * array...
   */
 
+  attr = ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_CHARSET, "notify-charset", NULL, ippGetString(notify_charset ? notify_charset : ippFindAttribute(client->request, "attributes-charset", IPP_TAG_CHARSET), 0, NULL));
+  sub->charset = ippGetString(attr, 0, NULL);
+
+  attr = ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_LANGUAGE, "notify-natural-language", NULL, ippGetString(notify_natural_language ? notify_natural_language : ippFindAttribute(client->request, "attributes-natural-language", IPP_TAG_LANGUAGE), 0, NULL));
+  sub->language = ippGetString(attr, 0, NULL);
+
   ippAddInteger(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-subscription-id", sub->id);
 
-  httpAssembleUUID(lis->host, lis->port, printer ? printer->name : "_system_", -sub->id, uuid, sizeof(uuid));
+  httpAssembleUUID(lis->host, lis->port, client->printer ? client->printer->name : "_system_", -sub->id, uuid, sizeof(uuid));
   attr = ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-subscription-uuid", NULL, uuid);
   sub->uuid = ippGetString(attr, 0, NULL);
 
-  if (printer)
-    ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-printer-uri", NULL, printer->default_uri);
+  if (client->printer)
+    ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-printer-uri", NULL, client->printer->default_uri);
   else
     ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-system-uri", NULL, DefaultSystemURI);
 
-  if (job)
-    ippAddInteger(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-job-id", job->id);
+  if (client->job)
+    ippAddInteger(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-job-id", client->job->id);
   else
     ippAddInteger(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-lease-duration", sub->lease);
 
@@ -228,7 +241,7 @@ serverCreateSubscription(
     ippCopyAttribute(sub->attrs, notify_attributes, 0);
 
   if (notify_user_data)
-    ippCopyAttribute(sub->attrs, notify_user_data, 0);
+    sub->userdata = ippCopyAttribute(sub->attrs, notify_user_data, 0);
 
   sub->events = cupsArrayNew3(NULL, NULL, NULL, 0, NULL, (cups_afree_func_t)ippDelete);
 

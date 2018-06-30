@@ -303,8 +303,7 @@ serverCreateJob(server_client_t *client)	/* I - Client */
  */
 
 void serverCreateJobFilename(
-    server_printer_t *printer,		/* I - Printer */
-    server_job_t     *job,		/* I - Job */
+    server_job_t   *job,		/* I - Job */
     const char     *format,		/* I - Format or NULL */
     char           *fname,		/* I - Filename buffer */
     size_t         fnamesize)		/* I - Size of filename buffer */
@@ -377,7 +376,7 @@ void serverCreateJobFilename(
   * Create a filename with the job-id, job-name, and document-format (extension)...
   */
 
-  snprintf(fname, fnamesize, "%s/%s/%d-%s.%s", SpoolDirectory, printer->name, job->id, name, ext);
+  snprintf(fname, fnamesize, "%s/%s/%d-%s.%s", SpoolDirectory, job->printer->name, job->id, name, ext);
 }
 
 
