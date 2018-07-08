@@ -185,6 +185,39 @@ void jpeg_lint_error_exit (j_common_ptr cinfo) {
   longjmp(error->setjmp_buffer, 1);
 }
 
+char jpeg_color_space_enum[20][20] = { // TODO: macOS preview inspector showing RGB for YCbCr
+  "JCS_UNKNOWN",            /* error/unspecified */
+  "JCS_GRAYSCALE",          /* monochrome */
+  "JCS_RGB",                /* red/green/blue as specified by the RGB_RED,
+             RGB_GREEN, RGB_BLUE, and RGB_PIXELSIZE macros */
+  "JCS_YCbCr",              /* Y/Cb/Cr (also known as YUV) */
+  "JCS_CMYK",               /* C/M/Y/K */
+  "JCS_YCCK",               /* Y/Cb/Cr/K */
+  "JCS_EXT_RGB",            /* red/green/blue */
+  "JCS_EXT_RGBX",           /* red/green/blue/x */
+  "JCS_EXT_BGR",            /* blue/green/red */
+  "JCS_EXT_BGRX",           /* blue/green/red/x */
+  "JCS_EXT_XBGR",           /* x/blue/green/red */
+  "JCS_EXT_XRGB",           /* x/red/green/blue */
+  /* When out_color_space it set to JCS_EXT_RGBX, JCS_EXT_BGRX, JCS_EXT_XBGR,
+     or JCS_EXT_XRGB during decompression, the X byte is undefined, and in
+     order to ensure the best performance, libjpeg-turbo can set that byte to
+     whatever value it wishes.  Use the following colorspace constants to
+     ensure that the X byte is set to 0xFF, so that it can be interpreted as an
+     opaque alpha channel. */
+  "JCS_EXT_RGBA",           /* red/green/blue/alpha */
+  "JCS_EXT_BGRA",           /* blue/green/red/alpha */
+  "JCS_EXT_ABGR",           /* alpha/blue/green/red */
+  "JCS_EXT_ARGB",           /* alpha/red/green/blue */
+  "JCS_RGB565"              /* 5-bit red/6-bit green/5-bit blue */
+};
+
+char pixel_density_unit[3][10] = {
+        "Unknown",
+        "dots/inch",
+        "dots/cm"
+};
+
 /*
  * 'lint_jpeg()' - Check a JPEG file.
  */
@@ -241,8 +274,29 @@ lint_jpeg(const char    *filename,	/* I - File to check */
   jpeg_create_decompress(&cinfo);
   jpeg_stdio_src(&cinfo, infile);
 
-  // TODO: Print header info to stderr
   (void) jpeg_read_header(&cinfo, TRUE);
+  fprintf(stderr, "DEBUG: Image height: %d\n", cinfo.image_height);
+  fprintf(stderr, "DEBUG: Image width: %d\n", cinfo.image_width);
+  fprintf(stderr, "DEBUG: JPEG color space: %s\n", jpeg_color_space_enum[cinfo.jpeg_color_space]);
+
+  if(cinfo.saw_JFIF_marker) {
+    fprintf(stderr,"DEBUG: JFIF marker found\n");
+    fprintf(stderr,"DEBUG: JFIF major version: %d\n", cinfo.JFIF_major_version);
+    fprintf(stderr,"DEBUG: JFIF minor version: %d\n", cinfo.JFIF_minor_version);
+
+    if(cinfo.density_unit == 0) {
+      fprintf(stderr, "DEBUG: Pixel density unit not found\n");
+    }
+    else {
+      fprintf(stderr, "DEBUG: Horizontal pixel density: %d %s\n", cinfo.X_density, pixel_density_unit[cinfo.density_unit]);
+      fprintf(stderr, "DEBUG: Vertical pixel density: %d %s\n", cinfo.Y_density, pixel_density_unit[cinfo.density_unit]);
+    }
+  }
+
+  if(cinfo.saw_Adobe_marker) {
+    fprintf(stderr,"DEBUG: Adobe marker found\n");
+    fprintf(stderr,"DEBUG: Color transform code from Adobe marker: %d\n", cinfo.Adobe_transform);
+  }
 
   fprintf(stderr, "DEBUG: Decompressing the file...\n");
   (void) jpeg_start_decompress(&cinfo);
