@@ -16,7 +16,7 @@
 #include <mupdf/fitz.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <turbojpeg.h>
+#include <jpeglib.h>
 
 /*
  * Local globals...
@@ -173,11 +173,21 @@ main(int  argc,				/* I - Number of command-line arguments */
   }
 }
 
+struct jpeg_lint_error_mgr {
+    struct jpeg_error_mgr pub;    /* "public" fields */
+    jmp_buf setjmp_buffer;        /* for return to caller */
+};
+typedef struct jpeg_lint_error_mgr *jpeg_lint_error_ptr;
+
+void jpeg_lint_error_exit (j_common_ptr cinfo) {
+  jpeg_lint_error_ptr error = (jpeg_lint_error_ptr) cinfo->err;
+  (*cinfo->err->output_message) (cinfo);
+  longjmp(error->setjmp_buffer, 1);
+}
 
 /*
  * 'lint_jpeg()' - Check a JPEG file.
  */
-
 static int				/* O - 0 if OK, 1 if not OK */
 lint_jpeg(const char    *filename,	/* I - File to check */
           int           num_options,	/* I - Number of options */
@@ -202,11 +212,68 @@ lint_jpeg(const char    *filename,	/* I - File to check */
   * - job-pages-completed-col
   */
 
-  (void)filename;
+  /*
+   * This struct contains the JPEG decompression parameters and pointers to
+   * working space (which is allocated as needed by the JPEG library).
+   */
+  struct jpeg_decompress_struct cinfo;
+  struct jpeg_lint_error_mgr jerr;
+
+  FILE *infile;                 /* source file */
+  JSAMPARRAY buffer;            /* Output row buffer */
+  int row_stride;               /* physical row width in output buffer */
+
+  if ((infile = fopen(filename, "rb")) == NULL) {
+    fprintf(stderr, "ERROR: Cannot open file: %s\n", filename);
+    return(1);
+  }
+
+  cinfo.err = jpeg_std_error(&jerr.pub);
+  jerr.pub.error_exit = jpeg_lint_error_exit;
+
+  if (setjmp(jerr.setjmp_buffer)) {
+    jpeg_destroy_decompress(&cinfo);
+    fclose(infile);
+    return(1);
+  }
+
+  fprintf(stderr, "DEBUG: Setting up...\n");
+  jpeg_create_decompress(&cinfo);
+  jpeg_stdio_src(&cinfo, infile);
+
+  // TODO: Print header info to stderr
+  (void) jpeg_read_header(&cinfo, TRUE);
+
+  fprintf(stderr, "DEBUG: Decompressing the file...\n");
+  (void) jpeg_start_decompress(&cinfo);
+
+  row_stride = cinfo.output_width * cinfo.output_components;
+  buffer = (*cinfo.mem->alloc_sarray) ((j_common_ptr) &cinfo, JPOOL_IMAGE, row_stride, 1);
+
+  fprintf(stderr, "DEBUG: Scanning rows in JPEG...\n");
+  while (cinfo.output_scanline < cinfo.output_height) {
+    jpeg_read_scanlines(&cinfo, buffer, 1);
+  }
+  fprintf(stderr, "DEBUG: Scan complete\n");
+
+  fprintf(stderr, "DEBUG: Cleaning up...\n");
+  (void) jpeg_finish_decompress(&cinfo);
+  jpeg_destroy_decompress(&cinfo);
+  fclose(infile);
+
+  if(jerr.pub.num_warnings != 0) {
+    // TODO See if the error messages corresponding to the non-zero warnings are shown
+    fprintf(stderr, "ERROR: Corrupt data found\n");
+    return(1);
+  }
+  else {
+    fprintf(stderr, "DEBUG: File lint complete, no errors found\n");
+  }
+
   (void)num_options;
   (void)options;
 
-  return (1);
+  return(0);
 }
 
 
