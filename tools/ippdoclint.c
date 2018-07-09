@@ -700,8 +700,14 @@ char leading_edge_enum[4][20] = {
         "Left Edge First"
 };
 
+char color_order_enum[3][50] = {
+        "Chunky pixels (CMYK CMYK CMYK)",
+        "Banded pixels (CCC MMM YYY KKK)",
+        "Planar pixels (CCC... MMM... YYY... KKK...)"
+};
+
 static int
-parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_version)
+parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_version, boolean big_endian)
 {
   if(raster_id == PWG) {
     if (strncmp(header->MediaClass, "PwgRaster", 64)) {
@@ -775,7 +781,7 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
   else
     fprintf(stderr, "DEBUG: Incorrect Duplex value\n");
 
-  if(raster_id == PWG) {
+  if(big_endian) {
     header->HWResolution[0] = ntohl(header->HWResolution[0]);
     header->HWResolution[1] = ntohl(header->HWResolution[1]);
   }
@@ -793,6 +799,11 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
     fprintf(stderr, "DEBUG: Reserved[284-299] field is zero as expected\n");
   }
   else {
+    if(big_endian) {
+      for (int i = 0; i < 4; i++) {
+        header->ImagingBoundingBox[i] = ntohl(header->ImagingBoundingBox[i]);
+      }
+    }
     fprintf(stderr, "DEBUG: Page bounding box position: Left: %d, Bottom: %d, Right: %d, Top: %d points\n",
             header->ImagingBoundingBox[0], header->ImagingBoundingBox[1], header->ImagingBoundingBox[2],
             header->ImagingBoundingBox[3]);
@@ -895,7 +906,7 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
     }
   }
 
-  if(raster_id == PWG) {
+  if(big_endian) {
     header->NumCopies = ntohl(header->NumCopies);
   }
   if (header->NumCopies==0)
@@ -929,38 +940,73 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
     }
   }
 
-  if(raster_id == PWG) {
+  if(big_endian) {
     header->PageSize[0] = ntohl(header->PageSize[0]);
     header->PageSize[1] = ntohl(header->PageSize[1]);
   }
   fprintf(stderr, "DEBUG: Page size is %d x %d\n", header->PageSize[0], header->PageSize[1]);
 
-  if (header->Separations != 0 || header->TraySwitch != 0){
-    fprintf(stderr, "ERROR: Non-zero values present in Reserved[360-367] area\n");
-    return(1);
+  if(raster_id == PWG) {
+    if (header->Separations != 0 || header->TraySwitch != 0) {
+      fprintf(stderr, "ERROR: Non-zero values present in Reserved[360-367] area\n");
+      return (1);
+    } else
+      fprintf(stderr, "DEBUG: Reserved[360-367] field is zero as expected\n");
   }
-  else
-    fprintf(stderr, "DEBUG: Reserved[360-367] field is zero as expected\n");
+  else {
+    if(header->Separations == 0) {
+      fprintf(stderr, "DEBUG: Print composite image\n");
+    }
+    else if(header->Separations == 1) {
+      fprintf(stderr, "DEBUG: Print Color separations\n");
+    }
+    else {
+      fprintf(stderr, "ERROR: Incorrect value for Separations present %d", header->Separations);
+      return (1);
+    }
+
+    if(header->TraySwitch == 0) {
+      fprintf(stderr, "DEBUG: Don't change trays if selected tray is empty\n");
+    }
+    else if(header->TraySwitch == 1) {
+      fprintf(stderr, "DEBUG: Change trays if selected tray is empty)\n");
+    }
+    else {
+      fprintf(stderr, "ERROR: Incorrect value for TraySwitch present %d", header->TraySwitch);
+      return (1);
+    }
+  }
 
   if(header->Tumble == 0)
-    fprintf(stderr, "DEBUG: Tumble set to false\n");
+    fprintf(stderr, "DEBUG: Tumble set to false (Don't rotate even pages when duplexing)\n");
   else if(header->Tumble == 1)
-    fprintf(stderr, "DEBUG: Tumble set to true\n");
+    fprintf(stderr, "DEBUG: Tumble set to true (Rotate even pages when duplexing)\n");
   else
     fprintf(stderr, "DEBUG: Incorrect Tumble value\n");
 
-  header->cupsWidth = ntohl(header->cupsWidth);
-  header->cupsHeight = ntohl(header->cupsHeight);
+  if(big_endian) {
+    header->cupsWidth = ntohl(header->cupsWidth);
+    header->cupsHeight = ntohl(header->cupsHeight);
+  }
   fprintf(stderr, "DEBUG: Page width is %d and height is %d\n", header->cupsWidth, header->cupsHeight);
 
-  if (header->cupsMediaType != 0){
-    fprintf(stderr, "ERROR: Non-zero values present in Reserved[380-383] area\n");
-    return(1);
+  if(raster_id == PWG) {
+    if (header->cupsMediaType != 0) {
+      fprintf(stderr, "ERROR: Non-zero values present in Reserved[380-383] area\n");
+      return (1);
+    } else
+      fprintf(stderr, "DEBUG: Reserved[380-383] field is zero as expected\n");
   }
-  else
-    fprintf(stderr, "DEBUG: Reserved[380-383] field is zero as expected\n");
+  else {
+    if(big_endian){
+      header->cupsMediaType = ntohl(header->cupsMediaType);
+    }
+    fprintf(stderr, "DEBUG: CupsMediaType set to %d\n", header->cupsMediaType);
+  }
 
-  header->cupsBitsPerColor = ntohl(header->cupsBitsPerColor);
+  if(big_endian) {
+    header->cupsBitsPerColor = ntohl(header->cupsBitsPerColor);
+  }
   switch (header->cupsBitsPerColor) {
     case 1: break;
     case 8: break;
@@ -971,7 +1017,9 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
   }
   fprintf(stderr, "DEBUG: BitsPerColor value is %d\n", header->cupsBitsPerColor);
 
-  header->cupsBitsPerPixel = ntohl(header->cupsBitsPerPixel);
+  if(big_endian) {
+    header->cupsBitsPerPixel = ntohl(header->cupsBitsPerPixel);
+  }
   switch (header->cupsBitsPerPixel) { // [TODO] Much more checks needed
     case 1: break;
     case 8: break;
@@ -1003,7 +1051,9 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
   }
   fprintf(stderr, "DEBUG: BitsPerPixel value is %d\n", header->cupsBitsPerPixel);
 
-  header->cupsBytesPerLine = ntohl(header->cupsBytesPerLine);
+  if(big_endian) {
+    header->cupsBytesPerLine = ntohl(header->cupsBytesPerLine);
+  }
   if (header->cupsBytesPerLine==(header->cupsBitsPerPixel * header->cupsWidth + 7)/8)
     fprintf(stderr, "DEBUG: BytesPerLine value is correct %d\n", header->cupsBytesPerLine);
   else {
@@ -1012,13 +1062,15 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
   }
 
   if (header->cupsColorOrder==0)
-    fprintf(stderr, "DEBUG: ColorOrder value is correct %d\n", header->cupsColorOrder);
+    fprintf(stderr, "DEBUG: ColorOrder value is %d (%s)\n", header->cupsColorOrder, color_order_enum[header->cupsColorOrder]);
   else {
     fprintf(stderr, "ERROR: ColorOrder value is incorrect %d\n", header->cupsColorOrder);
     return(1);
   }
 
-  header->cupsColorSpace = ntohl(header->cupsColorSpace);
+  if(big_endian) {
+    header->cupsColorSpace = ntohl(header->cupsColorSpace);
+  }
   switch(header->cupsColorSpace) { // [TODO] Much more checks needed
     case 1: break;
     case 3: break;
@@ -1047,14 +1099,31 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
   }
   fprintf(stderr, "DEBUG: ColorSpace value is %d\n", header->cupsColorSpace);
 
-  if (header->cupsCompression != 0 || header->cupsRowCount != 0 || header->cupsRowFeed != 0 || header->cupsRowStep != 0){
-    fprintf(stderr, "ERROR: Non-zero values present in Reserved[404-419] area\n");
-    return(1);
+  if(raster_id == PWG) {
+    if (header->cupsCompression != 0 || header->cupsRowCount != 0 || header->cupsRowFeed != 0 ||
+        header->cupsRowStep != 0) {
+      fprintf(stderr, "ERROR: Non-zero values present in Reserved[404-419] area\n");
+      return (1);
+    } else
+      fprintf(stderr, "DEBUG: Reserved[404-419] field is zero as expected\n");
   }
-  else
-    fprintf(stderr, "DEBUG: Reserved[404-419] field is zero as expected\n");
+  else {
+    if(big_endian){
+      header->cupsCompression = ntohl(header->cupsCompression);
+      header->cupsRowCount = ntohl(header->cupsRowCount);
+      header->cupsRowFeed = ntohl(header->cupsRowFeed);
+      header->cupsRowStep = ntohl(header->cupsRowStep);
+    }
 
-  header->cupsNumColors = ntohl(header->cupsNumColors);
+    fprintf(stderr, "DEBUG: CupsCompression value set to %d\n", header->cupsCompression);
+    fprintf(stderr, "DEBUG: CupsRowCount value set to %d\n", header->cupsRowCount);
+    fprintf(stderr, "DEBUG: CupsRowFeed value set to %d\n", header->cupsRowFeed);
+    fprintf(stderr, "DEBUG: CupsRowStep value set to %d\n", header->cupsRowStep);
+  }
+
+  if(big_endian) {
+    header->cupsNumColors = ntohl(header->cupsNumColors);
+  }
   switch(header->cupsNumColors) { // [TODO] Much more checks needed
     case 1: break;
     case 2: break;
@@ -1077,85 +1146,134 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
   }
   fprintf(stderr, "DEBUG: NumColors value is %d\n", header->cupsNumColors);
 
-  if (header->cupsBorderlessScalingFactor != 0 || header->cupsPageSize[0] != 0 || header->cupsPageSize[1] != 0 || 
-      header->cupsImagingBBox[0] != 0 || header->cupsImagingBBox[1] != 0 || header->cupsImagingBBox[2] != 0 || header->cupsImagingBBox[3] != 0){
-    fprintf(stderr, "ERROR: Non-zero values present in Reserved[424-451] area\n");
-    return(1);
+  if(raster_id == PWG) {
+    if (header->cupsBorderlessScalingFactor != 0 || header->cupsPageSize[0] != 0 || header->cupsPageSize[1] != 0 ||
+        header->cupsImagingBBox[0] != 0 || header->cupsImagingBBox[1] != 0 || header->cupsImagingBBox[2] != 0 ||
+        header->cupsImagingBBox[3] != 0) {
+      fprintf(stderr, "ERROR: Non-zero values present in Reserved[424-451] area\n");
+      return (1);
+    } else
+      fprintf(stderr, "DEBUG: Reserved[424-451] field is zero as expected\n");
   }
-  else
-    fprintf(stderr, "DEBUG: Reserved[424-451] field is zero as expected\n");
-
-  header->cupsInteger[0] = ntohl(header->cupsInteger[0]);
-  if(header->cupsInteger[0]==0)
-    fprintf(stderr, "DEBUG: TotalPageCount is not known when the file is produced\n");
-  else if(header->cupsInteger[0]>0) 
-    fprintf(stderr, "DEBUG: TotalPageCount is %d\n", header->cupsInteger[0]);
   else {
-    fprintf(stderr, "ERROR: TotalPageCount is incorrect %d\n", header->cupsInteger[0]);
-    return(1);
+    fprintf(stderr, "DEBUG: CupsBorderlessScalingFactor is set to %0.1f\n", header->cupsBorderlessScalingFactor);
+    fprintf(stderr, "DEBUG: CupsPageSize: Width: %0.1f, Height: %0.1f\n", header->cupsPageSize[0], header->cupsPageSize[1]);
+    fprintf(stderr, "DEBUG: CupsImagingBBox: Left: %0.1f, Bottom: %0.1f, Right: %0.1f, Top: %0.1f\n", header->cupsImagingBBox[0],
+            header->cupsImagingBBox[1], header->cupsImagingBBox[2], header->cupsImagingBBox[3]);
   }
 
-  header->cupsInteger[1] = (int32_t)(header->cupsInteger[1]);
-  if(header->cupsInteger[1]==1 || header->cupsInteger[1]==-1)
-    fprintf(stderr, "DEBUG: CrossFeedTransform value is %d\n", header->cupsInteger[1]);
-  else {
-    // Non-critical
-    fprintf(stderr, "WARNING: CrossFeedTransform is incorrect %d\n", header->cupsInteger[1]);
-  }
-
-  header->cupsInteger[2] = (int32_t)(header->cupsInteger[2]);
-  if(header->cupsInteger[2]==1 || header->cupsInteger[2]==-1)
-    fprintf(stderr, "DEBUG: FeedTransform value is %d\n", header->cupsInteger[2]);
-  else {
-    fprintf(stderr, "WARNING: FeedTransform is incorrect %d\n", header->cupsInteger[2]);
-    //return(1);
-  }
-
-  for(int i=0; i<4; i++)
-    header->cupsInteger[3+i] = ntohl(header->cupsInteger[3+i]);
-  fprintf(stderr, "DEBUG: ImageBoxLeft value is %d\n", header->cupsInteger[3]);
-  fprintf(stderr, "DEBUG: ImageBoxTop value is %d\n", header->cupsInteger[4]);
-  fprintf(stderr, "DEBUG: ImageBoxBottom value is %d\n", header->cupsInteger[5]);
-  fprintf(stderr, "DEBUG: ImageBoxRight value is %d\n", header->cupsInteger[6]);
-
-  header->cupsInteger[7] = ntohl(header->cupsInteger[7]);
-  if(header->cupsInteger[7] >=0 && header->cupsInteger[7] < (1 << 25))
-    fprintf(stderr, "DEBUG: AlternatePrimary value is %d\n", header->cupsInteger[7]);
-  else
-    fprintf(stderr, "DEBUG: AlternatePrimary value is incorrect %d\n", header->cupsInteger[7]);
-
-  header->cupsInteger[8] = ntohl(header->cupsInteger[8]);
-  if(header->cupsInteger[8] == 0)
-    fprintf(stderr, "DEBUG: PrintQuality value is %d(%s)\n", header->cupsInteger[8], print_quality_enum[header->cupsInteger[8]]);
-  else if(header->cupsInteger[8] >=3 && header->cupsInteger[8] < 6)
-    fprintf(stderr, "DEBUG: PrintQuality value is %d(%s)\n", header->cupsInteger[8], print_quality_enum[header->cupsInteger[8]-2]);
-  else
-    fprintf(stderr, "DEBUG: PrintQuality value is incorrect %d\n", header->cupsInteger[8]);
-
-  for(int i=9; i<14; i++)
-    if(header->cupsInteger[i]!=0){
-      fprintf(stderr, "ERROR: Non-zero values present in Reserved[488-507] area\n");
-      return(1);
+  if(raster_id == PWG) {
+    if (big_endian) {
+      header->cupsInteger[0] = ntohl(header->cupsInteger[0]);
     }
-  fprintf(stderr, "DEBUG: Reserved[488-507] field is zero as expected\n");
-
-  for(int i=0; i<2; i++)
-    header->cupsInteger[14+i] = ntohl(header->cupsInteger[14+i]);
-  fprintf(stderr, "DEBUG: VendorIdentifier value is %d\n", header->cupsInteger[14]);
-  fprintf(stderr, "DEBUG: VendorLength value is %d\n", header->cupsInteger[15]);
-
-  if(header->cupsInteger[14]==0 || header->cupsInteger[15]==0)
-    fprintf(stderr, "DEBUG: No vendor information present\n");
-  else
-    fprintf(stderr, "DEBUG: VendorData is %s\n", header->cupsReal);
-
-  for(int i=0; i<64; i++){
-    if(header->cupsMarkerType[i]!=0){
-      fprintf(stderr, "ERROR: Non-zero values present in Reserved[1604-1667] area\n");
-      return(1);
+    if (header->cupsInteger[0] == 0)
+      fprintf(stderr, "DEBUG: TotalPageCount is not known when the file is produced\n");
+    else if (header->cupsInteger[0] > 0)
+      fprintf(stderr, "DEBUG: TotalPageCount is %d\n", header->cupsInteger[0]);
+    else {
+      fprintf(stderr, "ERROR: TotalPageCount is incorrect %d\n", header->cupsInteger[0]);
+      return (1);
     }
+
+    header->cupsInteger[1] = (int32_t) (header->cupsInteger[1]);
+    if (header->cupsInteger[1] == 1 || header->cupsInteger[1] == -1)
+      fprintf(stderr, "DEBUG: CrossFeedTransform value is %d\n", header->cupsInteger[1]);
+    else {
+      // Non-critical
+      fprintf(stderr, "WARNING: CrossFeedTransform is incorrect %d\n", header->cupsInteger[1]);
+    }
+
+    header->cupsInteger[2] = (int32_t) (header->cupsInteger[2]);
+    if (header->cupsInteger[2] == 1 || header->cupsInteger[2] == -1)
+      fprintf(stderr, "DEBUG: FeedTransform value is %d\n", header->cupsInteger[2]);
+    else {
+      fprintf(stderr, "WARNING: FeedTransform is incorrect %d\n", header->cupsInteger[2]);
+      //return(1);
+    }
+
+    for (int i = 0; i < 4; i++) {
+      if (big_endian) {
+        header->cupsInteger[3 + i] = ntohl(header->cupsInteger[3 + i]);
+      }
+    }
+    fprintf(stderr, "DEBUG: ImageBoxLeft value is %d\n", header->cupsInteger[3]);
+    fprintf(stderr, "DEBUG: ImageBoxTop value is %d\n", header->cupsInteger[4]);
+    fprintf(stderr, "DEBUG: ImageBoxBottom value is %d\n", header->cupsInteger[5]);
+    fprintf(stderr, "DEBUG: ImageBoxRight value is %d\n", header->cupsInteger[6]);
+
+    if (big_endian) {
+      header->cupsInteger[7] = ntohl(header->cupsInteger[7]);
+    }
+    if (header->cupsInteger[7] >= 0 && header->cupsInteger[7] < (1 << 25))
+      fprintf(stderr, "DEBUG: AlternatePrimary value is %d\n", header->cupsInteger[7]);
+    else
+      fprintf(stderr, "DEBUG: AlternatePrimary value is incorrect %d\n", header->cupsInteger[7]);
+
+    if (big_endian) {
+      header->cupsInteger[8] = ntohl(header->cupsInteger[8]);
+    }
+    if (header->cupsInteger[8] == 0)
+      fprintf(stderr, "DEBUG: PrintQuality value is %d(%s)\n", header->cupsInteger[8],
+              print_quality_enum[header->cupsInteger[8]]);
+    else if (header->cupsInteger[8] >= 3 && header->cupsInteger[8] < 6)
+      fprintf(stderr, "DEBUG: PrintQuality value is %d(%s)\n", header->cupsInteger[8],
+              print_quality_enum[header->cupsInteger[8] - 2]);
+    else
+      fprintf(stderr, "DEBUG: PrintQuality value is incorrect %d\n", header->cupsInteger[8]);
+
+    for (int i = 9; i < 14; i++)
+      if (header->cupsInteger[i] != 0) {
+        fprintf(stderr, "ERROR: Non-zero values present in Reserved[488-507] area\n");
+        return (1);
+      }
+    fprintf(stderr, "DEBUG: Reserved[488-507] field is zero as expected\n");
+
+    for (int i = 0; i < 2; i++) {
+      if (big_endian) {
+        header->cupsInteger[14 + i] = ntohl(header->cupsInteger[14 + i]);
+      }
+    }
+    fprintf(stderr, "DEBUG: VendorIdentifier value is %d\n", header->cupsInteger[14]);
+    fprintf(stderr, "DEBUG: VendorLength value is %d\n", header->cupsInteger[15]);
+
+    if (header->cupsInteger[14] == 0 || header->cupsInteger[15] == 0)
+      fprintf(stderr, "DEBUG: No vendor information present\n");
+    else
+      fprintf(stderr, "DEBUG: VendorData is %s\n", header->cupsReal);
   }
-  fprintf(stderr, "DEBUG: Reserved[1604-1667] field is zero as expected\n");
+  else {
+    fprintf(stderr, "DEBUG: 16 driver-defined integer values: ");
+    for (int i=0; i<16; i++) {
+      fprintf(stderr, "%d ", header->cupsInteger[i]);
+    }
+    fprintf(stderr, "\n");
+  }
+
+  if(raster_id != PWG) {
+    fprintf(stderr, "DEBUG: 16 driver-defined floating point values: ");
+    for (int i = 0; i < 16; i++) {
+      fprintf(stderr, "%0.1f ", header->cupsReal[i]);
+    }
+    fprintf(stderr, "\n");
+  }
+
+  if(raster_id != PWG) {
+    fprintf(stderr, "DEBUG: 16 driver-defined strings: ");
+    for (int i = 0; i < 16; i++) {
+      fprintf(stderr, "%s ", header->cupsString[i]);
+    }
+    fprintf(stderr, "\n");
+  }
+
+  if(raster_id == PWG) {
+    for(int i=0; i<64; i++){
+      if(header->cupsMarkerType[i]!=0){
+        fprintf(stderr, "ERROR: Non-zero values present in Reserved[1604-1667] area\n");
+        return(1);
+      }
+    }
+    fprintf(stderr, "DEBUG: Reserved[1604-1667] field is zero as expected\n");
+  }
  
   if(header->cupsRenderingIntent[0] == '\0')
     fprintf(stderr, "DEBUG: Using default value for RenderingIntent\n");
@@ -1247,31 +1365,42 @@ lint_raster(const char    *filename,	/* I - File to check */
 
   FILE *file = fopen(filename, "rb");
   rewind(file);
+
+  boolean big_endian = 0;
   
   char sync_word[4];
   fread(sync_word, 4, 1, file);
 
   if(raster_id == PWG) {
-    if (strncmp(sync_word, "RaS2", 4)) {
+    if (!strncmp(sync_word, "RaS2", 4)) {
+      fprintf(stderr, "DEBUG: Synchronization word is correct: %0.4s\n", sync_word);
+      big_endian = 1;
+    }
+    else {
       fprintf(stderr, "ERROR: Synchronization word mismatch\n");
       return (1);
     }
   }
   else {
-    if (strncmp(sync_word, "RaSt", 4) && strncmp(sync_word, "tSaR", 4)
-        && strncmp(sync_word, "RaS2", 4) && strncmp(sync_word, "2SaR", 4)
-        && strncmp(sync_word, "RaS3", 4) && strncmp(sync_word, "3SaR", 4)) {
+    if (!strncmp(sync_word, "RaSt", 4) || !strncmp(sync_word, "RaS2", 4) || !strncmp(sync_word, "RaS3", 4)) {
+      fprintf(stderr, "DEBUG: Synchronization word is correct: %0.4s\n", sync_word);
+      big_endian = 1;
+    }
+    else if(strncmp(sync_word, "tSaR", 4) || strncmp(sync_word, "2SaR", 4) || strncmp(sync_word, "3SaR", 4)) {
+      fprintf(stderr, "DEBUG: Synchronization word is correct: %0.4s\n", sync_word);
+      big_endian = 0;
+    }
+    else {
       fprintf(stderr, "ERROR: Synchronization word mismatch\n");
       return (1);
     }
   }
-  fprintf(stderr, "DEBUG: Synchronization word is correct: %0.4s\n", sync_word);
 
   cups_page_header2_t header;
   int total_page_count = 0;
   if(!total_page_count){
     fread(&header, 4, 449, file);
-    int ret = parse_raster_header(&header, raster_id, 0);
+    int ret = parse_raster_header(&header, raster_id, 0, big_endian);
     if(ret)
       return(1);
     ret = traverse_pwg_bitmap(file, &header);
@@ -1280,7 +1409,7 @@ lint_raster(const char    *filename,	/* I - File to check */
     total_page_count = header.cupsInteger[0];
     for(int i=1; i<total_page_count; i++){
       fread(&header, 4, 449, file);
-      ret = parse_raster_header(&header, raster_id, 0);
+      ret = parse_raster_header(&header, raster_id, 0, big_endian);
       if(ret)
         return(1);
       ret = traverse_pwg_bitmap(file, &header);
