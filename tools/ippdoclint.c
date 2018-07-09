@@ -24,6 +24,11 @@
 
 static int	Verbosity = 0;		/* Log level */
 
+enum rasterId { // Used to differentiate between different raster formats
+    PWG,
+    CUPS,
+    APPLE
+};
 
 /*
  * Local functions...
@@ -31,7 +36,7 @@ static int	Verbosity = 0;		/* Log level */
 
 static int	lint_jpeg(const char *filename, int num_options, cups_option_t *options);
 static int	lint_pdf(const char *filename, int num_options, cups_option_t *options);
-static int	lint_raster(const char *filename, int num_options, cups_option_t *options);
+static int	lint_raster(const char *filename, int num_options, cups_option_t *options, int raster_id);
 static int	load_env_options(cups_option_t **options);
 static void	usage(int status) __attribute__((noreturn));
 
@@ -162,9 +167,17 @@ main(int  argc,				/* I - Number of command-line arguments */
   {
     return (lint_pdf(filename, num_options, options));
   }
-  else if (!strcmp(content_type, "application/vnd.cups-raster") || !strcmp(content_type, "image/pwg-raster") || !strcmp(content_type, "image/urf"))
+  else if (!strcmp(content_type, "application/vnd.cups-raster"))
   {
-    return (lint_raster(filename, num_options, options));
+    return (lint_raster(filename, num_options, options, CUPS));
+  }
+  else if (!strcmp(content_type, "image/pwg-raster"))
+  {
+    return (lint_raster(filename, num_options, options, PWG));
+  }
+  else if (!strcmp(content_type, "image/urf"))
+  {
+    return (lint_raster(filename, num_options, options, APPLE)); // TODO Check this
   }
   else
   {
@@ -437,7 +450,7 @@ lint_pdf(const char    *filename,	/* I - File to check */
   for (i = 0; i < FZ_LOCK_MAX; i++)
   {
     if (pthread_mutex_init(&mutex[i], NULL) != 0){
-      fprintf(stderr, "ERROR: Failed to initialize mmutex\n");
+      fprintf(stderr, "ERROR: Failed to initialize mutex\n");
       return(1);
     }
   }
@@ -605,7 +618,7 @@ lint_pdf(const char    *filename,	/* I - File to check */
   return(0);
 }
 
-char when_enum[5][20] = {
+char when_enum[5][20] = { // Values also used by AdvanceMedia, Jog
   "Never",
   "AfterDocument",
   "AfterJob",
@@ -680,14 +693,23 @@ char print_quality_enum[4][10] = {
   "High"
 };
 
+char leading_edge_enum[4][20] = {
+        "Top Edge First",
+        "Right Edge First",
+        "Bottom Edge First",
+        "Left Edge First"
+};
+
 static int
-parse_pwg_header(cups_page_header2_t *header)
+parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_version)
 {
-  if(strncmp(header->MediaClass, "PwgRaster", 64)){
-    fprintf(stderr, "ERROR: PwgRaster value in header is incorrect\n");
-    return(1);
+  if(raster_id == PWG) {
+    if (strncmp(header->MediaClass, "PwgRaster", 64)) {
+      fprintf(stderr, "ERROR: PwgRaster value in header is incorrect\n");
+      return (1);
+    }
+    fprintf(stderr, "DEBUG: Header value PwgRaster is correct\n");
   }
-  fprintf(stderr, "DEBUG: Header value PwgRaster is correct\n");
   
   if (header->MediaColor[0]=='\0')
     fprintf(stderr, "DEBUG: Using default value for MediaColor\n");
@@ -699,23 +721,52 @@ parse_pwg_header(cups_page_header2_t *header)
   else 
     fprintf(stderr, "DEBUG: Using value %s for MediaType", header->MediaType);
 
-  if (header->OutputType[0]=='\0')
-    fprintf(stderr, "DEBUG: Using default value for PrintContentOptimize\n");
-  else 
-    fprintf(stderr, "DEBUG: Using value %s for PrintContentOptimize", header->OutputType);
-
-  if (header->AdvanceMedia != 0 || header->Collate != 0){
-    fprintf(stderr, "ERROR: Non-zero values present in Reserved[256-267] area\n");
-    return(1);
+  if(raster_id == PWG) {
+    if (header->OutputType[0] == '\0')
+      fprintf(stderr, "DEBUG: Using default value for PrintContentOptimize\n");
+    else
+      fprintf(stderr, "DEBUG: Using value %s for PrintContentOptimize", header->OutputType);
   }
-  else
-    fprintf(stderr, "DEBUG: Reserved[256-267] field is zero as expected\n");
+  else {
+    if (header->OutputType[0] == '\0')
+      fprintf(stderr, "DEBUG: Using default value for OutputType\n");
+    else
+      fprintf(stderr, "DEBUG: Using value %s for OutputType\n", header->OutputType);
+  }
+
+  if(raster_id == PWG) {
+    if (header->AdvanceDistance != 0 || header->AdvanceMedia != 0 || header->Collate != 0) {
+      fprintf(stderr, "ERROR: Non-zero values present in Reserved[256-267] area\n");
+      return (1);
+    } else
+      fprintf(stderr, "DEBUG: Reserved[256-267] field is zero as expected\n");
+  }
+  else {
+    fprintf(stderr, "DEBUG: AdvanceDistance set to %d points\n", header->AdvanceDistance);
+
+    if(header->AdvanceMedia < 0 || header->AdvanceMedia > 4) {
+      fprintf(stderr, "ERROR: Incorrect AdvanceMedia value present: %d\n", header->AdvanceMedia);
+      return(1);
+    }
+    fprintf(stderr, "DEBUG: AdvanceMedia set to %d (%s)\n", header->AdvanceMedia, when_enum[header->AdvanceMedia]);
+
+    if(header->Collate == 0) {
+      fprintf(stderr, "DEBUG: Not collating copies\n");
+    }
+    else if(header->Collate == 1) {
+      fprintf(stderr, "DEBUG: Collating copies\n");
+    }
+    else {
+      fprintf(stderr, "ERROR: Incorrect collate value present: %d\n", header->Collate);
+      return (1);
+    }
+  }
 
   if (header->CutMedia < 0 || header->CutMedia > 4) {
     fprintf(stderr, "ERROR: Incorrect value present for CutMedia\n");
     return(1);
   }
-  fprintf(stderr, "DEBUG: Value of CutMedia is %d(%s)\n", header->CutMedia, when_enum[header->CutMedia]);
+  fprintf(stderr, "DEBUG: Value of CutMedia is %d (%s)\n", header->CutMedia, when_enum[header->CutMedia]);
 
   if(header->Duplex == 0)
     fprintf(stderr, "DEBUG: Duplex mode off\n");
@@ -724,24 +775,33 @@ parse_pwg_header(cups_page_header2_t *header)
   else
     fprintf(stderr, "DEBUG: Incorrect Duplex value\n");
 
-  header->HWResolution[0] = ntohl(header->HWResolution[0]);
-  header->HWResolution[1] = ntohl(header->HWResolution[1]);
-  fprintf(stderr, "DEBUG: Using cross-feed resolution of %u and feed resolution of %u\n", header->HWResolution[0], header->HWResolution[1]);
-
-  for(int i=0; i<4; i++){
-    header->ImagingBoundingBox[i] = ntohl(header->ImagingBoundingBox[i]);
-    if(header->ImagingBoundingBox[i]!=0){
-      // Non-critical
-      fprintf(stderr, "WARNING: Non-zero values present in Reserved[284-299] area\n");
-      break;
-    }
+  if(raster_id == PWG) {
+    header->HWResolution[0] = ntohl(header->HWResolution[0]);
+    header->HWResolution[1] = ntohl(header->HWResolution[1]);
   }
-  fprintf(stderr, "DEBUG: Reserved[284-299] field is zero as expected\n");
-  
+  fprintf(stderr, "DEBUG: Using cross-feed resolution of %u dpi and feed resolution of %u dpi\n", header->HWResolution[0], header->HWResolution[1]);
+
+  if(raster_id == PWG) {
+    for (int i = 0; i < 4; i++) {
+      header->ImagingBoundingBox[i] = ntohl(header->ImagingBoundingBox[i]);
+      if (header->ImagingBoundingBox[i] != 0) {
+        // Non-critical
+        fprintf(stderr, "WARNING: Non-zero values present in Reserved[284-299] area\n");
+        break;
+      }
+    }
+    fprintf(stderr, "DEBUG: Reserved[284-299] field is zero as expected\n");
+  }
+  else {
+    fprintf(stderr, "DEBUG: Page bounding box position: Left: %d, Bottom: %d, Right: %d, Top: %d points\n",
+            header->ImagingBoundingBox[0], header->ImagingBoundingBox[1], header->ImagingBoundingBox[2],
+            header->ImagingBoundingBox[3]);
+  }
+
   if(header->InsertSheet == 0)
-    fprintf(stderr, "DEBUG: InsertSheet set to false\n");
+    fprintf(stderr, "DEBUG: InsertSheet set to false (Don't insert separator sheets)\n");
   else if(header->InsertSheet == 1)
-    fprintf(stderr, "DEBUG: InsertSheet set to true\n");
+    fprintf(stderr, "DEBUG: InsertSheet set to true (Insert separator sheets)\n");
   else
     fprintf(stderr, "DEBUG: Incorrect InsertSheet value\n");
 
@@ -749,41 +809,95 @@ parse_pwg_header(cups_page_header2_t *header)
     fprintf(stderr, "ERROR: Incorrect value present for Jog %d\n", header->Jog);
     return(1);
   }
-  fprintf(stderr, "DEBUG: Value of Jog is %d(%s)\n", header->Jog, when_enum[header->Jog]);
-  
-  if(header->LeadingEdge == 0)
-    fprintf(stderr, "DEBUG: LeadingEdge set to ShortEdgeFirst\n");
-  else if(header->LeadingEdge == 1)
-    fprintf(stderr, "DEBUG: LeadingEdge set to LongEdgeFirst\n");
-  else
-    fprintf(stderr, "DEBUG: Incorrect LeadingEdge value\n");
+  fprintf(stderr, "DEBUG: Value of Jog is %d (%s)\n", header->Jog, when_enum[header->Jog]);
 
-  if (header->Margins[0] != 0 || header->Margins[1] != 0 || header->ManualFeed != 0){
-    fprintf(stderr, "ERROR: Non-zero values present in Reserved[312-323] area\n");
-    return(1);
+  if(raster_id == PWG) {
+    if (header->LeadingEdge == 0)
+      fprintf(stderr, "DEBUG: LeadingEdge set to ShortEdgeFirst\n");
+    else if (header->LeadingEdge == 1)
+      fprintf(stderr, "DEBUG: LeadingEdge set to LongEdgeFirst\n");
+    else {
+      fprintf(stderr, "ERROR: Incorrect LeadingEdge value\n");
+      return (1);
+    }
   }
-  else
-    fprintf(stderr, "DEBUG: Reserved[312-323] field is zero as expected\n");
+  else {
+    if (header->LeadingEdge < 0 || header->LeadingEdge > 3) {
+      fprintf(stderr, "ERROR: Incorrect value for LeadingEdge present: %d\n", header->LeadingEdge);
+      return (1);
+    }
+    else {
+      fprintf(stderr, "DEBUG: LeadingEdge set to %d (%s)\n", header->LeadingEdge, leading_edge_enum[header->LeadingEdge]);
+    }
+  }
+
+  if(raster_id == PWG) {
+    if (header->Margins[0] != 0 || header->Margins[1] != 0 || header->ManualFeed != 0) {
+      fprintf(stderr, "ERROR: Non-zero values present in Reserved[312-323] area\n");
+      return (1);
+    } else
+      fprintf(stderr, "DEBUG: Reserved[312-323] field is zero as expected\n");
+  }
+  else {
+    fprintf(stderr, "DEBUG: Margins: Left origin: %d, Bottom origin: %d\n", header->Margins[0], header->Margins[1]);
+
+    if(header->ManualFeed == 0) {
+      fprintf(stderr, "DEBUG: Do not manually feed media\n");
+    }
+    else if(header->ManualFeed == 1) {
+      fprintf(stderr, "DEBUG: Manually feed media\n");
+    }
+    else {
+      fprintf(stderr, "ERROR: Incorrect value for ManualFeed present %d", header->ManualFeed);
+      return (1);
+    }
+  }
 
   if (header->MediaPosition < 0 || header->MediaPosition > 49) {
     fprintf(stderr, "ERROR: Incorrect value present for MediaPosition\n");
     return(1);
   }
-  fprintf(stderr, "DEBUG: Value of MediaPosition is %d(%s)\n", header->MediaPosition, media_position_enum[header->MediaPosition]);
+  fprintf(stderr, "DEBUG: Value of MediaPosition is %d (%s)\n", header->MediaPosition, media_position_enum[header->MediaPosition]);
 
   if (header->MediaWeight==0)
     fprintf(stderr, "DEBUG: Using default value for MediaWeight\n");
   else 
     fprintf(stderr, "DEBUG: Using value %d for MediaWeight", header->MediaWeight);
 
-  if (header->MirrorPrint != 0 || header->NegativePrint != 0){
-    fprintf(stderr, "ERROR: Non-zero values present in Reserved[332-339] area\n");
-    return(1);
+  if(raster_id == PWG) {
+    if (header->MirrorPrint != 0 || header->NegativePrint != 0) {
+      fprintf(stderr, "ERROR: Non-zero values present in Reserved[332-339] area\n");
+      return (1);
+    } else
+      fprintf(stderr, "DEBUG: Reserved[332-339] field is zero as expected\n");
   }
-  else
-    fprintf(stderr, "DEBUG: Reserved[332-339] field is zero as expected\n");
+  else {
+    if(header->MirrorPrint == 0) {
+      fprintf(stderr, "DEBUG: Do not mirror prints\n");
+    }
+    else if(header->MirrorPrint == 1) {
+      fprintf(stderr, "DEBUG: Mirror prints\n");
+    }
+    else {
+      fprintf(stderr, "ERROR: Incorrect value for MirrorPrint present %d", header->MirrorPrint);
+      return (1);
+    }
 
-  header->NumCopies = ntohl(header->NumCopies);
+    if(header->NegativePrint == 0) {
+      fprintf(stderr, "DEBUG: Do not invert prints\n");
+    }
+    else if(header->NegativePrint == 1) {
+      fprintf(stderr, "DEBUG: Invert prints\n");
+    }
+    else {
+      fprintf(stderr, "ERROR: Incorrect value for NegativePrint present %d", header->NegativePrint);
+      return (1);
+    }
+  }
+
+  if(raster_id == PWG) {
+    header->NumCopies = ntohl(header->NumCopies);
+  }
   if (header->NumCopies==0)
     fprintf(stderr, "DEBUG: Using default value for NumCopies\n");
   else 
@@ -793,17 +907,32 @@ parse_pwg_header(cups_page_header2_t *header)
     fprintf(stderr, "ERROR: Incorrect value present for Orientation %d\n", header->Orientation);
     return(1);
   }
-  fprintf(stderr, "DEBUG: Value of Orientation is %d(%s)\n", header->Orientation, orientation_enum[header->Orientation]);
-  
-  if (header->OutputFaceUp != 0){
-    fprintf(stderr, "ERROR: Non-zero values present in Reserved[348-351] area\n");
-    return(1);
-  }
-  else
-    fprintf(stderr, "DEBUG: Reserved[348-351] field is zero as expected\n");
+  fprintf(stderr, "DEBUG: Value of Orientation is %d (%s)\n", header->Orientation, orientation_enum[header->Orientation]);
 
-  header->PageSize[0] = ntohl(header->PageSize[0]);
-  header->PageSize[1] = ntohl(header->PageSize[1]);
+  if(raster_id == PWG) {
+    if (header->OutputFaceUp != 0) {
+      fprintf(stderr, "ERROR: Non-zero values present in Reserved[348-351] area\n");
+      return (1);
+    } else
+      fprintf(stderr, "DEBUG: Reserved[348-351] field is zero as expected\n");
+  }
+  else {
+    if(header->OutputFaceUp == 0) {
+      fprintf(stderr, "DEBUG: Output face down\n");
+    }
+    else if(header->OutputFaceUp == 1) {
+      fprintf(stderr, "DEBUG: Output face up\n");
+    }
+    else {
+      fprintf(stderr, "ERROR: Incorrect value for OutputFaceUp present %d", header->OutputFaceUp);
+      return (1);
+    }
+  }
+
+  if(raster_id == PWG) {
+    header->PageSize[0] = ntohl(header->PageSize[0]);
+    header->PageSize[1] = ntohl(header->PageSize[1]);
+  }
   fprintf(stderr, "DEBUG: Page size is %d x %d\n", header->PageSize[0], header->PageSize[1]);
 
   if (header->Separations != 0 || header->TraySwitch != 0){
@@ -1094,7 +1223,8 @@ traverse_pwg_bitmap(FILE *file,
 static int				/* O - 0 if OK, 1 if not OK */
 lint_raster(const char    *filename,	/* I - File to check */
 	    int           num_options,	/* I - Number of options */
-	    cups_option_t *options)	/* I - Options */
+	    cups_option_t *options, /* I - Options */
+      int raster_id) /* I - Identifier to differentiate between CUPS, PWG and Apple Rasters */
 {
  /*
   * TODO: Check that the file opens, write STATE messages for
@@ -1121,17 +1251,27 @@ lint_raster(const char    *filename,	/* I - File to check */
   char sync_word[4];
   fread(sync_word, 4, 1, file);
 
-  if(strncmp(sync_word, "RaS2", 4)){
-    fprintf(stderr, "ERROR: Synchronization word mismatch\n");
-    return (1);
+  if(raster_id == PWG) {
+    if (strncmp(sync_word, "RaS2", 4)) {
+      fprintf(stderr, "ERROR: Synchronization word mismatch\n");
+      return (1);
+    }
   }
-  fprintf(stderr, "DEBUG: Synchronization word is correct\n");
+  else {
+    if (strncmp(sync_word, "RaSt", 4) && strncmp(sync_word, "tSaR", 4)
+        && strncmp(sync_word, "RaS2", 4) && strncmp(sync_word, "2SaR", 4)
+        && strncmp(sync_word, "RaS3", 4) && strncmp(sync_word, "3SaR", 4)) {
+      fprintf(stderr, "ERROR: Synchronization word mismatch\n");
+      return (1);
+    }
+  }
+  fprintf(stderr, "DEBUG: Synchronization word is correct: %0.4s\n", sync_word);
 
   cups_page_header2_t header;
   int total_page_count = 0;
   if(!total_page_count){
     fread(&header, 4, 449, file);
-    int ret = parse_pwg_header(&header);
+    int ret = parse_raster_header(&header, raster_id, 0);
     if(ret)
       return(1);
     ret = traverse_pwg_bitmap(file, &header);
@@ -1140,7 +1280,7 @@ lint_raster(const char    *filename,	/* I - File to check */
     total_page_count = header.cupsInteger[0];
     for(int i=1; i<total_page_count; i++){
       fread(&header, 4, 449, file);
-      ret = parse_pwg_header(&header);
+      ret = parse_raster_header(&header, raster_id, 0);
       if(ret)
         return(1);
       ret = traverse_pwg_bitmap(file, &header);
