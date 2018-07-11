@@ -9,11 +9,10 @@
  */
 
 /*
- * Disable private and deprecated stuff so we can verify that the public API
- * is sufficient to implement a server.
+ * Disable deprecated stuff so we can verify that the public API is sufficient
+ * to implement a server.
  */
 
-#define _IPP_PRIVATE_STRUCTURES 0	/* Disable private IPP stuff */
 #define _CUPS_NO_DEPRECATED 1		/* Disable deprecated stuff */
 
 
@@ -346,10 +345,12 @@ enum server_preason_e			/* printer-state-reasons bit values */
   SERVER_PREASON_TONER_LOW = 0x20000,	/* toner-low */
   SERVER_PREASON_IDENTIFY_PRINTER_REQUESTED = 0x40000,
 					/* identify-printer-requested */
-  SERVER_PREASON_DELETING = 0x80000	/* deleting */
+  SERVER_PREASON_DELETING = 0x80000,	/* deleting */
+  SERVER_PREASON_HOLD_NEW_JOBS = 0x100000
+					/* hold-new-jobs */
 };
 typedef unsigned int server_preason_t;	/* Bitfield for printer-state-reasons */
-VAR const char * const server_preasons[20]
+VAR const char * const server_preasons[21]
 VALUE({					/* Strings for bits */
   /* "none" is implied for no bits set */
   "other",
@@ -371,7 +372,8 @@ VALUE({					/* Strings for bits */
   "toner-empty",
   "toner-low",
   "identify-printer-requested",
-  "deleting"
+  "deleting",
+  "hold-new-jobs"
 });
 
 typedef enum server_transform_e		/* Transform modes for server */

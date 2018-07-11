@@ -66,7 +66,7 @@ serverCheckJobs(server_printer_t *printer)	/* I - Printer */
        job;
        job = (server_job_t *)cupsArrayNext(printer->active_jobs))
   {
-    if (job->state == IPP_JSTATE_HELD && job->hold_until && job->hold_until <= time(NULL))
+    if (job->state == IPP_JSTATE_HELD && job->hold_until > 0 && job->hold_until <= time(NULL))
       serverReleaseJob(job);
 
     if (job->state == IPP_JSTATE_PENDING || (job->state == IPP_JSTATE_STOPPED && !(job->state_reasons & SERVER_JREASON_JOB_FETCHABLE)))
@@ -585,14 +585,14 @@ serverHoldJob(
       * Any other value maps to "indefinite" - hold until released.
       */
 
-      job->hold_until = 0;
+      job->hold_until = -1;
     }
   }
 
   if ((attr = ippFindAttribute(job->attrs, "job-hold-until", IPP_TAG_ZERO)) != NULL)
   {
     if (!hold_until)
-      ippSetString(job->attrs, &attr, 0, "indefinite");
+      ippSetString(job->attrs, &attr, 0, "none");
     else if (ippGetValueTag(hold_until) == IPP_TAG_DATE)
       ippDeleteAttribute(job->attrs, attr);
     else
