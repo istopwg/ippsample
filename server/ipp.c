@@ -47,6 +47,7 @@ static const char	*get_document_uri(server_client_t *client);
 static void		ipp_acknowledge_document(server_client_t *client);
 static void		ipp_acknowledge_identify_printer(server_client_t *client);
 static void		ipp_acknowledge_job(server_client_t *client);
+static void		ipp_cancel_current_job(server_client_t *client);
 static void		ipp_cancel_job(server_client_t *client);
 static void		ipp_cancel_jobs(server_client_t *client);
 static void		ipp_cancel_subscription(server_client_t *client);
@@ -1195,6 +1196,70 @@ ipp_acknowledge_job(
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
+
+
+/*
+ * 'ipp_cancel_current_job()' - Cancel the current job.
+ */
+
+static void
+ipp_cancel_current_job(
+    server_client_t *client)		/* I - Client */
+{
+  server_job_t		*job;		/* Job information */
+
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
+ /*
+  * Get the current job, if any...
+  */
+
+  _cupsRWLockWrite(&(client->printer->rwlock));
+
+  if ((job = client->printer->processing_job) == NULL)
+  {
+    _cupsRWUnlock(&client->printer->rwlock);
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "No job being processed.");
+    return;
+  }
+
+  if (Authentication && !serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+  {
+    _cupsRWUnlock(&client->printer->rwlock);
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this job.");
+    return;
+  }
+
+  if (job->state == IPP_JSTATE_PROCESSING || (job->state == IPP_JSTATE_HELD && job->fd >= 0))
+  {
+    job->cancel = 1;
+
+    if (job->state == IPP_JSTATE_PROCESSING)
+      serverStopJob(job);
+  }
+  else
+  {
+    job->state     = IPP_JSTATE_CANCELED;
+    job->completed = time(NULL);
+  }
+
+  _cupsRWUnlock(&(client->printer->rwlock));
+
+  serverAddEventNoLock(client->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, NULL);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+}
+
+
 
 
 /*
@@ -6227,6 +6292,10 @@ serverProcessIPP(
 
 	    case IPP_OP_CANCEL_JOB :
 		ipp_cancel_job(client);
+		break;
+
+	    case IPP_OP_CANCEL_CURRENT_JOB :
+		ipp_cancel_current_job(client);
 		break;
 
 	    case IPP_OP_CANCEL_JOBS :
