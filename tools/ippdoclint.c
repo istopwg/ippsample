@@ -1121,6 +1121,10 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
     fprintf(stderr, "DEBUG: CupsRowStep value set to %d\n", header->cupsRowStep);
   }
 
+  if(raster_version == 1) {
+    return (0);
+  }
+
   if(big_endian) {
     header->cupsNumColors = ntohl(header->cupsNumColors);
   }
@@ -1367,6 +1371,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   rewind(file);
 
   boolean big_endian = 0;
+  int raster_version;
   
   char sync_word[4];
   fread(sync_word, 4, 1, file);
@@ -1374,6 +1379,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   if(raster_id == PWG) {
     if (!strncmp(sync_word, "RaS2", 4)) {
       fprintf(stderr, "DEBUG: Synchronization word is correct: %0.4s\n", sync_word);
+      raster_version = 2;
       big_endian = 1;
     }
     else {
@@ -1382,25 +1388,43 @@ lint_raster(const char    *filename,	/* I - File to check */
     }
   }
   else {
-    if (!strncmp(sync_word, "RaSt", 4) || !strncmp(sync_word, "RaS2", 4) || !strncmp(sync_word, "RaS3", 4)) {
-      fprintf(stderr, "DEBUG: Synchronization word is correct: %0.4s\n", sync_word);
+    if(strncmp(sync_word, "RaSt", 4) == 0) {
       big_endian = 1;
+      raster_version = 1;
     }
-    else if(strncmp(sync_word, "tSaR", 4) || strncmp(sync_word, "2SaR", 4) || strncmp(sync_word, "3SaR", 4)) {
-      fprintf(stderr, "DEBUG: Synchronization word is correct: %0.4s\n", sync_word);
+    else if(strncmp(sync_word, "RaS2", 4) == 0) {
+      big_endian = 1;
+      raster_version = 2;
+    }
+    else if(strncmp(sync_word, "RaS3", 4) == 0) {
+      big_endian = 1;
+      raster_version = 3;
+    }
+    else if(strncmp(sync_word, "tSaR", 4) == 0) {
       big_endian = 0;
+      raster_version = 1;
+    }
+    else if(strncmp(sync_word, "2SaR", 4) == 0) {
+      big_endian = 0;
+      raster_version = 2;
+    }
+    else if(strncmp(sync_word, "3SaR", 4) == 0) {
+      big_endian = 0;
+      raster_version = 3;
     }
     else {
       fprintf(stderr, "ERROR: Synchronization word mismatch\n");
       return (1);
     }
+    fprintf(stderr, "DEBUG: Synchronization word found: %0.4s\n", sync_word);
+    fprintf(stderr, "DEBUG: Raster version set to %d, Big endian set to %d\n", raster_version, big_endian);
   }
 
   cups_page_header2_t header;
   int total_page_count = 0;
   if(!total_page_count){
     fread(&header, 4, 449, file);
-    int ret = parse_raster_header(&header, raster_id, 0, big_endian);
+    int ret = parse_raster_header(&header, raster_id, raster_version, big_endian);
     if(ret)
       return(1);
     ret = traverse_pwg_bitmap(file, &header);
