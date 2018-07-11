@@ -799,14 +799,6 @@ serverCreatePrinter(
   if (!cupsArrayFind(existing, (void *)"job-priority-supported"))
     ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "job-priority-supported", 100);
 
-  /* job-sheets-default */
-  if (!is_print3d && !cupsArrayFind(existing, (void *)"job-sheets-default"))
-    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_NAME), "job-sheets-default", NULL, "none");
-
-  /* job-sheets-supported */
-  if (!is_print3d && !cupsArrayFind(existing, (void *)"job-sheets-supported"))
-  ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_NAME), "job-sheets-supported", NULL, "none");
-
   if (!is_print3d)
   {
     /* media-bottom-margin-supported */
