@@ -1,16 +1,10 @@
 /*
  * IPP utilities for CUPS.
  *
- * Copyright 2007-2017 by Apple Inc.
- * Copyright 1997-2007 by Easy Software Products.
+ * Copyright © 2007-2018 by Apple Inc.
+ * Copyright © 1997-2007 by Easy Software Products.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
  */
 
 /*
@@ -131,25 +125,58 @@ cupsDoIORequest(http_t     *http,	/* I - Connection to server or @code CUPS_HTTP
   * Get the default connection as needed...
   */
 
-  if (!http)
-    if ((http = _cupsConnect()) == NULL)
-    {
-      ippDelete(request);
+  if (!http && (http = _cupsConnect()) == NULL)
+  {
+    ippDelete(request);
 
-      return (NULL);
-    }
+    return (NULL);
+  }
 
  /*
   * See if we have a file to send...
   */
 
   if (infile >= 0)
-    length = 0;
+  {
+    if (fstat(infile, &fileinfo))
+    {
+     /*
+      * Can't get file information!
+      */
+
+      _cupsSetError(errno == EBADF ? IPP_STATUS_ERROR_NOT_FOUND : IPP_STATUS_ERROR_NOT_AUTHORIZED, NULL, 0);
+      ippDelete(request);
+
+      return (NULL);
+    }
+
+#ifdef WIN32
+    if (fileinfo.st_mode & _S_IFDIR)
+#else
+    if (S_ISDIR(fileinfo.st_mode))
+#endif /* WIN32 */
+    {
+     /*
+      * Can't send a directory...
+      */
+
+      _cupsSetError(IPP_STATUS_ERROR_NOT_POSSIBLE, strerror(EISDIR), 0);
+      ippDelete(request);
+
+      return (NULL);
+    }
+
+#ifndef WIN32
+    if (!S_ISREG(fileinfo.st_mode))
+      length = 0;			/* Chunk when piping */
+    else
+#endif /* !WIN32 */
+    length = ippLength(request) + (size_t)fileinfo.st_size;
+  }
   else
     length = ippLength(request);
 
-  DEBUG_printf(("2cupsDoIORequest: Request length=%ld, total length=%ld",
-                (long)ippLength(request), (long)length));
+  DEBUG_printf(("2cupsDoIORequest: Request length=%ld, total length=%ld", (long)ippLength(request), (long)length));
 
  /*
   * Clear any "Local" authentication data since it is probably stale...
@@ -578,9 +605,8 @@ cupsSendRequest(http_t     *http,	/* I - Connection to server or @code CUPS_HTTP
   * Get the default connection as needed...
   */
 
-  if (!http)
-    if ((http = _cupsConnect()) == NULL)
-      return (HTTP_STATUS_SERVICE_UNAVAILABLE);
+  if (!http && (http = _cupsConnect()) == NULL)
+    return (HTTP_STATUS_SERVICE_UNAVAILABLE);
 
  /*
   * If the prior request was not flushed out, do so now...
@@ -620,7 +646,7 @@ cupsSendRequest(http_t     *http,	/* I - Connection to server or @code CUPS_HTTP
   * Reconnect if the last response had a "Connection: close"...
   */
 
-  if (!_cups_strcasecmp(http->fields[HTTP_FIELD_CONNECTION], "close"))
+  if (!_cups_strcasecmp(httpGetField(http, HTTP_FIELD_CONNECTION), "close"))
   {
     DEBUG_puts("2cupsSendRequest: Connection: close");
     httpClearFields(http);

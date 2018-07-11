@@ -1,16 +1,11 @@
 /*
  * Private HTTP definitions for CUPS.
  *
- * Copyright 2007-2017 by Apple Inc.
+ * Copyright 2007-2018 by Apple Inc.
  * Copyright 1997-2007 by Easy Software Products, all rights reserved.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more
+ * information.
  */
 
 #ifndef _CUPS_HTTP_PRIVATE_H_
@@ -68,7 +63,6 @@ typedef int socklen_t;
 #  endif /* __APPLE__ && !_SOCKLEN_T */
 
 #  include <cups/http.h>
-#  include "md5-private.h"
 #  include "ipp-private.h"
 
 #  ifdef HAVE_GNUTLS
@@ -172,20 +166,24 @@ extern "C" {
  * Constants...
  */
 
+#  define _HTTP_MAX_SBUFFER	65536	/* Size of (de)compression buffer */
+#  define _HTTP_RESOLVE_DEFAULT	0	/* Just resolve with default options */
+#  define _HTTP_RESOLVE_STDERR	1	/* Log resolve progress to stderr */
+#  define _HTTP_RESOLVE_FQDN	2	/* Resolve to a FQDN */
+#  define _HTTP_RESOLVE_FAXOUT	4	/* Resolve FaxOut service? */
 
-#define _HTTP_MAX_SBUFFER	65536	/* Size of (de)compression buffer */
-#define _HTTP_RESOLVE_DEFAULT	0	/* Just resolve with default options */
-#define _HTTP_RESOLVE_STDERR	1	/* Log resolve progress to stderr */
-#define _HTTP_RESOLVE_FQDN	2	/* Resolve to a FQDN */
-#define _HTTP_RESOLVE_FAXOUT	4	/* Resolve FaxOut service? */
+#  define _HTTP_TLS_NONE	0	/* No TLS options */
+#  define _HTTP_TLS_ALLOW_RC4	1	/* Allow RC4 cipher suites */
+#  define _HTTP_TLS_ALLOW_DH	2	/* Allow DH/DHE key negotiation */
+#  define _HTTP_TLS_DENY_CBC	4	/* Deny CBC cipher suites */
+#  define _HTTP_TLS_SET_DEFAULT 128     /* Setting the default TLS options */
 
-#define _HTTP_TLS_NONE		0	/* No TLS options */
-#define _HTTP_TLS_ALLOW_RC4	1	/* Allow RC4 cipher suites */
-#define _HTTP_TLS_ALLOW_SSL3	2	/* Allow SSL 3.0 */
-#define _HTTP_TLS_ALLOW_DH	4	/* Allow DH/DHE key negotiation */
-#define _HTTP_TLS_DENY_TLS10	16	/* Deny TLS 1.0 */
-#define _HTTP_TLS_DENY_CBC	32	/* Deny CBC cipher suites */
-#define _HTTP_TLS_ONLY_TLS10    64      /* Only use TLS 1.0 */
+#  define _HTTP_TLS_SSL3	0	/* Min/max version is SSL/3.0 */
+#  define _HTTP_TLS_1_0		1	/* Min/max version is TLS/1.0 */
+#  define _HTTP_TLS_1_1		2	/* Min/max version is TLS/1.1 */
+#  define _HTTP_TLS_1_2		3	/* Min/max version is TLS/1.2 */
+#  define _HTTP_TLS_1_3		4	/* Min/max version is TLS/1.3 */
+#  define _HTTP_TLS_MAX		5	/* Highest known TLS version */
 
 
 /*
@@ -288,8 +286,8 @@ struct _http_s				/**** HTTP connection structure ****/
   struct sockaddr_in	_hostaddr;	/* Address of connected host (deprecated) */
   char			hostname[HTTP_MAX_HOST],
   					/* Name of connected host */
-			fields[HTTP_FIELD_ACCEPT_ENCODING][HTTP_MAX_VALUE];
-					/* Field values up to Accept-Encoding */
+			_fields[HTTP_FIELD_ACCEPT_ENCODING][HTTP_MAX_VALUE];
+					/* Field values up to Accept-Encoding (deprecated) */
   char			*data;		/* Pointer to data buffer */
   http_encoding_t	data_encoding;	/* Chunked or not */
   int			_data_remaining;/* Number of bytes left (deprecated) */
@@ -297,10 +295,10 @@ struct _http_s				/**** HTTP connection structure ****/
   char			buffer[HTTP_MAX_BUFFER];
 					/* Buffer for incoming data */
   int			_auth_type;	/* Authentication in use (deprecated) */
-  _cups_md5_state_t	md5_state;	/* MD5 state */
+  unsigned char		_md5_state[88];	/* MD5 state (deprecated) */
   char			nonce[HTTP_MAX_VALUE];
 					/* Nonce value */
-  int			nonce_count;	/* Nonce count */
+  unsigned		nonce_count;	/* Nonce count */
   http_tls_t		tls;		/* TLS state information */
   http_encryption_t	encryption;	/* Encryption requirements */
 
@@ -325,8 +323,6 @@ struct _http_s				/**** HTTP connection structure ****/
   int			wused;		/* Write buffer bytes used */
 
   /**** New in CUPS 1.3 ****/
-  char			*field_authorization;
-					/* Authorization field */
   char			*authstring;	/* Current Authorization field */
 #  ifdef HAVE_GSSAPI
   gss_OID 		gssmech;	/* Authentication mechanism */
@@ -351,19 +347,17 @@ struct _http_s				/**** HTTP connection structure ****/
   /**** New in CUPS 1.7 ****/
   int			tls_upgrade;	/* Non-zero if we are doing an upgrade */
   _http_mode_t		mode;		/* _HTTP_MODE_CLIENT or _HTTP_MODE_SERVER */
-  char			*accept_encoding,
-					/* Accept-Encoding field */
-			*allow,		/* Allow field */
-			*server,	/* Server field */
-			*default_accept_encoding,
-			*default_server,
-			*default_user_agent;
-					/* Default field values */
 #  ifdef HAVE_LIBZ
   _http_coding_t	coding;		/* _HTTP_CODING_xxx */
   z_stream		stream;		/* (De)compression stream */
   Bytef			*sbuffer;	/* (De)compression buffer */
 #  endif /* HAVE_LIBZ */
+
+  /**** New in CUPS 2.3 ****/
+  char			*fields[HTTP_FIELD_MAX],
+					/* Allocated field values */
+  			*default_fields[HTTP_FIELD_MAX];
+					/* Default field values, if any */
 };
 #  endif /* !_HTTP_NO_PRIVATE */
 
@@ -442,7 +436,7 @@ extern void		_httpTLSInitialize(void);
 extern size_t		_httpTLSPending(http_t *http);
 extern int		_httpTLSRead(http_t *http, char *buf, int len);
 extern int		_httpTLSSetCredentials(http_t *http);
-extern void		_httpTLSSetOptions(int options);
+extern void		_httpTLSSetOptions(int options, int min_version, int max_version);
 extern int		_httpTLSStart(http_t *http);
 extern void		_httpTLSStop(http_t *http);
 extern int		_httpTLSWrite(http_t *http, const char *buf, int len);

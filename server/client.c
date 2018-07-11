@@ -1,15 +1,11 @@
 /*
  * Client code for sample IPP server implementation.
  *
- * Copyright 2010-2017 by Apple Inc.
+ * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2010-2018 by Apple Inc.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more
+ * information.
  */
 
 #include "ippserver.h"
@@ -286,8 +282,8 @@ serverProcessHTTP(
 
   if (http_state == HTTP_STATE_ERROR)
   {
-    if (httpError(client->http) == EPIPE || httpError(client->http) == 0)
-      serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Client closed connection.");
+    if (httpError(client->http) == EPIPE || httpError(client->http) == ETIMEDOUT || httpError(client->http) == 0)
+      serverLogClient(SERVER_LOGLEVEL_INFO, client, "Client closed connection.");
     else
       serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Bad request line (%s).", strerror(httpError(client->http)));
 
@@ -441,17 +437,17 @@ serverProcessHTTP(
     case HTTP_STATE_HEAD :
         if (!strncmp(client->uri, "/ipp/print/", 11))
         {
-          if ((uriptr = strchr(client->uri + 11, '/')) != NULL)
-            *uriptr++ = '\0';
-          else
-            uriptr = client->uri + strlen(client->uri);
+          if ((uriptr = strchr(client->uri + 11, '/')) == NULL)
+            uriptr = client->uri + 10;
+
+	  *uriptr++ = '\0';
         }
         else if (!strncmp(client->uri, "/ipp/print3d/", 13))
         {
-          if ((uriptr = strchr(client->uri + 13, '/')) != NULL)
-            *uriptr++ = '\0';
-          else
-            uriptr = client->uri + strlen(client->uri);
+          if ((uriptr = strchr(client->uri + 13, '/')) == NULL)
+            uriptr = client->uri + 12;
+
+	  *uriptr++ = '\0';
         }
         else if (!strcmp(client->uri, "/ipp/print"))
           uriptr = client->uri + strlen(client->uri);
@@ -479,7 +475,7 @@ serverProcessHTTP(
 
               *ext = '\0';
               key.lang = uriptr;
-              if (cupsArrayFind(printer->strings, &key))
+              if (cupsArrayFind(printer->pinfo.strings, &key))
                 return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "text/strings", 0));
             }
           }
@@ -492,17 +488,17 @@ serverProcessHTTP(
     case HTTP_STATE_GET :
         if (!strncmp(client->uri, "/ipp/print/", 11))
         {
-          if ((uriptr = strchr(client->uri + 11, '/')) != NULL)
-            *uriptr++ = '\0';
-          else
-            uriptr = client->uri + strlen(client->uri);
+          if ((uriptr = strchr(client->uri + 11, '/')) == NULL)
+            uriptr = client->uri + 10;
+
+	  *uriptr++ = '\0';
         }
         else if (!strncmp(client->uri, "/ipp/print3d/", 13))
         {
-          if ((uriptr = strchr(client->uri + 13, '/')) != NULL)
-            *uriptr++ = '\0';
-          else
-            uriptr = client->uri + strlen(client->uri);
+          if ((uriptr = strchr(client->uri + 13, '/')) == NULL)
+            uriptr = client->uri + 12;
+
+	  *uriptr++ = '\0';
         }
         else if (!strcmp(client->uri, "/ipp/print"))
           uriptr = client->uri + strlen(client->uri);
@@ -531,11 +527,11 @@ serverProcessHTTP(
               char		buffer[4096];	/* Copy buffer */
               ssize_t		bytes;		/* Bytes */
 
-              if (printer->icon)
+              if (printer->pinfo.icon)
               {
-                serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Icon file is \"%s\".", printer->icon);
+                serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Icon file is \"%s\".", printer->pinfo.icon);
 
-                if (!stat(printer->icon, &fileinfo) && (fd = open(printer->icon, O_RDONLY)) >= 0)
+                if (!stat(printer->pinfo.icon, &fileinfo) && (fd = open(printer->pinfo.icon, O_RDONLY)) >= 0)
                 {
                   if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", (size_t)fileinfo.st_size))
                   {
@@ -597,7 +593,7 @@ serverProcessHTTP(
 
               *ext = '\0';
               key.lang = uriptr;
-              if ((match = (server_lang_t *)cupsArrayFind(printer->strings, &key)) != NULL)
+              if ((match = (server_lang_t *)cupsArrayFind(printer->pinfo.strings, &key)) != NULL)
               {
                 int		fd;		/* Icon file */
                 struct stat	fileinfo;	/* Icon file information */
@@ -681,10 +677,10 @@ serverProcessHTTP(
 int					/* O - 1 on success, 0 on failure */
 serverRespondHTTP(
     server_client_t *client,		/* I - Client */
-    http_status_t code,			/* I - HTTP status of response */
-    const char    *content_encoding,	/* I - Content-Encoding of response */
-    const char    *type,		/* I - MIME media type of response */
-    size_t        length)		/* I - Length of response */
+    http_status_t   code,		/* I - HTTP status of response */
+    const char      *content_encoding,	/* I - Content-Encoding of response */
+    const char      *type,		/* I - MIME media type of response */
+    size_t          length)		/* I - Length of response */
 {
   char	message[1024];			/* Text message */
 
@@ -720,8 +716,19 @@ serverRespondHTTP(
 
   httpClearFields(client->http);
 
-  if (code == HTTP_STATUS_METHOD_NOT_ALLOWED ||
-      client->operation == HTTP_STATE_OPTIONS)
+  if (code == HTTP_STATUS_UNAUTHORIZED || code == HTTP_STATUS_FORBIDDEN)
+  {
+    char www_auth[HTTP_MAX_VALUE];	/* WWW-Authenicate header value */
+
+    if (!_cups_strcasecmp(AuthType, "Basic"))
+      snprintf(www_auth, sizeof(www_auth), "Basic realm=\"%s\" charset=\"UTF-8\"", AuthName);
+    else
+      www_auth[0] = '\0';
+
+    httpSetField(client->http, HTTP_FIELD_WWW_AUTHENTICATE, www_auth);
+  }
+
+  if (code == HTTP_STATUS_METHOD_NOT_ALLOWED || client->operation == HTTP_STATE_OPTIONS)
     httpSetField(client->http, HTTP_FIELD_ALLOW, "GET, HEAD, OPTIONS, POST");
 
   if (type)
@@ -1293,21 +1300,21 @@ show_materials(
   html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a></p>\n", printer->resource);
   html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Materials</h1>\n", printer->resource, printer->dnssd_name);
 
-  if ((materials_db = ippFindAttribute(printer->attrs, "materials-col-database", IPP_TAG_BEGIN_COLLECTION)) == NULL)
+  if ((materials_db = ippFindAttribute(printer->pinfo.attrs, "materials-col-database", IPP_TAG_BEGIN_COLLECTION)) == NULL)
   {
     html_printf(client, "<p>Error: No materials-col-database defined for printer.</p>\n");
     html_footer(client);
     return (1);
   }
 
-  if ((materials_ready = ippFindAttribute(printer->attrs, "materials-col-ready", IPP_TAG_ZERO)) == NULL)
+  if ((materials_ready = ippFindAttribute(printer->pinfo.attrs, "materials-col-ready", IPP_TAG_ZERO)) == NULL)
   {
     html_printf(client, "<p>Error: No materials-col-ready defined for printer.</p>\n");
     html_footer(client);
     return (1);
   }
 
-  if ((attr = ippFindAttribute(printer->attrs, "max-materials-col-supported", IPP_TAG_INTEGER)) == NULL)
+  if ((attr = ippFindAttribute(printer->pinfo.attrs, "max-materials-col-supported", IPP_TAG_INTEGER)) == NULL)
   {
     html_printf(client, "<p>Error: No max-materials-col-supported defined for printer.</p>\n");
     html_footer(client);
@@ -1335,7 +1342,7 @@ show_materials(
 
     _cupsRWLockWrite(&printer->rwlock);
 
-    ippDeleteAttribute(printer->attrs, materials_ready);
+    ippDeleteAttribute(printer->pinfo.attrs, materials_ready);
     materials_ready = NULL;
 
     for (i = 0; i < max_materials; i ++)
@@ -1352,16 +1359,16 @@ show_materials(
         if (!strcmp(material_key, val))
         {
           if (!materials_ready)
-            materials_ready = ippAddCollection(printer->attrs, IPP_TAG_PRINTER, "materials-col-ready", materials_col);
+            materials_ready = ippAddCollection(printer->pinfo.attrs, IPP_TAG_PRINTER, "materials-col-ready", materials_col);
           else
-            ippSetCollection(printer->attrs, &materials_ready, ippGetCount(materials_ready), materials_col);
+            ippSetCollection(printer->pinfo.attrs, &materials_ready, ippGetCount(materials_ready), materials_col);
           break;
         }
       }
     }
 
     if (!materials_ready)
-      materials_ready = ippAddOutOfBand(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "materials-col-ready");
+      materials_ready = ippAddOutOfBand(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "materials-col-ready");
 
     _cupsRWUnlock(&printer->rwlock);
 
@@ -1460,37 +1467,37 @@ show_media(server_client_t  *client,	/* I - Client connection */
   html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource);
   html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Media</h1>\n", printer->resource, printer->dnssd_name);
 
-  if ((media_col_ready = ippFindAttribute(printer->attrs, "media-col-ready", IPP_TAG_BEGIN_COLLECTION)) == NULL)
+  if ((media_col_ready = ippFindAttribute(printer->pinfo.attrs, "media-col-ready", IPP_TAG_BEGIN_COLLECTION)) == NULL)
   {
     html_printf(client, "<p>Error: No media-col-ready defined for printer.</p>\n");
     html_footer(client);
     return (1);
   }
 
-  media_ready = ippFindAttribute(printer->attrs, "media-ready", IPP_TAG_ZERO);
+  media_ready = ippFindAttribute(printer->pinfo.attrs, "media-ready", IPP_TAG_ZERO);
 
-  if ((media_sizes = ippFindAttribute(printer->attrs, "media-supported", IPP_TAG_ZERO)) == NULL)
+  if ((media_sizes = ippFindAttribute(printer->pinfo.attrs, "media-supported", IPP_TAG_ZERO)) == NULL)
   {
     html_printf(client, "<p>Error: No media-supported defined for printer.</p>\n");
     html_footer(client);
     return (1);
   }
 
-  if ((media_sources = ippFindAttribute(printer->attrs, "media-source-supported", IPP_TAG_ZERO)) == NULL)
+  if ((media_sources = ippFindAttribute(printer->pinfo.attrs, "media-source-supported", IPP_TAG_ZERO)) == NULL)
   {
     html_printf(client, "<p>Error: No media-source-supported defined for printer.</p>\n");
     html_footer(client);
     return (1);
   }
 
-  if ((media_types = ippFindAttribute(printer->attrs, "media-type-supported", IPP_TAG_ZERO)) == NULL)
+  if ((media_types = ippFindAttribute(printer->pinfo.attrs, "media-type-supported", IPP_TAG_ZERO)) == NULL)
   {
     html_printf(client, "<p>Error: No media-type-supported defined for printer.</p>\n");
     html_footer(client);
     return (1);
   }
 
-  if ((input_tray = ippFindAttribute(printer->attrs, "printer-input-tray", IPP_TAG_STRING)) == NULL)
+  if ((input_tray = ippFindAttribute(printer->pinfo.attrs, "printer-input-tray", IPP_TAG_STRING)) == NULL)
   {
     html_printf(client, "<p>Error: No printer-input-tray defined for printer.</p>\n");
     html_footer(client);
@@ -1529,15 +1536,15 @@ show_media(server_client_t  *client,	/* I - Client connection */
 
     _cupsRWLockWrite(&printer->rwlock);
 
-    ippDeleteAttribute(printer->attrs, input_tray);
+    ippDeleteAttribute(printer->pinfo.attrs, input_tray);
     input_tray = NULL;
 
-    ippDeleteAttribute(printer->attrs, media_col_ready);
+    ippDeleteAttribute(printer->pinfo.attrs, media_col_ready);
     media_col_ready = NULL;
 
     if (media_ready)
     {
-      ippDeleteAttribute(printer->attrs, media_ready);
+      ippDeleteAttribute(printer->pinfo.attrs, media_ready);
       media_ready = NULL;
     }
 
@@ -1557,9 +1564,9 @@ show_media(server_client_t  *client,	/* I - Client connection */
         media_type = cupsGetOption(name, num_options, options);
 
         if (media_ready)
-          ippSetString(printer->attrs, &media_ready, ippGetCount(media_ready), media_size);
+          ippSetString(printer->pinfo.attrs, &media_ready, ippGetCount(media_ready), media_size);
         else
-          media_ready = ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-ready", NULL, media_size);
+          media_ready = ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-ready", NULL, media_size);
 
         if (media_type && *media_type)
           snprintf(media_key, sizeof(media_key), "%s_%s_%s", media_size, media_source, media_type);
@@ -1580,9 +1587,9 @@ show_media(server_client_t  *client,	/* I - Client connection */
           ippAddString(media_col, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-type", NULL, media_type);
 
         if (media_col_ready)
-          ippSetCollection(printer->attrs, &media_col_ready, ippGetCount(media_col_ready), media_col);
+          ippSetCollection(printer->pinfo.attrs, &media_col_ready, ippGetCount(media_col_ready), media_col);
         else
-          media_col_ready = ippAddCollection(printer->attrs, IPP_TAG_PRINTER, "media-col-ready", media_col);
+          media_col_ready = ippAddCollection(printer->pinfo.attrs, IPP_TAG_PRINTER, "media-col-ready", media_col);
         ippDelete(media_col);
       }
       else
@@ -1597,9 +1604,9 @@ show_media(server_client_t  *client,	/* I - Client connection */
       snprintf(tray_str, sizeof(tray_str), "type=sheetFeedAutoRemovableTray;mediafeed=%d;mediaxfeed=%d;maxcapacity=250;level=%d;status=0;name=%s;", media ? media->length : 0, media ? media->width : 0, ready_sheets, media_source);
 
       if (input_tray)
-        ippSetOctetString(printer->attrs, &input_tray, ippGetCount(input_tray), tray_str, (int)strlen(tray_str));
+        ippSetOctetString(printer->pinfo.attrs, &input_tray, ippGetCount(input_tray), tray_str, (int)strlen(tray_str));
       else
-        input_tray = ippAddOctetString(printer->attrs, IPP_TAG_PRINTER, "printer-input-tray", tray_str, (int)strlen(tray_str));
+        input_tray = ippAddOctetString(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-input-tray", tray_str, (int)strlen(tray_str));
 
       if (ready_sheets == 0)
       {
@@ -1612,10 +1619,10 @@ show_media(server_client_t  *client,	/* I - Client connection */
     }
 
     if (!media_col_ready)
-      media_col_ready = ippAddOutOfBand(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "media-col-ready");
+      media_col_ready = ippAddOutOfBand(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "media-col-ready");
 
     if (!media_ready)
-      media_ready = ippAddOutOfBand(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "media-ready");
+      media_ready = ippAddOutOfBand(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "media-ready");
 
     _cupsRWUnlock(&printer->rwlock);
 
@@ -1867,7 +1874,7 @@ show_supplies(
   html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/media\">Show Media</a></p>\n", printer->resource, printer->resource);
   html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Media</h1>\n", printer->resource, printer->dnssd_name);
 
-  if ((supply = ippFindAttribute(printer->attrs, "printer-supply", IPP_TAG_STRING)) == NULL)
+  if ((supply = ippFindAttribute(printer->pinfo.attrs, "printer-supply", IPP_TAG_STRING)) == NULL)
   {
     html_printf(client, "<p>Error: No printer-supply defined for printer.</p>\n");
     html_footer(client);
@@ -1876,7 +1883,7 @@ show_supplies(
 
   num_supply = ippGetCount(supply);
 
-  if ((supply_desc = ippFindAttribute(printer->attrs, "printer-supply-description", IPP_TAG_TEXT)) == NULL)
+  if ((supply_desc = ippFindAttribute(printer->pinfo.attrs, "printer-supply-description", IPP_TAG_TEXT)) == NULL)
   {
     html_printf(client, "<p>Error: No printer-supply-description defined for printer.</p>\n");
     html_footer(client);
@@ -1905,7 +1912,7 @@ show_supplies(
 
     _cupsRWLockWrite(&printer->rwlock);
 
-    ippDeleteAttribute(printer->attrs, supply);
+    ippDeleteAttribute(printer->pinfo.attrs, supply);
     supply = NULL;
 
     printer->state_reasons &= (server_preason_t)~(SERVER_PREASON_MARKER_SUPPLY_EMPTY | SERVER_PREASON_MARKER_SUPPLY_LOW | SERVER_PREASON_MARKER_WASTE_ALMOST_FULL | SERVER_PREASON_MARKER_WASTE_FULL | SERVER_PREASON_TONER_EMPTY | SERVER_PREASON_TONER_LOW);
@@ -1919,9 +1926,9 @@ show_supplies(
 
         snprintf(supply_text, sizeof(supply_text), printer_supply[i], level);
         if (supply)
-          ippSetOctetString(printer->attrs, &supply, ippGetCount(supply), supply_text, (int)strlen(supply_text));
+          ippSetOctetString(printer->pinfo.attrs, &supply, ippGetCount(supply), supply_text, (int)strlen(supply_text));
         else
-          supply = ippAddOctetString(printer->attrs, IPP_TAG_PRINTER, "printer-supply", supply_text, (int)strlen(supply_text));
+          supply = ippAddOctetString(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-supply", supply_text, (int)strlen(supply_text));
 
         if (i == 0)
         {

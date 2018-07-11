@@ -1,16 +1,12 @@
 #
-# API library Makefile for CUPS.
+# API library Makefile for the CUPS library.
 #
-# Copyright 2007-2016 by Apple Inc.
-# Copyright 1997-2006 by Easy Software Products, all rights reserved.
+# Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
+# Copyright © 2007-2018 by Apple Inc.
+# Copyright © 1997-2006 by Easy Software Products, all rights reserved.
 #
-# These coded instructions, statements, and computer programs are the
-# property of Apple Inc. and are protected by Federal copyright
-# law.  Distribution and use rights are outlined in the file "LICENSE.txt"
-# which should have been included with this file.  If this file is
-# missing or damaged, see the license at "http://www.cups.org/".
-#
-# This file is subject to the Apple OS-Developed Software exception.
+# Licensed under Apache License v2.0.  See the file "LICENSE" for more
+# information.
 #
 
 include ../Makedefs
@@ -27,7 +23,7 @@ OPTIONS	=	-D_CUPS_NO_DEPRECATED=1
 # Object files...
 #
 
-OBJS	=	\
+LIBOBJS	=	\
 		array.o \
 		auth.o \
 		debug.o \
@@ -47,7 +43,9 @@ OBJS	=	\
 		http-addrlist.o \
 		http-support.o \
 		ipp.o \
+		ipp-file.o \
 		ipp-support.o \
+		ipp-vars.o \
 		langprintf.o \
 		language.o \
 		md5.o \
@@ -65,6 +63,19 @@ OBJS	=	\
 		transcode.o \
 		usersys.o \
 		util.o
+TESTOBJS =	\
+		testarray.o \
+		testclient.o \
+		testdest.o \
+		testfile.o \
+		testhttp.o \
+		testi18n.o \
+		testipp.o \
+		testoptions.o \
+		testraster.o
+OBJS	=	\
+		$(LIBOBJS) \
+		$(TESTOBJS)
 HEADERS =       \
                 array.h \
                 cups.h \
@@ -84,6 +95,7 @@ HEADERS =       \
 #
 
 TARGETS =	libcups.a
+TESTS	=	$(TESTOBJS:.o=)
 
 
 #
@@ -98,7 +110,7 @@ all:		$(TARGETS)
 #
 
 clean:
-	$(RM) $(OBJS) $(TARGETS)
+	$(RM) $(OBJS) $(TARGETS) $(TESTS)
 
 
 #
@@ -124,13 +136,26 @@ install:	all
 
 
 #
+# Test the library.
+#
+
+test:	$(TESTS)
+	echo Running unit tests...
+	for test in $(TESTS); do \
+		echo ""; \
+		echo Running $$test...; \
+		./$$test || exit 1; \
+	done
+
+
+#
 # libcups.a
 #
 
-libcups.a:	$(OBJS)
+libcups.a:	$(LIBOBJS)
 	echo Archiving $@...
 	$(RM) $@
-	$(AR) $(ARFLAGS) $@ $(OBJS)
+	$(AR) $(ARFLAGS) $@ $(LIBOBJS)
 	$(RANLIB) $@
 
 
@@ -146,9 +171,42 @@ libcups2.def: $(OBJS) Makefile
 	(nm $(OBJS) 2>/dev/null | grep "T _" | awk '{print $$3}'; \
 	 echo __cups_strcpy; echo __cups_strlcat; echo __cups_strlcpy) | \
 		grep -v -E \
-		    -e 'cups_debug|Apple|BackChannel|Backend|FileCheck|Filter|GSSService|SetNegotiate|SideChannel' \
+		    -e 'cups_debug|Apple|GSSService|SetNegotiate' \
 		    -e 'Block$$' | \
 		sed -e '1,$$s/^_//' | sort >>libcups2.def
+
+
+#
+# Unit tests
+#
+
+testarray: testarray.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testarray.o $(LIBS)
+testclient: testclient.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testclient.o $(LIBS)
+testdest: testdest.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testdest.o $(LIBS)
+testfile: testfile.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testfile.o $(LIBS)
+testhttp: testhttp.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testhttp.o $(LIBS)
+testi18n: testi18n.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testi18n.o $(LIBS)
+testipp: testipp.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testipp.o $(LIBS)
+testoptions: testoptions.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testoptions.o $(LIBS)
+testraster: testraster.o
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ testraster.o $(LIBS)
 
 
 #
@@ -157,7 +215,7 @@ libcups2.def: $(OBJS) Makefile
 
 APISOURCES =	\
 		auth.c \
-                cups.h \
+		cups.h \
 		dest.c \
 		dest-job.c \
 		dest-localization.c \
@@ -167,20 +225,20 @@ APISOURCES =	\
 		getputfile.c \
 		hash.c \
 		http.c \
-                http.h \
+		http.h \
 		http-addr.c \
 		http-addrlist.c \
 		http-support.c \
 		ipp.c \
-                ipp.h \
+		ipp.h \
 		ipp-support.c \
 		md5passwd.c \
 		notify.c \
 		options.c \
-                pwg.h \
+		pwg.h \
 		pwg-media.c \
 		raster.c \
-                raster.h \
+		raster.h \
 		request.c \
 		tls.c \
 		usersys.c \

@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# Script to make gource video of IPP Sample Code repository...
+#
+
+filename="ippsample-`date '+%Y%m%d'`.mp4"
+
+gource -r 30 -1280x720 --font-size 25 --stop-at-end --seconds-per-day .025 --auto-skip-seconds 1 --date-format "%B %d %Y" --title "ISTO-PWG IPP Sample Code Project" -e 1 --key -o - | ffmpeg -y -r 30 -f image2pipe -vcodec ppm -i - -vcodec libx264 -preset slow -pix_fmt yuv420p -crf 1 -threads 0 -bf 0 $filename
+
+ls -l $filename | awk '{printf "%s: %.0fMB\n", $9, $5 / 1024 / 1024;}'

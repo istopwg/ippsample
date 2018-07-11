@@ -62,10 +62,13 @@ ippserver - a simple ipp server
 <b>-s</b>
 <i>speed[,color-speed]</i>
 ] [
-<b>-u</b>
-<i>username:password</i>
-] [
 <b>-v[vvv]</b>
+] [
+-B --help
+] [
+-B --relaxed
+] [
+-B --version
 ]
 <i>"service name"</i>
 <h2 class="title"><a name="DESCRIPTION">Description</a></h2>
@@ -96,6 +99,7 @@ The default is a directory under the user's current temporary directory.
 <dt><b>-f </b><i>type/subtype,[...]</i>
 <dd style="margin-left: 5.0em">Specifies the list of supported MIME media types.
 <dt><b>-h</b>
+<dd style="margin-left: 5.0em"><dt><b>--help</b>
 <dd style="margin-left: 5.0em">Shows program help.
 <dt><b>-i </b><i>iconfile.png</i>
 <dd style="margin-left: 5.0em">Specifies a PNG file for the printer icon.
@@ -116,12 +120,14 @@ The default is a user-specific number from 8000 to 8999.
 <dt><b>-r </b><i>subtype</i>
 <dd style="margin-left: 5.0em">Specifies the Bonjour subtype to advertise for the printer.
 The default subtype is "_print".
+<dt><b>--relaxed</b>
+<dd style="margin-left: 5.0em">Runs the server in relaxed conformance mode, which allows certain harmless IPP conformance issues to be ignored.
 <dt><b>-s </b><i>speed[,color-speed]</i>
 <dd style="margin-left: 5.0em">Specifies the printer speed in pages-per-minute.
-<dt><b>-u </b><i>username:password</i>
-<dd style="margin-left: 5.0em">Specifies the username and password for the IPP proxy.
 <dt><b>-v[vvv]</b>
 <dd style="margin-left: 5.0em">Be (very) verbose when logging activity to the standard output.
+<dt><b>--version</b>
+<dd style="margin-left: 5.0em">Show the software version number.
 </dl>
 <h2 class="title"><a name="EXIT_STATUS">Exit Status</a></h2>
 The
@@ -151,22 +157,90 @@ Each line consists of a directive followed by its value(s).
 Comments start with the # character and continue to the end of the line.
 The following directives are supported:
 <dl class="man">
-<dt><b>DataDirectory </b><i>directory</i>
+<dt><b>Authentication </b><i>{On|Off|Yes|No}</i>
+<dd style="margin-left: 5.0em">Specifies whether authentication is required for requests other than Get-Printer-Attributes.
+The default is "No".
+<dt><b>AuthAdminGroup </b><i>group</i>
+<dd style="margin-left: 5.0em">Specifies the group of print administrators.
+The default administrator group is "wheel".
+<dt><b>AuthName </b><i>realm</i>
+<dd style="margin-left: 5.0em">Specifies the authentication realm name.
+The default realm name is "Printing".
+<dt><b>AuthOperatorGroup </b><i>group</i>
+<dd style="margin-left: 5.0em">Specifies the group of print operators.
+The default operator group is the primary group for the user running the server.
+<dt><b>AuthService </b><i>name</i>
+<dd style="margin-left: 5.0em">Specifies the PAM service name.
+The default is either "cups" or "other", depending on the platform.
+<dt><b>AuthTestPassword </b><i>password</i>
+<dd style="margin-left: 5.0em">Specifies a single password that can be used to authenticate against any user account.
+Note: This directive is provided for testing only and does not actually provide access to the "authenticated" user account.
+The default is to not have a testing password enabled.
+<dt><b>AuthType </b><i>{None|Basic}</i>
+<dd style="margin-left: 5.0em">Specifies the type of authentication to require.
+"None" specifies that no authentication is required.
+"Basic" specifies that HTTP Basic authentication (username + password) is required.
+The default is "None" when authentication is turned off and "Basic" when authentication is turned on.
+<dt><b>BinDir </b><i>directory</i>
+<dd style="margin-left: 5.0em">Specifies the location of the
+<b>ipptransform</b>(1)
+and
+<b>ipptransform3d</b>(1)
+programs.
+<dt><b>DataDir </b><i>directory</i>
 <dd style="margin-left: 5.0em">Specifies the location of server data files.
 <dt><b>DefaultPrinter </b><i>name</i>
 <dd style="margin-left: 5.0em">Specifies the default print service name.
+<dt><b>DocumentPrivacyAttributes </b><i>{all|default|none|list of attributes and groups}</i>
+<dd style="margin-left: 5.0em">Specifies which document object attribute values are considered private.
+"All" will hide all attributes except "document-job-id", "document-number", "document-printer-uri", and "document-uuid".
+"Default" hides all description and template attributes but not status attributes.
+"None" does not hide any attributes.
+A list of (space-delimited) attributes and groups names specific attributes, all description ("document-description"), and/or all template ("document-template") attributes.
+The default value is "default".
+<dt><b>DocumentPrivacyScope </b><i>{all|default|owner|none}</i>
+<dd style="margin-left: 5.0em">Specifies which users can query private document attribute values.
+"All" means that all users can query private document attribute values.
+"Default" means that the document owner and any administrator or operator can query private document attribute values.
+"Owner" means that only the document owner can query private document attribute values.
+"None" means that no user can query private document attribute values.
+The default is "default".
 <dt><b>Encryption </b><i>{Always|IfRequested|Never|Required}</i>
 <dd style="margin-left: 5.0em">Specifies when to use TLS encryption for client connections.
 "Always" means that all connections are encrypted when established (HTTPS).
 "IfRequested" means that connections are encrypted when an upgrade is requested by the client.
 "Never" means that encryption is not allowed or supported.
 "Required" means that all connections are encrypted, either when established (HTTPS) or immediately thereafter using HTTP Upgrade.
+<dt><b>FileDirectory </b><i>directory [ ... directory ]</i>
+<dd style="margin-left: 5.0em">Specifies one or more directories that are allowed for local printing by reference.
+Directories with spaces must be put inside single ('some directory') or double ("some directory") quotes.
+The default is to not allow file: URIs for printing.
+<dt><b>GeoLocation </b><i>geo:latitude,longitude[,altitude]</i>
+<dd style="margin-left: 5.0em">Specifies the physical location of the server using a "geo" URI (RFC 5870).
+<dt><b>Info </b><i>description</i>
+<dd style="margin-left: 5.0em">Specifies a description of the server.
+<dt><b>JobPrivacyAttributes </b><i>{all|default|none|list of attributes and groups}</i>
+<dd style="margin-left: 5.0em">Specifies which job object attribute values are considered private.
+"All" will hide all attributes except "job-id", "job-printer-uri", and "job-uuid".
+"Default" hides all description and template attributes but not status attributes.
+"None" does not hide any attributes.
+A list of (space-delimited) attributes and groups names specific attributes, all description ("job-description"), and/or all template ("job-template") attributes.
+The default value is "default".
+<dt><b>JobPrivacyScope </b><i>{all|default|owner|none}</i>
+<dd style="margin-left: 5.0em">Specifies which users can query private job attribute values.
+"All" means that all users can query private job attribute values.
+"Default" means that the job owner and any administrator or operator can query private job attribute values.
+"Owner" means that only the job owner can query private job attribute values.
+"None" means that no user can query private job attribute values.
+The default is "default".
 <dt><b>KeepFiles </b><i>{No|Yes}</i>
 <dd style="margin-left: 5.0em">Specifies whether job data files are retained after processing.
-<dt><b>Listen </b><i>address[:port]</i>
-<dd style="margin-left: 5.0em">Listens for client connections on the specified address and port.
+<dt><b>Listen </b><i>address[:port] [ ... address[:port] ]</i>
+<dd style="margin-left: 5.0em">Listens for client connections on the specified addresses and ports.
 If the address is "*" the server will listen for connections on all network interfaces.
 If the port is omitted, a port between 8000 and 8999 will be used.
+<dt><b>Location </b><i>location of server</i>
+<dd style="margin-left: 5.0em">Specifies a human-readable location of the server.
 <dt><b>LogFile </b><i>path</i>
 <dd style="margin-left: 5.0em">Specifies a log file to use.
 The path "stderr" causes all log messages to be directed to the standard error file descriptor.
@@ -175,6 +249,8 @@ The path "stderr" causes all log messages to be directed to the standard error f
 "Debug" is the most verbose level, logging all messages.
 "Info" provides basic progress and status messages.
 "Error" provides only error messages.
+<dt><b>MakeAndModel </b><i>make model</i>
+<dd style="margin-left: 5.0em">Specifies the make and model of the server.
 <dt><b>MaxCompletedJobs </b><i>number</i>
 <dd style="margin-left: 5.0em">Specifies the maximum number of completed jobs that are retained for job history.
 The value 0 specifies there is no limit.
@@ -182,8 +258,34 @@ Note: <b>ippserver</b> currently removes completed jobs from the job history aft
 <dt><b>MaxJobs </b><i>number</i>
 <dd style="margin-left: 5.0em">Specifies the maximum number of pending and active jobs that can be queued at any given time.
 The value 0 specifies there is no limit.
-<dt><b>SpoolDirectory </b><i>path</i>
+<dt><b>Name </b><i>name of server</i>
+<dd style="margin-left: 5.0em">Specifies the human-readable name of the server.
+<dt><b>OwnerEmail </b><i>name@example.com</i>
+<dd style="margin-left: 5.0em">Specifies the email address of the owner or administrator of the server.
+<dt><b>OwnerLocation </b><i>location</i>
+<dd style="margin-left: 5.0em">Specifies the human-readable location of the owner or administrator of the server.
+<dt><b>OwnerName </b><i>name</i>
+<dd style="margin-left: 5.0em">Specifies the name of the owner or administrator of the server.
+<dt><b>OwnerPhone </b><i>phone-number</i>
+<dd style="margin-left: 5.0em">Specifies the telephone number of the owner or administrator of the server.
+<dt><b>SpoolDir </b><i>path</i>
 <dd style="margin-left: 5.0em">Specifies the location of print job spool files.
+<dt><b>SubscriptionPrivacyAttributes </b><i>{all|default|none|list of attributes and groups}</i>
+<dd style="margin-left: 5.0em">Specifies which subscription object attribute values are considered private.
+"All" will hide all attributes except "notify-job-id", "notify-printer-uri", "notify-subscription-id", and "notify-subscription-uuid".
+"Default" hides all description and template attributes but not status attributes.
+"None" does not hide any attributes.
+A list of (space-delimited) attributes and groups names specific attributes, all description ("subscription-description"), and/or all template ("subscription-template") attributes.
+The default value is "default".
+<dt><b>SubscriptionPrivacyScope </b><i>{all|default|owner|none}</i>
+<dd style="margin-left: 5.0em">Specifies which users can query private subscription attribute values.
+"All" means that all users can query private subscription attribute values.
+"Default" means that the subscription owner and any administrator or operator can query private subscription attribute values.
+"Owner" means that only the subscription owner can query private subscription attribute values.
+"None" means that no user can query private subscription attribute values.
+The default is "default".
+<dt><b>UUID </b><i>uuid</i>
+<dd style="margin-left: 5.0em">Specifies the UUID of the server.
 </dl>
 <h3><a name="PRINT_SERVICE_CONFIGURATION_FILES">Print Service Configuration Files</a></h3>
 Each 2D print service is configured by a <i>print/name.conf</i> configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print/name".
@@ -195,15 +297,15 @@ The following directives are supported:
 <dt><b>Attr </b><i>value-tag name value(s)</i>
 <dd style="margin-left: 5.0em">Specifies a Printer Description attribute.
 The format is further defined in
-<a href="man-ipptoolfile.html?TOPIC=Man+Pages"><b>ipptoolfile</b>(7).</a>
-<dt><b>AuthType </b><i>{None|Basic}</i>
-<dd style="margin-left: 5.0em">Specifies the type of authentication to require.
-"None" specifies that no authentication is required.
-"Basic" specifies that HTTP Basic authentication (username + password) is required.
+<b>ipptoolfile</b>(7).
+<dt><b>AuthPrintGroup </b><i>group</i>
+<dd style="margin-left: 5.0em">Specifies the group of users that is allowed to do printing operations.
+<dt><b>AuthProxyGroup </b><i>group</i>
+<dd style="margin-left: 5.0em">Specifies the group of users that is allowed to do proxy operations.
 <dt><b>Command </b><i>command</i>
 <dd style="margin-left: 5.0em">Specifies the command to run when processing jobs.
 The
-<a href="man-ipptransform.html?TOPIC=Man+Pages"><b>ipptransform</b>(1)</a>
+<b>ipptransform</b>(1)
 command can be used for many printers.
 <dt><b>DeviceURI </b><i>uri</i>
 <dd style="margin-left: 5.0em">Specifies the printer's device URI.
@@ -211,15 +313,14 @@ command can be used for many printers.
 <dd style="margin-left: 5.0em">Specifies the manufacturer name for the printer.
 <dt><b>Model </b><i>model</i>
 <dd style="margin-left: 5.0em">Specifies the model for the printer.
-<dt><b>ProxyUser </b><i>user</i>
-<dd style="margin-left: 5.0em">Specifies the name of the proxy user for the printer.
 </dl>
 <h3><a name="PRINT_SERVICE_ICON_FILES">Print Service Icon Files</a></h3>
 The icon for each 2D print service is stored in the <i>print/name.png</i>  file. Similarly, the icon for each 3D print service is stored in the <i>print3d/name.png</i> file.
 <h2 class="title"><a name="SEE_ALSO">See Also</a></h2>
 ISTO PWG Internet Printing Protocol Workgroup (<a href="http://www.pwg.org/ipp">http://www.pwg.org/ipp</a>)
 <h2 class="title"><a name="COPYRIGHT">Copyright</a></h2>
-Copyright &copy; 2007-2016 by Apple Inc.
+Copyright &copy; 2014-2018 by the IEEE-ISTO Printer Working Group.
+Copyright &copy; 2007-2018 by Apple Inc.
 
 </body>
 </html>

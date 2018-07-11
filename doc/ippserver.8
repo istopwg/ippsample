@@ -1,0 +1,383 @@
+.\"
+.\" ippserver man page.
+.\"
+.\" Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
+.\" Copyright © 2014-2018 by Apple Inc.
+.\"
+.\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
+.\" information.
+.\"
+.TH ippserver 8 "ippsample" "2018-05-10" "Apple Inc."
+.SH NAME
+ippserver \- a simple ipp server
+.SH SYNOPSIS
+.B ippserver
+[
+.B \-2
+] [
+.B \-C
+.I config-directory
+] [
+.B \-K
+.I keypath
+] [
+.B \-M
+.I manufacturer
+] [
+.B \-P
+] [
+.B \-a
+.I attributes-file
+] [
+.B \-c
+.I command
+] [
+.B \-d
+.I spool-directory
+] [
+.B \-f
+.I type/subtype[,...]
+] [
+.B \-h
+] [
+.B \-i
+.I iconfile.png
+] [
+.B \-k
+] [
+.B \-l
+.I location
+] [
+.B \-m
+.I model
+] [
+.B \-n
+.I hostname
+] [
+.B \-p
+.I port
+] [
+.B \-r
+.I subtype
+] [
+.B \-s
+.I speed[,color-speed]
+] [
+.B \-v[vvv]
+] [
+-B \-\-help
+] [
+-B \-\-relaxed
+] [
+-B \-\-version
+]
+.I "service name"
+.SH DESCRIPTION
+.B ippserver
+is a simple Internet Printing Protocol (IPP) server conforming to the IPP Everywhere and IPP Shared Infrastructure Extensions (INFRA) specifications. It can be used as a standalone print server and/or a very basic infrastructure server between standard IPP clients and IPP proxies conforming to the INFRA specification.
+.SH OPTIONS
+The following options are recognized by
+.B ippserver:
+.TP 5
+\fB\-2\fR
+Specifies that the printer supports two-sided printing.
+.TP 5
+\fB\-C \fIconfig-directory\fR
+Specifies the location of a directory containing files that define the configuration of the server and the service instances that are available.
+See the section titled "CONFIGURATION DIRECTORIES" below.
+.TP 5
+\fB\-K \fIkeypath\fR
+Specifies the location of TLS certificates and private keys.
+.TP 5
+\fB\-M \fImanufacturer\fR
+Specifies the manufacturer for the printer.
+.TP 5
+\fB\-P\fR
+Specifies that the printer will require a PIN ("job-password") for submitted print jobs.
+.TP 5
+\fB\-a \fIattributes-file\fR
+Specifies a file containing attribute definitions for the printer.
+.TP 5
+\fB\-c \fIcommand\fR
+Specifies a command that is used to process job files.
+.TP 5
+\fB\-d \fIspool-directory\fR
+Specifies the directory that will hold the print files.
+The default is a directory under the user's current temporary directory.
+.TP 5
+\fB\-f \fItype/subtype,[...]\fR
+Specifies the list of supported MIME media types.
+.TP 5
+.B \-h
+.TP 5
+.B \-\-help
+Shows program help.
+.TP 5
+\fB\-i \fIiconfile.png\fR
+Specifies a PNG file for the printer icon.
+.TP 5
+.B \-k
+Keeps the print documents in the spool directory rather than deleting them.
+.TP 5
+\fB\-l \fIlocation\fR
+Specifies the "printer-location" string for the printer.
+.TP 5
+\fB\-m \fImodel\fR
+Specifies the model name of the printer.
+.TP 5
+\fB\-n \fIhostname\fR
+Specifies the hostname that is reported by the server.
+The default is the name returned by the
+.BR hostname (1)
+command.
+.TP 5
+\fB\-p \fIport\fR
+Specifies the port number to listen on.
+The default is a user-specific number from 8000 to 8999.
+.TP 5
+\fB\-r \fIsubtype\fR
+Specifies the Bonjour subtype to advertise for the printer.
+The default subtype is "_print".
+.TP 5
+.B \-\-relaxed
+Runs the server in relaxed conformance mode, which allows certain harmless IPP conformance issues to be ignored.
+.TP 5
+\fB\-s \fIspeed[,color-speed]\fR
+Specifies the printer speed in pages-per-minute.
+.TP 5
+.B \-v[vvv]
+Be (very) verbose when logging activity to the standard output.
+.TP 5
+.B \-\-version
+Show the software version number.
+.SH EXIT STATUS
+The
+.B ippserver
+program returns 1 if it is unable to process the command-line arguments.
+Otherwise
+.B ippserver
+will run continuously until terminated.
+.SH EXAMPLES
+Run
+.B ippserver
+with a service name of My Cool Printer:
+.nf
+
+    ippserver "My Cool Printer"
+.fi
+.LP
+Specify a proxy username of "foo" and password of "bar":
+.nf
+
+    ippserver \-u foo:bar "My Cool Printer"
+.fi
+.SH CONFIGURATION DIRECTORIES
+When the \fB\-C\fR option is specified, \fBippserver\fR reads a series of configuration files from the specified directory to configure the server and services supported by the server.
+.SS SYSTEM.CONF CONFIGURATION FILE
+The \fIsystem.conf\fR configuration file specifies settings that apply to all services.
+Each line consists of a directive followed by its value(s).
+Comments start with the # character and continue to the end of the line.
+The following directives are supported:
+.TP 5
+\fBAuthentication \fI{On|Off|Yes|No}\fR
+Specifies whether authentication is required for requests other than Get-Printer-Attributes.
+The default is "No".
+.TP 5
+\fBAuthAdminGroup \fIgroup\fR
+Specifies the group of print administrators.
+The default administrator group is "wheel".
+.TP 5
+\fBAuthName \fIrealm\fR
+Specifies the authentication realm name.
+The default realm name is "Printing".
+.TP 5
+\fBAuthOperatorGroup \fIgroup\fR
+Specifies the group of print operators.
+The default operator group is the primary group for the user running the server.
+.TP 5
+\fBAuthService \fIname\fR
+Specifies the PAM service name.
+The default is either "cups" or "other", depending on the platform.
+.TP 5
+\fBAuthTestPassword \fIpassword\fR
+Specifies a single password that can be used to authenticate against any user account.
+Note: This directive is provided for testing only and does not actually provide access to the "authenticated" user account.
+The default is to not have a testing password enabled.
+.TP 5
+\fBAuthType \fI{None|Basic}\fR
+Specifies the type of authentication to require.
+"None" specifies that no authentication is required.
+"Basic" specifies that HTTP Basic authentication (username + password) is required.
+The default is "None" when authentication is turned off and "Basic" when authentication is turned on.
+.TP 5
+\fBBinDir \fIdirectory\fR
+Specifies the location of the
+.BR ipptransform (1)
+and
+.BR ipptransform3d (1)
+programs.
+.TP 5
+\fBDataDir \fIdirectory\fR
+Specifies the location of server data files.
+.TP 5
+\fBDefaultPrinter \fIname\fR
+Specifies the default print service name.
+.TP 5
+\fBDocumentPrivacyAttributes \fI{all|default|none|list of attributes and groups}\fR
+Specifies which document object attribute values are considered private.
+"All" will hide all attributes except "document-job-id", "document-number", "document-printer-uri", and "document-uuid".
+"Default" hides all description and template attributes but not status attributes.
+"None" does not hide any attributes.
+A list of (space-delimited) attributes and groups names specific attributes, all description ("document-description"), and/or all template ("document-template") attributes.
+The default value is "default".
+.TP 5
+\fBDocumentPrivacyScope \fI{all|default|owner|none}\fR
+Specifies which users can query private document attribute values.
+"All" means that all users can query private document attribute values.
+"Default" means that the document owner and any administrator or operator can query private document attribute values.
+"Owner" means that only the document owner can query private document attribute values.
+"None" means that no user can query private document attribute values.
+The default is "default".
+.TP 5
+\fBEncryption \fI{Always|IfRequested|Never|Required}\fR
+Specifies when to use TLS encryption for client connections.
+"Always" means that all connections are encrypted when established (HTTPS).
+"IfRequested" means that connections are encrypted when an upgrade is requested by the client.
+"Never" means that encryption is not allowed or supported.
+"Required" means that all connections are encrypted, either when established (HTTPS) or immediately thereafter using HTTP Upgrade.
+.TP 5
+\fBFileDirectory \fIdirectory [ ... directory ]\fR
+Specifies one or more directories that are allowed for local printing by reference.
+Directories with spaces must be put inside single ('some directory') or double ("some directory") quotes.
+The default is to not allow file: URIs for printing.
+.TP 5
+\fBGeoLocation \fIgeo:latitude,longitude[,altitude]\fR
+Specifies the physical location of the server using a "geo" URI (RFC 5870).
+.TP 5
+\fBInfo \fIdescription\fR
+Specifies a description of the server.
+.TP 5
+\fBJobPrivacyAttributes \fI{all|default|none|list of attributes and groups}\fR
+Specifies which job object attribute values are considered private.
+"All" will hide all attributes except "job-id", "job-printer-uri", and "job-uuid".
+"Default" hides all description and template attributes but not status attributes.
+"None" does not hide any attributes.
+A list of (space-delimited) attributes and groups names specific attributes, all description ("job-description"), and/or all template ("job-template") attributes.
+The default value is "default".
+.TP 5
+\fBJobPrivacyScope \fI{all|default|owner|none}\fR
+Specifies which users can query private job attribute values.
+"All" means that all users can query private job attribute values.
+"Default" means that the job owner and any administrator or operator can query private job attribute values.
+"Owner" means that only the job owner can query private job attribute values.
+"None" means that no user can query private job attribute values.
+The default is "default".
+.TP 5
+\fBKeepFiles \fI{No|Yes}\fR
+Specifies whether job data files are retained after processing.
+.TP 5
+\fBListen \fIaddress[:port] [ ... address[:port] ]\fR
+Listens for client connections on the specified addresses and ports.
+If the address is "*" the server will listen for connections on all network interfaces.
+If the port is omitted, a port between 8000 and 8999 will be used.
+.TP 5
+\fBLocation \fIlocation of server\fR
+Specifies a human-readable location of the server.
+.TP 5
+\fBLogFile \fIpath\fR
+Specifies a log file to use.
+The path "stderr" causes all log messages to be directed to the standard error file descriptor.
+.TP 5
+\fBLogLevel \fI{Debug|Info|Error}\fR
+Specifies the verbosity of logged messages.
+"Debug" is the most verbose level, logging all messages.
+"Info" provides basic progress and status messages.
+"Error" provides only error messages.
+.TP 5
+\fBMakeAndModel \fImake model\fR
+Specifies the make and model of the server.
+.TP 5
+\fBMaxCompletedJobs \fInumber\fR
+Specifies the maximum number of completed jobs that are retained for job history.
+The value 0 specifies there is no limit.
+Note: \fBippserver\fR currently removes completed jobs from the job history after 60 seconds.
+.TP 5
+\fBMaxJobs \fInumber\fR
+Specifies the maximum number of pending and active jobs that can be queued at any given time.
+The value 0 specifies there is no limit.
+.TP 5
+\fBName \fIname of server\fR
+Specifies the human-readable name of the server.
+.TP 5
+\fBOwnerEmail \fIname@example.com\fR
+Specifies the email address of the owner or administrator of the server.
+.TP 5
+\fBOwnerLocation \fIlocation\fR
+Specifies the human-readable location of the owner or administrator of the server.
+.TP 5
+\fBOwnerName \fIname\fR
+Specifies the name of the owner or administrator of the server.
+.TP 5
+\fBOwnerPhone \fIphone-number\fR
+Specifies the telephone number of the owner or administrator of the server.
+.TP 5
+\fBSpoolDir \fIpath\fR
+Specifies the location of print job spool files.
+.TP 5
+\fBSubscriptionPrivacyAttributes \fI{all|default|none|list of attributes and groups}\fR
+Specifies which subscription object attribute values are considered private.
+"All" will hide all attributes except "notify-job-id", "notify-printer-uri", "notify-subscription-id", and "notify-subscription-uuid".
+"Default" hides all description and template attributes but not status attributes.
+"None" does not hide any attributes.
+A list of (space-delimited) attributes and groups names specific attributes, all description ("subscription-description"), and/or all template ("subscription-template") attributes.
+The default value is "default".
+.TP 5
+\fBSubscriptionPrivacyScope \fI{all|default|owner|none}\fR
+Specifies which users can query private subscription attribute values.
+"All" means that all users can query private subscription attribute values.
+"Default" means that the subscription owner and any administrator or operator can query private subscription attribute values.
+"Owner" means that only the subscription owner can query private subscription attribute values.
+"None" means that no user can query private subscription attribute values.
+The default is "default".
+.TP 5
+\fBUUID \fIuuid\fR
+Specifies the UUID of the server.
+.SS PRINT SERVICE CONFIGURATION FILES
+Each 2D print service is configured by a \fIprint/name.conf\fR configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print/name".
+Each 3D print service is configured by a \fIprint3d/name.conf\fR configuration file, where "name" is the name of the service in the printer URI, e.g., "ipps://hostname/ipp/print3d/name".
+Each line consists of a directive followed by its value(s).
+Comments start with the # character and continue to the end of the line.
+The following directives are supported:
+.TP 5
+\fBAttr \fIvalue-tag name value(s)\fR
+Specifies a Printer Description attribute.
+The format is further defined in
+.BR ipptoolfile (7).
+.TP 5
+\fBAuthPrintGroup \fIgroup\fR
+Specifies the group of users that is allowed to do printing operations.
+.TP 5
+\fBAuthProxyGroup \fIgroup\fR
+Specifies the group of users that is allowed to do proxy operations.
+.TP 5
+\fBCommand \fIcommand\fR
+Specifies the command to run when processing jobs.
+The
+.BR ipptransform (1)
+command can be used for many printers.
+.TP 5
+\fBDeviceURI \fIuri\fR
+Specifies the printer's device URI.
+.TP 5
+\fBMake \fImanufacturer\fR
+Specifies the manufacturer name for the printer.
+.TP 5
+\fBModel \fImodel\fR
+Specifies the model for the printer.
+.SS PRINT SERVICE ICON FILES
+The icon for each 2D print service is stored in the \fIprint/name.png\fR  file. Similarly, the icon for each 3D print service is stored in the \fIprint3d/name.png\fR file.
+.SH SEE ALSO
+ISTO PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp)
+.SH COPYRIGHT
+Copyright \[co] 2014-2018 by the IEEE-ISTO Printer Working Group.
+Copyright \[co] 2007-2018 by Apple Inc.

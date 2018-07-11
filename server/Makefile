@@ -1,15 +1,11 @@
 #
 # Makefile for sample IPP server implementation.
 #
-# Copyright 2015-2017 by Apple Inc.
+# Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
+# Copyright © 2015-2018 by Apple Inc.
 #
-# These coded instructions, statements, and computer programs are the
-# property of Apple Inc. and are protected by Federal copyright
-# law.  Distribution and use rights are outlined in the file "LICENSE.txt"
-# which should have been included with this file.  If this file is
-# missing or damaged, see the license at "http://www.cups.org/".
-#
-# This file is subject to the Apple OS-Developed Software exception.
+# Licensed under Apache License v2.0.  See the file "LICENSE" for more
+# information.
 #
 
 include ../Makedefs
@@ -19,7 +15,8 @@ include ../Makedefs
 # Object files...
 #
 
-OBJS =	\
+OBJS 	=	\
+		auth.o \
 		client.o \
 		conf.o \
 		device.o \
@@ -28,6 +25,7 @@ OBJS =	\
 		log.o \
 		main.o \
 		printer.o \
+		resource.o \
 		subscription.o \
 		transform.o
 
@@ -68,7 +66,14 @@ depend:
 
 install:	all
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(sbindir)
-	$(INSTALL_BIN) ippserver $(BUILDROOT)$(sbindir)
+	$(INSTALL_BIN) ippserver $(BUILDROOT)$(sbindir)/$(IPP)server
+
+
+#
+# Test the server.
+#
+
+test:
 
 
 #
@@ -77,7 +82,7 @@ install:	all
 
 ippserver:	$(OBJS) ../cups/libcups.a
 	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(PAMLIBS) $(LIBS)
 
 
 #

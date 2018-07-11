@@ -3,13 +3,7 @@
  *
  * Copyright 2008-2015 by Apple Inc.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
  */
 
 /*
@@ -83,7 +77,7 @@ debug_thread_id(void)
  * '_cups_debug_printf()' - Write a formatted line to the log.
  */
 
-void DLLExport
+void
 _cups_debug_printf(const char *format,	/* I - Printf-style format string */
                    ...)			/* I - Additional arguments as needed */
 {
@@ -168,7 +162,7 @@ _cups_debug_printf(const char *format,	/* I - Printf-style format string */
  * '_cups_debug_puts()' - Write a single line to the log.
  */
 
-void DLLExport
+void
 _cups_debug_puts(const char *s)		/* I - String to output */
 {
   struct timeval	curtime;	/* Current time */
@@ -248,7 +242,7 @@ _cups_debug_puts(const char *s)		/* I - String to output */
  * '_cups_debug_set()' - Enable or disable debug logging.
  */
 
-void DLLExport
+void
 _cups_debug_set(const char *logfile,	/* I - Log file or NULL */
                 const char *level,	/* I - Log level or NULL */
 		const char *filter,	/* I - Filter string or NULL */

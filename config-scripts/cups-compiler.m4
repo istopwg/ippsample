@@ -1,14 +1,11 @@
 dnl
 dnl Compiler stuff for the IPP sample code.
 dnl
-dnl Copyright 2007-2016 by Apple Inc.
-dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
+dnl Copyright © 2007-2018 by Apple Inc.
+dnl Copyright © 1997-2007 by Easy Software Products, all rights reserved.
 dnl
-dnl These coded instructions, statements, and computer programs are the
-dnl property of Apple Inc. and are protected by Federal copyright
-dnl law.  Distribution and use rights are outlined in the file "LICENSE.txt"
-dnl which should have been included with this file.  If this file is
-dnl missing or damaged, see the license at "http://www.cups.org/".
+dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
+dnl information.
 dnl
 
 dnl Clear the debugging and non-shared library options unless the user asks
@@ -139,6 +136,15 @@ if test -n "$GCC"; then
 	if test "x$with_optim" = x; then
 		# Add useful warning options for tracking down problems...
 		OPTIM="-Wall -Wno-format-y2k -Wunused $OPTIM"
+
+		AC_MSG_CHECKING(whether compiler supports -Wno-format-truncation)
+		OLDCFLAGS="$CFLAGS"
+		CFLAGS="$CFLAGS -Werror -Wno-format-truncation"
+		AC_TRY_COMPILE(,,
+			[OPTIM="$OPTIM -Wno-format-truncation"
+			AC_MSG_RESULT(yes)],
+			AC_MSG_RESULT(no))
+		CFLAGS="$OLDCFLAGS"
 
 		AC_MSG_CHECKING(whether compiler supports -Wno-unused-result)
 		OLDCFLAGS="$CFLAGS"

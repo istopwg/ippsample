@@ -1,4 +1,6 @@
 # Print a file using Print-URI
+#
+# Usage: ipptool -d "document-uri=http://..." ipp://... print-uri.test
 {
 	# The name of the test...
 	NAME "Print file using Print-URI"
@@ -12,7 +14,8 @@
 	ATTR language attributes-natural-language en
 	ATTR uri printer-uri $uri
 	ATTR name requesting-user-name $user
-	ATTR uri document-uri file://$filename
+	ATTR name document-name $document-uri
+	ATTR uri document-uri $document-uri
 
 	GROUP job-attributes-tag
 	ATTR integer copies 1

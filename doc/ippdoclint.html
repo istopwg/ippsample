@@ -1,0 +1,102 @@
+<!DOCTYPE HTML>
+<html>
+<!-- SECTION: Man Pages -->
+<head>
+	<link rel="stylesheet" type="text/css" href="../cups-printable.css">
+	<title>ippdoclint(1)</title>
+</head>
+<body>
+<h1 class="title">ippdoclint(1)</h1>
+<h2 class="title"><a name="NAME">Name</a></h2>
+ippdoclint - check common document formats
+<h2 class="title"><a name="SYNOPSIS">Synopsis</a></h2>
+<b>ippdoclint</b>
+[
+<b>--help</b>
+] [
+<b>--version</b>
+] [
+<b>-i</b>
+<i>input/format</i>
+] [
+<b>-o</b>
+<i>"name=value [... name=value]"</i>
+] [
+<b>-v</b>
+]
+<i>filename</i>
+<h2 class="title"><a name="DESCRIPTION">Description</a></h2>
+<b>ippdoclint</b>
+checks the input file for format errors and reports the number of impressions (sides), sheets, and (input) pages in the file.
+<h2 class="title"><a name="OPTIONS">Options</a></h2>
+The following options are recognized by
+<b>ipptransform:</b>
+<dl class="man">
+<dt><b>--help</b>
+<dd style="margin-left: 5.0em">Shows program help.
+<dt><b>--version</b>
+<dd style="margin-left: 5.0em">Shows program version.
+<dt><b>-i</b><i> input/format</i>
+<dd style="margin-left: 5.0em">Specifies the MIME media type of the input file.
+Currently the "application/pdf" (PDF), "image/jpeg" (JPEG), "image/pwg-raster" (PWG Raster), and "image/urf" (Apple Raster) MIME media types are supported.
+<dt><b>-o</b><i> "name=value [... name=value]"</i>
+<dd style="margin-left: 5.0em">Specifies one or more named options for the conversion.
+Currently the "copies", "page-ranges", "print-color-mode", and "sides" options are supported.
+See the NAMED OPTIONS section for more information.
+<dt><b>-v</b>
+<dd style="margin-left: 5.0em">Increases the verbosity for any diagnostics.
+</dl>
+<h2 class="title"><a name="NAMED_OPTIONS">Named Options</a></h2>
+The following named options are supported:
+<dl class="man">
+<dt><b>copies</b>
+<dd style="margin-left: 5.0em">Specifies the number of copies that should be produced.
+<dt><b>page-ranges</b>
+<dd style="margin-left: 5.0em">Selects a single range of pages to check.
+For example, the value "5-12" selects pages 5 through 12.
+<dt><b>print-color-mode</b>
+<dd style="margin-left: 5.0em">Specifies the color mode as "auto" (automatic), "monochrome" (grayscale), or "color".
+<dt><b>sides</b>
+<dd style="margin-left: 5.0em">Specifies whether to do 1-sided printing ("one-sided") or 2-sided printing ("two-sided-long-edge" for portrait and "two-sided-short-edge" for landscape).
+</dl>
+<h2 class="title"><a name="DIAGNOSTICS">Diagnostics</a></h2>
+<b>ippdoclint</b>
+sends all messages to the standard error.
+Each message is prefixed with "ERROR", "INFO", or "DEBUG" depending on the level of verbosity.
+<b>ippdoclint</b>
+also sends "STATE" and "ATTR" messages corresponding to IPP "job-state-reasons" keywords and Job Status attributes.
+<h2 class="title"><a name="EXIT_STATUS">Exit Status</a></h2>
+The
+<b>ippdoclint</b>
+program returns 0 if the input file is correctly formatted and 1 otherwise.
+<h2 class="title"><a name="ENVIRONMENT">Environment</a></h2>
+<b>ippdoclint</b>
+recognizes the following environment variables:
+<dl class="man">
+<dt><b>CONTENT_TYPE</b>
+<dd style="margin-left: 5.0em">Specifies the MIME media type of the input file.
+<dt><b>IPP_xxx</b>
+<dd style="margin-left: 5.0em">Specifies the value of the "xxx" Job Template attribute, where "xxx" is converted to uppercase.
+For example, the "copies" Job Template attribute is stored as the "IPP_COPIES" environment variable.
+<dt><b>PRINTER_xxx_DEFAULT</b>
+<dd style="margin-left: 5.0em">Specifies the default value of the corresponding "xxx-default" Printer Description attribute, where "xxx" is converted to uppercase.
+For example, the "copies-default" Printer Description attribute is stored as the "PRINTER_COPIES_DEFAULT" environment variable.
+<dt><b>SERVER_LOGLEVEL</b>
+<dd style="margin-left: 5.0em">Specifies the log level (verbosity) as "error", "info", or "debug".
+</dl>
+<h2 class="title"><a name="EXAMPLES">Examples</a></h2>
+Check a PDF file:
+<pre class="man">
+
+    ippdoclint filename.pdf
+</pre>
+<p>Check a JPEG file:
+<pre class="man">
+
+    ippdoclint filename.jpg
+</pre>
+<h2 class="title"><a name="COPYRIGHT">Copyright</a></h2>
+Copyright &copy; 2018 by the IEEE-ISTO Printer Working Group.
+
+</body>
+</html>

@@ -1,3 +1,7 @@
+auth.o: auth.c ippserver.h ../config.h ../cups/cups.h ../cups/file.h \
+  ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
+  ../cups/language.h ../cups/pwg.h ../cups/string-private.h \
+  ../cups/thread-private.h
 client.o: client.c ippserver.h ../config.h ../cups/cups.h ../cups/file.h \
   ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
   ../cups/language.h ../cups/pwg.h ../cups/string-private.h \
@@ -5,7 +9,7 @@ client.o: client.c ippserver.h ../config.h ../cups/cups.h ../cups/file.h \
 conf.o: conf.c ippserver.h ../config.h ../cups/cups.h ../cups/file.h \
   ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
   ../cups/language.h ../cups/pwg.h ../cups/string-private.h \
-  ../cups/thread-private.h ../cups/dir.h
+  ../cups/thread-private.h ../cups/dir.h ../cups/ipp-private.h
 device.o: device.c ippserver.h ../config.h ../cups/cups.h ../cups/file.h \
   ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
   ../cups/language.h ../cups/pwg.h ../cups/string-private.h \

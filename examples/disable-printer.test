@@ -1,0 +1,13 @@
+{
+	NAME "Disable-Printer"
+
+	OPERATION Disable-Printer
+	VERSION 2.0
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+
+	STATUS successful-ok
+}

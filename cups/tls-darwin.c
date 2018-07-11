@@ -1,16 +1,10 @@
 /*
  * TLS support code for CUPS on macOS.
  *
- * Copyright 2007-2017 by Apple Inc.
- * Copyright 1997-2007 by Easy Software Products, all rights reserved.
+ * Copyright © 2007-2018 by Apple Inc.
+ * Copyright © 1997-2007 by Easy Software Products, all rights reserved.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
  */
 
 /**** This file is included from tls.c ****/
@@ -53,7 +47,9 @@ static char		*tls_keypath = NULL;
 					/* Server cert keychain path */
 static _cups_mutex_t	tls_mutex = _CUPS_MUTEX_INITIALIZER;
 					/* Mutex for keychain/certs */
-static int		tls_options = -1;/* Options for TLS connections */
+static int		tls_options = -1,/* Options for TLS connections */
+			tls_min_version = _HTTP_TLS_1_0,
+			tls_max_version = _HTTP_TLS_MAX;
 
 
 /*
@@ -804,27 +800,85 @@ httpCredentialsString(
   if ((first = (http_credential_t *)cupsArrayFirst(credentials)) != NULL &&
       (secCert = http_cdsa_create_credential(first)) != NULL)
   {
-    CFStringRef		cf_name;	/* CF common name string */
-    char		name[256];	/* Common name associated with cert */
+   /*
+    * Copy certificate (string) values from the SecCertificateRef and produce
+    * a one-line summary.  The API for accessing certificate values like the
+    * issuer name is, um, "interesting"...
+    */
+
+    CFStringRef		cf_string;	/* CF string */
+    CFDictionaryRef	cf_dict;	/* Dictionary for certificate */
+    char		commonName[256],/* Common name associated with cert */
+			issuer[256],	/* Issuer name */
+			sigalg[256];	/* Signature algorithm */
     time_t		expiration;	/* Expiration date of cert */
-    _cups_md5_state_t	md5_state;	/* MD5 state */
     unsigned char	md5_digest[16];	/* MD5 result */
 
-    if ((cf_name = SecCertificateCopySubjectSummary(secCert)) != NULL)
+    if (SecCertificateCopyCommonName(secCert, &cf_string) == noErr)
     {
-      CFStringGetCString(cf_name, name, (CFIndex)sizeof(name), kCFStringEncodingUTF8);
-      CFRelease(cf_name);
+      CFStringGetCString(cf_string, commonName, (CFIndex)sizeof(commonName), kCFStringEncodingUTF8);
+      CFRelease(cf_string);
     }
     else
-      strlcpy(name, "unknown", sizeof(name));
+    {
+      strlcpy(commonName, "unknown", sizeof(commonName));
+    }
+
+    strlcpy(issuer, "unknown", sizeof(issuer));
+    strlcpy(sigalg, "UnknownSignature", sizeof(sigalg));
+
+    if ((cf_dict = SecCertificateCopyValues(secCert, NULL, NULL)) != NULL)
+    {
+      CFDictionaryRef cf_issuer = CFDictionaryGetValue(cf_dict, kSecOIDX509V1IssuerName);
+      CFDictionaryRef cf_sigalg = CFDictionaryGetValue(cf_dict, kSecOIDX509V1SignatureAlgorithm);
+
+      if (cf_issuer)
+      {
+        CFArrayRef cf_values = CFDictionaryGetValue(cf_issuer, kSecPropertyKeyValue);
+        CFIndex i, count = CFArrayGetCount(cf_values);
+        CFDictionaryRef cf_value;
+
+        for (i = 0; i < count; i ++)
+        {
+          cf_value = CFArrayGetValueAtIndex(cf_values, i);
+
+          if (!CFStringCompare(CFDictionaryGetValue(cf_value, kSecPropertyKeyLabel), kSecOIDOrganizationName, kCFCompareCaseInsensitive))
+            CFStringGetCString(CFDictionaryGetValue(cf_value, kSecPropertyKeyValue), issuer, (CFIndex)sizeof(issuer), kCFStringEncodingUTF8);
+        }
+      }
+
+      if (cf_sigalg)
+      {
+        CFArrayRef cf_values = CFDictionaryGetValue(cf_sigalg, kSecPropertyKeyValue);
+        CFIndex i, count = CFArrayGetCount(cf_values);
+        CFDictionaryRef cf_value;
+
+        for (i = 0; i < count; i ++)
+        {
+          cf_value = CFArrayGetValueAtIndex(cf_values, i);
+
+          if (!CFStringCompare(CFDictionaryGetValue(cf_value, kSecPropertyKeyLabel), CFSTR("Algorithm"), kCFCompareCaseInsensitive))
+          {
+            CFStringRef cf_algorithm = CFDictionaryGetValue(cf_value, kSecPropertyKeyValue);
+
+            if (!CFStringCompare(cf_algorithm, CFSTR("1.2.840.113549.1.1.5"), kCFCompareCaseInsensitive))
+              strlcpy(sigalg, "SHA1WithRSAEncryption", sizeof(sigalg));
+	    else if (!CFStringCompare(cf_algorithm, CFSTR("1.2.840.113549.1.1.11"), kCFCompareCaseInsensitive))
+              strlcpy(sigalg, "SHA256WithRSAEncryption", sizeof(sigalg));
+	    else if (!CFStringCompare(cf_algorithm, CFSTR("1.2.840.113549.1.1.4"), kCFCompareCaseInsensitive))
+              strlcpy(sigalg, "MD5WithRSAEncryption", sizeof(sigalg));
+	  }
+        }
+      }
+
+      CFRelease(cf_dict);
+    }
 
     expiration = (time_t)(SecCertificateNotValidAfter(secCert) + kCFAbsoluteTimeIntervalSince1970);
 
-    _cupsMD5Init(&md5_state);
-    _cupsMD5Append(&md5_state, first->data, (int)first->datalen);
-    _cupsMD5Finish(&md5_state, md5_digest);
+    cupsHashData("md5", first->data, first->datalen, md5_digest, sizeof(md5_digest));
 
-    snprintf(buffer, bufsize, "%s / %s / %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X", name, httpGetDateString(expiration), md5_digest[0], md5_digest[1], md5_digest[2], md5_digest[3], md5_digest[4], md5_digest[5], md5_digest[6], md5_digest[7], md5_digest[8], md5_digest[9], md5_digest[10], md5_digest[11], md5_digest[12], md5_digest[13], md5_digest[14], md5_digest[15]);
+    snprintf(buffer, bufsize, "%s (issued by %s) / %s / %s / %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X", commonName, issuer, httpGetDateString(expiration), sigalg, md5_digest[0], md5_digest[1], md5_digest[2], md5_digest[3], md5_digest[4], md5_digest[5], md5_digest[6], md5_digest[7], md5_digest[8], md5_digest[9], md5_digest[10], md5_digest[11], md5_digest[12], md5_digest[13], md5_digest[14], md5_digest[15]);
 
     CFRelease(secCert);
   }
@@ -1139,9 +1193,16 @@ _httpTLSRead(http_t *http,		/* I - HTTP connection */
  */
 
 void
-_httpTLSSetOptions(int options)		/* I - Options */
+_httpTLSSetOptions(int options,		/* I - Options */
+                   int min_version,	/* I - Minimum TLS version */
+                   int max_version)	/* I - Maximum TLS version */
 {
-  tls_options = options;
+  if (!(options & _HTTP_TLS_SET_DEFAULT) || tls_options < 0)
+  {
+    tls_options     = options;
+    tls_min_version = min_version;
+    tls_max_version = max_version;
+  }
 }
 
 
@@ -1173,7 +1234,7 @@ _httpTLSStart(http_t *http)		/* I - HTTP connection */
   {
     DEBUG_puts("4_httpTLSStart: Setting defaults.");
     _cupsSetDefaults();
-    DEBUG_printf(("4_httpTLSStart: tls_options=%x", tls_options));
+    DEBUG_printf(("4_httpTLSStart: tls_options=%x, tls_min_version=%d, tls_max_version=%d", tls_options, tls_min_version, tls_max_version));
   }
 
 #ifdef HAVE_SECKEYCHAINOPEN
@@ -1216,22 +1277,25 @@ _httpTLSStart(http_t *http)		/* I - HTTP connection */
 
   if (!error)
   {
-    SSLProtocol minProtocol;
-
-    if (tls_options & _HTTP_TLS_DENY_TLS10)
-      minProtocol = kTLSProtocol11;
-    else if (tls_options & _HTTP_TLS_ALLOW_SSL3)
-      minProtocol = kSSLProtocol3;
-    else
-      minProtocol = kTLSProtocol1;
-
-    error = SSLSetProtocolVersionMin(http->tls, minProtocol);
-    DEBUG_printf(("4_httpTLSStart: SSLSetProtocolVersionMin(%d), error=%d", minProtocol, (int)error));
-
-    if (!error && (tls_options & _HTTP_TLS_ONLY_TLS10))
+    static const SSLProtocol protocols[] =	/* Min/max protocol versions */
     {
-      error = SSLSetProtocolVersionMax(http->tls, kTLSProtocol1);
-      DEBUG_printf(("4_httpTLSStart: SSLSetProtocolVersionMax(kTLSProtocol1), error=%d", (int)error));
+      kSSLProtocol3,
+      kTLSProtocol1,
+      kTLSProtocol11,
+      kTLSProtocol12,
+      kTLSProtocol13
+    };
+
+    if (tls_min_version < _HTTP_TLS_MAX)
+    {
+      error = SSLSetProtocolVersionMin(http->tls, protocols[tls_min_version]);
+      DEBUG_printf(("4_httpTLSStart: SSLSetProtocolVersionMin(%d), error=%d", protocols[tls_min_version], (int)error));
+    }
+
+    if (!error && tls_max_version < _HTTP_TLS_MAX)
+    {
+      error = SSLSetProtocolVersionMax(http->tls, protocols[tls_max_version]);
+      DEBUG_printf(("4_httpTLSStart: SSLSetProtocolVersionMax(%d), error=%d", protocols[tls_max_version], (int)error));
     }
   }
 
@@ -1423,7 +1487,7 @@ _httpTLSStart(http_t *http)		/* I - HTTP connection */
     * Server: find/create a certificate for TLS...
     */
 
-    if (http->fields[HTTP_FIELD_HOST][0])
+    if (http->fields[HTTP_FIELD_HOST])
     {
      /*
       * Use hostname for TLS upgrade...
@@ -1531,7 +1595,28 @@ _httpTLSStart(http_t *http)		/* I - HTTP connection */
 
   if (!error)
   {
-    int done = 0;			/* Are we done yet? */
+    int			done = 0;	/* Are we done yet? */
+    double		old_timeout;	/* Old timeout value */
+    http_timeout_cb_t	old_cb;		/* Old timeout callback */
+    void		*old_data;	/* Old timeout data */
+
+   /*
+    * Enforce a minimum timeout of 10 seconds for the TLS handshake...
+    */
+
+    old_timeout  = http->timeout_value;
+    old_cb       = http->timeout_cb;
+    old_data     = http->timeout_data;
+
+    if (!old_cb || old_timeout < 10.0)
+    {
+      DEBUG_puts("4_httpTLSStart: Setting timeout to 10 seconds.");
+      httpSetTimeout(http, 10.0, NULL, NULL);
+    }
+
+   /*
+    * Do the TLS handshake...
+    */
 
     while (!error && !done)
     {
@@ -1652,6 +1737,12 @@ _httpTLSStart(http_t *http)		/* I - HTTP connection */
 	    break;
       }
     }
+
+   /*
+    * Restore the previous timeout settings...
+    */
+
+    httpSetTimeout(http, old_timeout, old_cb, old_data);
   }
 
   if (error)
@@ -2084,7 +2175,7 @@ http_cdsa_read(
 
   http = (http_t *)connection;
 
-  if (!http->blocking)
+  if (!http->blocking || http->timeout_value > 0.0)
   {
    /*
     * Make sure we have data before we read...
