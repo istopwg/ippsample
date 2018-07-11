@@ -934,6 +934,7 @@ attr_cb(_ipp_file_t    *f,		/* I - IPP file */
     "device-uuid",
     "document-format-varying-attributes",
     "job-settable-attributes-supported",
+    "operations-supported",
     "printer-alert",
     "printer-alert-description",
     "printer-camera-image-uri",
