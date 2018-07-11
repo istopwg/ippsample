@@ -15,7 +15,11 @@ matrix:
     - os: linux
       before_install:
         - sudo apt-get -qq update
-        - sudo apt-get install -y avahi-daemon avahi-utils cura-engine libavahi-client-dev libfreetype6-dev libgnutls28-dev libharfbuzz-dev libjbig2dec0-dev libjpeg-dev libmupdf-dev libnss-mdns libopenjp2-7-dev libpng-dev zlib1g-dev
+        # Note: Because Travis CI does not yet support Ubuntu Xenial 18.04, we
+        # cannot do build tests with MuPDF or other dependencies since the
+        # projects just aren't there... :/
+        # - sudo apt-get install -y avahi-daemon avahi-utils cura-engine libavahi-client-dev libfreetype6-dev libgnutls28-dev libharfbuzz-dev libjbig2dec0-dev libjpeg-dev libmupdf-dev libnss-mdns libopenjp2-7-dev libpng-dev zlib1g-dev
+        - sudo apt-get install -y avahi-daemon avahi-utils libavahi-client-dev libgnutls28-dev libjpeg-dev libnss-mdns libpng-dev zlib1g-dev
 
     # macOS-specific build stuff
     - os: osx
