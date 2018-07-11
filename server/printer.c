@@ -316,9 +316,35 @@ serverCreatePrinter(
     "display",
     "sound"
   };
+  static const char * const doc_creation[] =
+  {					/* document-creation-attributes-supported values */
+    "copies",
+    "document-name",
+    "media",
+    "media-col",
+    "orientation-requested",
+    "output-bin",
+    "page-ranges",
+    "print-color-mode",
+    "print-quality",
+    "sides"
+  };
+  static const char * const doc_creation3d[] =
+  {					/* document-creation-attributes-supported values for 3D printers */
+    "copies",
+    "document-name",
+    "materials-col",
+    "platform-temperature",
+    "print-accuracy",
+    "print-base",
+    "print-quality",
+    "print-supports"
+  };
   static const char * const job_creation[] =
   {					/* job-creation-attributes-supported values */
     "copies",
+    "finishings",
+    "finishings-col",
     "ipp-attribute-fidelity",
     "job-account-id",
     "job-accounting-user-id",
@@ -330,17 +356,18 @@ serverCreatePrinter(
     "multiple-document-handling",
     "orientation-requested",
     "output-bin",
+    "page-ranges",
     "print-color-mode",
     "print-quality",
     "sides"
   };
   static const char * const job_creation3d[] =
-  {					/* job-creation-attributes-supported values */
+  {					/* job-creation-attributes-supported values for 3D printers */
     "ipp-attribute-fidelity",
     "job-name",
     "job-priority",
     "materials-col",
-    "platform-temperatures",
+    "platform-temperature",
     "print-accuracy",
     "print-base",
     "print-quality",
@@ -697,6 +724,15 @@ serverCreatePrinter(
   /* copies-supported */
   if (!cupsArrayFind(existing, (void *)"copies-supported"))
     ippAddRange(printer->pinfo.attrs, IPP_TAG_PRINTER, "copies-supported", 1, is_print3d ? 1 : 999);
+
+  /* document-creation-attributes-supported */
+  if (!cupsArrayFind(existing, (void *)"document-creation-attributes-supported"))
+  {
+    if (is_print3d)
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-creation-attributes-supported", sizeof(doc_creation3d) / sizeof(doc_creation3d[0]), NULL, doc_creation3d);
+    else
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-creation-attributes-supported", sizeof(doc_creation) / sizeof(doc_creation[0]), NULL, doc_creation);
+  }
 
   /* document-format-default */
   if (defformat && !cupsArrayFind(existing, (void *)"document-format-default"))
