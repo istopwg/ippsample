@@ -1,7 +1,7 @@
 # Docker Support for IPP Sample Code
 
-This repository includes a sample Dockerfile
-for compiling and running ippserver in a Docker container.
+This repository includes a sample Dockerfile for compiling and running ippserver
+in a Docker container.
 
 To run IPP sample code on Docker:
 
