@@ -43,10 +43,10 @@ serverAddResourceFile(
 
 #ifdef HAVE_SSL
   if (Encryption != HTTP_ENCRYPTION_NEVER)
-    httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), "https", NULL, lis->host, lis->port, res->resource);
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "https", NULL, lis->host, lis->port, res->resource);
   else
 #endif /* HAVE_SSL */
-    httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), "http", NULL, lis->host, lis->port, res->resource);
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "http", NULL, lis->host, lis->port, res->resource);
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_URI, "resource-data-uri", NULL, uri);
 
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_MIMETYPE, "resource-format", NULL, res->format);
