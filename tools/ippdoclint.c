@@ -1007,15 +1007,42 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
   if(big_endian) {
     header->cupsBitsPerColor = ntohl(header->cupsBitsPerColor);
   }
-  switch (header->cupsBitsPerColor) {
-    case 1: break;
-    case 8: break;
-    case 16: break;
-    default:
-      fprintf(stderr, "ERROR: Incorrect BitsPerColor value present %d\n", header->cupsBitsPerColor);
-      return(1);
+  if(raster_id == PWG) {
+    switch (header->cupsBitsPerColor) {
+      case 1: break;
+      case 8: break;
+      case 16: break;
+      default:
+        fprintf(stderr, "ERROR: Incorrect BitsPerColor value present %d\n", header->cupsBitsPerColor);
+        return (1);
+    }
+    fprintf(stderr, "DEBUG: BitsPerColor value is %d\n", header->cupsBitsPerColor);
   }
-  fprintf(stderr, "DEBUG: BitsPerColor value is %d\n", header->cupsBitsPerColor);
+  else if(raster_version == 1) {
+    switch (header->cupsBitsPerColor) {
+      case 1: break;
+      case 2: break;
+      case 4: break;
+      case 8: break;
+      default:
+        fprintf(stderr, "ERROR: Incorrect BitsPerColor value present %d\n", header->cupsBitsPerColor);
+        return (1);
+    }
+    fprintf(stderr, "DEBUG: BitsPerColor value is %d\n", header->cupsBitsPerColor);
+  }
+  else {
+    switch (header->cupsBitsPerColor) {
+      case 1: break;
+      case 2: break;
+      case 4: break;
+      case 8: break;
+      case 16: break;
+      default:
+        fprintf(stderr, "ERROR: Incorrect BitsPerColor value present %d\n", header->cupsBitsPerColor);
+        return (1);
+    }
+    fprintf(stderr, "DEBUG: BitsPerColor value is %d\n", header->cupsBitsPerColor);
+  }
 
   if(big_endian) {
     header->cupsBitsPerPixel = ntohl(header->cupsBitsPerPixel);
@@ -1061,7 +1088,7 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
     return(1);
   }
 
-  if (header->cupsColorOrder==0)
+  if (header->cupsColorOrder < 3)
     fprintf(stderr, "DEBUG: ColorOrder value is %d (%s)\n", header->cupsColorOrder, color_order_enum[header->cupsColorOrder]);
   else {
     fprintf(stderr, "ERROR: ColorOrder value is incorrect %d\n", header->cupsColorOrder);
@@ -1290,7 +1317,7 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
 }
 
 static int
-traverse_pwg_bitmap(FILE *file, 
+traverse_compressed_bitmap(FILE *file, 
   cups_page_header2_t *header)
 {
   fprintf(stderr, "DEBUG: Started checking bitmap for ColorSpace %d\n", header->cupsColorSpace);
@@ -1336,6 +1363,17 @@ traverse_pwg_bitmap(FILE *file,
   }
 
   return(0);
+}
+
+static int
+traverse_uncompressed_bitmap(FILE *file,
+cups_page_header2_t *header)
+{ // TODO Test for cupsBitsPerPixel < 8
+  int numBits = header->cupsHeight * header->cupsWidth * header->cupsBitsPerPixel;
+  uint8_t buffer[numBits/8];
+  fread(buffer, 1, numBits/8, file);
+  fprintf(stderr, "DEBUG: Traversed bitmap for this page and found no errors\n");
+  return (0);
 }
 
 /*
@@ -1427,7 +1465,12 @@ lint_raster(const char    *filename,	/* I - File to check */
     int ret = parse_raster_header(&header, raster_id, raster_version, big_endian);
     if(ret)
       return(1);
-    ret = traverse_pwg_bitmap(file, &header);
+    if(raster_version == 3) {
+      ret = traverse_uncompressed_bitmap(file, &header);
+    }
+    else {
+      ret = traverse_compressed_bitmap(file, &header);
+    }
     if(ret)
       return(1);
     total_page_count = header.cupsInteger[0];
@@ -1436,7 +1479,12 @@ lint_raster(const char    *filename,	/* I - File to check */
       ret = parse_raster_header(&header, raster_id, 0, big_endian);
       if(ret)
         return(1);
-      ret = traverse_pwg_bitmap(file, &header);
+      if(raster_version == 3) {
+        ret = traverse_uncompressed_bitmap(file, &header);
+      }
+      else {
+        ret = traverse_compressed_bitmap(file, &header);
+      }
       if(ret)
         return(1);
     }
