@@ -1,0 +1,9 @@
+data
+.git
+config.status
+config.log
+Makedefs
+*.o
+config.h
+Dockerfile
+docker-compose.yml

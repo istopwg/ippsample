@@ -47,6 +47,7 @@ static const char	*get_document_uri(server_client_t *client);
 static void		ipp_acknowledge_document(server_client_t *client);
 static void		ipp_acknowledge_identify_printer(server_client_t *client);
 static void		ipp_acknowledge_job(server_client_t *client);
+static void		ipp_cancel_current_job(server_client_t *client);
 static void		ipp_cancel_job(server_client_t *client);
 static void		ipp_cancel_jobs(server_client_t *client);
 static void		ipp_cancel_subscription(server_client_t *client);
@@ -76,11 +77,13 @@ static void		ipp_get_subscriptions(server_client_t *client);
 static void		ipp_get_system_attributes(server_client_t *client);
 static void		ipp_get_system_supported_values(server_client_t *client);
 static void		ipp_hold_job(server_client_t *client);
+static void		ipp_hold_new_jobs(server_client_t *client);
 static void		ipp_identify_printer(server_client_t *client);
 static void		ipp_pause_all_printers(server_client_t *client);
 static void		ipp_pause_printer(server_client_t *client);
 static void		ipp_print_job(server_client_t *client);
 static void		ipp_print_uri(server_client_t *client);
+static void		ipp_release_held_new_jobs(server_client_t *client);
 static void		ipp_release_job(server_client_t *client);
 static void		ipp_renew_subscription(server_client_t *client);
 static void		ipp_restart_printer(server_client_t *client);
@@ -1196,6 +1199,70 @@ ipp_acknowledge_job(
 
 
 /*
+ * 'ipp_cancel_current_job()' - Cancel the current job.
+ */
+
+static void
+ipp_cancel_current_job(
+    server_client_t *client)		/* I - Client */
+{
+  server_job_t		*job;		/* Job information */
+
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
+ /*
+  * Get the current job, if any...
+  */
+
+  _cupsRWLockWrite(&(client->printer->rwlock));
+
+  if ((job = client->printer->processing_job) == NULL)
+  {
+    _cupsRWUnlock(&client->printer->rwlock);
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "No job being processed.");
+    return;
+  }
+
+  if (Authentication && !serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+  {
+    _cupsRWUnlock(&client->printer->rwlock);
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this job.");
+    return;
+  }
+
+  if (job->state == IPP_JSTATE_PROCESSING || (job->state == IPP_JSTATE_HELD && job->fd >= 0))
+  {
+    job->cancel = 1;
+
+    if (job->state == IPP_JSTATE_PROCESSING)
+      serverStopJob(job);
+  }
+  else
+  {
+    job->state     = IPP_JSTATE_CANCELED;
+    job->completed = time(NULL);
+  }
+
+  _cupsRWUnlock(&(client->printer->rwlock));
+
+  serverAddEventNoLock(client->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, NULL);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+}
+
+
+
+
+/*
  * 'ipp_cancel_job()' - Cancel a job.
  */
 
@@ -1643,7 +1710,7 @@ ipp_create_job(server_client_t *client)	/* I - Client */
   if ((hold_until = ippFindAttribute(client->request, "job-hold-until", IPP_TAG_KEYWORD)) == NULL)
     hold_until = ippFindAttribute(client->request, "job-hold-until-time", IPP_TAG_DATE);
 
-  if (hold_until)
+  if (hold_until || (job->printer->state_reasons & SERVER_PREASON_HOLD_NEW_JOBS))
     serverHoldJob(job, hold_until);
 
  /*
@@ -3827,6 +3894,47 @@ ipp_hold_job(server_client_t *client)	/* I - Client */
 
 
 /*
+ * 'ipp_hold_new_jobs()' - Hold new jobs for printing.
+ */
+
+static void
+ipp_hold_new_jobs(
+    server_client_t *client)		/* I - Client */
+{
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+ /*
+  * Set the 'hold-new-jobs' reason...
+  */
+
+  _cupsRWLockWrite(&client->printer->rwlock);
+
+  client->printer->state_reasons |= SERVER_PREASON_HOLD_NEW_JOBS;
+
+  _cupsRWUnlock(&client->printer->rwlock);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+}
+
+
+/*
  * 'ipp_identify_printer()' - Beep or display a message.
  */
 
@@ -4038,7 +4146,7 @@ ipp_print_job(server_client_t *client)	/* I - Client */
   if ((hold_until = ippFindAttribute(client->request, "job-hold-until", IPP_TAG_KEYWORD)) == NULL)
     hold_until = ippFindAttribute(client->request, "job-hold-until-time", IPP_TAG_DATE);
 
-  if (hold_until)
+  if (hold_until || (job->printer->state_reasons & SERVER_PREASON_HOLD_NEW_JOBS))
     serverHoldJob(job, hold_until);
 
  /*
@@ -4217,10 +4325,10 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
   if ((hold_until = ippFindAttribute(client->request, "job-hold-until", IPP_TAG_KEYWORD)) == NULL)
     hold_until = ippFindAttribute(client->request, "job-hold-until-time", IPP_TAG_DATE);
 
-  if (hold_until)
+  if (hold_until || (job->printer->state_reasons & SERVER_PREASON_HOLD_NEW_JOBS))
     serverHoldJob(job, hold_until);
 
-  if (copy_document_uri(client, job, uri) && !job->hold_until)
+  if (copy_document_uri(client, job, uri) && job->hold_until == 0)
     job->state = IPP_JSTATE_PENDING;
 
  /*
@@ -4251,6 +4359,66 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
 
   client->job = job;
   ipp_create_xxx_subscriptions(client);
+}
+
+
+/*
+ * 'ipp_release_held_new_jobs()' - Release any new jobs that were held.
+ */
+
+static void
+ipp_release_held_new_jobs(
+    server_client_t *client)		/* I - Client */
+{
+  server_job_t	*job;			/* Current job */
+
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+ /*
+  * Clear the 'hold-new-jobs' reason and release any held jobs...
+  */
+
+  _cupsRWLockWrite(&client->printer->rwlock);
+
+  client->printer->state_reasons &= (server_preason_t)~SERVER_PREASON_HOLD_NEW_JOBS;
+
+  for (job = (server_job_t *)cupsArrayFirst(client->printer->active_jobs); job; job = (server_job_t *)cupsArrayNext(client->printer->active_jobs))
+  {
+    if (job->state == IPP_JSTATE_HELD)
+    {
+      const char	*hold_until;	/* job-hold-until attribute, if any */
+      int		resume;		/* Do we need to resume the job? */
+
+      _cupsRWLockRead(&job->rwlock);
+      resume = (hold_until = ippGetString(ippFindAttribute(job->attrs, "job-hold-until", IPP_TAG_ZERO), 0, NULL)) != NULL && !strcmp(hold_until, "none");
+      _cupsRWUnlock(&job->rwlock);
+
+      if (resume)
+        serverReleaseJob(job);
+    }
+  }
+
+  _cupsRWUnlock(&client->printer->rwlock);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
 
 
@@ -4694,7 +4862,9 @@ ipp_send_document(server_client_t *client)/* I - Client */
 
   job->fd       = -1;
   job->filename = strdup(filename);
-  job->state    = IPP_JSTATE_PENDING;
+
+  if (job->hold_until == 0)
+    job->state = IPP_JSTATE_PENDING;
 
   _cupsRWUnlock(&(client->printer->rwlock));
 
@@ -4843,7 +5013,7 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
   else
     job->format = "application/octet-stream";
 
-  if (copy_document_uri(client, job, uri) && !job->hold_until)
+  if (copy_document_uri(client, job, uri) && job->hold_until == 0)
     job->state = IPP_JSTATE_PENDING;
 
  /*
@@ -6124,6 +6294,10 @@ serverProcessIPP(
 		ipp_cancel_job(client);
 		break;
 
+	    case IPP_OP_CANCEL_CURRENT_JOB :
+		ipp_cancel_current_job(client);
+		break;
+
 	    case IPP_OP_CANCEL_JOBS :
 		ipp_cancel_jobs(client);
 		break;
@@ -6156,8 +6330,16 @@ serverProcessIPP(
 	        ipp_hold_job(client);
 	        break;
 
+	    case IPP_OP_HOLD_NEW_JOBS :
+	        ipp_hold_new_jobs(client);
+	        break;
+
 	    case IPP_OP_RELEASE_JOB :
 	        ipp_release_job(client);
+	        break;
+
+	    case IPP_OP_RELEASE_HELD_NEW_JOBS :
+	        ipp_release_held_new_jobs(client);
 	        break;
 
 	    case IPP_OP_IDENTIFY_PRINTER :
