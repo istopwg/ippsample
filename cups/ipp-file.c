@@ -647,31 +647,37 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
     	{
     		if(value[0]=='<')				/* Input is binary(in form of hex) values*/
     		{
-    			memmove(value, value+1, strlen(value));		/* Eliminate the '<' sign */
-    			char value_concat[50000];		/* Concatenated string with hexadecimal values without whitespace */
-    			int starting_line_number = f->linenum;
-    			while(value[strlen(value)-1] != '>') 
-    			{
-    				strcat(value_concat,value);
-    				if (!_ippFileReadToken(f, value, sizeof(value)))
-					  {
-					    report_error(f, v, user_data, "hexadecimal value not terminated starting line %d of \"%s\".", starting_line_number, f->filename);
-					    return (0);
-					  }
-    			}
-    			value[(strlen(value)-1)]='\0'; 		/* Eliminate the last '>' sign */
-    			strcat(value_concat,value);			/* Final concatenation for hexadecimal value to be complete*/
-    			int i;                         /* Iterating variable*/
-          for(i=0;i<strlen(value_concat);i++)		/* Sanity Check*/
-    			{
-    				if(!(value_concat[i] >= '0' && value_concat[i]<= '9') || (value_concat[i]>='a' && value_concat[i]<='f'))
-    				{
-    					report_error(f, v, user_data, "Bad hexadecimal value \"%s\" on line %d of \"%s\".", value_concat, starting_line_number, f->filename);
-	    				return (0);
-    				}
-    			}
-    			return (ippSetOctetString(ipp, attr, element, value_concat, (int)strlen(value_concat))); 
-    		}
+          unsigned char data[32767], *dataptr = data; /*data: decoded hex, dataptr:iterating pointer */
+          char *valptr = value + 1; /*Value iterating pointer*/
+          while (1)
+            {
+              while (isxdigit(valptr[0]) && isxdigit(valptr[1]))              
+              {
+                 char c = valptr[0], d=valptr[1];
+                 /*decode hex pair into 8 bit string */
+                 dataptr = (d>='a')?(10+d-'a'):(d-'0')  +  (c>= 'a') ? ((10+c -'a') << 4) : ((c-'0') <<4);
+                 valptr += 2;
+                 dataptr ++;
+                 if (dataptr >= (data + sizeof(data)))
+                   break;
+              }
+              if (*valptr == '>')
+                break;
+              else if (*valptr)  /*If string is not in pairs, or has a non-hex digit*/
+              {
+                report_error(f, v, user_data, "Bad hexadecimal value \"%s\" on line %d of \"%s\".", value+1, f->linenum, f->filename);
+                return (0);
+              }
+              if (!_ippFileReadToken(f, value, sizeof(value)))
+              {
+                report_error(f, v, user_data, "Missing value on line %d of \"%s\".", f->linenum, f->filename);
+                return (0);
+              }
+              valptr = value;
+            }
+          return (ippSetOctetString(ipp, attr, element, data, (int)strlen(data))); 
+        }
+    		
     		else
     		{
     			return (ippSetOctetString(ipp, attr, element, value, (int)strlen(value))); /* If a quoted string like "..", pass it on */
@@ -682,19 +688,6 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
         break;
 
     case IPP_TAG_TEXTLANG :
-    {
-    	(*attr)->values[element].string.text = _cupsStrAlloc(value);
-    	if (!_ippFileReadToken(f, value, sizeof(value)))	
-		  {
-		    report_error(f, v, user_data, "No Language Data in line %d of \"%s\".", f->linenum, f->filename);
-		    return (0);
-		  }
-		  memmove(value, value+1, strlen(value));
-		  value[strlen(value)-1]='\0';		/* Purge parenthesis */
-		(*attr)->values[element].string.language = _cupsStrAlloc(value);
-
-    }
-    break;
     case IPP_TAG_NAMELANG :
     {
     	(*attr)->values[element].string.text = _cupsStrAlloc(value);
@@ -703,6 +696,11 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
 		    report_error(f, v, user_data, "No Language Data in line %d of \"%s\".", f->linenum, f->filename);
 		    return (0);
 		  }
+      if (!(value[0] == '(' && value[strlen(value)-1] == ')'))
+      {
+        report_error(f, v, user_data, "Bad Language Value in line %d of \"%s\".", f->linenum, f->filename);
+        return (0);
+      }
 		  memmove(value, value+1, strlen(value));
 		  value[strlen(value)-1]='\0';		/* Purge parenthesis */
 		  (*attr)->values[element].string.language = _cupsStrAlloc(value);
