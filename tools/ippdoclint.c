@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <jpeglib.h>
+#include <cjson/cJSON.h>
 
 /*
  * Local globals...
@@ -184,6 +185,60 @@ main(int  argc,				/* I - Number of command-line arguments */
     fprintf(stderr, "ERROR: Unsupported format \"%s\" for \"%s\".\n", content_type, filename);
     usage(1);
   }
+}
+
+typedef struct _doclint_data {
+  int job_impressions;
+  struct job_impressions_col {};
+  int job_impressions_completed;
+  struct job_impressions_completed_col {};
+  int job_media_sheets;
+  struct job_media_sheets_col {};
+  int job_media_sheets_completed;
+  struct job_media_sheets_completed_col {};
+  int job_pages;
+  struct job_pages_col {};
+  int job_pages_completed;
+  struct job_pages_completed_col {};
+
+  struct document_format_error {};
+  struct document_unprintable_error {};
+
+  char *debug;
+  char *error;
+  char *info;
+  
+} doclint_data;
+
+cJSON* jsonify_doclint_data(doclint_data *data) {
+
+  cJSON *jsonData = cJSON_CreateObject();
+  if (jsonData == NULL) {
+    fprintf(stderr, "DEBUG: Error while creating JSON object\n");
+    return;
+  }
+
+  cJSON_AddItemToObject(jsonData, "job-impressions", cJSON_CreateNumber(data->job_impressions));
+  cJSON_AddItemToObject(jsonData, "job-impressions-col", cJSON_CreateObject());
+  cJSON_AddItemToObject(jsonData, "job-impressions-completed", cJSON_CreateNumber(data->job_impressions_completed));
+  cJSON_AddItemToObject(jsonData, "job-impressions-completed-col", cJSON_CreateObject());
+  cJSON_AddItemToObject(jsonData, "job-media-sheets", cJSON_CreateNumber(data->job_media_sheets));
+  cJSON_AddItemToObject(jsonData, "job-media-sheets-col", cJSON_CreateObject());
+  cJSON_AddItemToObject(jsonData, "job-media-sheets-completed", cJSON_CreateNumber(data->job_media_sheets_completed));
+  cJSON_AddItemToObject(jsonData, "job-media-sheets-completed-col", cJSON_CreateObject());
+  cJSON_AddItemToObject(jsonData, "job-pages", cJSON_CreateNumber(data->job_pages));
+  cJSON_AddItemToObject(jsonData, "job-pages-col", cJSON_CreateObject());
+  cJSON_AddItemToObject(jsonData, "job-pages-completed", cJSON_CreateNumber(data->job_pages_completed));
+  cJSON_AddItemToObject(jsonData, "job-pages-completed-col", cJSON_CreateObject());
+
+  cJSON_AddItemToObject(jsonData, "document-format-error", cJSON_CreateObject());
+  cJSON_AddItemToObject(jsonData, "document-unprintable-error", cJSON_CreateObject());
+
+  cJSON_AddItemToObject(jsonData, "error", cJSON_CreateString(data->error));
+  cJSON_AddItemToObject(jsonData, "debug", cJSON_CreateString(data->debug));
+  cJSON_AddItemToObject(jsonData, "info", cJSON_CreateString(data->info));
+
+  return jsonData;
 }
 
 struct jpeg_lint_error_mgr {
@@ -531,7 +586,7 @@ lint_pdf(const char    *filename,	/* I - File to check */
   char *colorspace = fz_colorspace_name(context, fz_document_output_intent(context, document));
   fprintf(stderr, "DEBUG: Output intent colorspace : %s\n", colorspace[0]!='\0' ? colorspace : "Not available" );
 
-  
+
 
   /* Count the number of pages. */
   fz_try(context)
@@ -589,6 +644,36 @@ lint_pdf(const char    *filename,	/* I - File to check */
       fprintf(stderr, "ERROR: Failed to create a pthread\n");
       return(1);
     }
+
+    char *string = NULL;
+    cJSON *name = NULL;
+    cJSON *resolutions = NULL;
+    cJSON *resolution = NULL;
+    cJSON *width = NULL;
+    cJSON *height = NULL;
+    size_t index = 0;
+    cJSON *monitor = cJSON_CreateObject();
+    if (monitor == NULL)
+    {
+        //goto end;
+    }
+
+    name = cJSON_CreateString("Awesome 4K");
+    if (name == NULL)
+    {
+        //goto end;
+    }
+    /* after creation was successful, immediately add it to the monitor,
+     * thereby transfering ownership of the pointer to it */
+    cJSON_AddItemToObject(monitor, "name", name);
+
+    resolutions = cJSON_CreateArray();
+    if (resolutions == NULL)
+    {
+        //goto end;
+    }
+    cJSON_AddItemToObject(monitor, "resolutions", resolutions);
+
   }
 
   fprintf(stderr, "DEBUG: Joining %d threads\n", num_threads);
@@ -716,15 +801,15 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
     }
     fprintf(stderr, "DEBUG: Header value PwgRaster is correct\n");
   }
-  
+
   if (header->MediaColor[0]=='\0')
     fprintf(stderr, "DEBUG: Using default value for MediaColor\n");
-  else 
+  else
     fprintf(stderr, "DEBUG: Using value %s for MediaColor", header->MediaColor);
-  
+
   if (header->MediaType[0]=='\0')
     fprintf(stderr, "DEBUG: Using default value for MediaType\n");
-  else 
+  else
     fprintf(stderr, "DEBUG: Using value %s for MediaType", header->MediaType);
 
   if(raster_id == PWG) {
@@ -872,7 +957,7 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
 
   if (header->MediaWeight==0)
     fprintf(stderr, "DEBUG: Using default value for MediaWeight\n");
-  else 
+  else
     fprintf(stderr, "DEBUG: Using value %d for MediaWeight", header->MediaWeight);
 
   if(raster_id == PWG) {
@@ -911,7 +996,7 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
   }
   if (header->NumCopies==0)
     fprintf(stderr, "DEBUG: Using default value for NumCopies\n");
-  else 
+  else
     fprintf(stderr, "DEBUG: Using value %d for NumCopies\n", header->NumCopies);
 
   if (header->Orientation < 0 || header->Orientation > 4) {
@@ -1305,19 +1390,19 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
     }
     fprintf(stderr, "DEBUG: Reserved[1604-1667] field is zero as expected\n");
   }
- 
+
   if(header->cupsRenderingIntent[0] == '\0')
     fprintf(stderr, "DEBUG: Using default value for RenderingIntent\n");
   else
     fprintf(stderr, "DEBUG: RenderingIntent is %s\n", header->cupsRenderingIntent);
-  
+
   fprintf(stderr, "DEBUG: PageSizeName is %s\n", header->cupsPageSizeName);
 
   return(0);
 }
 
 static int
-traverse_compressed_bitmap(FILE *file, 
+traverse_compressed_bitmap(FILE *file,
   cups_page_header2_t *header)
 {
   fprintf(stderr, "DEBUG: Started checking bitmap for ColorSpace %d\n", header->cupsColorSpace);
@@ -1410,7 +1495,7 @@ lint_raster(const char    *filename,	/* I - File to check */
 
   boolean big_endian = 0;
   int raster_version;
-  
+
   char sync_word[4];
   fread(sync_word, 4, 1, file);
 
@@ -1489,7 +1574,7 @@ lint_raster(const char    *filename,	/* I - File to check */
         return(1);
     }
   }
-  
+
   (void)num_options;
   (void)options;
 
