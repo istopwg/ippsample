@@ -93,6 +93,24 @@ _ippFileParse(
         break;
       }
     }
+    else if (f.attrs && !_cups_strcasecmp(token, "GROUP"))
+    {
+      char  syntax[128];    /* Attribute syntax (value tag) */
+      ipp_tag_t group_tag;    /* Group tag */
+
+      if (!_ippFileReadToken(&f, syntax, sizeof(syntax)))
+      {
+        report_error(&f, v, user_data, "Missing GROUP syntax on line %d of \"%s\".", f.linenum, f.filename);
+        break;
+      }
+      else if ((group_tag = ippTagValue(syntax)) > IPP_TAG_SYSTEM || group_tag < IPP_TAG_ZERO )
+      {
+        report_error(&f, v, user_data, "Bad GROUP syntax \"%s\" on line %d of \"%s\".", syntax, f.linenum, f.filename);
+        break;
+      }
+      f.group_tag = group_tag;
+    }
+
     else if (f.attrs && !_cups_strcasecmp(token, "ATTR"))
     {
      /*
@@ -171,7 +189,7 @@ _ippFileParse(
       */
 
       if (!parse_value(&f, v, user_data, attrs, &attr, ippGetCount(attr)))
-	break;
+        break;
     }
     else
     {
@@ -657,7 +675,7 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
                  char c = tolower(valptr[0]), d=tolower(valptr[1]);
 
                  /*decode hex pair into 8 bit string */
-                 dataptr = (d>='a')?(10+d-'a'):(d-'0')  |  (c>= 'a') ? ((10+c -'a') << 4) : ((c-'0') <<4);
+                 *dataptr = (d>='a')?(10+d-'a'):(d-'0')  |  (c>= 'a') ? ((10+c -'a') << 4) : ((c-'0') <<4);
                  valptr += 2;
                  dataptr ++;
                  if (dataptr >= (data + sizeof(data)))
@@ -677,7 +695,7 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
               }
               valptr = value;
             }
-          return (ippSetOctetString(ipp, attr, element, data, (int)strlen(data))); 
+          return (ippSetOctetString(ipp, attr, element, data, (int) (dataptr-data))); 
         }
     		
     		else
