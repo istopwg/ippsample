@@ -163,6 +163,7 @@ _ippFileParse(
       }
 
     }
+
     else if (attr && !_cups_strcasecmp(token, ","))
     {
      /*
@@ -653,9 +654,10 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
             {
               while (isxdigit(valptr[0]) && isxdigit(valptr[1]))              
               {
-                 char c = valptr[0], d=valptr[1];
+                 char c = tolower(valptr[0]), d=tolower(valptr[1]);
+
                  /*decode hex pair into 8 bit string */
-                 dataptr = (d>='a')?(10+d-'a'):(d-'0')  +  (c>= 'a') ? ((10+c -'a') << 4) : ((c-'0') <<4);
+                 dataptr = (d>='a')?(10+d-'a'):(d-'0')  |  (c>= 'a') ? ((10+c -'a') << 4) : ((c-'0') <<4);
                  valptr += 2;
                  dataptr ++;
                  if (dataptr >= (data + sizeof(data)))
@@ -680,8 +682,8 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
     		
     		else
     		{
-    			return (ippSetOctetString(ipp, attr, element, value, (int)strlen(value))); /* If a quoted string like "..", pass it on */
-    		}
+    			report_error(f, v, user_data, "Hexadecimal value needs to begin with <, on line %d of \"%s\".", f->linenum, f->filename);
+        }
     		
     	}
         
