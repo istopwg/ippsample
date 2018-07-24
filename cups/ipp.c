@@ -547,6 +547,64 @@ ippAddOctetString(ipp_t      *ipp,	/* I - IPP message */
   return (attr);
 }
 
+/*
+ * 'ippAddOctetString2()' - Add unspecified format octetString value tag(0x30) to an IPP message.
+ *                          Or Add Vendor Extension (0x40000000 to 0x7fffffff) to an IPP message.
+ *
+ * The @code ipp@ parameter refers to an IPP message previously created using
+ * the @link ippNew@, @link ippNewRequest@, or  @link ippNewResponse@ functions.
+ *
+ * The @code group@ parameter specifies the IPP attribute group tag: none
+ * (@code IPP_TAG_ZERO@, for member attributes), document (@code IPP_TAG_DOCUMENT@),
+ * event notification (@code IPP_TAG_EVENT_NOTIFICATION@), operation
+ * (@code IPP_TAG_OPERATION@), printer (@code IPP_TAG_PRINTER@), subscription
+ * (@code IPP_TAG_SUBSCRIPTION@), or unsupported (@code IPP_TAG_UNSUPPORTED_GROUP@).
+ *
+ * @since CUPS 1.2/macOS 10.5@
+ */
+
+ipp_attribute_t *     /* O - New attribute */
+ippAddOctetString2(ipp_t      *ipp,  /* I - IPP message */
+                  ipp_tag_t  group, /* I - IPP group */
+                  ipp_tag_t  value_tag, /* I - Type of attribute */
+                  const char *name, /* I - Name of attribute */
+                  const void *data, /* I - octetString data */
+                  int        datalen) /* I - Length of data in bytes */
+{
+  ipp_attribute_t *attr;    /* New attribute */
+
+
+  if (!ipp || !name || group < IPP_TAG_ZERO ||
+      group == IPP_TAG_END || group >= IPP_TAG_UNSUPPORTED_VALUE ||
+      datalen < 0 || datalen > IPP_MAX_LENGTH)
+    return (NULL);
+
+  if ((attr = ipp_add_attr(ipp, name, group, value_tag, 1)) == NULL)
+    return (NULL);
+
+ /*
+  * Initialize the attribute data...
+  */
+
+  attr->values[0].unknown.length = datalen;
+
+  if (data)
+  {
+    if ((attr->values[0].unknown.data = malloc((size_t)datalen)) == NULL)
+    {
+      ippDeleteAttribute(ipp, attr);
+      return (NULL);
+    }
+
+    memcpy(attr->values[0].unknown.data, data, (size_t)datalen);
+  }
+
+ /*
+  * Return the new attribute...
+  */
+
+  return (attr);
+}
 
 /*
  * 'ippAddOutOfBand()' - Add an out-of-band value to an IPP message.
