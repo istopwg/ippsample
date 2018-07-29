@@ -35,17 +35,64 @@ enum rasterId /* Used to differentiate between different raster formats */
 typedef struct _doclint_data_s
 {
   int job_impressions;
-  struct job_impressions_col {};
+  struct _job_impressions_col_s {
+    int blank;
+    int blank_two_sided;
+    int full_color;
+    int full_color_two_sided;
+    int highlight_color;
+    int highlight_color_two_sided;
+    int monochrome;
+    int monochrome_two_sided;
+  } *job_impressions_col;
+
   int job_impressions_completed;
-  struct job_impressions_completed_col {};
+  struct _job_impressions_completed_col_s {
+    int blank;
+    int blank_two_sided;
+    int full_color;
+    int full_color_two_sided;
+    int highlight_color;
+    int highlight_color_two_sided;
+    int monochrome;
+    int monochrome_two_sided;
+  } *job_impressions_completed_col;
+
   int job_media_sheets;
-  struct job_media_sheets_col {};
+  struct _job_media_sheets_col_s {
+    int blank;
+    int blank_two_sided;
+    int full_color;
+    int full_color_two_sided;
+    int highlight_color;
+    int highlight_color_two_sided;
+    int monochrome;
+    int monochrome_two_sided;
+  } *job_media_sheets_col;
+
   int job_media_sheets_completed;
-  struct job_media_sheets_completed_col {};
+  struct _job_media_sheets_completed_col_s {
+    int blank;
+    int blank_two_sided;
+    int full_color;
+    int full_color_two_sided;
+    int highlight_color;
+    int highlight_color_two_sided;
+    int monochrome;
+    int monochrome_two_sided;
+  } *job_media_sheets_completed_col;
+
   int job_pages;
-  struct job_pages_col {};
+  struct _job_pages_col_s {
+    int full_color;
+    int monochrome;
+  } *job_pages_col;
+
   int job_pages_completed;
-  struct job_pages_completed_col {};
+  struct _job_pages_completed_col_s {
+    int full_color;
+    int monochrome;
+  } *job_pages_completed_col;
 
   struct document_format_error {};
   struct document_unprintable_error {};
@@ -223,17 +270,96 @@ static cJSON* jsonify_doclint_data(doclint_data_t *data)
   }
 
   cJSON_AddItemToObject(json_data, "job-impressions", cJSON_CreateNumber(data->job_impressions));
-  cJSON_AddItemToObject(json_data, "job-impressions-col", cJSON_CreateObject());
+
+  cJSON *job_impressions_col = cJSON_CreateObject();
+  if (json_data == NULL)
+  {
+    fprintf(stderr, "DEBUG: Error while creating JSON object\n");
+    return;
+  }
+  cJSON_AddItemToObject(job_impressions_col, "blank", cJSON_CreateNumber(data->job_impressions_col->blank));
+  cJSON_AddItemToObject(job_impressions_col, "blank-two-sided", cJSON_CreateNumber(data->job_impressions_col->blank_two_sided));
+  cJSON_AddItemToObject(job_impressions_col, "full-color", cJSON_CreateNumber(data->job_impressions_col->full_color));
+  cJSON_AddItemToObject(job_impressions_col, "full-color-two-sided", cJSON_CreateNumber(data->job_impressions_col->full_color_two_sided));
+  cJSON_AddItemToObject(job_impressions_col, "highlight-color-two-sided", cJSON_CreateNumber(data->job_impressions_col->highlight_color_two_sided));
+  cJSON_AddItemToObject(job_impressions_col, "monochrome", cJSON_CreateNumber(data->job_impressions_col->monochrome));
+  cJSON_AddItemToObject(job_impressions_col, "monochrome-two-sided", cJSON_CreateNumber(data->job_impressions_col->monochrome_two_sided));
+  cJSON_AddItemToObject(json_data, "job-impressions-col", job_impressions_col);
+
   cJSON_AddItemToObject(json_data, "job-impressions-completed", cJSON_CreateNumber(data->job_impressions_completed));
-  cJSON_AddItemToObject(json_data, "job-impressions-completed-col", cJSON_CreateObject());
+
+  cJSON *job_impressions_completed_col = cJSON_CreateObject();
+  if (json_data == NULL)
+  {
+    fprintf(stderr, "DEBUG: Error while creating JSON object\n");
+    return;
+  }
+  cJSON_AddItemToObject(job_impressions_completed_col, "blank", cJSON_CreateNumber(data->job_impressions_completed_col->blank));
+  cJSON_AddItemToObject(job_impressions_completed_col, "blank-two-sided", cJSON_CreateNumber(data->job_impressions_completed_col->blank_two_sided));
+  cJSON_AddItemToObject(job_impressions_completed_col, "full-color", cJSON_CreateNumber(data->job_impressions_completed_col->full_color));
+  cJSON_AddItemToObject(job_impressions_completed_col, "full-color-two-sided", cJSON_CreateNumber(data->job_impressions_completed_col->full_color_two_sided));
+  cJSON_AddItemToObject(job_impressions_completed_col, "highlight-color-two-sided", cJSON_CreateNumber(data->job_impressions_completed_col->highlight_color_two_sided));
+  cJSON_AddItemToObject(job_impressions_completed_col, "monochrome", cJSON_CreateNumber(data->job_impressions_completed_col->monochrome));
+  cJSON_AddItemToObject(job_impressions_completed_col, "monochrome-two-sided", cJSON_CreateNumber(data->job_impressions_completed_col->monochrome_two_sided));
+  cJSON_AddItemToObject(json_data, "job-impressions-completed-col", job_impressions_completed_col);
+
   cJSON_AddItemToObject(json_data, "job-media-sheets", cJSON_CreateNumber(data->job_media_sheets));
-  cJSON_AddItemToObject(json_data, "job-media-sheets-col", cJSON_CreateObject());
+
+  cJSON *job_media_sheets_col = cJSON_CreateObject();
+  if (json_data == NULL)
+  {
+    fprintf(stderr, "DEBUG: Error while creating JSON object\n");
+    return;
+  }
+  cJSON_AddItemToObject(job_media_sheets_col, "blank", cJSON_CreateNumber(data->job_media_sheets_col->blank));
+  cJSON_AddItemToObject(job_media_sheets_col, "blank-two-sided", cJSON_CreateNumber(data->job_media_sheets_col->blank_two_sided));
+  cJSON_AddItemToObject(job_media_sheets_col, "full-color", cJSON_CreateNumber(data->job_media_sheets_col->full_color));
+  cJSON_AddItemToObject(job_media_sheets_col, "full-color-two-sided", cJSON_CreateNumber(data->job_media_sheets_col->full_color_two_sided));
+  cJSON_AddItemToObject(job_media_sheets_col, "highlight-color-two-sided", cJSON_CreateNumber(data->job_media_sheets_col->highlight_color_two_sided));
+  cJSON_AddItemToObject(job_media_sheets_col, "monochrome", cJSON_CreateNumber(data->job_media_sheets_col->monochrome));
+  cJSON_AddItemToObject(job_media_sheets_col, "monochrome-two-sided", cJSON_CreateNumber(data->job_media_sheets_col->monochrome_two_sided));
+  cJSON_AddItemToObject(json_data, "job-media-sheets-col", job_media_sheets_col);
+
   cJSON_AddItemToObject(json_data, "job-media-sheets-completed", cJSON_CreateNumber(data->job_media_sheets_completed));
-  cJSON_AddItemToObject(json_data, "job-media-sheets-completed-col", cJSON_CreateObject());
+
+  cJSON *job_media_sheets_completed_col = cJSON_CreateObject();
+  if (json_data == NULL)
+  {
+    fprintf(stderr, "DEBUG: Error while creating JSON object\n");
+    return;
+  }
+  cJSON_AddItemToObject(job_media_sheets_completed_col, "blank", cJSON_CreateNumber(data->job_media_sheets_completed_col->blank));
+  cJSON_AddItemToObject(job_media_sheets_completed_col, "blank-two-sided", cJSON_CreateNumber(data->job_media_sheets_completed_col->blank_two_sided));
+  cJSON_AddItemToObject(job_media_sheets_completed_col, "full-color", cJSON_CreateNumber(data->job_media_sheets_completed_col->full_color));
+  cJSON_AddItemToObject(job_media_sheets_completed_col, "full-color-two-sided", cJSON_CreateNumber(data->job_media_sheets_completed_col->full_color_two_sided));
+  cJSON_AddItemToObject(job_media_sheets_completed_col, "highlight-color-two-sided", cJSON_CreateNumber(data->job_media_sheets_completed_col->highlight_color_two_sided));
+  cJSON_AddItemToObject(job_media_sheets_completed_col, "monochrome", cJSON_CreateNumber(data->job_media_sheets_completed_col->monochrome));
+  cJSON_AddItemToObject(job_media_sheets_completed_col, "monochrome-two-sided", cJSON_CreateNumber(data->job_media_sheets_completed_col->monochrome_two_sided));
+  cJSON_AddItemToObject(json_data, "job-media-sheets-completed-col", job_media_sheets_completed_col);
+
   cJSON_AddItemToObject(json_data, "job-pages", cJSON_CreateNumber(data->job_pages));
-  cJSON_AddItemToObject(json_data, "job-pages-col", cJSON_CreateObject());
+
+  cJSON *job_pages_col = cJSON_CreateObject();
+  if (json_data == NULL)
+  {
+    fprintf(stderr, "DEBUG: Error while creating JSON object\n");
+    return;
+  }
+  cJSON_AddItemToObject(job_pages_col, "full-color", cJSON_CreateNumber(data->job_pages_col->full_color));
+  cJSON_AddItemToObject(job_pages_col, "monochrome", cJSON_CreateNumber(data->job_pages_col->monochrome));
+  cJSON_AddItemToObject(json_data, "job-pages-col", job_pages_col);
+
   cJSON_AddItemToObject(json_data, "job-pages-completed", cJSON_CreateNumber(data->job_pages_completed));
-  cJSON_AddItemToObject(json_data, "job-pages-completed-col", cJSON_CreateObject());
+
+  cJSON *job_pages_completed_col = cJSON_CreateObject();
+  if (json_data == NULL)
+  {
+    fprintf(stderr, "DEBUG: Error while creating JSON object\n");
+    return;
+  }
+  cJSON_AddItemToObject(job_pages_completed_col, "full-color", cJSON_CreateNumber(data->job_pages_completed_col->full_color));
+  cJSON_AddItemToObject(job_pages_completed_col, "monochrome", cJSON_CreateNumber(data->job_pages_completed_col->monochrome));
+  cJSON_AddItemToObject(json_data, "job-pages-completed-col", job_pages_completed_col);
 
   cJSON_AddItemToObject(json_data, "document-format-error", cJSON_CreateObject());
   cJSON_AddItemToObject(json_data, "document-unprintable-error", cJSON_CreateObject());
