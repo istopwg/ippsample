@@ -618,7 +618,7 @@ process_state_message(
   * "+keyword[,keyword,...]" to add keywords.
   *
   * Keywords may or may not have a suffix (-report, -warning, -error) per
-  * RFC 2911.
+  * RFC 8011.
   */
 
   if (*message == '-')
