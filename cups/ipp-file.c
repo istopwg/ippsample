@@ -118,7 +118,8 @@ _ippFileParse(
       */
 
       char	syntax[128],		/* Attribute syntax (value tag) */
-		name[128];		/* Attribute name */
+		        name[128],		/* Attribute name */
+            syntax_value[128]; /*Variable Expanded Value*/
       ipp_tag_t	value_tag;		/* Value tag */
 
       attr = NULL;
@@ -128,7 +129,9 @@ _ippFileParse(
         report_error(&f, v, user_data, "Missing ATTR syntax on line %d of \"%s\".", f.linenum, f.filename);
 	break;
       }
-      else if ((value_tag = ippTagValue(syntax)) < IPP_TAG_UNSUPPORTED_VALUE)
+      _ippVarsExpand(v, syntax_value, syntax, sizeof(syntax_value));
+      
+      if ((value_tag = ippTagValue(syntax_value)) < IPP_TAG_UNSUPPORTED_VALUE)
       {
         report_error(&f, v, user_data, "Bad ATTR syntax \"%s\" on line %d of \"%s\".", syntax, f.linenum, f.filename);
 	break;
@@ -160,7 +163,7 @@ _ippFileParse(
         attrs = ignored;
       }
 
-      if (value_tag < IPP_TAG_INTEGER)
+      if (value_tag < IPP_TAG_INTEGER-1)
       {
        /*
 	* Add out-of-band attribute - no value string needed...
@@ -376,15 +379,15 @@ _ippFileReadToken(_ipp_file_t *f,	/* I - File to read from */
 
         if ((ch = cupsFileGetChar(f->fp)) == EOF)
         {
-	  *token = '\0';
-	  DEBUG_puts("1_ippFileReadToken: EOF");
-	  return (0);
-	}
-	else if (ch == '\n')
-	{
-	  f->linenum ++;
-	  DEBUG_printf(("1_ippFileReadToken: quoted LF, linenum=%d, pos=%ld", f->linenum, (long)cupsFileTell(f->fp)));
-	}
+      	  *token = '\0';
+      	  DEBUG_puts("1_ippFileReadToken: EOF");
+      	  return (0);
+	      }
+      	else if (ch == '\n')
+      	{
+      	  f->linenum ++;
+      	  DEBUG_printf(("1_ippFileReadToken: quoted LF, linenum=%d, pos=%ld", f->linenum, (long)cupsFileTell(f->fp)));
+      	}
       }
 
       if (tokptr < tokend)
@@ -457,7 +460,8 @@ parse_collection(
       */
 
       char	syntax[128],		/* Attribute syntax (value tag) */
-		name[128];		/* Attribute name */
+		        name[128],		/* Attribute name */
+            syntax_value[128]; /*Variable Expanded Value*/
       ipp_tag_t	value_tag;		/* Value tag */
 
       attr = NULL;
@@ -468,8 +472,9 @@ parse_collection(
 	ippDelete(col);
 	col = NULL;
 	break;
+      _ippVarsExpand(v, syntax_value, syntax, sizeof(syntax_value));
       }
-      else if ((value_tag = ippTagValue(syntax)) < IPP_TAG_UNSUPPORTED_VALUE)
+      if ((value_tag = ippTagValue(syntax_value)) < IPP_TAG_UNSUPPORTED_VALUE)
       {
         report_error(f, v, user_data, "Bad ATTR syntax \"%s\" on line %d of \"%s\".", syntax, f->linenum, f->filename);
 	ippDelete(col);
@@ -485,7 +490,7 @@ parse_collection(
 	break;
       }
 
-      if (value_tag < IPP_TAG_INTEGER)
+      if (value_tag < IPP_TAG_INTEGER-1)
       {
        /*
 	* Add out-of-band attribute - no value string needed...
@@ -556,6 +561,7 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
 {
   char	value[1024],			/* Value string */
 	temp[1024];			/* Temporary string */
+  ipp_tag_t value_tag;
 
 
   if (!_ippFileReadToken(f, temp, sizeof(temp)))
@@ -566,7 +572,22 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
 
   _ippVarsExpand(v, value, temp, sizeof(value));
 
-  switch (ippGetValueTag(*attr))
+/* value_tag processing to support unassigned tag values */
+  value_tag = ippGetValueTag(*attr);
+  if (value_tag == 0x20 || (value_tag >= 0x24 && value_tag <= 0x2f))
+    value_tag = IPP_TAG_INTEGER;
+  else
+    if (value_tag >= 0x38 && value_tag <= 0x3f)
+      value_tag = IPP_TAG_STRING;
+    else
+      if (value_tag == 0x40 || (value_tag >= 0x4b && value_tag <= 0x5f))
+        value_tag = IPP_TAG_RESERVED_STRING;
+      else
+        if (value_tag >= 0x40000000 && value_tag <= 0x7fffffff)
+          value_tag = IPP_TAG_STRING;
+
+
+  switch (value_tag)
   {
     case IPP_TAG_BOOLEAN :
         return (ippSetBoolean(ipp, attr, element, !_cups_strcasecmp(value, "true")));
@@ -606,7 +627,7 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
           {
             utc_offset = -utc_offset;
             date[8]    = (ipp_uchar_t)'-';
-	  }
+	         }
 	  else
 	  {
             date[8] = (ipp_uchar_t)'+';
@@ -700,10 +721,10 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
     		
     		else
     		{
-    			report_error(f, v, user_data, "Hexadecimal value needs to begin with <, on line %d of \"%s\".", f->linenum, f->filename);
-        }
+    			return (ippSetOctetString(ipp, attr, element, value, (int)strlen(value)));
     		
-    	}
+    	   } 
+       }
         
         break;
 
@@ -729,12 +750,14 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
     break;
     case IPP_TAG_TEXT :
     case IPP_TAG_NAME :
+    case IPP_TAG_RESERVED_STRING :
     case IPP_TAG_KEYWORD :
     case IPP_TAG_URI :
     case IPP_TAG_URISCHEME :
     case IPP_TAG_CHARSET :
     case IPP_TAG_LANGUAGE :
     case IPP_TAG_MIMETYPE :
+    case IPP_TAG_MEMBERNAME :
         return (ippSetString(ipp, attr, element, value));
         break;
 

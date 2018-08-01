@@ -2369,11 +2369,18 @@ int					/* O - Value or 0 on error */
 ippGetInteger(ipp_attribute_t *attr,	/* I - IPP attribute */
               int             element)	/* I - Value number (0-based) */
 {
+
+  /* Support Unassigned Value Tags*/
+
+  ipp_tag_t pvalue_tag = (attr)->value_tag;
+
+  if (pvalue_tag == 0x20 || (pvalue_tag >= 0x24 && pvalue_tag <= 0x2f))
+    pvalue_tag = IPP_TAG_INTEGER;
  /*
   * Range check input...
   */
 
-  if (!attr || (attr->value_tag != IPP_TAG_INTEGER && attr->value_tag != IPP_TAG_ENUM) ||
+  if (!attr || (pvalue_tag != IPP_TAG_INTEGER && pvalue_tag != IPP_TAG_ENUM) ||
       element < 0 || element >= attr->num_values)
     return (0);
 
@@ -2424,11 +2431,17 @@ ippGetOctetString(
     int             element,		/* I - Value number (0-based) */
     int             *datalen)		/* O - Length of octetString data */
 {
+
+     /* Support Unassigned Values*/
+  ipp_tag_t pvalue_tag = (attr)->value_tag;
+
+  if ((pvalue_tag >= 0x38 && pvalue_tag <= 0x3f)|| (pvalue_tag >= 0x40000000 && pvalue_tag <= 0x7fffffff))
+      pvalue_tag = IPP_TAG_STRING;
  /*
   * Range check input...
   */
 
-  if (!attr || attr->value_tag != IPP_TAG_STRING ||
+  if (!attr || pvalue_tag != IPP_TAG_STRING ||
       element < 0 || element >= attr->num_values)
   {
     if (datalen)
@@ -2651,7 +2664,7 @@ ippGetString(ipp_attribute_t *attr,	/* I - IPP attribute */
 
   tag = ippGetValueTag(attr);
 
-  if (!attr || element < 0 || element >= attr->num_values || (tag != IPP_TAG_TEXTLANG && tag != IPP_TAG_NAMELANG && (tag < IPP_TAG_TEXT || tag > IPP_TAG_MIMETYPE)))
+  if (!attr || element < 0 || element >= attr->num_values || tag < 0x40 || tag > 0x5f )
     return (NULL);
 
  /*
@@ -3979,13 +3992,18 @@ ippSetInteger(ipp_t           *ipp,	/* I  - IPP message */
 {
   _ipp_value_t	*value;			/* Current value */
 
+/* Support Unassigned Value Tags*/
+
+  ipp_tag_t pvalue_tag = (*attr)->value_tag;
+
+  if (pvalue_tag == 0x20 || (pvalue_tag >= 0x24 && pvalue_tag <= 0x2f))
+    pvalue_tag = IPP_TAG_INTEGER;
 
  /*
   * Range check input...
   */
-
-  if (!ipp || !attr || !*attr ||
-      ((*attr)->value_tag != IPP_TAG_INTEGER && (*attr)->value_tag != IPP_TAG_ENUM) ||
+    if (!ipp || !attr || !*attr ||
+      (pvalue_tag != IPP_TAG_INTEGER && pvalue_tag != IPP_TAG_ENUM) ||
       element < 0 || element > (*attr)->num_values)
     return (0);
 
@@ -4066,12 +4084,17 @@ ippSetOctetString(
 {
   _ipp_value_t	*value;			/* Current value */
 
+   /* Support Unassigned Values*/
+  ipp_tag_t pvalue_tag = (*attr)->value_tag;
+
+  if ((pvalue_tag >= 0x38 && pvalue_tag <= 0x3f)|| (pvalue_tag >= 0x40000000 && pvalue_tag <= 0x7fffffff))
+      pvalue_tag = IPP_TAG_STRING;
 
  /*
   * Range check input...
   */
 
-  if (!ipp || !attr || !*attr || (*attr)->value_tag != IPP_TAG_STRING ||
+  if (!ipp || !attr || !*attr || pvalue_tag != IPP_TAG_STRING ||
       element < 0 || element > (*attr)->num_values ||
       datalen < 0 || datalen > IPP_MAX_LENGTH)
     return (0);
@@ -4382,10 +4405,10 @@ ippSetString(ipp_t           *ipp,	/* I  - IPP message */
   else
     value_tag = IPP_TAG_ZERO;
 
+
   if (!ipp || !attr || !*attr ||
-      (value_tag < IPP_TAG_TEXT && value_tag != IPP_TAG_TEXTLANG &&
-       value_tag != IPP_TAG_NAMELANG) || value_tag > IPP_TAG_MIMETYPE ||
-      !strvalue)
+      (value_tag < 0x40 || value_tag > 0x5f) ||
+       !strvalue)
     return (0);
 
  /*

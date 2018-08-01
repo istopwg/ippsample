@@ -358,7 +358,28 @@ static const char * const ipp_std_ops[] =
 		  "charset",		/* 0x47 */
 		  "naturalLanguage",	/* 0x48 */
 		  "mimeMediaType",	/* 0x49 */
-		  "memberAttrName"	/* 0x4a */
+		  "memberAttrName",	/* 0x4a */
+		  "0x4b",		/* 0x4b */
+		  "0x4c",		/* 0x4c */
+		  "0x4d",		/* 0x4d */
+		  "0x4e",		/* 0x4e */
+		  "0x4f",		/* 0x4f */
+		  "0x50",		/* 0x50 */
+		  "0x51",		/* 0x51 */
+		  "0x52",		/* 0x52 */
+		  "0x53",		/* 0x53 */
+		  "0x54",		/* 0x54 */
+		  "0x55",		/* 0x55 */
+		  "0x56",		/* 0x56 */
+		  "0x57",		/* 0x57 */
+		  "0x58",		/* 0x58 */
+		  "0x59",		/* 0x59 */
+		  "0x5a",		/* 0x5a */
+		  "0x5b",		/* 0x5b */
+		  "0x5c",		/* 0x5c */
+		  "0x5d",		/* 0x5d */
+		  "0x5e",		/* 0x5e */
+		  "0x5f"		/* 0x5f */		 
 		};
 static const char * const ipp_document_states[] =
 		{			/* document-state-enums */
@@ -2461,7 +2482,19 @@ ipp_tag_t				/* O - Tag value */
 ippTagValue(const char *name)		/* I - Tag name */
 {
   size_t	i;			/* Looping var */
-
+  int 	itr,		/* Name iterator*/
+  			flag = 0,   /*Integer detector*/
+			hex_val = 0;	/*Convert hex to int */
+  for(itr = 0; itr < strlen(name) ; itr++)
+  {
+  	if(!(name[itr] >= '0'&& name[itr]<='9'))
+  	{
+  		flag = 1;
+  		break;
+  	}
+  }
+  if(flag == 0)
+ 	return ((ipp_tag_t)atoi(name));
 
   for (i = 0; i < (sizeof(ipp_tag_names) / sizeof(ipp_tag_names[0])); i ++)
     if (!_cups_strcasecmp(name, ipp_tag_names[i]))
@@ -2489,9 +2522,39 @@ ippTagValue(const char *name)		/* I - Tag name */
     return (IPP_TAG_TEXT);
   else if (!_cups_strcasecmp(name, "begCollection"))
     return (IPP_TAG_BEGIN_COLLECTION);
-  else
-    return (IPP_TAG_ZERO);
-}
+  else {
+  		/* Detecting hex string of the form "0x********" between 0x40000000" and 0x7fffffff*/
+  		flag = 0, itr = 0;
+  		if(strlen(name) == 10 && name[0] == '0' && name [1]== 'x' )
+  			{
+  			hex_val = 0;	
+  			for(itr = 2; itr < strlen(name) ; itr++)
+  				{
+  					char c_flag = tolower(name[itr]);
+  					if (!(( c_flag >= 'a' && c_flag <= 'f' )|| ( c_flag >= '0' && c_flag <= '9')))
+  					{
+  						flag = 1;
+  						break;
+  					}
+  					else
+  					{
+  						hex_val = hex_val*16 + ((c_flag >= 'a' && c_flag <= 'f') ? (c_flag - 'a') : (c_flag - '0'));
+  					}
+  				}
+  			if( flag == 0 && name[2] >= '4' && name[2] <= '7')
+  				flag = 0;
+  			else
+  				flag = 1;
+  			}
+  		else
+  			flag = 1;
+  		
+  		if(flag == 0)
+  			return hex_val;
+	  	else
+	    	return (IPP_TAG_ZERO); 
+		}
+	}		
 
 
 /*
