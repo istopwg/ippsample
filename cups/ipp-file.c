@@ -472,8 +472,9 @@ parse_collection(
 	ippDelete(col);
 	col = NULL;
 	break;
-      _ippVarsExpand(v, syntax_value, syntax, sizeof(syntax_value));
+      
       }
+      _ippVarsExpand(v, syntax_value, syntax, sizeof(syntax_value));
       if ((value_tag = ippTagValue(syntax_value)) < IPP_TAG_UNSUPPORTED_VALUE)
       {
         report_error(f, v, user_data, "Bad ATTR syntax \"%s\" on line %d of \"%s\".", syntax, f->linenum, f->filename);
