@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <jpeglib.h>
+#include <math.h>
 
 /*
  * Local globals...
@@ -43,6 +44,12 @@ typedef struct _attr_col_s
   int monochrome_two_sided;
 } attr_col_t;
 
+typedef struct _pages_col_s
+{
+	int monochrome;
+	int full_color;
+} pages_col_t;
+
 typedef struct _doclint_data_s
 {
   int job_impressions;
@@ -58,16 +65,10 @@ typedef struct _doclint_data_s
   attr_col_t job_media_sheets_completed_col;
 
   int job_pages;
-  struct _job_pages_col_s {
-    int full_color;
-    int monochrome;
-  } *job_pages_col;
+  pages_col_t job_pages_col;
 
   int job_pages_completed;
-  struct _job_pages_completed_col_s {
-    int full_color;
-    int monochrome;
-  } *job_pages_completed_col;
+  pages_col_t job_pages_completed_col;
 
   struct document_format_error {};
   struct document_unprintable_error {};
@@ -272,6 +273,11 @@ highlight-color=%d highlight-color-two-sided=%d monochrome=%d monochrome-two-sid
     iter_temp_2[i].monochrome_two_sided);
   }
 
+  fprintf(stderr, "ATTR:job-pages=%d\n", data->job_pages);
+  fprintf(stderr, "ATTR:job-pages-col={monochrome=%d full-color=%d}\n", data->job_pages_col.monochrome, data->job_pages_col.full_color);
+  fprintf(stderr, "ATTR:job-pages-completed=%d\n", data->job_pages_completed);
+	fprintf(stderr, "ATTR:job-pages-completed-col={monochrome=%d full-color=%d}\n", data->job_pages_completed_col.monochrome, data->job_pages_completed_col.full_color);
+
   return;
 }
 
@@ -350,7 +356,14 @@ lint_jpeg(const char    *filename,	/* I - File to check */
   * - job-pages-completed-col
   */
 
-  doclint_data_t *data = malloc(sizeof(doclint_data_t));
+  doclint_data_t data = {0};
+  data.job_impressions = 1;
+  data.job_impressions_col.full_color = 1;
+  data.job_media_sheets = 1;
+  data.job_media_sheets_col.full_color = 1;
+  data.job_pages = 1;
+  data.job_pages_col.full_color = 1;
+
 
   /*
    * This struct contains the JPEG decompression parameters and pointers to
@@ -438,6 +451,15 @@ lint_jpeg(const char    *filename,	/* I - File to check */
   {
     fprintf(stderr, "DEBUG: File lint complete, no errors found\n");
   }
+
+  data.job_impressions_completed = 1;
+  data.job_impressions_completed_col.full_color = 1;
+  data.job_media_sheets_completed = 1;
+  data.job_media_sheets_completed_col.full_color = 1;
+	data.job_pages_completed = 1;
+	data.job_pages_completed_col.full_color = 1;
+
+  print_attr_messages(&data);
 
   (void)num_options;
   (void)options;
@@ -537,7 +559,7 @@ lint_pdf(const char    *filename,	/* I - File to check */
   * - job-pages-completed-col
   */
 
-  doclint_data_t *data = malloc(sizeof(doclint_data_t));
+  doclint_data_t data = {0};
 
   fz_context *context = NULL;
   fz_document *document = NULL;
@@ -648,6 +670,21 @@ lint_pdf(const char    *filename,	/* I - File to check */
     mupdf_exit(context, document);
     return (1);
   }
+  data.job_pages = page_count;
+  data.job_media_sheets = page_count;
+  data.job_impressions = page_count;
+  if (fz_colorspace_type(context, fz_document_output_intent(context, document)) == FZ_COLORSPACE_GRAY)
+  {
+    data.job_pages_col.monochrome = page_count;
+    data.job_media_sheets_col.monochrome = page_count;
+    data.job_impressions_col.monochrome = page_count;
+  }
+  else
+  {
+	  data.job_pages_col.full_color = page_count;
+	  data.job_media_sheets_col.full_color = page_count;
+	  data.job_impressions_col.full_color = page_count;
+  }
   fprintf(stderr, "DEBUG: The document has %d pages\n", page_count);
 
   num_threads = page_count;
@@ -714,6 +751,15 @@ lint_pdf(const char    *filename,	/* I - File to check */
 
   free(thread);
   mupdf_exit(context, document);
+
+  data.job_pages_completed = data.job_pages;
+  data.job_pages_completed_col = data.job_pages_col;
+  data.job_impressions_completed = data.job_impressions;
+  data.job_impressions_completed_col = data.job_impressions_col;
+  data.job_media_sheets_completed = data.job_media_sheets;
+  data.job_media_sheets_completed_col = data.job_media_sheets_col;
+
+  print_attr_messages(&data);
 
   (void)num_options;
   (void)options;
@@ -816,7 +862,7 @@ char color_order_enum[3][50] =
 };
 
 static int
-parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_version, boolean big_endian, doclint_data_t *data)
+parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_version, boolean big_endian)
 {
   if (raster_id == PWG)
   {
@@ -1543,8 +1589,7 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
 
 static int
 traverse_compressed_bitmap(FILE *file,
-  cups_page_header2_t *header,
-  doclint_data_t *data)
+  cups_page_header2_t *header)
 {
   fprintf(stderr, "DEBUG: Started checking bitmap for ColorSpace %d\n", header->cupsColorSpace);
   int height_count = 0;
@@ -1599,8 +1644,7 @@ traverse_compressed_bitmap(FILE *file,
 
 static int
 traverse_uncompressed_bitmap(FILE *file,
-cups_page_header2_t *header,
-doclint_data_t *data)
+cups_page_header2_t *header)
 { // TODO Test for cupsBitsPerPixel < 8
   int numBits = header->cupsHeight * header->cupsWidth * header->cupsBitsPerPixel;
   uint8_t buffer[numBits/8];
@@ -1638,7 +1682,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   * - job-pages-completed-col
   */
 
-  doclint_data_t *data = malloc(sizeof(doclint_data_t));
+  doclint_data_t data = {0};
 
   FILE *file = fopen(filename, "rb");
   rewind(file);
@@ -1705,42 +1749,88 @@ lint_raster(const char    *filename,	/* I - File to check */
   }
 
   cups_page_header2_t header;
-  int total_page_count = 0;
-  if (!total_page_count)
+  fread(&header, 4, 449, file);
+  int ret = parse_raster_header(&header, raster_id, raster_version, big_endian);
+  if (ret)
+    return (1);
+  if (raster_version == 3)
+  {
+    ret = traverse_uncompressed_bitmap(file, &header);
+  }
+  else
+  {
+    ret = traverse_compressed_bitmap(file, &header);
+  }
+  if (ret)
+    return (1);
+
+	data.job_pages = header.cupsInteger[0];
+	data.job_impressions = header.cupsInteger[0] * header.NumCopies; // TODO Missing Number-Up
+	if (header.Duplex)
+	{
+		data.job_media_sheets = (int) ceil(data.job_impressions / 2.0);
+	}
+	else
+	{
+		data.job_media_sheets = data.job_impressions;
+	}
+	if (header.cupsColorSpace == 3 /* Black */
+	    || header.cupsColorSpace == 18 /* SGray */)
+	{
+		data.job_pages_col.monochrome = data.job_pages;
+		if (header.Duplex)
+		{
+			data.job_impressions_col.monochrome_two_sided = data.job_impressions;
+			data.job_media_sheets_col.monochrome_two_sided = data.job_media_sheets;
+		}
+		else
+		{
+			data.job_impressions_col.monochrome = data.job_impressions;
+			data.job_media_sheets_col.monochrome = data.job_media_sheets;
+		}
+	}
+	else
+	{
+		data.job_pages_col.full_color = data.job_pages;
+		if (header.Duplex)
+		{
+			data.job_impressions_col.full_color_two_sided = data.job_impressions;
+			data.job_media_sheets_col.full_color_two_sided = data.job_media_sheets;
+		}
+		else
+		{
+			data.job_impressions_col.full_color = data.job_impressions;
+			data.job_media_sheets_col.full_color = data.job_media_sheets;
+		}
+	}
+
+	int total_page_count = header.cupsInteger[0];
+  for (int i=1; i<total_page_count; i++)
   {
     fread(&header, 4, 449, file);
-    int ret = parse_raster_header(&header, raster_id, raster_version, big_endian, data);
+    ret = parse_raster_header(&header, raster_id, raster_version, big_endian);
     if (ret)
       return (1);
     if (raster_version == 3)
     {
-      ret = traverse_uncompressed_bitmap(file, &header, data);
+      ret = traverse_uncompressed_bitmap(file, &header);
     }
     else
     {
-      ret = traverse_compressed_bitmap(file, &header, data);
+      ret = traverse_compressed_bitmap(file, &header);
     }
     if (ret)
       return (1);
-    total_page_count = header.cupsInteger[0];
-    for (int i=1; i<total_page_count; i++)
-    {
-      fread(&header, 4, 449, file);
-      ret = parse_raster_header(&header, raster_id, raster_version, big_endian, data);
-      if (ret)
-        return (1);
-      if (raster_version == 3)
-      {
-        ret = traverse_uncompressed_bitmap(file, &header, data);
-      }
-      else
-      {
-        ret = traverse_compressed_bitmap(file, &header, data);
-      }
-      if (ret)
-        return (1);
-    }
   }
+
+  data.job_pages_completed = data.job_pages;
+  data.job_pages_completed_col = data.job_pages_col;
+  data.job_media_sheets_completed = data.job_media_sheets;
+  data.job_media_sheets_completed_col = data.job_media_sheets_col;
+  data.job_impressions_completed = data.job_impressions;
+  data.job_impressions_completed_col = data.job_impressions_col;
+
+	print_attr_messages(&data);
 
   (void)num_options;
   (void)options;
