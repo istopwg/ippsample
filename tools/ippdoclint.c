@@ -69,14 +69,6 @@ typedef struct _doclint_data_s
 
   int job_pages_completed;
   pages_col_t job_pages_completed_col;
-
-  struct document_format_error {};
-  struct document_unprintable_error {};
-
-  char *debug;
-  char *error;
-  char *info;
-
 } doclint_data_t;
 
 char attr_names[8][40] =
@@ -277,8 +269,6 @@ highlight-color=%d highlight-color-two-sided=%d monochrome=%d monochrome-two-sid
   fprintf(stderr, "ATTR:job-pages-col={monochrome=%d full-color=%d}\n", data->job_pages_col.monochrome, data->job_pages_col.full_color);
   fprintf(stderr, "ATTR:job-pages-completed=%d\n", data->job_pages_completed);
 	fprintf(stderr, "ATTR:job-pages-completed-col={monochrome=%d full-color=%d}\n", data->job_pages_completed_col.monochrome, data->job_pages_completed_col.full_color);
-
-  return;
 }
 
 typedef struct _jpeg_lint_error_mgr_s
@@ -337,25 +327,6 @@ lint_jpeg(const char    *filename,	/* I - File to check */
           int           num_options,	/* I - Number of options */
           cups_option_t *options)	/* I - Options */
 {
- /*
-  * TODO: Check that the file opens, write STATE messages for
-  * document-format-error and document-unprintable-error, and write ATTR lines
-  * for the following Job attributes:
-  *
-  * - job-impressions
-  * - job-impressions-col
-  * - job-impressions-completed
-  * - job-impressions-completed-col
-  * - job-media-sheets
-  * - job-media-sheets-col
-  * - job-media-sheets-completed
-  * - job-media-sheets-completed-col
-  * - job-pages
-  * - job-pages-col
-  * - job-pages-completed
-  * - job-pages-completed-col
-  */
-
   doclint_data_t data = {0};
   data.job_impressions = 1;
   data.job_impressions_col.full_color = 1;
@@ -363,7 +334,6 @@ lint_jpeg(const char    *filename,	/* I - File to check */
   data.job_media_sheets_col.full_color = 1;
   data.job_pages = 1;
   data.job_pages_col.full_color = 1;
-
 
   /*
    * This struct contains the JPEG decompression parameters and pointers to
@@ -428,7 +398,7 @@ lint_jpeg(const char    *filename,	/* I - File to check */
   (void) jpeg_start_decompress(&cinfo);
 
   row_stride = cinfo.output_width * cinfo.output_components;
-  buffer = (*cinfo.mem->alloc_sarray) ((j_common_ptr) &cinfo, JPOOL_IMAGE, row_stride, 1);
+  buffer = (*cinfo.mem->alloc_sarray) ((j_common_ptr) &cinfo, JPOOL_IMAGE, (JDIMENSION)row_stride, 1);
 
   fprintf(stderr, "DEBUG: Scanning rows in JPEG...\n");
   while (cinfo.output_scanline < cinfo.output_height)
@@ -467,8 +437,7 @@ lint_jpeg(const char    *filename,	/* I - File to check */
   return (0);
 }
 
-
-static int
+static void
 mupdf_exit(fz_context *context,
   fz_document *document)
 {
@@ -490,7 +459,6 @@ typedef struct _thread_data_s
 void *
 renderer(void *data)
 {
-  int pagenumber = ((thread_data_t *) data)->pagenumber;
   fz_context *context = ((thread_data_t *) data)->context;
   fz_display_list *list = ((thread_data_t *) data)->list;
   fz_rect bbox = ((thread_data_t *) data)->bbox;
@@ -540,30 +508,11 @@ lint_pdf(const char    *filename,	/* I - File to check */
 	 int           num_options,	/* I - Number of options */
 	 cups_option_t *options)	/* I - Options */
 {
- /*
-  * TODO: Check that the file opens, write STATE messages for
-  * document-format-error and document-unprintable-error, and write ATTR lines
-  * for the following Job attributes:
-  *
-  * - job-impressions
-  * - job-impressions-col
-  * - job-impressions-completed
-  * - job-impressions-completed-col
-  * - job-media-sheets
-  * - job-media-sheets-col
-  * - job-media-sheets-completed
-  * - job-media-sheets-completed-col
-  * - job-pages
-  * - job-pages-col
-  * - job-pages-completed
-  * - job-pages-completed-col
-  */
-
   doclint_data_t data = {0};
 
   fz_context *context = NULL;
   fz_document *document = NULL;
-  int page_count;
+  int page_count = 0;
   pthread_t *thread = NULL;
   fz_locks_context locks;
   pthread_mutex_t mutex[FZ_LOCK_MAX];
@@ -653,7 +602,7 @@ lint_pdf(const char    *filename,	/* I - File to check */
   size = fz_lookup_metadata(context, document, "info:ModDate", buffer, 100);
   fprintf(stderr, "DEBUG: Modification Date : %s\n", (size != -1 && buffer[0] != '\0') ? buffer : "Not available");
 
-  char *colorspace = fz_colorspace_name(context, fz_document_output_intent(context, document));
+  const char *colorspace = fz_colorspace_name(context, fz_document_output_intent(context, document));
   fprintf(stderr, "DEBUG: Output intent colorspace : %s\n", colorspace[0]!='\0' ? colorspace : "Not available" );
 
   /* Count the number of pages. */
@@ -866,7 +815,7 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
 {
   if (raster_id == PWG)
   {
-    if (strncmp(header->MediaClass, "PwgRaster", 64))
+    if (strncmp(header->MediaClass, "PwgRaster", 64) != 0)
     {
       fprintf(stderr, "ERROR: PwgRaster value in header is incorrect\n");
       return (1);
@@ -1614,11 +1563,11 @@ traverse_compressed_bitmap(FILE *file,
     while (width_count < header->cupsWidth)
     {
       fread(buffer, 1, 1, file);
-      int unit_size = header->cupsBitsPerPixel == 1 ? 1 : (header->cupsBitsPerPixel / 8);
+      size_t unit_size = header->cupsBitsPerPixel == 1 ? 1 : (header->cupsBitsPerPixel / 8);
       if (*buffer > 127) /* Non-repeating colors */
       {
         buffer2 = malloc(unit_size * (257 - *buffer));
-        fread(buffer2, unit_size, (257 - *buffer), file);
+        fread(buffer2, unit_size, (size_t)(257 - *buffer), file);
         width_count += header->cupsBitsPerPixel == 1 ? (257 - *buffer) * 8 : (257 - *buffer);
       }
       else /* Repeating colors */
@@ -1631,7 +1580,7 @@ traverse_compressed_bitmap(FILE *file,
     }
     if (width_count != header->cupsWidth)
     {
-      if (header->cupsBitsPerPixel == 1 && abs(width_count - header->cupsWidth) < 8)
+      if (header->cupsBitsPerPixel == 1 && abs(width_count - (int)header->cupsWidth) < 8)
         continue;
       fprintf(stderr, "ERROR: Bitmap width didn't match specified Width value in the header-> Expected: %d, Found: %d\n", header->cupsWidth, width_count);
       return (1);
@@ -1648,7 +1597,7 @@ cups_page_header2_t *header)
 { // TODO Test for cupsBitsPerPixel < 8
   int numBits = header->cupsHeight * header->cupsWidth * header->cupsBitsPerPixel;
   uint8_t buffer[numBits/8];
-  fread(buffer, 1, numBits/8, file);
+  fread(buffer, 1, (size_t)numBits/8, file);
   fprintf(stderr, "DEBUG: Traversed bitmap for this page and found no errors\n");
   return (0);
 }
@@ -1663,25 +1612,6 @@ lint_raster(const char    *filename,	/* I - File to check */
 	    cups_option_t *options, /* I - Options */
       int raster_id) /* I - Identifier to differentiate between CUPS, PWG and Apple Rasters */
 {
- /*
-  * TODO: Check that the file opens, write STATE messages for
-  * document-format-error and document-unprintable-error, and write ATTR lines
-  * for the following Job attributes:
-  *
-  * - job-impressions
-  * - job-impressions-col
-  * - job-impressions-completed
-  * - job-impressions-completed-col
-  * - job-media-sheets
-  * - job-media-sheets-col
-  * - job-media-sheets-completed
-  * - job-media-sheets-completed-col
-  * - job-pages
-  * - job-pages-col
-  * - job-pages-completed
-  * - job-pages-completed-col
-  */
-
   doclint_data_t data = {0};
 
   FILE *file = fopen(filename, "rb");
@@ -1697,7 +1627,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   {
     if (!strncmp(sync_word, "RaS2", 4))
     {
-      fprintf(stderr, "DEBUG: Synchronization word is correct: %0.4s\n", sync_word);
+      fprintf(stderr, "DEBUG: Synchronization word is correct: %.4s\n", sync_word);
       raster_version = 2;
       big_endian = 1;
     }
@@ -1744,7 +1674,7 @@ lint_raster(const char    *filename,	/* I - File to check */
       fprintf(stderr, "ERROR: Synchronization word mismatch\n");
       return (1);
     }
-    fprintf(stderr, "DEBUG: Synchronization word found: %0.4s\n", sync_word);
+    fprintf(stderr, "DEBUG: Synchronization word found: %.4s\n", sync_word);
     fprintf(stderr, "DEBUG: Raster version set to %d, Big endian set to %d\n", raster_version, big_endian);
   }
 
