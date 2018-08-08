@@ -136,6 +136,36 @@ serverTransformJob(
   if (format && asprintf(myenvp + myenvc, "OUTPUT_TYPE=%s", format) > 0)
     myenvc ++;
 
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "copies-default", IPP_TAG_INTEGER)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "copies-default", IPP_TAG_INTEGER);
+  if (attr)
+  {
+    ippAttributeString(attr, val, sizeof(val));
+
+    if (asprintf(myenvp + myenvc, "PRINTER_COPIES_DEFAULT=%s", val))
+      myenvc ++;
+  }
+
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "finishings-default", IPP_TAG_ENUM)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "finishings-default", IPP_TAG_ENUM);
+  if (attr)
+  {
+    ippAttributeString(attr, val, sizeof(val));
+
+    if (asprintf(myenvp + myenvc, "PRINTER_FINISHINGS_DEFAULT=%s", val))
+      myenvc ++;
+  }
+
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "finishings-col-default", IPP_TAG_BEGIN_COLLECTION)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "finishings-col-default", IPP_TAG_BEGIN_COLLECTION);
+  if (attr)
+  {
+    ippAttributeString(attr, val, sizeof(val));
+
+    if (asprintf(myenvp + myenvc, "PRINTER_FINISHINGS_COL_DEFAULT=%s", val))
+      myenvc ++;
+  }
+
   if ((attr = ippFindAttribute(job->printer->dev_attrs, "materials-col-default", IPP_TAG_BEGIN_COLLECTION)) == NULL)
     attr = ippFindAttribute(job->printer->pinfo.attrs, "materials-col-default", IPP_TAG_BEGIN_COLLECTION);
   if (attr)
@@ -161,6 +191,16 @@ serverTransformJob(
       myenvc ++;
   }
 
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "number-up-default", IPP_TAG_INTEGER)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "number-up-default", IPP_TAG_INTEGER);
+  if (attr)
+  {
+    ippAttributeString(attr, val, sizeof(val));
+
+    if (asprintf(myenvp + myenvc, "PRINTER_NUMBER_UP_DEFAULT=%s", val))
+      myenvc ++;
+  }
+
   if ((attr = ippFindAttribute(job->printer->dev_attrs, "platform-temperature-default", IPP_TAG_INTEGER)) == NULL)
     attr = ippFindAttribute(job->printer->pinfo.attrs, "platform-temperature-default", IPP_TAG_INTEGER);
   if (attr && asprintf(myenvp + myenvc, "PRINTER_PLATFORM_TEMPERATURE_DEFAULT=%d", ippGetInteger(attr, 0)))
@@ -183,7 +223,7 @@ serverTransformJob(
 
   if ((attr = ippFindAttribute(job->printer->dev_attrs, "print-supports-default", IPP_TAG_INTEGER)) == NULL)
     attr = ippFindAttribute(job->printer->pinfo.attrs, "print-supports-default", IPP_TAG_INTEGER);
-  if (attr && asprintf(myenvp + myenvc, "PRINTER_PPRINT_SUPPORTS_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+  if (attr && asprintf(myenvp + myenvc, "PRINTER_PRINT_SUPPORTS_DEFAULT=%s", ippGetString(attr, 0, NULL)))
     myenvc ++;
 
   if ((attr = ippFindAttribute(job->printer->dev_attrs, "sides-default", IPP_TAG_KEYWORD)) == NULL)
