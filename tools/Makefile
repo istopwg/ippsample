@@ -1,20 +1,19 @@
 #
 # IPP tools makefile.
 #
-# Copyright 2007-2016 by Apple Inc.
-# Copyright 1997-2006 by Easy Software Products, all rights reserved.
+# Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
+# Copyright © 2007-2018 by Apple Inc.
+# Copyright © 1997-2006 by Easy Software Products, all rights reserved.
 #
-# These coded instructions, statements, and computer programs are the
-# property of Apple Inc. and are protected by Federal copyright
-# law.  Distribution and use rights are outlined in the file "LICENSE.txt"
-# which should have been included with this file.  If this file is
-# missing or damaged, see the license at "http://www.cups.org/".
+# Licensed under Apache License v2.0.  See the file "LICENSE" for more
+# information.
 #
 
 include ../Makedefs
 
 
 OBJS		=	\
+			ippdoclint.o \
 			ippfind.o \
 			ippproxy.o \
 			ipptool.o \
@@ -24,6 +23,7 @@ TARGETS         =       \
                         $(BIN_TARGETS) \
                         $(SBIN_TARGETS)
 BIN_TARGETS	=	\
+			ippdoclint \
 			$(IPPFIND_BIN) \
 			ipptool \
 			$(IPPTRANSFORM_BIN) \
@@ -62,12 +62,30 @@ depend:
 install:	all
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(bindir)
 	for file in $(BIN_TARGETS); do \
-		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir); \
+		destfile=`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`; \
+		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir)/$$destfile; \
 	done
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(sbindir)
 	for file in $(SBIN_TARGETS); do \
-		$(INSTALL_BIN) $$file $(BUILDROOT)$(sbindir); \
+		destfile=`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`; \
+		$(INSTALL_BIN) $$file $(BUILDROOT)$(sbindir)/$$destfile; \
 	done
+
+
+#
+# Test all tools.
+#
+
+test:
+
+
+#
+# ippdoclint
+#
+
+ippdoclint:	ippdoclint.o ../cups/libcups.a
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ ippdoclint.o $(LIBS)
 
 
 #

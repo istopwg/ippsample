@@ -5,6 +5,10 @@ It is largely based upon the [CUPS](https://www.cups.org/) software, with
 substantial changes to the ippproxy and ippserver implementations to make them
 more general-purpose and configurable.
 
+[![Travis Build Status](https://travis-ci.org/istopwg/ippsample.svg?branch=master)](https://travis-ci.org/istopwg/ippsample)
+[![Snap Status](https://build.snapcraft.io/badge/istopwg/ippsample.svg)](https://build.snapcraft.io/user/istopwg/ippsample)
+
+
 ## ippfind
 
 The ippfind program implements Bonjour/DNS-SD discovery of IPP printers and can
@@ -36,12 +40,15 @@ The ipptransform program is a generic file conversion utility that is used prima
 
 # Legal Stuff
 
-This code is Copyright 2014-2016 by The Printer Working Group and Copyright
-2007-2016 by Apple Inc.  CUPS and the CUPS logo are trademarks of Apple Inc.
-PWG and IPP Everywhere are trademarks of the IEEE-ISTO.
+Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
+Copyright © 2007-2018 by Apple Inc.
+Copyright © 1997-2007 by Easy Software Products.
 
-The tools are provided under the terms of version 2 of the GNU General Public
-License and GNU Library General Public License.  This program is distributed in
-the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
-implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
-the file "LICENSE.txt" for more information.
+This software is provided under the terms of the Apache License, Version 2.0.
+A copy of this license can be found in the file `LICENSE`.  Additional legal
+information is provided in the file `NOTICE`.
+
+Unless required by applicable law or agreed to in writing, software distributed
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations under the License.

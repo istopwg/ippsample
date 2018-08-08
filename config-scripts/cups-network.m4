@@ -1,16 +1,11 @@
 dnl
-dnl "$Id: cups-network.m4 12324 2014-12-09 20:28:39Z msweet $"
-dnl
 dnl Networking stuff for CUPS.
 dnl
 dnl Copyright 2007-2016 by Apple Inc.
 dnl Copyright 1997-2005 by Easy Software Products, all rights reserved.
 dnl
-dnl These coded instructions, statements, and computer programs are the
-dnl property of Apple Inc. and are protected by Federal copyright
-dnl law.  Distribution and use rights are outlined in the file "LICENSE.txt"
-dnl which should have been included with this file.  If this file is
-dnl missing or damaged, see the license at "http://www.cups.org/".
+dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
+dnl information.
 dnl
 
 AC_CHECK_HEADER(resolv.h,AC_DEFINE(HAVE_RESOLV_H),,[
@@ -70,7 +65,3 @@ fi
 
 AC_SUBST(CUPS_DEFAULT_DOMAINSOCKET)
 AC_SUBST(CUPS_LISTEN_DOMAINSOCKET)
-
-dnl
-dnl End of "$Id: cups-network.m4 12324 2014-12-09 20:28:39Z msweet $".
-dnl

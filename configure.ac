@@ -1,14 +1,12 @@
 dnl
 dnl Configuration script for the IPP sample code.
 dnl
-dnl Copyright 2007-2016 by Apple Inc.
-dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
+dnl Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
+dnl Copyright © 2007-2018 by Apple Inc.
+dnl Copyright © 1997-2007 by Easy Software Products, all rights reserved.
 dnl
-dnl These coded instructions, statements, and computer programs are the
-dnl property of Apple Inc. and are protected by Federal copyright
-dnl law.  Distribution and use rights are outlined in the file "LICENSE.txt"
-dnl which should have been included with this file.  If this file is
-dnl missing or damaged, see the license at "http://www.cups.org/".
+dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
+dnl information.
 dnl
 
 dnl We need at least autoconf 2.60...
@@ -22,11 +20,19 @@ sinclude(config-scripts/cups-opsys.m4)
 sinclude(config-scripts/cups-common.m4)
 sinclude(config-scripts/cups-compiler.m4)
 sinclude(config-scripts/cups-network.m4)
+sinclude(config-scripts/cups-pam.m4)
 sinclude(config-scripts/cups-poll.m4)
 sinclude(config-scripts/cups-threads.m4)
 sinclude(config-scripts/cups-ssl.m4)
 sinclude(config-scripts/cups-largefile.m4)
 sinclude(config-scripts/cups-dnssd.m4)
+sinclude(config-scripts/cups-directories.m4)
+
+dnl IPP Sample-specific options
+IPP="ipp"
+AC_SUBST(IPP)
+AC_ARG_WITH(name-prefix, [  --with-name-prefix=...  set prefix on command names (default is "ipp")],
+    IPP="$withval",)
 
 dnl Generate a bunch of files...
 AC_OUTPUT(Makedefs)

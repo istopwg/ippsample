@@ -1,15 +1,11 @@
 /*
  * Device support for sample IPP server implementation.
  *
- * Copyright 2010-2015 by Apple Inc.
+ * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2010-2018 by Apple Inc.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more
+ * information.
  */
 
 #include "ippserver.h"
@@ -27,6 +23,8 @@ serverCreateDevice(
   ipp_attribute_t	*uuid;		/* output-device-uuid */
 
 
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverCreateDevice: Finding output-device-uuid.");
+
   if ((uuid = ippFindAttribute(client->request, "output-device-uuid", IPP_TAG_URI)) == NULL)
     return (NULL);
 
@@ -37,6 +35,9 @@ serverCreateDevice(
 
   device->uuid  = strdup(ippGetString(uuid, 0, NULL));
   device->state = IPP_PSTATE_STOPPED;
+  device->attrs = ippNew();
+
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverCreateDevice: Created device object for \"%s\".", device->uuid);
 
   _cupsRWLockWrite(&client->printer->rwlock);
   cupsArrayAdd(client->printer->devices, device);
@@ -53,11 +54,14 @@ serverCreateDevice(
  */
 
 void
-serverDeleteDevice(server_device_t *device)	/* I - Device */
+serverDeleteDevice(
+    server_device_t *device)		/* I - Device */
 {
  /*
   * Free memory used for the device...
   */
+
+  serverLog(SERVER_LOGLEVEL_DEBUG, "Deleting device object for \"%s\".", device->uuid);
 
   _cupsRWDeinit(&device->rwlock);
 
@@ -77,21 +81,28 @@ serverDeleteDevice(server_device_t *device)	/* I - Device */
  */
 
 server_device_t *			/* I - Device */
-serverFindDevice(server_client_t *client)	/* I - Client */
+serverFindDevice(
+    server_client_t *client)		/* I - Client */
 {
   ipp_attribute_t	*uuid;		/* output-device-uuid */
   server_device_t	key,		/* Search key */
 			*device;	/* Matching device */
 
 
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverFindDevice: Looking for output-device-uuid.");
+
   if ((uuid = ippFindAttribute(client->request, "output-device-uuid", IPP_TAG_URI)) == NULL)
     return (NULL);
 
   key.uuid = (char *)ippGetString(uuid, 0, NULL);
 
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverFindDevice: Looking for \"%s\".", key.uuid);
+
   _cupsRWLockRead(&client->printer->rwlock);
   device = (server_device_t *)cupsArrayFind(client->printer->devices, &key);
   _cupsRWUnlock(&client->printer->rwlock);
+
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverFindDevice: Returning device=%p", (void *)device);
 
   return (device);
 }
@@ -111,16 +122,15 @@ serverUpdateDeviceAttributesNoLock(
   ipp_t			*dev_attrs;	/* Device attributes */
 
 
- /* TODO: Support multiple output devices, icons, etc... */
+ /* TODO: Support multiple output devices, icons, etc... (Issue #89) */
   device    = (server_device_t *)cupsArrayFirst(printer->devices);
   dev_attrs = ippNew();
 
   if (device)
-    serverCopyAttributes(dev_attrs, device->attrs, NULL, IPP_TAG_PRINTER, 0);
+    serverCopyAttributes(dev_attrs, device->attrs, NULL, NULL, IPP_TAG_PRINTER, 0);
 
   ippDelete(printer->dev_attrs);
-  printer->dev_attrs = dev_attrs;
-
+  printer->dev_attrs   = dev_attrs;
   printer->config_time = time(NULL);
 }
 
@@ -139,15 +149,15 @@ serverUpdateDeviceStateNoLock(
   ipp_attribute_t	*attr;		/* Current attribute */
 
 
- /* TODO: Support multiple output devices, icons, etc... */
+ /* TODO: Support multiple output devices, icons, etc... (Issue #89) */
   device = (server_device_t *)cupsArrayFirst(printer->devices);
 
-  if ((attr = ippFindAttribute(device->attrs, "printer-state", IPP_TAG_ENUM)) != NULL)
+  if (device && (attr = ippFindAttribute(device->attrs, "printer-state", IPP_TAG_ENUM)) != NULL)
     printer->dev_state = (ipp_pstate_t)ippGetInteger(attr, 0);
   else
     printer->dev_state = IPP_PSTATE_STOPPED;
 
-  if ((attr = ippFindAttribute(device->attrs, "printer-state-reasons", IPP_TAG_KEYWORD)) != NULL)
+  if (device && (attr = ippFindAttribute(device->attrs, "printer-state-reasons", IPP_TAG_KEYWORD)) != NULL)
     printer->dev_reasons = serverGetPrinterStateReasonsBits(attr);
   else
     printer->dev_reasons = SERVER_PREASON_PAUSED;

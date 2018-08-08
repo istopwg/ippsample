@@ -1,0 +1,23 @@
+{
+	NAME "Create-Printer for PCL $device-uri"
+
+	OPERATION Create-Printer
+	VERSION 2.0
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR keyword printer-service-type print
+
+	GROUP printer-attributes-tag
+	ATTR name printer-name PCL
+	ATTR name device-command ipptransform
+	ATTR mimeMediaType device-format application/vnd.hp-pcl
+	ATTR uri device-uri $device-uri
+
+	STATUS successful-ok
+	EXPECT printer-state OF-TYPE enum
+	EXPECT printer-state-reasons OF-TYPE keyword
+	EXPECT printer-xri-supported OF-TYPE collection
+}

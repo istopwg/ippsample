@@ -1,0 +1,21 @@
+#
+# Travis CI configuration file for the IPP sample project.
+#
+# Copyright © 2018 by the IEEE-ISTO Printer Working Group.
+#
+# Licensed under Apache License v2.0.  See the file "LICENSE" for more
+# information.
+#
+
+language: c
+
+matrix:
+  include:
+    # Linux-specific build stuff
+    - os: linux
+      script:
+        - docker build -t ippsample .
+
+    # macOS-specific build stuff
+    - os: osx
+      osx_image: xcode9.4

@@ -1,15 +1,11 @@
 /*
  * Logging support for sample IPP server implementation.
  *
- * Copyright 2015 by Apple Inc.
+ * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2010-2018 by Apple Inc.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more
+ * information.
  */
 
 #include "ippserver.h"
@@ -28,7 +24,7 @@ static int		log_fd = -1;
  * Local functions...
  */
 
-static void server_log_to_file(const char *format, va_list ap);
+static void server_log_to_file(server_loglevel_t level, const char *format, va_list ap);
 
 
 /*
@@ -47,7 +43,7 @@ serverLog(server_loglevel_t level,	/* I - Log level */
     return;
 
   va_start(ap, format);
-  server_log_to_file(format, ap);
+  server_log_to_file(level, format, ap);
   va_end(ap);
 }
 
@@ -87,7 +83,8 @@ serverLogAttributes(
     if (ippGetGroupTag(attr) != group_tag)
     {
       group_tag = ippGetGroupTag(attr);
-      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s %s", title, ippTagString(group_tag));
+      if (group_tag != IPP_TAG_ZERO)
+        serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s %s", title, ippTagString(group_tag));
     }
 
     if (ippGetName(attr))
@@ -126,10 +123,10 @@ serverLogClient(
     else
 #endif /* HAVE_SSL */
     snprintf(temp, sizeof(temp), "[Client %d] %s", client->number, format);
-    server_log_to_file(temp, ap);
+    server_log_to_file(level, temp, ap);
   }
   else
-    server_log_to_file(format, ap);
+    server_log_to_file(level, format, ap);
   va_end(ap);
 }
 
@@ -154,7 +151,7 @@ serverLogJob(
 
   va_start(ap, format);
   snprintf(temp, sizeof(temp), "[Job %d] %s", job->id, format);
-  server_log_to_file(temp, ap);
+  server_log_to_file(level, temp, ap);
   va_end(ap);
 }
 
@@ -179,7 +176,7 @@ serverLogPrinter(
 
   va_start(ap, format);
   snprintf(temp, sizeof(temp), "[Printer %s] %s", printer->name, format);
-  server_log_to_file(temp, ap);
+  server_log_to_file(level, temp, ap);
   va_end(ap);
 }
 
@@ -206,20 +203,54 @@ serverTimeString(time_t tv,		/* I - Time value */
  */
 
 static void
-server_log_to_file(const char *format,	/* I - Printf-style format string */
-                   va_list    ap)	/* I - Pointer to additional arguments */
+server_log_to_file(
+    server_loglevel_t level,		/* I - Log level */
+    const char        *format,		/* I - Printf-style format string */
+    va_list           ap)		/* I - Pointer to additional arguments */
 {
-  char		buffer[8192];		/* Message buffer */
+  char		buffer[8192],		/* Message buffer */
+		*bufptr;		/* Pointer into buffer */
   ssize_t	bytes;			/* Number of bytes in message */
-
-
-  if ((bytes = _cups_safe_vsnprintf(buffer, sizeof(buffer) - 1, format, ap)) > 0)
+  struct timeval curtime;		/* Current time */
+  struct tm	*curdate;		/* Current date and time */
+  static const char * const pris[] =	/* Log priority strings */
   {
-    if (bytes > (sizeof(buffer) - 1))
-      bytes = sizeof(buffer) - 1;
+    "<63>",				/* Error message */
+    "<66>",				/* Informational message */
+    "<67>"				/* Debugging message */
+  };
 
-    if (buffer[bytes - 1] != '\n')
-      buffer[bytes ++] = '\n';
+
+  gettimeofday(&curtime, NULL);
+  curdate = gmtime(&curtime.tv_sec);
+
+  if (LogFile)
+  {
+   /*
+    * When logging to a file, use the syslog format...
+    */
+
+    snprintf(buffer, sizeof(buffer), "%s1 %04d-%02d-%02dT%02d:%02d:%02d.%03dZ %s ippserver %d -  ", pris[level], curdate->tm_year + 1900, curdate->tm_mon + 1, curdate->tm_mday, curdate->tm_hour, curdate->tm_min, curdate->tm_sec, (int)curtime.tv_usec / 1000, ServerName, getpid());
+  }
+  else
+  {
+   /*
+    * Otherwise just include the date and time for convenience...
+    */
+
+    snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ  ", curdate->tm_year + 1900, curdate->tm_mon + 1, curdate->tm_mday, curdate->tm_hour, curdate->tm_min, curdate->tm_sec, (int)curtime.tv_usec / 1000);
+  }
+
+  bufptr = buffer + strlen(buffer);
+
+  if ((bytes = _cups_safe_vsnprintf(bufptr, sizeof(buffer) - (size_t)(bufptr - buffer + 1), format, ap)) > 0)
+  {
+    bufptr += bytes;
+    if (bufptr > (buffer + sizeof(buffer) - 1))
+      bufptr = buffer + sizeof(buffer) - 1;
+
+    if (bufptr > buffer && bufptr[-1] != '\n')
+      *bufptr++ = '\n';
 
     if (log_fd < 0)
     {
@@ -240,6 +271,6 @@ server_log_to_file(const char *format,	/* I - Printf-style format string */
       _cupsMutexUnlock(&log_mutex);
     }
 
-    write(log_fd, buffer, (size_t)bytes);
+    write(log_fd, buffer, (size_t)(bufptr - buffer));
   }
 }

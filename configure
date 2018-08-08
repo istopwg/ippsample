@@ -623,6 +623,11 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+IPP
+CUPS_STATEDIR
+CUPS_SERVERROOT
+CUPS_LOCALEDIR
+CUPS_DATADIR
 IPPFIND_MAN
 IPPFIND_HTML
 IPPFIND_BIN
@@ -636,6 +641,7 @@ CUPS_SERVERKEYCHAIN
 LIBGCRYPTCONFIG
 LIBGNUTLSCONFIG
 PTHREAD_FLAGS
+PAMLIBS
 CUPS_LISTEN_DOMAINSOCKET
 CUPS_DEFAULT_DOMAINSOCKET
 RELROFLAGS
@@ -697,7 +703,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -720,6 +725,7 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
+with_pdfrip
 with_optim
 enable_debug
 enable_debug_guards
@@ -729,6 +735,7 @@ with_archflags
 with_ldarchflags
 enable_relro
 with_domainsocket
+enable_pam
 enable_threads
 enable_ssl
 enable_cdsassl
@@ -738,6 +745,8 @@ enable_avahi
 enable_dnssd
 with_dnssd_libs
 with_dnssd_includes
+with_rundir
+with_name_prefix
 '
       ac_precious_vars='build_alias
 host_alias
@@ -786,7 +795,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1039,15 +1047,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1185,7 +1184,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1338,7 +1337,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -1373,6 +1371,7 @@ Optional Features:
   --disable-debug-printfs  disable CUPS_DEBUG_LOG support
   --enable-unit-tests     build and run unit tests
   --enable-relro          build with the GCC relro option
+  --disable-pam           disable PAM support
   --disable-threads       disable multi-threading support
   --disable-ssl           disable SSL/TLS support
   --enable-cdsassl        use CDSA for SSL/TLS support, default=first
@@ -1384,12 +1383,15 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-pdfrip=...        set PDF RIP to use (auto, coregraphics, mupdf, none)
   --with-optim            set optimization flags
   --with-archflags        set default architecture flags
   --with-ldarchflags      set program architecture flags
   --with-domainsocket     set unix domain socket name
   --with-dnssd-libs       set directory for DNS Service Discovery library
   --with-dnssd-includes   set directory for DNS Service Discovery includes
+  --with-rundir           set transient run-time state directory
+  --with-name-prefix=...  set prefix on command names (default is "ipp")
 
 Some influential environment variables:
   CC          C compiler command
@@ -2263,7 +2265,6 @@ case "$uname" in
 		uname="Linux"
 		;;
 esac
-
 
 
 ac_config_headers="$ac_config_headers config.h"
@@ -4379,23 +4380,8 @@ esac
 
 
 
-IPPTRANSFORM_BIN=""
-IPPTRANSFORM_HTML=""
-IPPTRANSFORM_MAN=""
-
-
-
-
-case $uname in
-        Darwin*)
-                LIBS="-framework SystemConfiguration -framework ApplicationServices -framework CoreFoundation -framework Security $LIBS"
-
-				ac_fn_c_check_header_mongrel "$LINENO" "ApplicationServices/ApplicationServices.h" "ac_cv_header_ApplicationServices_ApplicationServices_h" "$ac_includes_default"
-if test "x$ac_cv_header_ApplicationServices_ApplicationServices_h" = xyes; then :
-  $as_echo "#define HAVE_APPLICATIONSERVICES_H 1" >>confdefs.h
-
-fi
-
+if test "$uname" = Darwin; then
+	LIBS="-framework SystemConfiguration -framework CoreFoundation -framework Security $LIBS"
 
 		ac_fn_c_check_header_mongrel "$LINENO" "CoreFoundation/CoreFoundation.h" "ac_cv_header_CoreFoundation_CoreFoundation_h" "$ac_includes_default"
 if test "x$ac_cv_header_CoreFoundation_CoreFoundation_h" = xyes; then :
@@ -4404,27 +4390,81 @@ if test "x$ac_cv_header_CoreFoundation_CoreFoundation_h" = xyes; then :
 fi
 
 
-		ac_fn_c_check_header_mongrel "$LINENO" "CoreFoundation/CFPriv.h" "ac_cv_header_CoreFoundation_CFPriv_h" "$ac_includes_default"
+	ac_fn_c_check_header_mongrel "$LINENO" "CoreFoundation/CFPriv.h" "ac_cv_header_CoreFoundation_CFPriv_h" "$ac_includes_default"
 if test "x$ac_cv_header_CoreFoundation_CFPriv_h" = xyes; then :
   $as_echo "#define HAVE_CFPRIV_H 1" >>confdefs.h
 
 fi
 
 
-		ac_fn_c_check_header_mongrel "$LINENO" "CoreFoundation/CFBundlePriv.h" "ac_cv_header_CoreFoundation_CFBundlePriv_h" "$ac_includes_default"
+	ac_fn_c_check_header_mongrel "$LINENO" "CoreFoundation/CFBundlePriv.h" "ac_cv_header_CoreFoundation_CFBundlePriv_h" "$ac_includes_default"
 if test "x$ac_cv_header_CoreFoundation_CFBundlePriv_h" = xyes; then :
   $as_echo "#define HAVE_CFBUNDLEPRIV_H 1" >>confdefs.h
 
 fi
 
 
+fi
 
-		IPPTRANSFORM_BIN="ipptransform"
-		IPPTRANSFORM_HTML="ipptransform.html"
-		IPPTRANSFORM_MAN="ipptransform.man"
+IPPTRANSFORM_BIN=""
+IPPTRANSFORM_HTML=""
+IPPTRANSFORM_MAN=""
+
+
+
+
+
+# Check whether --with-pdfrip was given.
+if test "${with_pdfrip+set}" = set; then :
+  withval=$with_pdfrip;
+fi
+
+
+if test "x$with_pdfrip" = x -o "x$with_pdfrip" = xauto; then
+	case $uname in
+		Darwin*)
+			use_pdfrip=coregraphics
+			;;
+		*)
+			use_pdfrip=mupdf
+			;;
+	esac
+else
+	use_pdfrip="$with_pdfrip"
+fi
+
+case "$use_pdfrip" in
+	coregraphics)
+		SAVELIBS="$LIBS"
+		LIBS="-framework CoreGraphics -framework ImageIO $LIBS"
+		ac_fn_c_check_header_mongrel "$LINENO" "CoreGraphics/CoreGraphics.h" "ac_cv_header_CoreGraphics_CoreGraphics_h" "$ac_includes_default"
+if test "x$ac_cv_header_CoreGraphics_CoreGraphics_h" = xyes; then :
+
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: result:     Using CoreGraphics for PDF RIP" >&5
+$as_echo "    Using CoreGraphics for PDF RIP" >&6; }
+
+			$as_echo "#define HAVE_COREGRAPHICS 1" >>confdefs.h
+
+			IPPTRANSFORM_BIN="ipptransform"
+			IPPTRANSFORM_HTML="ipptransform.html"
+			IPPTRANSFORM_MAN="ipptransform.1"
+
+else
+
+			LIBS="$SAVELIBS"
+			if test "x$with_pdfrip" = xcoregraphics; then
+				as_fn_error $? "Unable to enable PDF RIP support." "$LINENO" 5
+			else
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result:     PDF RIP is not available." >&5
+$as_echo "    PDF RIP is not available." >&6; }
+			fi
+
+fi
+
+
 		;;
 
-	*)
+	mupdf)
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing FT_Init_FreeType" >&5
 $as_echo_n "checking for library containing FT_Init_FreeType... " >&6; }
 if ${ac_cv_search_FT_Init_FreeType+:} false; then :
@@ -4537,6 +4577,230 @@ if test "$ac_res" != no; then :
 
 fi
 
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing jbig2_ctx_new" >&5
+$as_echo_n "checking for library containing jbig2_ctx_new... " >&6; }
+if ${ac_cv_search_jbig2_ctx_new+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char jbig2_ctx_new ();
+int
+main ()
+{
+return jbig2_ctx_new ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' mupdfthird jbig2dec; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_jbig2_ctx_new=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_jbig2_ctx_new+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_jbig2_ctx_new+:} false; then :
+
+else
+  ac_cv_search_jbig2_ctx_new=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_jbig2_ctx_new" >&5
+$as_echo "$ac_cv_search_jbig2_ctx_new" >&6; }
+ac_res=$ac_cv_search_jbig2_ctx_new
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing opj_create_decompress" >&5
+$as_echo_n "checking for library containing opj_create_decompress... " >&6; }
+if ${ac_cv_search_opj_create_decompress+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char opj_create_decompress ();
+int
+main ()
+{
+return opj_create_decompress ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' mupdfthird openjp2; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_opj_create_decompress=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_opj_create_decompress+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_opj_create_decompress+:} false; then :
+
+else
+  ac_cv_search_opj_create_decompress=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_opj_create_decompress" >&5
+$as_echo "$ac_cv_search_opj_create_decompress" >&6; }
+ac_res=$ac_cv_search_opj_create_decompress
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing js_getcontext" >&5
+$as_echo_n "checking for library containing js_getcontext... " >&6; }
+if ${ac_cv_search_js_getcontext+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char js_getcontext ();
+int
+main ()
+{
+return js_getcontext ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' mupdfthird; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_js_getcontext=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_js_getcontext+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_js_getcontext+:} false; then :
+
+else
+  ac_cv_search_js_getcontext=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_js_getcontext" >&5
+$as_echo "$ac_cv_search_js_getcontext" >&6; }
+ac_res=$ac_cv_search_js_getcontext
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing hb_buffer_create" >&5
+$as_echo_n "checking for library containing hb_buffer_create... " >&6; }
+if ${ac_cv_search_hb_buffer_create+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char hb_buffer_create ();
+int
+main ()
+{
+return hb_buffer_create ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' mupdfthird harfbuzz; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_hb_buffer_create=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_hb_buffer_create+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_hb_buffer_create+:} false; then :
+
+else
+  ac_cv_search_hb_buffer_create=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_hb_buffer_create" >&5
+$as_echo "$ac_cv_search_hb_buffer_create" >&6; }
+ac_res=$ac_cv_search_hb_buffer_create
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for fz_drop_document in -lmupdf" >&5
 $as_echo_n "checking for fz_drop_document in -lmupdf... " >&6; }
 if ${ac_cv_lib_mupdf_fz_drop_document+:} false; then :
@@ -4575,15 +4839,113 @@ fi
 $as_echo "$ac_cv_lib_mupdf_fz_drop_document" >&6; }
 if test "x$ac_cv_lib_mupdf_fz_drop_document" = xyes; then :
 
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: result:     Using MuPDF for PDF RIP" >&5
+$as_echo "    Using MuPDF for PDF RIP" >&6; }
+
 			$as_echo "#define HAVE_MUPDF 1" >>confdefs.h
 
 			LIBS="-lmupdf $LIBS"
 			IPPTRANSFORM_BIN="ipptransform"
 			IPPTRANSFORM_HTML="ipptransform.html"
-			IPPTRANSFORM_MAN="ipptransform.man"
+			IPPTRANSFORM_MAN="ipptransform.1"
+
+                        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for version of fz_new_pixmap function" >&5
+$as_echo_n "checking for version of fz_new_pixmap function... " >&6; }
+                        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <mupdf/fitz.h>
+int
+main ()
+{
+
+                                fz_pixmap *p = fz_new_pixmap(0,0,100,100,1);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: 5 argument" >&5
+$as_echo "5 argument" >&6; }
+	                         $as_echo "#define HAVE_FZ_NEW_PIXMAP_5_ARG 1" >>confdefs.h
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: 6 argument" >&5
+$as_echo "6 argument" >&6; }
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+                        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for fz_make_matrix function" >&5
+$as_echo_n "checking for fz_make_matrix function... " >&6; }
+                        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <mupdf/fitz.h>
+int
+main ()
+{
+
+                                fz_matrix m = fz_make_matrix(0.0f,1.0f,1.0f,0.0f,0.0f,0.0f);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	                         $as_echo "#define HAVE_FZ_MAKE_MATRIX 1" >>confdefs.h
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+                        { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether MuPDF has ICC support" >&5
+$as_echo_n "checking whether MuPDF has ICC support... " >&6; }
+                        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <mupdf/fitz.h>
+int
+main ()
+{
+
+                                fz_context *ctx = fz_new_context(NULL, NULL, FZ_STORE_UNLIMITED);
+                                fz_set_cmm_engine(ctx, &fz_cmm_engine_lcms);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	                         $as_echo "#define HAVE_FZ_CMM_ENGINE_LCMS 1" >>confdefs.h
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+else
+
+			if test "x$with_pdfrip" = xmupdf; then
+				as_fn_error $? "Unable to enable PDF RIP support." "$LINENO" 5
+			else
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result:     PDF RIP is not available." >&5
+$as_echo "    PDF RIP is not available." >&6; }
+			fi
 
 fi
 
+		;;
+
+	none)
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result:     PDF RIP is disabled." >&5
+$as_echo "    PDF RIP is disabled." >&6; }
+		;;
+
+	*)
+		as_fn_error $? "Unknown --with-pdfrip value." "$LINENO" 5
 		;;
 esac
 
@@ -4642,7 +5004,7 @@ PATH="$SAVEPATH"
 if test "x$CURAENGINE" != x; then
 	IPPTRANSFORM3D_BIN="ipptransform3d"
 	IPPTRANSFORM3D_HTML="ipptransform3d.html"
-	IPPTRANSFORM3D_MAN="ipptransform3d.man"
+	IPPTRANSFORM3D_MAN="ipptransform3d.1"
 
 	cat >>confdefs.h <<_ACEOF
 #define CURAENGINE "$CURAENGINE"
@@ -4857,6 +5219,32 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 	if test "x$with_optim" = x; then
 		# Add useful warning options for tracking down problems...
 		OPTIM="-Wall -Wno-format-y2k -Wunused $OPTIM"
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether compiler supports -Wno-format-truncation" >&5
+$as_echo_n "checking whether compiler supports -Wno-format-truncation... " >&6; }
+		OLDCFLAGS="$CFLAGS"
+		CFLAGS="$CFLAGS -Werror -Wno-format-truncation"
+		cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  OPTIM="$OPTIM -Wno-format-truncation"
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+		CFLAGS="$OLDCFLAGS"
 
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether compiler supports -Wno-unused-result" >&5
 $as_echo_n "checking whether compiler supports -Wno-unused-result... " >&6; }
@@ -5633,6 +6021,159 @@ fi
 
 
 
+# Check whether --enable-pam was given.
+if test "${enable_pam+set}" = set; then :
+  enableval=$enable_pam;
+fi
+
+
+PAMLIBS=""
+
+if test x$enable_pam != xno; then
+	SAVELIBS="$LIBS"
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for dlopen in -ldl" >&5
+$as_echo_n "checking for dlopen in -ldl... " >&6; }
+if ${ac_cv_lib_dl_dlopen+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ldl  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char dlopen ();
+int
+main ()
+{
+return dlopen ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_dl_dlopen=yes
+else
+  ac_cv_lib_dl_dlopen=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_dl_dlopen" >&5
+$as_echo "$ac_cv_lib_dl_dlopen" >&6; }
+if test "x$ac_cv_lib_dl_dlopen" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBDL 1
+_ACEOF
+
+  LIBS="-ldl $LIBS"
+
+fi
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pam_start in -lpam" >&5
+$as_echo_n "checking for pam_start in -lpam... " >&6; }
+if ${ac_cv_lib_pam_pam_start+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpam  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char pam_start ();
+int
+main ()
+{
+return pam_start ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_pam_pam_start=yes
+else
+  ac_cv_lib_pam_pam_start=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_pam_pam_start" >&5
+$as_echo "$ac_cv_lib_pam_pam_start" >&6; }
+if test "x$ac_cv_lib_pam_pam_start" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBPAM 1
+_ACEOF
+
+  LIBS="-lpam $LIBS"
+
+fi
+
+	ac_fn_c_check_header_mongrel "$LINENO" "security/pam_appl.h" "ac_cv_header_security_pam_appl_h" "$ac_includes_default"
+if test "x$ac_cv_header_security_pam_appl_h" = xyes; then :
+  $as_echo "#define HAVE_SECURITY_PAM_APPL_H 1" >>confdefs.h
+
+fi
+
+
+	ac_fn_c_check_header_mongrel "$LINENO" "pam/pam_appl.h" "ac_cv_header_pam_pam_appl_h" "$ac_includes_default"
+if test "x$ac_cv_header_pam_pam_appl_h" = xyes; then :
+  $as_echo "#define HAVE_PAM_PAM_APPL_H 1" >>confdefs.h
+
+fi
+
+
+
+	if test x$ac_cv_lib_pam_pam_start != xno; then
+		# Set the necessary libraries for PAM...
+		if test x$ac_cv_lib_dl_dlopen != xno; then
+			PAMLIBS="-lpam -ldl"
+		else
+			PAMLIBS="-lpam"
+		fi
+
+		# Find the PAM configuration directory, if any...
+		for dir in /private/etc/pam.d /etc/pam.d; do
+			if test -d $dir; then
+				PAMDIR=$dir
+				break;
+			fi
+		done
+	fi
+
+	LIBS="$SAVELIBS"
+
+	case "$host_os_name" in
+		darwin*)
+			# Darwin/macOS
+			$as_echo "#define DEFAULT_PAM_SERVICE \"cups\"" >>confdefs.h
+
+			;;
+
+		*)
+			# All others; this test might need to be updated
+			# as Linux distributors move things around...
+			$as_echo "#define DEFAULT_PAM_SERVICE \"other\"" >>confdefs.h
+
+			;;
+	esac
+fi
+
+
+
 
 ac_fn_c_check_func "$LINENO" "poll" "ac_cv_func_poll"
 if test "x$ac_cv_func_poll" = xyes; then :
@@ -5651,7 +6192,6 @@ if test "x$ac_cv_func_kqueue" = xyes; then :
   $as_echo "#define HAVE_KQUEUE 1" >>confdefs.h
 
 fi
-
 
 
 
@@ -5713,7 +6253,6 @@ $as_echo "$have_pthread" >&6; }
 		done
 	fi
 fi
-
 
 
 
@@ -6082,7 +6621,6 @@ EXPORT_SSLLIBS="$SSLLIBS"
 
 
 
-
 # Check whether --enable-largefile was given.
 if test "${enable_largefile+set}" = set; then :
   enableval=$enable_largefile;
@@ -6108,7 +6646,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6154,7 +6692,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6178,7 +6716,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6223,7 +6761,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6247,7 +6785,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6341,7 +6879,6 @@ fi
 
 
 
-
 # Check whether --enable-avahi was given.
 if test "${enable_avahi+set}" = set; then :
   enableval=$enable_avahi;
@@ -6382,7 +6919,7 @@ $as_echo "yes" >&6; }
 		DNSSDLIBS="`$PKGCONFIG --libs avahi-client`"
 		IPPFIND_BIN="ippfind"
 		IPPFIND_HTML="ippfind.html"
-		IPPFIND_MAN="ippfind.man"
+		IPPFIND_MAN="ippfind.1"
 		$as_echo "#define HAVE_AVAHI 1" >>confdefs.h
 
 	else
@@ -6403,7 +6940,7 @@ if test "x$ac_cv_header_dns_sd_h" = xyes; then :
 				DNSSDLIBS="-framework CoreFoundation -framework SystemConfiguration"
 				IPPFIND_BIN="ippfind"
 				IPPFIND_HTML="ippfind.html"
-				IPPFIND_MAN="ippfind.man"
+				IPPFIND_MAN="ippfind.1"
 				;;
 			*)
 				# All others...
@@ -6434,7 +6971,7 @@ $as_echo "yes" >&6; }
 					DNSSDLIBS="-ldns_sd"
 					IPPFIND_BIN="ippfind"
 					IPPFIND_HTML="ippfind.html"
-					IPPFIND_MAN="ippfind.man"
+					IPPFIND_MAN="ippfind.1"
 					{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 fi
@@ -6452,6 +6989,156 @@ fi
 
 
 
+
+
+if test "$prefix" = "NONE"; then
+	prefix="/usr/local"
+fi
+
+if test "$exec_prefix" = "NONE"; then
+	exec_prefix="$prefix"
+fi
+
+if test "$bindir" = "\${exec_prefix}/bin"; then
+	bindir="$exec_prefix/bin"
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define CUPS_SERVERBIN "$bindir"
+_ACEOF
+
+
+if test "$sbindir" = "\${exec_prefix}/sbin"; then
+	sbindir="$exec_prefix/sbin"
+fi
+
+if test "$datarootdir" = "\${prefix}/share"; then
+	if test "$prefix" = "/"; then
+		datarootdir="/usr/share"
+	else
+		datarootdir="$prefix/share"
+	fi
+fi
+
+if test "$datadir" = "\${prefix}/share"; then
+	if test "$prefix" = "/"; then
+		datadir="/usr/share"
+	else
+		datadir="$prefix/share"
+	fi
+elif test "$datadir" = "\${datarootdir}"; then
+	datadir="$datarootdir"
+fi
+
+if test "$includedir" = "\${prefix}/include" -a "$prefix" = "/"; then
+	includedir="/usr/include"
+fi
+
+if test "$localstatedir" = "\${prefix}/var"; then
+	if test "$prefix" = "/"; then
+		if test "$host_os_name" = darwin; then
+			localstatedir="/private/var"
+		else
+			localstatedir="/var"
+		fi
+	else
+		localstatedir="$prefix/var"
+	fi
+fi
+
+if test "$sysconfdir" = "\${prefix}/etc"; then
+	if test "$prefix" = "/"; then
+		if test "$host_os_name" = darwin; then
+			sysconfdir="/private/etc"
+		else
+			sysconfdir="/etc"
+		fi
+	else
+		sysconfdir="$prefix/etc"
+	fi
+fi
+
+if test "$libdir" = "\${exec_prefix}/lib"; then
+	case "$host_os_name" in
+		linux*)
+			if test -d /usr/lib64 -a ! -d /usr/lib64/fakeroot; then
+				libdir="$exec_prefix/lib64"
+			fi
+			;;
+	esac
+fi
+
+# Data files
+CUPS_DATADIR="$datadir/cups"
+cat >>confdefs.h <<_ACEOF
+#define CUPS_DATADIR "$datadir/cups"
+_ACEOF
+
+
+
+# Locale data
+if test "$localedir" = "\${datarootdir}/locale"; then
+	case "$host_os_name" in
+		linux* | gnu* | *bsd* | darwin*)
+			CUPS_LOCALEDIR="$datarootdir/locale"
+			;;
+
+		*)
+			# This is the standard System V location...
+			CUPS_LOCALEDIR="$exec_prefix/lib/locale"
+			;;
+	esac
+else
+	CUPS_LOCALEDIR="$localedir"
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define CUPS_LOCALEDIR "$CUPS_LOCALEDIR"
+_ACEOF
+
+
+
+# Configuration files
+CUPS_SERVERROOT="$sysconfdir/cups"
+cat >>confdefs.h <<_ACEOF
+#define CUPS_SERVERROOT "$sysconfdir/cups"
+_ACEOF
+
+
+
+# Transient run-time state
+
+# Check whether --with-rundir was given.
+if test "${with_rundir+set}" = set; then :
+  withval=$with_rundir; CUPS_STATEDIR="$withval"
+else
+
+	case "$host_os_name" in
+		darwin*)
+			# Darwin (macOS)
+			CUPS_STATEDIR="$CUPS_SERVERROOT"
+			;;
+		*)
+			# All others
+			CUPS_STATEDIR="$localstatedir/run/cups"
+			;;
+	esac
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define CUPS_STATEDIR "$CUPS_STATEDIR"
+_ACEOF
+
+
+
+
+IPP="ipp"
+
+
+# Check whether --with-name-prefix was given.
+if test "${with_name_prefix+set}" = set; then :
+  withval=$with_name_prefix; IPP="$withval"
+fi
 
 
 ac_config_files="$ac_config_files Makedefs"

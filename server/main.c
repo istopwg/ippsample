@@ -1,15 +1,11 @@
 /*
  * Main entry for IPP Infrastructure Printer sample implementation.
  *
- * Copyright 2010-2017 by Apple Inc.
+ * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2010-2018 by Apple Inc.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
- *
- * This file is subject to the Apple OS-Developed Software exception.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more
+ * information.
  */
 
 #define _MAIN_C_
@@ -33,41 +29,47 @@ main(int  argc,				/* I - Number of command-line args */
 {
   int		i;			/* Looping var */
   char		*opt,			/* Current option character */
-		*authtype = NULL,	/* Type of authentication */
 		*confdir = NULL,	/* Configuration directory */
-                *command = NULL,	/* Command to run with job files */
-		*device_uri = NULL,	/* Device URI */
-		*output_format = NULL,	/* Output format */
-		*name = NULL,		/* Printer name */
-		*location = NULL,	/* Location of printer */
-		*make = NULL,		/* Manufacturer */
-		*model = NULL,		/* Model */
-		*icon = NULL,		/* Icon file */
-		*formats = NULL;	/* Supported formats */
-  int		duplex = 0,		/* Duplex mode */
-		ppm = 0,		/* Pages per minute for mono */
-		ppm_color = 0,		/* Pages per minute for color */
-		pin = 0;		/* PIN printing mode? */
-  char		*proxy_user = NULL;	/* Proxy username */
+		*name = NULL;		/* Printer name */
+  server_pinfo_t pinfo;			/* Printer information */
   server_printer_t *printer;		/* Printer object */
-  ipp_t		*attrs = NULL;		/* Extra printer attributes */
-  cups_array_t	*strings = NULL;	/* Localization files */
 
 
  /*
   * Parse command-line arguments...
   */
 
+  memset(&pinfo, 0, sizeof(pinfo));
+  pinfo.print_group = SERVER_GROUP_NONE;
+  pinfo.proxy_group = SERVER_GROUP_NONE;
+
   for (i = 1; i < argc; i ++)
   {
-    if (argv[i][0] == '-')
+    if (!strcmp(argv[i], "--help"))
+    {
+      usage(0);
+    }
+    else if (!strcmp(argv[i], "--relaxed"))
+    {
+      RelaxedConformance = 1;
+    }
+    else if (!strcmp(argv[i], "--version"))
+    {
+      puts(CUPS_SVERSION);
+    }
+    else if (!strncmp(argv[i], "--", 2))
+    {
+      fprintf(stderr, "ippserver: Unknown option \"%s\".\n", argv[i]);
+      usage(1);
+    }
+    else if (argv[i][0] == '-')
     {
       for (opt = argv[i] + 1; *opt; opt ++)
       {
         switch (*opt)
 	{
           case '2' : /* -2 (enable 2-sided printing) */
-              duplex = 1;
+              pinfo.duplex = 1;
               break;
 
           case 'C' : /* -C config-directory */
@@ -93,11 +95,12 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-	      make = argv[i];
+
+	      pinfo.make = argv[i];
 	      break;
 
           case 'P' : /* -P (PIN printing mode) */
-              pin = 1;
+              pinfo.pin = 1;
               break;
 
 	  case 'a' : /* -a attributes-file */
@@ -105,7 +108,8 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-	      attrs = serverLoadAttributes(argv[i], &authtype, &command, &device_uri, &output_format, &make, &model, &proxy_user, &strings);
+	      if (!serverLoadAttributes(argv[i], &pinfo))
+	        return (1);
 	      break;
 
           case 'c' : /* -c command */
@@ -113,7 +117,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-	      command = argv[i];
+	      pinfo.command = argv[i];
 	      break;
 
 	  case 'd' : /* -d data-directory */
@@ -129,7 +133,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-	      formats = argv[i];
+	      pinfo.document_formats = argv[i];
 	      break;
 
           case 'h' : /* -h (show help) */
@@ -140,7 +144,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-	      icon = argv[i];
+	      pinfo.icon = argv[i];
 	      break;
 
 	  case 'k' : /* -k (keep files) */
@@ -152,7 +156,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-	      location = argv[i];
+	      pinfo.location = argv[i];
 	      break;
 
 	  case 'm' : /* -m model */
@@ -160,7 +164,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-	      model = argv[i];
+	      pinfo.model = argv[i];
 	      break;
 
 	  case 'n' : /* -n hostname */
@@ -191,17 +195,9 @@ main(int  argc,				/* I - Number of command-line args */
               i ++;
               if (i >= argc)
                 usage(1);
-              if (sscanf(argv[i], "%d,%d", &ppm, &ppm_color) < 1)
+              if (sscanf(argv[i], "%d,%d", &pinfo.ppm, &pinfo.ppm_color) < 1)
                 usage(1);
               break;
-
-          case 'u' : /* -u user:pass */
-	      i ++;
-	      if (i >= argc)
-	        usage(1);
-
-	      proxy_user = argv[i];
-	      break;
 
 	  case 'v' : /* -v (be verbose) */
 	      LogLevel ++;
@@ -227,26 +223,10 @@ main(int  argc,				/* I - Number of command-line args */
   if (!DNSSDSubType)
     DNSSDSubType = strdup("_print");
 
-  if (confdir && (name || make || model || location || attrs || command || icon || formats || duplex || pin || ppm || ppm_color))
+  if (confdir && (name || pinfo.make || pinfo.model || pinfo.location || pinfo.attrs || pinfo.command || pinfo.icon || pinfo.document_formats || pinfo.duplex || pinfo.pin || pinfo.ppm || pinfo.ppm_color))
   {
     fputs("ippserver: Cannot specify configuration directory with printer options (-2, -M, -P, -a, -c, -f, -i, -l, -m, -s)\n", stderr);
     usage(1);
-  }
-
-  if (!confdir)
-  {
-   /*
-    * Apply defaults for some of the other options...
-    */
-
-    if (!location)
-      location = (char *)"";
-    if (!make)
-      make = (char *)"Test";
-    if (!model)
-      model = (char *)"Printer";
-    if (!formats)
-      formats = (char *)"application/pdf,image/jpeg,image/pwg-raster";
   }
 
   if (!name && !confdir)
@@ -257,7 +237,7 @@ main(int  argc,				/* I - Number of command-line args */
     * Load the configuration from the specified directory...
     */
 
-    if (!serverLoadConfiguration(confdir))
+    if (!serverCreateSystem(confdir))
       return (1);
   }
   else
@@ -268,14 +248,25 @@ main(int  argc,				/* I - Number of command-line args */
 
     serverLog(SERVER_LOGLEVEL_INFO, "Using default configuration with a single printer.");
 
-    if (!serverFinalizeConfiguration())
+    if (!pinfo.document_formats)
+      pinfo.document_formats = "application/pdf,image/jpeg,image/pwg-raster";
+    if (!pinfo.location)
+      pinfo.location = "";
+    if (!pinfo.make)
+      pinfo.make = "Test";
+    if (!pinfo.model)
+      pinfo.model = "Printer";
+
+    if (!serverCreateSystem(NULL))
       return (1);
 
-    if ((printer = serverCreatePrinter("/ipp/print", name, location, make, model, icon, formats, ppm, ppm_color, duplex, pin, attrs, command, device_uri, output_format, proxy_user, strings)) == NULL)
+    if ((printer = serverCreatePrinter("/ipp/print", name, &pinfo, 1)) == NULL)
       return (1);
 
-    Printers = cupsArrayNew(NULL, NULL);
-    cupsArrayAdd(Printers, printer);
+    printer->state        = IPP_PSTATE_IDLE;
+    printer->is_accepting = 1;
+
+    serverAddPrinter(printer);
   }
 
  /*
@@ -297,13 +288,18 @@ usage(int status)			/* O - Exit status */
 {
   if (!status)
   {
-    puts(CUPS_SVERSION " - Copyright 2010-2017 by Apple Inc. All rights reserved.");
+    puts(CUPS_SVERSION);
+    puts("Copyright (c) 2014-2018 by the IEEE-ISTO Printer Working Group.");
+    puts("Copyright (c) 2010-2018 by Apple Inc.");
     puts("");
   }
 
   puts("Usage: ippserver [options] \"name\"");
   puts("");
   puts("Options:");
+  puts("--help                  Show program help.");
+  puts("--relaxed               Run in relaxed conformance mode.");
+  puts("--version               Show program version.");
   puts("-2                      Supports 2-sided printing (default=1-sided)");
   puts("-C config-directory     Load settings and printers from the specified directory.");
 #ifdef HAVE_SSL
@@ -326,7 +322,6 @@ usage(int status)			/* O - Exit status */
   puts("-p port                 Port number (default=auto)");
   puts("-r subtype              Bonjour service subtype (default=_print)");
   puts("-s speed[,color-speed]  Speed in pages per minute (default=10,0)");
-  puts("-u username:password    Specifies a username and password to require.");
   puts("-v[v]                   Be (very) verbose");
 
   exit(status);

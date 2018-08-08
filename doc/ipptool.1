@@ -1,21 +1,21 @@
 .\"
 .\" ipptool man page.
 .\"
-.\" Copyright 2010-2017 by Apple Inc.
+.\" Copyright © 2014-2017 by the IEEE-ISTO Printer Working Group.
+.\" Copyright © 2010-2017 by Apple Inc.
 .\"
-.\" These coded instructions, statements, and computer programs are the
-.\" property of Apple Inc. and are protected by Federal copyright
-.\" law.  Distribution and use rights are outlined in the file "LICENSE.txt"
-.\" which should have been included with this file.  If this file is
-.\" file is missing or damaged, see the license at "http://www.cups.org/".
+.\" Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
 .\"
-.TH ipptool 1 "CUPS" "4 August 2017" "Apple Inc."
+.TH ipptool 1 "CUPS" "1 November 2017" "Apple Inc."
 .SH NAME
 ipptool \- perform internet printing protocol requests
 .SH SYNOPSIS
 .B ipptool
 [
 .B \-\-help
+] [
+.B \-\-ippserver
+.I filename
 ] [
 .B \-\-stop\-after\-include\-error
 ] [
@@ -91,6 +91,11 @@ The following options are recognized by
 .TP 5
 .B \-\-help
 Shows program help.
+.TP 5
+\fB\-\-ippserver \fIfilename\fR
+Specifies that the test results should be written to the named
+.B ippserver
+attributes file.
 .TP 5
 .B \-\-stop-after-include-error
 Tells
@@ -244,4 +249,5 @@ IANA IPP Registry (http://www.iana.org/assignments/ipp\-registrations),
 PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp)
 RFC 8011 (http://tools.ietf.org/html/rfc8011),
 .SH COPYRIGHT
+Copyright \[co] 2014-2017 by the IEEE-ISTO Printer Working Group.
 Copyright \[co] 2007-2017 by Apple Inc.

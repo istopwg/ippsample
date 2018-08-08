@@ -1,0 +1,39 @@
+version: '2.1'
+services:
+  ippserver:
+    hostname: ippserver
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - './test:/config'
+      - './data/print:/print'
+      - './data/spool:/spool'
+    command: ippserver -C /config -r _print
+
+  ippfind:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ippfind
+    depends_on:
+      - "ippserver"
+
+  ipptest:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - './examples:/examples'
+    working_dir: /examples
+    command: ipptool -V 2.0 -tf document-letter.pdf ipp://ippserver.local:8991/ipp/print/foo ipp-everywhere.test
+    depends_on:
+      - "ippserver"
+
+  ippproxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ippproxy -d ipp://ippserver.local:8991/ipp/print/foo ipp://ippserver.local:8991/ipp/print/bar
+    depends_on:
+      - "ippserver"

@@ -1,16 +1,11 @@
 #
-# "$Id$"
+# IPP/1.1 test suite.
 #
-#   IPP/1.1 test suite.
+# Copyright © 2007-2017 by Apple Inc.
+# Copyright © 2001-2006 by Easy Software Products. All rights reserved.
 #
-#   Copyright 2007-2015 by Apple Inc.
-#   Copyright 2001-2006 by Easy Software Products. All rights reserved.
-#
-#   These coded instructions, statements, and computer programs are the
-#   property of Apple Inc. and are protected by Federal copyright
-#   law.  Distribution and use rights are outlined in the file "LICENSE.txt"
-#   which should have been included with this file.  If this file is
-#   file is missing or damaged, see the license at "http://www.cups.org/".
+# Licensed under Apache License v2.0.  See the file "LICENSE" for more
+# information.
 #
 # Usage:
 #
@@ -30,9 +25,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test that a request-id value of 0 is not accepted.
 #
-# Required by: RFC 2911 section 3.1.1
+# Required by: RFC 8011 section 4.1.1
 {
-	NAME "RFC 2911 section 3.1.1: Bad request-id value 0"
+	NAME "RFC 8011 section 4.1.1: Bad request-id value 0"
 	REQUEST-ID 0
 	OPERATION Get-Printer-Attributes
 	GROUP operation-attributes-tag
@@ -48,9 +43,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 # Test that the first two attributes must be attributes-charset and
 # attributes-natural-language.
 #
-# Required by: RFC 2911 section 3.1.4
+# Required by: RFC 8011 section 4.1.4
 {
-	NAME "RFC 2911 section 3.1.4: No Operation Attributes"
+	NAME "RFC 8011 section 4.1.4: No Operation Attributes"
 	REQUEST-ID random
 	OPERATION Get-Printer-Attributes
 	GROUP operation-attributes-tag
@@ -59,7 +54,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	EXPECT !printer-uri-supported
 }
 {
-	NAME "RFC 2911 section 3.1.4: attributes-charset"
+	NAME "RFC 8011 section 4.1.4: attributes-charset"
 	OPERATION Get-Printer-Attributes
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -69,7 +64,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	EXPECT !printer-uri-supported
 }
 {
-	NAME "RFC 2911 section 3.1.4: attributes-natural-language"
+	NAME "RFC 8011 section 4.1.4: attributes-natural-language"
 	OPERATION Get-Printer-Attributes
 	GROUP operation-attributes-tag
 	ATTR naturalLanguage attributes-natural-language en
@@ -79,7 +74,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	EXPECT !printer-uri-supported
 }
 {
-	NAME "RFC 2911 section 3.1.4: attributes-natural-language + attributes-charset"
+	NAME "RFC 8011 section 4.1.4: attributes-natural-language + attributes-charset"
 	OPERATION Get-Printer-Attributes
 	GROUP operation-attributes-tag
 	ATTR naturalLanguage attributes-natural-language en
@@ -90,7 +85,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	EXPECT !printer-uri-supported
 }
 {
-	NAME "RFC 2911 section 3.1.4: attributes-charset + attributes-natural-language"
+	NAME "RFC 8011 section 4.1.4: attributes-charset + attributes-natural-language"
 	OPERATION Get-Printer-Attributes
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -104,10 +99,10 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test that bad IPP versions are not supported.
 #
-# Required by: RFC 2911 section 3.1.8
+# Required by: RFC 8011 section 4.1.8
 {
 	# The name of the test...
-	NAME "RFC 2911 section 3.1.8: Unsupported IPP version 0.0"
+	NAME "RFC 8011 section 4.1.8: Unsupported IPP version 0.0"
 	VERSION 0.0
 	OPERATION Get-Printer-Attributes
 	GROUP operation-attributes-tag
@@ -122,9 +117,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test that printer operations require the printer-uri operation attribute.
 #
-# Required by: RFC 2911 section 3.2
+# Required by: RFC 8011 section 4.2
 {
-	NAME "RFC 2911 section 3.2: No printer-uri operation attribute"
+	NAME "RFC 8011 section 4.2: No printer-uri operation attribute"
 	OPERATION Get-Printer-Attributes
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -137,9 +132,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Print-Job operation
 #
-# Required by: RFC 2911 section 3.2.1
+# Required by: RFC 8011 section 4.2.1
 {
-	NAME "RFC 2911 section 3.2.1: Print-Job Operation"
+	NAME "RFC 8011 section 4.2.1: Print-Job Operation"
 	OPERATION Print-Job
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -172,9 +167,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Validate-Job operation
 #
-# Required by: RFC 2911 section 3.2.3
+# Required by: RFC 8011 section 4.2.3
 {
-	NAME "RFC 2911 section 3.2.3: Validate-Job Operation"
+	NAME "RFC 8011 section 4.2.3: Validate-Job Operation"
 	OPERATION Validate-Job
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -193,9 +188,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Get-Printer-Attributes operation
 #
-# Required by: RFC 2911 section 3.2.5
+# Required by: RFC 8011 section 4.2.5
 {
-	NAME "RFC 2911 section 3.2.5: Get-Printer-Attributes Operation (default)"
+	NAME "RFC 8011 section 4.2.5: Get-Printer-Attributes Operation (default)"
 	OPERATION Get-Printer-Attributes
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -337,9 +332,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Get-Printer-Attributes operation with requested-attributes
 #
-# Required by: RFC 2911 section 3.2.5
+# Required by: RFC 8011 section 4.2.5
 {
-	NAME "RFC 2911 section 3.2.5: Get-Printer-Attributes Operation (requested-attributes)"
+	NAME "RFC 8011 section 4.2.5: Get-Printer-Attributes Operation (requested-attributes)"
 	OPERATION Get-Printer-Attributes
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -358,9 +353,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Get-Jobs operation
 #
-# Required by: RFC 2911 section 3.2.6
+# Required by: RFC 8011 section 4.2.6
 {
-	NAME "RFC 2911 section 3.2.6: Get-Jobs Operation (default)"
+	NAME "RFC 8011 section 4.2.6: Get-Jobs Operation (default)"
 	OPERATION Get-Jobs
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -415,11 +410,11 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Get-Jobs operation
 #
-# Required by: RFC 2911 section 3.2.6
+# Required by: RFC 8011 section 4.2.6
 {
 	SKIP-IF-DEFINED PRINT_JOB_COMPLETED
 
-	NAME "RFC 2911 section 3.2.6: Get-Jobs Operation (requested-attributes)"
+	NAME "RFC 8011 section 4.2.6: Get-Jobs Operation (requested-attributes)"
 	OPERATION Get-Jobs
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -450,12 +445,12 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	EXPECT ?date-time-at-completed OF-TYPE no-value|dateTime IN-GROUP job-attributes-tag COUNT 1
 	EXPECT ?number-of-intervening-jobs OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
 	EXPECT ?job-message-from-operator OF-TYPE text IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-k-octets OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-impressions OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-media-sheets OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-k-octets-processed OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-impressions-completed OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-media-sheets-completed OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-k-octets OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-impressions OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-media-sheets OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-k-octets-processed OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-impressions-completed OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-media-sheets-completed OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
 
 	EXPECT ?copies OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
 	EXPECT ?finishings OF-TYPE enum IN-GROUP job-attributes-tag
@@ -475,11 +470,11 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Get-Jobs operation
 #
-# Required by: RFC 2911 section 3.2.6
+# Required by: RFC 8011 section 4.2.6
 {
 	SKIP-IF-DEFINED PRINT_JOB_COMPLETED
 
-	NAME "RFC 2911 section 3.2.6: Get-Jobs Operation (my-jobs)"
+	NAME "RFC 8011 section 4.2.6: Get-Jobs Operation (my-jobs)"
 	OPERATION Get-Jobs
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -535,7 +530,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Get-Jobs operation
 #
-# Required by: RFC 2911 section 3.2.6
+# Required by: RFC 8011 section 4.2.6
 {
 	SKIP-IF-DEFINED PRINT_JOB_COMPLETED
 
@@ -543,7 +538,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	# use the authenticated username over the requesting-user-name value.
 	SKIP-IF-DEFINED uriuser
 
-	NAME "RFC 2911 section 3.2.6: Get-Jobs Operation (my-jobs different user)"
+	NAME "RFC 8011 section 4.2.6: Get-Jobs Operation (my-jobs different user)"
 	OPERATION Get-Jobs
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -599,11 +594,11 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Get-Jobs operation
 #
-# Required by: RFC 2911 section 3.2.6
+# Required by: RFC 8011 section 4.2.6
 {
 	SKIP-IF-DEFINED PRINT_JOB_COMPLETED
 
-	NAME "RFC 2911 section 3.2.6: Get-Jobs Operation (which-jobs=not-completed)"
+	NAME "RFC 8011 section 4.2.6: Get-Jobs Operation (which-jobs=not-completed)"
 	OPERATION Get-Jobs
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -678,9 +673,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Get-Jobs operation
 #
-# Required by: RFC 2911 section 3.2.6
+# Required by: RFC 8011 section 4.2.6
 {
-	NAME "RFC 2911 section 3.2.6: Get-Jobs Operation (which-jobs=completed)"
+	NAME "RFC 8011 section 4.2.6: Get-Jobs Operation (which-jobs=completed)"
 	OPERATION Get-Jobs
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -736,11 +731,11 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Get-Jobs operation
 #
-# Required by: RFC 2911 section 3.2.6
+# Required by: RFC 8011 section 4.2.6
 {
 	SKIP-IF-DEFINED PRINT_JOB_COMPLETED
 
-	NAME "RFC 2911 section 3.2.6: Get-Jobs Operation (which-jobs, requested-attributes)"
+	NAME "RFC 8011 section 4.2.6: Get-Jobs Operation (which-jobs, requested-attributes)"
 	OPERATION Get-Jobs
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -772,12 +767,12 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	EXPECT ?date-time-at-completed OF-TYPE no-value|dateTime IN-GROUP job-attributes-tag COUNT 1
 	EXPECT ?number-of-intervening-jobs OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
 	EXPECT ?job-message-from-operator OF-TYPE text IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-k-octets OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-impressions OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-media-sheets OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-k-octets-processed OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-impressions-completed OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-media-sheets-completed OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-k-octets OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-impressions OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-media-sheets OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-k-octets-processed OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-impressions-completed OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-media-sheets-completed OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
 
 	EXPECT ?copies OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
 	EXPECT ?finishings OF-TYPE enum IN-GROUP job-attributes-tag
@@ -797,9 +792,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Cancel-Job operation
 #
-# Required by: RFC 2911 section 3.3.3
+# Required by: RFC 8011 section 4.3.3
 {
-	NAME "RFC 2911 section 3.3.3: Cancel-Job Operation (completed job)"
+	NAME "RFC 8011 section 4.3.3: Cancel-Job Operation (completed job)"
 	OPERATION Cancel-Job
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -814,9 +809,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Print-Job operation
 #
-# Required by: RFC 2911 section 3.2.1
+# Required by: RFC 8011 section 4.2.1
 {
-	NAME "RFC 2911 section 3.2.1: Print-Job Operation"
+	NAME "RFC 8011 section 4.2.1: Print-Job Operation"
 	OPERATION Print-Job
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -849,9 +844,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Cancel-Job operation
 #
-# Required by: RFC 2911 section 3.3.3
+# Required by: RFC 8011 section 4.3.3
 {
-	NAME "RFC 2911 section 3.3.3: Cancel-Job Operation (pending/processing job)"
+	NAME "RFC 8011 section 4.3.3: Cancel-Job Operation (pending/processing job)"
 	OPERATION Cancel-Job
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -867,9 +862,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Get-Job-Attributes operation
 #
-# Required by: RFC 2911 section 3.3.4
+# Required by: RFC 8011 section 4.3.4
 {
-	NAME "RFC 2911 section 3.3.4: Get-Job-Attributes Operation"
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
 	OPERATION Get-Job-Attributes
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -900,12 +895,12 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	EXPECT ?date-time-at-completed OF-TYPE no-value|dateTime IN-GROUP job-attributes-tag COUNT 1
 	EXPECT ?number-of-intervening-jobs OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
 	EXPECT ?job-message-from-operator OF-TYPE text IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-k-octets OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-impressions OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-media-sheets OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-k-octets-processed OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-impressions-completed OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
-	EXPECT ?job-media-sheets-completed OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-k-octets OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-impressions OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-media-sheets OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-k-octets-processed OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-impressions-completed OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT ?job-media-sheets-completed OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
 
 	EXPECT ?copies OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
 	EXPECT ?finishings OF-TYPE enum IN-GROUP job-attributes-tag
@@ -925,12 +920,12 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Print-URI operation
 #
-# Defined by: RFC 2911 section 3.2.2
+# Defined by: RFC 8011 section 4.2.2
 {
 	SKIP-IF-NOT-DEFINED OPTIONAL_PRINT_URI
 	SKIP-IF-NOT-DEFINED document-uri
 
-	NAME "RFC 2911 section 3.2.2: Print-URI Operation"
+	NAME "RFC 8011 section 4.2.2: Print-URI Operation"
 	OPERATION Print-URI
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -961,7 +956,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Print-URI operation with bad document-uri
 #
-# Defined by: RFC 2911 section 3.2.2
+# Defined by: RFC 8011 section 4.2.2
 {
 	SKIP-IF-NOT-DEFINED OPTIONAL_PRINT_URI
 	SKIP-IF-NOT-DEFINED document-uri
@@ -991,12 +986,12 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Create-Job and Send-Document operations
 #
-# Defined by: RFC 2911 section 3.2.4 and 3.3.1
+# Defined by: RFC 8011 section 4.2.4 and 4.3.1
 {
 	SKIP-IF-NOT-DEFINED OPTIONAL_CREATE_JOB
 	SKIP-IF-NOT-DEFINED OPTIONAL_SEND_DOCUMENT
 
-	NAME "RFC 2911 section 3.2.4: Create-Job Operation"
+	NAME "RFC 8011 section 4.2.4: Create-Job Operation"
 	OPERATION Create-Job
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -1024,7 +1019,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	SKIP-IF-NOT-DEFINED OPTIONAL_SEND_DOCUMENT
 	SKIP-PREVIOUS-ERROR yes
 
-	NAME "RFC 2911 section 3.3.1: Send-Document Operation"
+	NAME "RFC 8011 section 4.3.1: Send-Document Operation"
 	OPERATION Send-Document
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -1045,7 +1040,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Create-Job and Send-Document operations (no last-document)
 #
-# Defined by: RFC 2911 section 3.2.4 and 3.3.1
+# Defined by: RFC 8011 section 4.2.4 and 4.3.1
 {
 	SKIP-IF-NOT-DEFINED OPTIONAL_CREATE_JOB
 	SKIP-IF-NOT-DEFINED OPTIONAL_SEND_DOCUMENT
@@ -1099,7 +1094,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	SKIP-IF-NOT-DEFINED OPTIONAL_SEND_DOCUMENT
 	SKIP-PREVIOUS-ERROR yes
 
-	NAME "RFC 2911 section 3.3.3: Cancel-Job Operation"
+	NAME "RFC 8011 section 4.3.3: Cancel-Job Operation"
 	OPERATION Cancel-Job
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -1114,13 +1109,13 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Create-Job and Send-URI operations
 #
-# Defined by: RFC 2911 section 3.2.4 and 3.3.2
+# Defined by: RFC 8011 section 4.2.4 and 4.3.2
 {
 	SKIP-IF-NOT-DEFINED OPTIONAL_CREATE_JOB
 	SKIP-IF-NOT-DEFINED OPTIONAL_SEND_URI
 	SKIP-IF-NOT-DEFINED document-uri
 
-	NAME "RFC 2911 section 3.2.4: Create-Job Operation"
+	NAME "RFC 8011 section 4.2.4: Create-Job Operation"
 	OPERATION Create-Job
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -1149,7 +1144,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	SKIP-IF-NOT-DEFINED document-uri
 	SKIP-PREVIOUS-ERROR yes
 
-	NAME "RFC 2911 section 3.3.2: Send-URI Operation"
+	NAME "RFC 8011 section 4.3.2: Send-URI Operation"
 	OPERATION Send-URI
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -1169,7 +1164,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 
 # Test Create-Job and Send-URI operations (bad URI)
 #
-# Defined by: RFC 2911 section 3.2.4 and 3.3.2
+# Defined by: RFC 8011 section 4.2.4 and 4.3.2
 {
 	SKIP-IF-NOT-DEFINED OPTIONAL_CREATE_JOB
 	SKIP-IF-NOT-DEFINED OPTIONAL_SEND_URI
@@ -2343,8 +2338,3 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	STATUS successful-ok
 	STATUS client-error-not-possible
 }
-
-
-#
-# End of "$Id$".
-#

@@ -1,0 +1,4 @@
+.git* export-ignore
+.mailmap export-ignore
+.travis.yml export-ignore
+scripts export-ignore

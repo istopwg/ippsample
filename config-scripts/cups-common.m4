@@ -1,14 +1,12 @@
 dnl
 dnl Common configuration stuff for CUPS.
 dnl
-dnl Copyright 2007-2017 by Apple Inc.
-dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
+dnl Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
+dnl Copyright © 2007-2018 by Apple Inc.
+dnl Copyright © 1997-2007 by Easy Software Products, all rights reserved.
 dnl
-dnl These coded instructions, statements, and computer programs are the
-dnl property of Apple Inc. and are protected by Federal copyright
-dnl law.  Distribution and use rights are outlined in the file "LICENSE.txt"
-dnl which should have been included with this file.  If this file is
-dnl missing or damaged, see the license at "http://www.cups.org/".
+dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
+dnl information.
 dnl
 
 dnl Set the name of the config header file...
@@ -166,6 +164,16 @@ esac
 AC_SUBST(ARFLAGS)
 
 dnl Extra platform-specific libraries...
+if test "$uname" = Darwin; then
+	LIBS="-framework SystemConfiguration -framework CoreFoundation -framework Security $LIBS"
+
+	dnl Check for framework headers...
+	AC_CHECK_HEADER(CoreFoundation/CoreFoundation.h,AC_DEFINE(HAVE_COREFOUNDATION_H))
+	AC_CHECK_HEADER(CoreFoundation/CFPriv.h,AC_DEFINE(HAVE_CFPRIV_H))
+	AC_CHECK_HEADER(CoreFoundation/CFBundlePriv.h,AC_DEFINE(HAVE_CFBUNDLEPRIV_H))
+fi
+
+dnl Transform utility...
 IPPTRANSFORM_BIN=""
 IPPTRANSFORM_HTML=""
 IPPTRANSFORM_MAN=""
@@ -173,31 +181,94 @@ AC_SUBST(IPPTRANSFORM_BIN)
 AC_SUBST(IPPTRANSFORM_HTML)
 AC_SUBST(IPPTRANSFORM_MAN)
 
-case $uname in
-        Darwin*)
-                LIBS="-framework SystemConfiguration -framework ApplicationServices -framework CoreFoundation -framework Security $LIBS"
+AC_ARG_WITH(pdfrip, [  --with-pdfrip=...        set PDF RIP to use (auto, coregraphics, mupdf, none)])
 
-		dnl Check for framework headers...
-		AC_CHECK_HEADER(ApplicationServices/ApplicationServices.h,AC_DEFINE(HAVE_APPLICATIONSERVICES_H))
-		AC_CHECK_HEADER(CoreFoundation/CoreFoundation.h,AC_DEFINE(HAVE_COREFOUNDATION_H))
-		AC_CHECK_HEADER(CoreFoundation/CFPriv.h,AC_DEFINE(HAVE_CFPRIV_H))
-		AC_CHECK_HEADER(CoreFoundation/CFBundlePriv.h,AC_DEFINE(HAVE_CFBUNDLEPRIV_H))
+if test "x$with_pdfrip" = x -o "x$with_pdfrip" = xauto; then
+	case $uname in
+		Darwin*)
+			use_pdfrip=coregraphics
+			;;
+		*)
+			use_pdfrip=mupdf
+			;;
+	esac
+else
+	use_pdfrip="$with_pdfrip"
+fi
 
-		IPPTRANSFORM_BIN="ipptransform"
-		IPPTRANSFORM_HTML="ipptransform.html"
-		IPPTRANSFORM_MAN="ipptransform.man"
+case "$use_pdfrip" in
+	coregraphics)
+		SAVELIBS="$LIBS"
+		LIBS="-framework CoreGraphics -framework ImageIO $LIBS"
+		AC_CHECK_HEADER(CoreGraphics/CoreGraphics.h,[
+			AC_MSG_RESULT([    Using CoreGraphics for PDF RIP])
+
+			AC_DEFINE(HAVE_COREGRAPHICS)
+			IPPTRANSFORM_BIN="ipptransform"
+			IPPTRANSFORM_HTML="ipptransform.html"
+			IPPTRANSFORM_MAN="ipptransform.1"
+		],[
+			LIBS="$SAVELIBS"
+			if test "x$with_pdfrip" = xcoregraphics; then
+				AC_MSG_ERROR([Unable to enable PDF RIP support.])
+			else
+				AC_MSG_RESULT([    PDF RIP is not available.])
+			fi
+		])
 		;;
 
-	*)
+	mupdf)
 		AC_SEARCH_LIBS(FT_Init_FreeType, mupdfthird freetype)
 		AC_SEARCH_LIBS(jpeg_destroy_decompress, mupdfthird jpeg)
+		AC_SEARCH_LIBS(jbig2_ctx_new, mupdfthird jbig2dec)
+		AC_SEARCH_LIBS(opj_create_decompress, mupdfthird openjp2)
+		AC_SEARCH_LIBS(js_getcontext, mupdfthird)
+		AC_SEARCH_LIBS(hb_buffer_create, mupdfthird harfbuzz)
 		AC_CHECK_LIB(mupdf, fz_drop_document,[
+			AC_MSG_RESULT([    Using MuPDF for PDF RIP])
+
 			AC_DEFINE(HAVE_MUPDF)
 			LIBS="-lmupdf $LIBS"
 			IPPTRANSFORM_BIN="ipptransform"
 			IPPTRANSFORM_HTML="ipptransform.html"
-			IPPTRANSFORM_MAN="ipptransform.man"
+			IPPTRANSFORM_MAN="ipptransform.1"
+
+                        AC_MSG_CHECKING(for version of fz_new_pixmap function)
+                        AC_TRY_COMPILE([#include <mupdf/fitz.h>],[
+                                fz_pixmap *p = fz_new_pixmap(0,0,100,100,1);],
+                             	[AC_MSG_RESULT(5 argument)
+	                         AC_DEFINE(HAVE_FZ_NEW_PIXMAP_5_ARG)],
+	                        [AC_MSG_RESULT(6 argument)])
+
+                        AC_MSG_CHECKING(for fz_make_matrix function)
+                        AC_TRY_COMPILE([#include <mupdf/fitz.h>],[
+                                fz_matrix m = fz_make_matrix(0.0f,1.0f,1.0f,0.0f,0.0f,0.0f);],
+                             	[AC_MSG_RESULT(yes)
+	                         AC_DEFINE(HAVE_FZ_MAKE_MATRIX)],
+	                        [AC_MSG_RESULT(no)])
+
+                        AC_MSG_CHECKING(whether MuPDF has ICC support)
+                        AC_TRY_LINK([#include <mupdf/fitz.h>],[
+                                fz_context *ctx = fz_new_context(NULL, NULL, FZ_STORE_UNLIMITED);
+                                fz_set_cmm_engine(ctx, &fz_cmm_engine_lcms);],
+                             	[AC_MSG_RESULT(yes)
+	                         AC_DEFINE(HAVE_FZ_CMM_ENGINE_LCMS)],
+	                        [AC_MSG_RESULT(no)])
+		],[
+			if test "x$with_pdfrip" = xmupdf; then
+				AC_MSG_ERROR([Unable to enable PDF RIP support.])
+			else
+				AC_MSG_RESULT([    PDF RIP is not available.])
+			fi
 		])
+		;;
+
+	none)
+		AC_MSG_RESULT([    PDF RIP is disabled.])
+		;;
+
+	*)
+		AC_MSG_ERROR([Unknown --with-pdfrip value.])
 		;;
 esac
 
@@ -217,7 +288,7 @@ PATH="$SAVEPATH"
 if test "x$CURAENGINE" != x; then
 	IPPTRANSFORM3D_BIN="ipptransform3d"
 	IPPTRANSFORM3D_HTML="ipptransform3d.html"
-	IPPTRANSFORM3D_MAN="ipptransform3d.man"
+	IPPTRANSFORM3D_MAN="ipptransform3d.1"
 
 	AC_DEFINE_UNQUOTED(CURAENGINE, "$CURAENGINE")
 fi
