@@ -47,7 +47,7 @@ ipptransform \- convert document data to alternate formats
 converts the input file into the output format and optionally sends the output to a network printer.
 .B ipptransform
 is normally run by
-.BR ippserver (1)
+.BR ippserver (8)
 to convert document data for printing.
 .SH OPTIONS
 The following options are recognized by
@@ -194,6 +194,10 @@ Convert a JPEG file to sRGB PWG Raster at 600dpi:
     ipptransform -m image/pwg-raster -r 600dpi -t sgray_8,srgb_8 \\
         filename.jpg >filename.ras
 .fi
+.SH SEE ALSO
+.BR ippserver (8),
+.BR ipptool (1)
+.BR ipptransform3d (1),
 .SH COPYRIGHT
 Copyright \[co] 2016-2018 by the IEEE-ISTO Printer Working Group.
 Copyright \[co] 2016-2018 by Apple Inc.
