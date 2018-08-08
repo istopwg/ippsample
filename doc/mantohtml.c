@@ -1161,7 +1161,7 @@ html_fputs(const char *s,		/* I  - String */
         html_putc(*s++, fp);
       }
     }
-    else if (!strncmp(s, "http://", 7) || !strncmp(s, "https://", 8) || !strncmp(s, "ftp://", 6))
+    else if ((!strncmp(s, "http://", 7) || !strncmp(s, "https://", 8) || !strncmp(s, "ftp://", 6)) && !strnstr(s, ".local", strlen(s)))
     {
      /*
       * Embed URL...
