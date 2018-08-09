@@ -25,6 +25,10 @@
 
 static int	Verbosity = 0;		/* Log level */
 
+static int num_copies = 1;
+static int number_up = 1;
+static int sides = 1;
+
 enum rasterId /* Used to differentiate between different raster formats */
 {
   PWG,
@@ -184,6 +188,34 @@ main(int  argc,				/* I - Number of command-line arguments */
       usage(1);
   }
 
+  if (getenv("PRINTER_COPIES_DEFAULT") != NULL)
+    sscanf(getenv("PRINTER_COPIES_DEFAULT"), "%d", &num_copies);
+  if (getenv("PRINTER_NUMBER_UP_DEFAULT") != NULL)
+    sscanf(getenv("PRINTER_NUMBER_UP_DEFAULT"), "%d", &number_up);
+  if (getenv("PRINTER_SIDES_DEFAULT") != NULL) {
+	  if (!strcmp(getenv("PRINTER_SIDES_DEFAULT"), "two-sided"))
+		  sides = 2;
+	  else
+		  sides = 1;
+  }
+
+	for (int j=0; j<num_options; j++)
+	{
+    if (!strcmp(options[j].name, "CUPS_COPIES"))
+			sscanf(options[j].value, "%d", &num_copies);
+    else if(!strcmp(options[j].name, "CUPS_NUMBER_UP"))
+      sscanf(options[j].value, "%d", &number_up);
+    else if(!strcmp(options[j].name, "CUPS_SIDES"))
+    {
+      if (!strcmp(options[j].value, "two-sided"))
+        sides = 2;
+      else
+        sides = 1;
+    }
+    else
+		  continue;
+	}
+
  /*
   * Check that we have everything we need...
   */
@@ -328,12 +360,12 @@ lint_jpeg(const char    *filename,	/* I - File to check */
           cups_option_t *options)	/* I - Options */
 {
   doclint_data_t data = {0};
-  data.job_impressions = 1;
-  data.job_impressions_col.full_color = 1;
-  data.job_media_sheets = 1;
-  data.job_media_sheets_col.full_color = 1;
   data.job_pages = 1;
   data.job_pages_col.full_color = 1;
+  data.job_impressions = (int) ceil(num_copies * data.job_pages * 1.0 / number_up);
+  data.job_impressions_col.full_color = data.job_impressions;
+  data.job_media_sheets = (int) ceil(data.job_impressions * 1.0 / sides);
+  data.job_media_sheets_col.full_color = data.job_media_sheets;
 
   /*
    * This struct contains the JPEG decompression parameters and pointers to
@@ -422,12 +454,12 @@ lint_jpeg(const char    *filename,	/* I - File to check */
     fprintf(stderr, "DEBUG: File lint complete, no errors found\n");
   }
 
-  data.job_impressions_completed = 1;
-  data.job_impressions_completed_col.full_color = 1;
-  data.job_media_sheets_completed = 1;
-  data.job_media_sheets_completed_col.full_color = 1;
-	data.job_pages_completed = 1;
-	data.job_pages_completed_col.full_color = 1;
+  data.job_impressions_completed = data.job_impressions;
+  data.job_impressions_completed_col = data.job_impressions_col;
+  data.job_media_sheets_completed = data.job_media_sheets_completed;
+  data.job_media_sheets_completed_col = data.job_impressions_completed_col;
+	data.job_pages_completed = data.job_pages;
+	data.job_pages_completed_col = data.job_pages_col;
 
   print_attr_messages(&data);
 
@@ -620,19 +652,19 @@ lint_pdf(const char    *filename,	/* I - File to check */
     return (1);
   }
   data.job_pages = page_count;
-  data.job_media_sheets = page_count;
-  data.job_impressions = page_count;
+  data.job_impressions = (int) ceil(num_copies * data.job_pages * 1.0 / number_up);
+  data.job_media_sheets = (int) ceil(data.job_impressions * 1.0 / sides);
   if (fz_colorspace_type(context, fz_document_output_intent(context, document)) == FZ_COLORSPACE_GRAY)
   {
-    data.job_pages_col.monochrome = page_count;
-    data.job_media_sheets_col.monochrome = page_count;
-    data.job_impressions_col.monochrome = page_count;
+    data.job_pages_col.monochrome = data.job_pages;
+    data.job_media_sheets_col.monochrome = data.job_media_sheets;
+    data.job_impressions_col.monochrome = data.job_impressions;
   }
   else
   {
-	  data.job_pages_col.full_color = page_count;
-	  data.job_media_sheets_col.full_color = page_count;
-	  data.job_impressions_col.full_color = page_count;
+	  data.job_pages_col.full_color = data.job_pages;
+	  data.job_media_sheets_col.full_color = data.job_media_sheets;
+	  data.job_impressions_col.full_color = data.job_impressions;
   }
   fprintf(stderr, "DEBUG: The document has %d pages\n", page_count);
 
@@ -1695,7 +1727,7 @@ lint_raster(const char    *filename,	/* I - File to check */
     return (1);
 
 	data.job_pages = header.cupsInteger[0];
-	data.job_impressions = header.cupsInteger[0] * header.NumCopies; // TODO Missing Number-Up
+	data.job_impressions = (int) ceil(num_copies * data.job_pages * 1.0 / number_up);
 	if (header.Duplex)
 	{
 		data.job_media_sheets = (int) ceil(data.job_impressions / 2.0);
