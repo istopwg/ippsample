@@ -25,9 +25,9 @@
 
 static int	Verbosity = 0;		/* Log level */
 
-static int num_copies = 1;
-static int number_up = 1;
-static int sides = 1;
+static int num_copies = 1; /* Number of copies as set by a job or the printer */
+static int number_up = 1; /* Number-Up as set by a job or the printer */
+static int sides = 1; /* 1 for one-sided, 2 for two-sided duplex printing */
 
 enum rasterId /* Used to differentiate between different raster formats */
 {
@@ -36,7 +36,7 @@ enum rasterId /* Used to differentiate between different raster formats */
   APPLE
 };
 
-typedef struct _attr_col_s
+typedef struct _attr_col_s /* The member attributes of job-{impressions, media-sheets}-xxx-col */
 {
   int blank;
   int blank_two_sided;
@@ -48,13 +48,13 @@ typedef struct _attr_col_s
   int monochrome_two_sided;
 } attr_col_t;
 
-typedef struct _pages_col_s
+typedef struct _pages_col_s /* The member attributes of job-pages-xxx-col */
 {
 	int monochrome;
 	int full_color;
 } pages_col_t;
 
-typedef struct _doclint_data_s
+typedef struct _doclint_data_s /* The custom-struct used to store all attribute values for a job */
 {
   int job_impressions;
   attr_col_t job_impressions_col;
@@ -75,7 +75,7 @@ typedef struct _doclint_data_s
   pages_col_t job_pages_completed_col;
 } doclint_data_t;
 
-char attr_names[8][40] =
+char attr_names[8][40] = /* The registered attribute names to be used while printing ATTR messages to stderr */
 {
   "job-media-sheets",
   "job-media-sheets-completed",
@@ -188,6 +188,7 @@ main(int  argc,				/* I - Number of command-line arguments */
       usage(1);
   }
 
+  /* Set number of copies, number-up and duplex printing values from environment variables if present */
   if (getenv("PRINTER_COPIES_DEFAULT") != NULL)
     sscanf(getenv("PRINTER_COPIES_DEFAULT"), "%d", &num_copies);
   if (getenv("PRINTER_NUMBER_UP_DEFAULT") != NULL)
@@ -199,6 +200,7 @@ main(int  argc,				/* I - Number of command-line arguments */
 		  sides = 1;
   }
 
+	/* Set number of copies, number-up and duplex printing values from user options if present */
 	for (int j=0; j<num_options; j++)
 	{
     if (!strcmp(options[j].name, "CUPS_COPIES"))
@@ -240,6 +242,7 @@ main(int  argc,				/* I - Number of command-line arguments */
     }
   }
 
+  /* Call the appropriate lint function according to the file type */
   if (!content_type)
   {
     fprintf(stderr, "ERROR: Unknown format for \"%s\", please specify with '-i' option.\n", filename);
@@ -272,7 +275,11 @@ main(int  argc,				/* I - Number of command-line arguments */
   }
 }
 
-static void print_attr_messages(doclint_data_t *data)
+/* If the document has no structural errors, this function is called which prints
+ * all the ATTR messages to stderr. If the document has errors, this function will not
+ * be reached */
+static
+void print_attr_messages(doclint_data_t *data) /* I - The custom-struct with all the data to be printed */
 {
   int iter_temp[4] = {data->job_media_sheets, data->job_media_sheets_completed,
     data->job_impressions, data->job_impressions_completed};
@@ -303,20 +310,21 @@ highlight-color=%d highlight-color-two-sided=%d monochrome=%d monochrome-two-sid
 	fprintf(stderr, "ATTR:job-pages-completed-col={monochrome=%d full-color=%d}\n", data->job_pages_completed_col.monochrome, data->job_pages_completed_col.full_color);
 }
 
-typedef struct _jpeg_lint_error_mgr_s
+typedef struct _jpeg_lint_error_mgr_s /* Error struct for jpeg linting */
 {
     struct jpeg_error_mgr pub;    /* "public" fields */
     jmp_buf setjmp_buffer;        /* for return to caller */
 } *jpeg_lint_error_ptr_t;
 
-void jpeg_lint_error_exit(j_common_ptr cinfo)
+void
+jpeg_lint_error_exit(j_common_ptr cinfo) /* I - Pointer to the jpeg_common_struct from libjpeg */
 {
   jpeg_lint_error_ptr_t error = (jpeg_lint_error_ptr_t) cinfo->err;
   (*cinfo->err->output_message) (cinfo);
   longjmp(error->setjmp_buffer, 1);
 }
 
-char jpeg_color_space_enum[20][20] =
+char jpeg_color_space_enum[20][20] = /* Human-readable colorspace names for jpeg files */
 {
   "JCS_UNKNOWN",            /* error/unspecified */
   "JCS_GRAYSCALE",          /* monochrome */
@@ -344,7 +352,7 @@ char jpeg_color_space_enum[20][20] =
   "JCS_RGB565"              /* 5-bit red/6-bit green/5-bit blue */
 };
 
-char pixel_density_unit[3][10] =
+char pixel_density_unit[3][10] = /* Human readable pixel density values for jpeg files */
 {
   "Unknown",
   "dots/inch",
@@ -360,7 +368,9 @@ lint_jpeg(const char    *filename,	/* I - File to check */
           cups_option_t *options)	/* I - Options */
 {
   doclint_data_t data = {0};
-  data.job_pages = 1;
+
+  /* Set job attribute values */
+  data.job_pages = 1; /* Assuming only one page per jpeg file */
   data.job_pages_col.full_color = 1;
   data.job_impressions = (int) ceil(num_copies * data.job_pages * 1.0 / number_up);
   data.job_impressions_col.full_color = data.job_impressions;
@@ -426,6 +436,32 @@ lint_jpeg(const char    *filename,	/* I - File to check */
     fprintf(stderr,"DEBUG: Color transform code from Adobe marker: %d\n", cinfo.Adobe_transform);
   }
 
+  /* Set job-xxx-col values */
+  if (cinfo.jpeg_color_space == 1 && sides == 1) /* Grayscale, one-sided printing */
+  {
+  	data.job_impressions_col.monochrome = data.job_impressions;
+	  data.job_media_sheets_col.monochrome = data.job_media_sheets;
+	  data.job_pages_col.monochrome = data.job_pages;
+  }
+  else if (cinfo.jpeg_color_space == 1 && sides == 2) /* Grayscale, duplex printing */
+	{
+		data.job_impressions_col.monochrome_two_sided = data.job_impressions;
+		data.job_media_sheets_col.monochrome_two_sided = data.job_media_sheets;
+		data.job_pages_col.monochrome = data.job_pages;
+	}
+  else if (cinfo.jpeg_color_space != 1 && sides == 1) /* Non-monochrome, one-sided printing */
+  {
+	  data.job_impressions_col.full_color = data.job_impressions;
+	  data.job_media_sheets_col.full_color = data.job_media_sheets;
+	  data.job_pages_col.full_color = data.job_pages;
+  }
+  else  /* Non-monochrome, duplex printing */
+  {
+	  data.job_impressions_col.full_color_two_sided = data.job_impressions;
+	  data.job_media_sheets_col.full_color_two_sided = data.job_media_sheets;
+	  data.job_pages_col.full_color = data.job_pages;
+  }
+
   fprintf(stderr, "DEBUG: Decompressing the file...\n");
   (void) jpeg_start_decompress(&cinfo);
 
@@ -454,6 +490,7 @@ lint_jpeg(const char    *filename,	/* I - File to check */
     fprintf(stderr, "DEBUG: File lint complete, no errors found\n");
   }
 
+  /* Setting the job-xxx-completed-xxx values to signify structure free file */
   data.job_impressions_completed = data.job_impressions;
   data.job_impressions_completed_col = data.job_impressions_col;
   data.job_media_sheets_completed = data.job_media_sheets_completed;
@@ -470,8 +507,8 @@ lint_jpeg(const char    *filename,	/* I - File to check */
 }
 
 static void
-mupdf_exit(fz_context *context,
-  fz_document *document)
+mupdf_exit(fz_context *context, /* MuPDF context pointer */
+  fz_document *document) /* MuPDF document pointer */
 {
   if (document)
     fz_drop_document(context, document);
@@ -479,17 +516,22 @@ mupdf_exit(fz_context *context,
     fz_drop_context(context);
 }
 
+/*
+ * struct holding thread data for multi-threaded PDF linting. All the values are
+ * sent by the main thread to the rendering thread
+ */
 typedef struct _thread_data_s
 {
-  fz_context *context;
-  int pagenumber;
-  fz_display_list *list;
-  fz_rect bbox;
-  fz_pixmap *pix;
+  fz_context *context; /* Pointer to the MuPDF context */
+  int pagenumber; /* Page number of the page being rendered by this thread */
+  fz_display_list *list; /* List of drawing commands for the page being rendered */
+  fz_rect bbox; /* The area of the page to render */
+  fz_pixmap *pix; /* Pixmap containing the rendered page */
 } thread_data_t;
 
+/* Render method for PDF pages */
 void *
-renderer(void *data)
+renderer(void *data) /* Pointer to the data structure with the thread data (thread_data_t in this case) */
 {
   fz_context *context = ((thread_data_t *) data)->context;
   fz_display_list *list = ((thread_data_t *) data)->list;
@@ -509,7 +551,10 @@ renderer(void *data)
   return (data);
 }
 
-void lock_mutex(void *user, int lock)
+/* Locks mutex for a given thread. Required by MuPDF */
+void
+lock_mutex(void *user, /* I - Pointer to array of mutexes */
+	int lock) /* I - The index of the mutex in the array of mutexes */
 {
   pthread_mutex_t *mutex = (pthread_mutex_t *) user;
 
@@ -520,7 +565,10 @@ void lock_mutex(void *user, int lock)
   }
 }
 
-void unlock_mutex(void *user, int lock)
+/* Unlocks mutex for a given thread. Required by MuPDF */
+void
+unlock_mutex(void *user, /* I - Pointer to array of mutexes */
+	int lock) /* I - The index of the mutex in the array of mutexes */
 {
   pthread_mutex_t *mutex = (pthread_mutex_t *) user;
 
@@ -626,11 +674,9 @@ lint_pdf(const char    *filename,	/* I - File to check */
   size = fz_lookup_metadata(context, document, "info:Producer", buffer, 100);
   fprintf(stderr, "DEBUG: Producer : %s\n", (size != -1 && buffer[0] != '\0') ? buffer : "Not available");
 
-  // [TODO] Make dates human readable
   size = fz_lookup_metadata(context, document, "info:CreationDate", buffer, 100);
   fprintf(stderr, "DEBUG: Creation Date : %s\n", (size != -1 && buffer[0] != '\0') ? buffer : "Not available");
 
-  // [TODO] Make dates human readable
   size = fz_lookup_metadata(context, document, "info:ModDate", buffer, 100);
   fprintf(stderr, "DEBUG: Modification Date : %s\n", (size != -1 && buffer[0] != '\0') ? buffer : "Not available");
 
@@ -651,6 +697,8 @@ lint_pdf(const char    *filename,	/* I - File to check */
     mupdf_exit(context, document);
     return (1);
   }
+
+  /* Set the job-xxx attribute values */
   data.job_pages = page_count;
   data.job_impressions = (int) ceil(num_copies * data.job_pages * 1.0 / number_up);
   data.job_media_sheets = (int) ceil(data.job_impressions * 1.0 / sides);
@@ -673,6 +721,7 @@ lint_pdf(const char    *filename,	/* I - File to check */
 
   thread = malloc(num_threads * sizeof (pthread_t));
 
+  /* Spawn threads */
   for (i = 0; i < num_threads; i++)
   {
     fz_page *page;
@@ -711,6 +760,7 @@ lint_pdf(const char    *filename,	/* I - File to check */
     }
   }
 
+  /* Join threads */
   fprintf(stderr, "DEBUG: Joining %d threads\n", num_threads);
   for (i = num_threads - 1; i >= 0; i--)
   {
@@ -733,6 +783,7 @@ lint_pdf(const char    *filename,	/* I - File to check */
   free(thread);
   mupdf_exit(context, document);
 
+  /* Set the job-xxx-completed-xxx values to signify structure free file */
   data.job_pages_completed = data.job_pages;
   data.job_pages_completed_col = data.job_pages_col;
   data.job_impressions_completed = data.job_impressions;
@@ -748,7 +799,7 @@ lint_pdf(const char    *filename,	/* I - File to check */
   return (0);
 }
 
-char when_enum[5][20] = /* Values also used by AdvanceMedia, Jog */
+char when_enum[5][20] = /* Human-readable 'When' values, also used by AdvanceMedia, Jog */
 {
   "Never",
   "AfterDocument",
@@ -757,7 +808,7 @@ char when_enum[5][20] = /* Values also used by AdvanceMedia, Jog */
   "AfterPage"
 };
 
-char media_position_enum[50][20] =
+char media_position_enum[50][20] = /* Human-readable media position values */
 {
   "Auto",
   "Main",
@@ -811,7 +862,7 @@ char media_position_enum[50][20] =
   "Roll10",
 };
 
-char orientation_enum[4][20] =
+char orientation_enum[4][20] = /* Human-readable orientation values */
 {
   "Portrait",
   "Landscape",
@@ -819,7 +870,7 @@ char orientation_enum[4][20] =
   "ReverseLandscape"
 };
 
-char print_quality_enum[4][10] =
+char print_quality_enum[4][10] = /* Human-readable print quality values */
 {
   "Default",
   "Draft",
@@ -827,7 +878,7 @@ char print_quality_enum[4][10] =
   "High"
 };
 
-char leading_edge_enum[4][20] =
+char leading_edge_enum[4][20] = /* Human-readable leading edge values */
 {
   "Top Edge First",
   "Right Edge First",
@@ -835,15 +886,19 @@ char leading_edge_enum[4][20] =
   "Left Edge First"
 };
 
-char color_order_enum[3][50] =
+char color_order_enum[3][50] = /* Human-readable color order values */
 {
   "Chunky pixels (CMYK CMYK CMYK)",
   "Banded pixels (CCC MMM YYY KKK)",
   "Planar pixels (CCC... MMM... YYY... KKK...)"
 };
 
-static int
-parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_version, boolean big_endian)
+/* Parses the page headers in CUPS and PWG raster files */
+static int /* O - 0 if OK, 1 if not OK */
+parse_raster_header(cups_page_header2_t *header, /* The pointer to the header struct */
+	int raster_id, /* The identifier to differentiate between different raster formats (CUPS, PWG) */
+	int raster_version, /* Raster version */
+	boolean big_endian) /* 1 if the file is big-endian, 0 if little-endian */
 {
   if (raster_id == PWG)
   {
@@ -1568,9 +1623,10 @@ parse_raster_header(cups_page_header2_t *header, int raster_id, int raster_versi
   return (0);
 }
 
-static int
-traverse_compressed_bitmap(FILE *file,
-  cups_page_header2_t *header)
+/* Traverses the compressed bitmap of a page in CUPS or PWG raster file */
+static int /* O - 0 if OK, 1 if not OK */
+traverse_compressed_bitmap(FILE *file, /* Pointer to the input file */
+  cups_page_header2_t *header) /* Page header */
 {
   fprintf(stderr, "DEBUG: Started checking bitmap for ColorSpace %d\n", header->cupsColorSpace);
   int height_count = 0;
@@ -1623,10 +1679,11 @@ traverse_compressed_bitmap(FILE *file,
   return (0);
 }
 
+/* Traverses the compressed bitmap of a page in CUPS or PWG raster file */
 static int
 traverse_uncompressed_bitmap(FILE *file,
 cups_page_header2_t *header)
-{ // TODO Test for cupsBitsPerPixel < 8
+{
   int numBits = header->cupsHeight * header->cupsWidth * header->cupsBitsPerPixel;
   uint8_t buffer[numBits/8];
   fread(buffer, 1, (size_t)numBits/8, file);
@@ -1711,10 +1768,12 @@ lint_raster(const char    *filename,	/* I - File to check */
   }
 
   cups_page_header2_t header;
+	/* Read and parse the header from a single page. Returns with an error if the file is empty or corrupt */
   fread(&header, 4, 449, file);
   int ret = parse_raster_header(&header, raster_id, raster_version, big_endian);
   if (ret)
     return (1);
+  /* Traverse the bitmap for a single page */
   if (raster_version == 3)
   {
     ret = traverse_uncompressed_bitmap(file, &header);
@@ -1726,6 +1785,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   if (ret)
     return (1);
 
+  /* Set job-xxx attribute values */
 	data.job_pages = header.cupsInteger[0];
 	data.job_impressions = (int) ceil(num_copies * data.job_pages * 1.0 / number_up);
 	if (header.Duplex)
@@ -1767,6 +1827,7 @@ lint_raster(const char    *filename,	/* I - File to check */
 	}
 
 	int total_page_count = header.cupsInteger[0];
+	/* Read and parse headers, traverse bitmaps if the document has more than one page */
   for (int i=1; i<total_page_count; i++)
   {
     fread(&header, 4, 449, file);
@@ -1785,6 +1846,7 @@ lint_raster(const char    *filename,	/* I - File to check */
       return (1);
   }
 
+	/* Set the job-xxx-completed-xxx values to signify structure free file */
   data.job_pages_completed = data.job_pages;
   data.job_pages_completed_col = data.job_pages_col;
   data.job_media_sheets_completed = data.job_media_sheets;
