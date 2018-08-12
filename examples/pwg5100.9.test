@@ -1,0 +1,23 @@
+#
+#Check a printer for conformance with PWG 5100.9
+#
+#
+#Usage:
+#
+#	./ipptool printer-uri pwg5100.9.2.test
+#	
+
+{
+	NAME "Get printer attributes to check printer-alert and printer-alert-description"
+	OPERATION Get-Printer-Attributes
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+
+	STATUS successful-ok
+
+    EXPECT printer-alert OF-TYPE octetString IN-GROUP printer-attributes-tag WITH-ALL-VALUES "/^[Cc][Oo][Dd][Ee]\=[A-Za-z]+(;([Ii][Nn][Dd][Ee][Xx]\=[0-9]+|[Ss][Ee][Vv][Ee][Rr][Ii][Tt][Yy]\=[A-Za-z]+|[Tt][Rr][Aa][Ii][Nn][Ii][Nn][Gg]\=[A-Za-z]+|[Gg][Rr][Oo][Uu][Pp]\=[A-Za-z]+|[Gg][Rr][Oo][Uu][Pp][Ii][Nn][Dd][Ee][Xx]\=[0-9]+|[Ll][Oo][Cc][Aa][Tt][Ii][Oo][Nn]\=[0-9]+|[Tt][Ii][Mm][Ee]\=[0-9]+)){0,1}$/"
+	EXPECT printer-alert-description OF-TYPE text IN-GROUP printer-attributes-tag SAME-COUNT-AS printer-alert
+}

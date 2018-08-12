@@ -1,0 +1,321 @@
+#
+#Check a printer for conformance with PWG 5100.7-2003 Standard for IPP: Job Extensions
+#
+#
+#Usage:
+#
+#	./ipptool -f FILENAME -d output-device=OUTPUT_DEVICE printer-uri pwg5100.7.test
+#
+{
+    # get printer attributes
+
+	NAME "Get printer attributes using Get-Printer-Attributes"
+	OPERATION Get-Printer-Attributes
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+
+	STATUS successful-ok
+
+# Operation attributes (xxx-supported and xxx-default) for job creation and document creation operations
+
+    EXPECT ?document-charset-supported OF-TYPE charset IN-GROUP printer-attributes-tag
+    EXPECT ?document-digital-signature-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+    EXPECT ?document-format-supported OF-TYPE mimeMediaType IN-GROUP printer-attributes-tag
+    EXPECT ?document-format-version-supported OF-TYPE text IN-GROUP printer-attributes-tag
+    EXPECT ?document-natural-language-supported OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag
+    EXPECT ?document-format-details-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+
+    EXPECT ?document-charset-default OF-TYPE charset IN-GROUP printer-attributes-tag WITH-VALUE-FROM document-charset-supported COUNT 1
+    EXPECT ?document-digital-signature-default OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE-FROM document-digital-signature-supported COUNT 1
+    EXPECT ?document-format-default OF-TYPE mimeMediaType IN-GROUP printer-attributes-tag WITH-VALUE-FROM document-format-supported COUNT 1
+    EXPECT ?document-format-version-default OF-TYPE text IN-GROUP printer-attributes-tag WITH-VALUE-FROM document-format-version-supported COUNT 1
+    EXPECT ?document-natural-language-default OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag WITH-VALUE-FROM document-natural-language-supported COUNT 1
+    EXPECT ?document-format-details-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1
+
+# Job template attributes (xxx-supported and xxx-default)
+
+    EXPECT ?job-copies-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag
+    EXPECT ?job-cover-back-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+    EXPECT ?job-cover-front-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+    EXPECT ?job-finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag
+    EXPECT ?job-finishings-col-supported OF-TYPE collection IN-GROUP printer-attributes-tag
+    EXPECT ?print-content-optimize-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+    EXPECT output-device-supported OF-TYPE name IN-GROUP printer-attributes-tag DEFINE-MATCH SUPPORT_OUTPUT_DEVICE
+
+    EXPECT ?job-copies-default OF-TYPE integer IN-GROUP printer-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT ?job-cover-back-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT ?job-cover-front-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT ?job-finishings-default OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE-FROM job-finishings-supported COUNT 1
+    EXPECT ?job-finishings-col-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT ?print-content-optimize-default OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE-FROM print-content-optimize-supported COUNT 1 DEFINE-MATCH HAVE_PRINT_CONTENT_OPTIMIZE
+	
+	EXPECT ?print-content-optimize-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "photo" COUNT 1 DEFINE-MATCH PHOTO_PRINT_CONTENT
+	EXPECT ?print-content-optimize-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "graphics" COUNT 1 DEFINE-MATCH GRAPHICS_PRINT_CONTENT
+	EXPECT ?print-content-optimize-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "text" COUNT 1 DEFINE-MATCH TEXT_PRINT_CONTENT
+	EXPECT ?print-content-optimize-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "text-and-graphics" COUNT 1 DEFINE-MATCH TEXT_AND_GRAPHICS_PRINT_CONTENT
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_PRINT_CONTENT_OPTIMIZE
+	SKIP-IF-NOT-DEFINED PHOTO_PRINT_CONTENT
+
+	NAME "Print using print-content-optimize (photo)"
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name document-name color.jpg
+	ATTR mimeMediaType document-format image/jpeg
+
+	GROUP job-attributes-tag
+	ATTR integer copies 1
+    ATTR keyword print-content-optimize photo
+
+	FILE color.jpg
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_PRINT_CONTENT_OPTIMIZE
+	SKIP-IF-NOT-DEFINED PHOTO_PRINT_CONTENT
+
+    NAME "Get job attributes"
+    OPERATION Get-Job-Attributes
+
+    GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
+
+    EXPECT print-content-optimize OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE photo COUNT 1
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_PRINT_CONTENT_OPTIMIZE
+	SKIP-IF-NOT-DEFINED GRAPHICS_PRINT_CONTENT
+
+	NAME "Print using print-content-optimize (graphics)"
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name document-name testfile.ps					# might need to choose some other file than testfile.ps (vector file)
+	ATTR mimeMediaType document-format application/postscript
+
+	GROUP job-attributes-tag
+	ATTR integer copies 1
+    ATTR keyword print-content-optimize graphics
+
+	FILE testfile.ps
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_PRINT_CONTENT_OPTIMIZE
+	SKIP-IF-NOT-DEFINED GRAPHICS_PRINT_CONTENT
+
+    NAME "Get job attributes"
+    OPERATION Get-Job-Attributes
+
+    GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
+
+    EXPECT print-content-optimize OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE graphics COUNT 1
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_PRINT_CONTENT_OPTIMIZE
+	SKIP-IF-NOT-DEFINED TEXT_PRINT_CONTENT
+
+	NAME "Print using print-content-optimize (text)"
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name document-name testfile.txt
+	ATTR mimeMediaType document-format text/plain
+
+	GROUP job-attributes-tag
+	ATTR integer copies 1
+    ATTR keyword print-content-optimize text
+
+	FILE testfile.txt
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_PRINT_CONTENT_OPTIMIZE
+	SKIP-IF-NOT-DEFINED TEXT_PRINT_CONTENT
+
+    NAME "Get job attributes"
+    OPERATION Get-Job-Attributes
+
+    GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
+
+    EXPECT print-content-optimize OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE text COUNT 1
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_PRINT_CONTENT_OPTIMIZE
+	SKIP-IF-NOT-DEFINED TEXT_AND_GRAPHICS_PRINT_CONTENT
+
+	NAME "Print using print-content-optimize (text-and-graphics)"
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name document-name onepage-letter.pdf				# might need to choose some other file than onepage-letter.pdf (vector file)
+	ATTR mimeMediaType document-format application/pdf
+
+	GROUP job-attributes-tag
+	ATTR integer copies 1
+    ATTR keyword print-content-optimize "text-and-graphics"
+
+	FILE onepage-letter.pdf
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_PRINT_CONTENT_OPTIMIZE
+	SKIP-IF-NOT-DEFINED TEXT_AND_GRAPHICS_PRINT_CONTENT
+
+    NAME "Get job attributes"
+    OPERATION Get-Job-Attributes
+
+    GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
+
+    EXPECT print-content-optimize OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE "text-and-graphics" COUNT 1
+}
+
+{
+	SKIP-IF-DEFINED output-device
+	SKIP-IF-NOT-DEFINED SUPPORT_OUTPUT_DEVICE
+
+	NAME "Display output-device-supported values"
+	OPERATION Get-Printer-Attributes
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+
+	STATUS successful-ok
+
+    EXPECT output-device-supported OF-TYPE name IN-GROUP printer-attributes-tag
+	DISPLAY output-device-supported
+}
+
+{
+	SKIP-IF-NOT-DEFINED output-device
+    SKIP-IF-NOT-DEFINED SUPPORT_OUTPUT_DEVICE
+
+	NAME "Print using output-device"
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+
+	GROUP job-attributes-tag
+	ATTR integer copies 1
+    ATTR name output-device $output-device
+
+	FILE $filename
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+	SKIP-IF-NOT-DEFINED output-device
+    SKIP-IF-NOT-DEFINED SUPPORT_OUTPUT_DEVICE
+
+    NAME "Get job attributes"
+    OPERATION Get-Job-Attributes
+
+    GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
+
+    EXPECT output-device OF-TYPE name IN-GROUP job-attributes-tag WITH-VALUE $output-device COUNT 1
+}
