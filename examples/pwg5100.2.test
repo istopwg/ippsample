@@ -1,0 +1,1405 @@
+#Test to confirm presence of output-bin-default and output-bin-supported in get-printer-attributes response (Syntax and Range)
+{
+	NAME "get-printer-attributes: Expect output-bin-default and output-bin-supported"
+	
+	OPERATION Get-Printer-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	
+
+	DISPLAY output-bin-default
+	DISPLAY output-bin-supported
+
+	STATUS successful-ok
+	EXPECT output-bin-default OF-TYPE keyword|name IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE-FROM output-bin-supported
+	EXPECT output-bin-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag 
+	
+	# Job template attributes for specific tests...
+	EXPECT output-bin-supported WITH-VALUE "top" DEFINE-MATCH OPTIONAL_TOP_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "middle" DEFINE-MATCH OPTIONAL_MIDDLE_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "bottom" DEFINE-MATCH OPTIONAL_BOTTOM_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "side" DEFINE-MATCH OPTIONAL_SIDE_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "left" DEFINE-MATCH OPTIONAL_LEFT_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "right" DEFINE-MATCH OPTIONAL_RIGHT_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "center" DEFINE-MATCH OPTIONAL_CENTER_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "rear" DEFINE-MATCH OPTIONAL_REAR_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "face-down" DEFINE-MATCH OPTIONAL_FACEDOWN_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "face-up" DEFINE-MATCH OPTIONAL_FACEUP_OUTPUTBIN 
+	EXPECT output-bin-supported WITH-VALUE "large-capacity" DEFINE-MATCH OPTIONAL_LARGECAPACITY_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "my-mailbox" DEFINE-MATCH OPTIONAL_MYMAILBOX_OUTPUTBIN
+
+	EXPECT output-bin-supported WITH-VALUE "/^stacker-[1-9][0-9]*$$/" DEFINE-MATCH OPTIONAL_STACKERN_OUTPUTBIN 
+	EXPECT output-bin-supported WITH-VALUE "stacker-1" IF-DEFINED OPTIONAL_STACKERN_OUTPUTBIN 
+	EXPECT output-bin-supported WITH-VALUE "stacker-1" DEFINE-MATCH OPTIONAL_STACKER1_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "stacker-2" DEFINE-MATCH OPTIONAL_STACKER2_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "/^mailbox-[1-9][0-9]*$$/" DEFINE-MATCH OPTIONAL_MAILBOXN_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "mailbox-1" IF-DEFINED OPTIONAL_MAILBOXN_OUTPUTBIN 
+	EXPECT output-bin-supported WITH-VALUE "mailbox-1" DEFINE-MATCH OPTIONAL_MAILBOX1_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "mailbox-2" DEFINE-MATCH OPTIONAL_MAILBOX2_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "tray-1" DEFINE-MATCH OPTIONAL_TRAY1_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "tray-2" DEFINE-MATCH OPTIONAL_TRAY2_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "tray-3" DEFINE-MATCH OPTIONAL_TRAY3_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "tray-4" DEFINE-MATCH OPTIONAL_TRAY4_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "tray-5" DEFINE-MATCH OPTIONAL_TRAY5_OUTPUTBIN
+	EXPECT output-bin-supported WITH-VALUE "tray-6" DEFINE-MATCH OPTIONAL_TRAY6_OUTPUTBIN
+
+}
+
+
+#Print-Job request with output-bin top
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_TOP_OUTPUTBIN
+
+	NAME "Print-Job with top output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "top"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to job printed with top output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_TOP_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "top"
+}
+
+#Print-Job request with output-bin middle
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_MIDDLE_OUTPUTBIN
+
+	NAME "Print-Job with middle output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "middle"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+ 
+# Test Get-Job-Attributes operation (specific to middle output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_MIDDLE_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "middle"
+}
+
+
+#Print-Job request with output-bin bottom
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_BOTTOM_OUTPUTBIN
+
+	NAME "Print-Job with bottom output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "bottom"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to bottom output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_BOTTOM_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT ?output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "bottom"
+}
+
+
+#Print-Job request with output-bin side
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_SIDE_OUTPUTBIN
+
+	NAME "Print-Job with side output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "side"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to side output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_SIDE_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT ?output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "side"
+}
+
+
+#Print-Job request with output-bin left
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_LEFT_OUTPUTBIN
+
+	NAME "Print-Job with left output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "left"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to left output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_LEFT_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT ?output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "left"
+}
+
+
+#Print-Job request with output-bin right
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_RIGHT_OUTPUTBIN
+
+	NAME "Print-Job with right output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "right"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to right output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_RIGHT_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT ?output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "right"
+}
+
+
+#Print-Job request with output-bin center
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_CENTER_OUTPUTBIN
+
+	NAME "Print-Job with center output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "center"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to center output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_CENTER_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT ?output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "center"
+}
+
+
+
+#Print-Job request with output-bin rear
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_REAR_OUTPUTBIN
+
+	NAME "Print-Job with rear output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "rear"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to rear output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_REAR_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT ?output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "rear"
+}
+
+
+#Print-Job request with output-bin face-down
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_FACEDOWN_OUTPUTBIN
+
+	NAME "Print-Job with face-down output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "face-down"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to face-down output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_FACEDOWN_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT ?output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "face-down" 
+}
+
+#Print-Job request with output-bin face-up
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_FACEUP_OUTPUTBIN
+
+	NAME "Print-Job with face-up output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "face-up"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to face-up output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_FACEUP_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT ?output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "face-up"
+}
+
+
+
+#Print-Job request with output-bin large-Capacity
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_LARGECAPACITY_OUTPUTBIN
+
+	NAME "Print-Job with large-capacity output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "large-capacity"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to large-capacity output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_LARGECAPACITY_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT ?output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "large-capacity"
+}
+
+
+#Print-Job request with output-bin my-mailbox
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_MYMAILBOX_OUTPUTBIN
+
+	NAME "Print-Job with my-mailbox output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "my-mailbox"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to my-mailbox output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_MYMAILBOX_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT ?output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "my-mailbox"
+}
+
+#Print-Job request with output-bin stacker-1
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_STACKER1_OUTPUTBIN
+
+	NAME "Print-Job with stacker-1 output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "stacker-1"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to job printed with stacker-1 output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_STACKER1_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "stacker-1"
+}
+
+#Print-Job request with output-bin stacker-2
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_STACKER2_OUTPUTBIN
+
+	NAME "Print-Job with stacker-2 output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "stacker-2"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to job printed with stacker-2 output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_STACKER2_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "stacker-2"
+}
+
+
+
+#Print-Job request with output-bin mailbox-1
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_MAILBOX1_OUTPUTBIN
+
+	NAME "Print-Job with mailbox-1 output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "mailbox-1"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to job printed with mailbox-1 output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_MAILBOX1_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "mailbox-1"
+}
+
+#Print-Job request with output-bin mailbox-2
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_MAILBOX2_OUTPUTBIN
+
+	NAME "Print-Job with mailbox-2 output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "mailbox-2"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to job printed with mailbox-2 output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_MAILBOX2_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "mailbox-2"
+}
+
+#Print-Job request with output-bin tray-1
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_TRAY1_OUTPUTBIN
+
+	NAME "Print-Job with tray-1 output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "tray-1"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to job printed with tray-1 output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_TRAY1_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "tray-1"
+}
+
+#Print-Job request with output-bin tray-2
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_TRAY2_OUTPUTBIN
+
+	NAME "Print-Job with tray-2 output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "tray-2"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to job printed with tray-2 output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_TRAY2_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "tray-2"
+}
+
+
+#Print-Job request with output-bin tray-3
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_TRAY3_OUTPUTBIN
+
+	NAME "Print-Job with tray-3 output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "tray-3"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to job printed with tray-3 output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_TRAY3_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "tray-3"
+}
+#Print-Job request with output-bin tray-4
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_TRAY4_OUTPUTBIN
+
+	NAME "Print-Job with tray-4 output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "tray-4"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to job printed with tray-4 output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_TRAY4_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "tray-4"
+}
+
+#Print-Job request with output-bin tray-5
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_TRAY5_OUTPUTBIN
+
+	NAME "Print-Job with tray-5 output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "tray-5"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to job printed with tray-5 output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_TRAY5_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "tray-5"
+}
+
+#Print-Job request with output-bin tray-6
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_TRAY6_OUTPUTBIN
+
+	NAME "Print-Job with tray-6 output-bin"
+	
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR mimeMediaType document-format $filetype
+	
+	GROUP job-attributes-tag
+	ATTR keyword output-bin "tray-6"
+	
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Job-Attributes operation (specific to job printed with tray-6 output-bin)
+{
+	SKIP-IF-DEFINED NOPRINT
+	SKIP-IF-NOT-DEFINED OPTIONAL_TRAY6_OUTPUTBIN
+
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	
+	OPERATION Get-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	DISPLAY output-bin
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT output-bin OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "tray-6"
+}
