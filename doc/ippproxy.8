@@ -35,7 +35,7 @@ ippproxy \- a simple ipp proxy client
 .SH DESCRIPTION
 .B ippproxy
 is a simple IPP proxy client conforming to the IPP Shared Infrastructure Extensions (INFRA) specification. It can be used to proxy access to a local IPP printer through an Infrastructure Printer such as
-.BR ippserver (1).
+.BR ippserver (8).
 .SH OPTIONS
 The following options are recognized by
 .B ippproxy:
@@ -85,6 +85,7 @@ with an infrastructure URI of "ipps://host.example.com/ipp/print" and a local UR
     ippproxy -d ipp://10.0.1.42/ipp/print ipps://host.example.com/ipp/print
 .fi
 .SH SEE ALSO
+.BR ippserver (8),
 PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp)
 .SH COPYRIGHT
 Copyright \[co] 2014-2018 by the IEEE-ISTO Printer Working Group.

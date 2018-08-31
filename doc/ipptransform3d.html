@@ -34,7 +34,7 @@ ipptransform3d - convert 3d document data to alternate formats
 converts the input file into the output format and optionally sends the output to a USB (serial) printer.
 <b>ipptransform3d</b>
 is normally run by
-<a href="man-ippserver.html?TOPIC=Man+Pages"><b>ippserver</b>(1)</a>
+<a href="ippserver.html"><b>ippserver</b>(8)</a>
 to convert document data for printing.
 <h2 class="title"><a name="OPTIONS">Options</a></h2>
 The following options are recognized by
@@ -117,8 +117,13 @@ Print a 3MF file to a G-code printer connected via USB on Linux using the defaul
     ipptransform3d -d usbserial:///dev/usbACM0 -m application/g-code \
         filename.3mf
 </pre>
+<h2 class="title"><a name="SEE_ALSO">See Also</a></h2>
+<a href="ippserver.html"><b>ippserver</b>(8)</a>,
+<a href="ipptool.html"><b>ipptool</b>(1)</a>,
+<a href="ipptransform.html"><b>ipptransform</b>(1)</a>
 <h2 class="title"><a name="COPYRIGHT">Copyright</a></h2>
-Copyright &copy; 2016-2017 by Apple Inc.
+Copyright &copy; 2016-2018 by the IEEE-ISTO Printer Working Group.
+Copyright &copy; 2016-2018 by Apple Inc.
 
 </body>
 </html>
