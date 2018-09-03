@@ -1,0 +1,516 @@
+#
+#Check a printer for conformance with rfc3995 and rfc3996
+#
+#
+#Usage:
+#
+#	./ipptool -f FILENAME -d "document-uri=URI" printer-uri rfc3995-3996.test
+#
+{
+    # get printer attributes and check support for REQUIRED attributes
+
+	NAME "Get printer attributes using Get-Printer-Attributes"
+	OPERATION Get-Printer-Attributes
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+
+	STATUS successful-ok
+
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0016	# Create-Printer-Subscriptions
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0018	# Get-Subscription-Attributes
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0019	# Get-Subscriptions
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x001A	# Renew-Subscription
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x001B	# Cancel-Subscription
+    EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x001C	# Get-Notifications
+
+	EXPECT notify-pull-method-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "ippget"
+	EXPECT notify-events-default OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT notify-max-events-supported OF-TYPE integer IN-GROUP printer-attributes-tag WITH-VALUE >1 COUNT 1
+	EXPECT notify-lease-duration-default OF-TYPE integer IN-GROUP printer-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT notify-lease-duration-supported OF-TYPE integer|rangeOfInteger IN-GROUP printer-attributes-tag WITH-ALL-VALUES >0
+
+    EXPECT notify-events-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE printer-state-changed
+    EXPECT notify-events-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE printer-stopped
+    EXPECT notify-events-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE job-state-changed
+    EXPECT notify-events-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE job-created
+    EXPECT notify-events-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE job-completed
+
+#ISSUE: none must be returned. (the test seems to work fine without expecting none. On expecting none, the result is confusing.)
+    EXPECT notify-events-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE none
+
+    EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0003 DEFINE-MATCH HAVE_PRINT_URI                  # Print-URI
+    EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0005 DEFINE-MATCH HAVE_CREATE_JOB                 # Create-job
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0017 DEFINE-MATCH HAVE_CREATE_JOB_SUBSCRIPTION    # Create-job-subscription
+
+	EXPECT ippget-event-life OF-TYPE integer IN-GROUP printer-attributes-tag WITH-VALUE >14	COUNT 1	# checking ippget-event-life
+	EXPECT ippget-event-life DEFINE-VALUE eventlife
+}
+
+{   
+    # create printer subscription
+
+	NAME "Create a pull printer subscription"
+	OPERATION Create-Printer-Subscriptions
+
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+    ATTR name requesting-user-name $user
+
+    # using subscription-attributes-tag in request to check for its compatibility with printer
+
+    GROUP subscription-attributes-tag
+	ATTR keyword notify-pull-method ippget
+	ATTR keyword notify-events printer-state-changed
+    ATTR octetString notify-user-data "ippuser"
+
+	STATUS successful-ok
+
+    # expecting notify-subscription-id in group subscription-attributes-tag to check for its compatibility with printer
+
+	EXPECT notify-subscription-id OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT notify-subscription-id DEFINE-VALUE renew-cancel-id	# this id will be later used in renew-subscription and cancel-subscription operations.
+	DISPLAY notify-subscription-id
+}
+
+{
+    # get subscription attributes and check for REQUIRED attributes
+
+    NAME "Get subscription attributes"
+    OPERATION Get-subscription-attributes
+
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+    ATTR integer notify-subscription-id $notify-subscription-id
+    ATTR name requesting-user-name $user
+    ATTR keyword requested-attributes all
+
+    STATUS successful-ok
+
+    EXPECT notify-pull-method OF-TYPE keyword IN-GROUP subscription-attributes-tag WITH-VALUE "ippget" COUNT 1
+	EXPECT notify-events OF-TYPE keyword IN-GROUP subscription-attributes-tag WITH-VALUE "printer-state-changed"
+
+##ISSUE (ipptool issue): notify-user-data is returned with value "ippuser" by ippserver but ipptool still displays EXPECTED: notify-user-data WITH-VALUE ippuser
+    EXPECT notify-user-data WITH-VALUE "ippuser" OF-TYPE octetString IN-GROUP subscription-attributes-tag COUNT 1
+
+#ISSUE: notify-charset and notify-natural-language are not returned.    
+	EXPECT notify-charset OF-TYPE charset IN-GROUP subscription-attributes-tag WITH-VALUE "utf-8" COUNT 1    
+	EXPECT notify-natural-language OF-TYPE naturalLanguage IN-GROUP subscription-attributes-tag WITH-VALUE "en" COUNT 1
+
+    EXPECT notify-lease-duration OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT !notify-time-interval
+    EXPECT notify-subscription-id OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT notify-sequence-number OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >-1 COUNT 1
+    EXPECT notify-lease-expiration-time OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >-1 COUNT 1
+    EXPECT notify-printer-up-time OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT notify-printer-uri OF-TYPE uri IN-GROUP subscription-attributes-tag COUNT 1
+	EXPECT !notify-job-id
+    EXPECT notify-subscriber-user-name OF-TYPE name IN-GROUP subscription-attributes-tag WITH-VALUE $user COUNT 1
+	
+	EXPECT !notify-status-code
+}
+
+{
+    # disable-printer to create an event
+
+	NAME "Disable-Printer"
+
+	OPERATION Disable-Printer
+	VERSION 2.0
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+
+	STATUS successful-ok
+}
+
+{
+    # enable-printer to create another event and get the printer working again
+
+	NAME "Enable-Printer"
+
+	OPERATION Enable-Printer
+	VERSION 2.0
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+
+	STATUS successful-ok
+}
+
+{
+	NAME "Get-Notifications conformance check (without event-wait mode)"
+	OPERATION Get-Notifications
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer notify-subscription-ids $notify-subscription-id
+	ATTR name requesting-user-name $user
+	ATTR boolean notify-wait false
+
+	STATUS successful-ok
+
+
+    # rfc3996 requires notify-get-interval to be >= ippget-event-life value (section 5.2.1),
+    # but that doesn't seem to be right.
+    # ippserver also doesn't follow that.
+    # that is why the condition imposed here is <= ippget-event-life value.
+	EXPECT notify-get-interval OF-TYPE integer IN-GROUP operation-attributes-tag WITH-VALUE <$eventlife,=$eventlife COUNT 1					
+	
+	EXPECT notify-subscription-id OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT notify-printer-uri OF-TYPE uri IN-GROUP event-notification-attributes-tag COUNT 1
+	EXPECT notify-subscribed-event OF-TYPE keyword IN-GROUP event-notification-attributes-tag WITH-VALUE printer-state-changed COUNT 1
+	
+#ISSUE: printer-up-time must be returned.
+    EXPECT printer-up-time OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE >0 COUNT 1
+							
+	EXPECT notify-sequence-number OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE >-1 COUNT 1
+	EXPECT notify-charset OF-TYPE charset IN-GROUP event-notification-attributes-tag WITH-VALUE "utf-8" COUNT 1
+	EXPECT notify-natural-language OF-TYPE naturalLanguage IN-GROUP event-notification-attributes-tag WITH-VALUE "en"
+
+#ISSUE: notify-user-data must be returned.
+	EXPECT notify-user-data OF-TYPE octetString IN-GROUP event-notification-attributes-tag WITH-VALUE "ippuser" COUNT 1   										
+
+	EXPECT notify-text OF-TYPE text IN-GROUP event-notification-attributes-tag
+	EXPECT printer-state OF-TYPE enum IN-GROUP event-notification-attributes-tag
+	EXPECT printer-state-reasons OF-TYPE keyword IN-GROUP event-notification-attributes-tag
+
+#ISSUE: printer-is-accepting-jobs must be returned. 
+	EXPECT printer-is-accepting-jobs OF-TYPE boolean IN-GROUP event-notification-attributes-tag
+}
+
+{
+    # testing job creation operations - extensions for notifications 1 - Print-Job
+
+	NAME "Print file using Print-Job"
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+
+	GROUP job-attributes-tag
+	ATTR integer copies 1
+
+	GROUP subscription-attributes-tag
+	ATTR keyword notify-pull-method ippget
+	ATTR keyword notify-events job-completed
+    ATTR octetString notify-user-data "ippuser"
+
+	FILE $filename
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+	EXPECT notify-subscription-id OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >0 COUNT 1
+}
+
+{
+	NAME "Get-Notifications conformance check (including event wait mode)"
+	OPERATION Get-Notifications
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer notify-subscription-ids $notify-subscription-id
+	ATTR name requesting-user-name $user
+	ATTR boolean notify-wait true
+
+	STATUS successful-ok
+	STATUS successful-ok-events-complete
+
+	EXPECT notify-get-interval OF-TYPE integer IN-GROUP operation-attributes-tag WITH-VALUE <$eventlife,=$eventlife COUNT 1					
+
+	EXPECT notify-subscription-id OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT notify-printer-uri OF-TYPE uri IN-GROUP event-notification-attributes-tag COUNT 1
+	EXPECT notify-subscribed-event OF-TYPE keyword IN-GROUP event-notification-attributes-tag WITH-VALUE job-completed COUNT 1
+	EXPECT printer-up-time OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE >0 COUNT 1								
+	EXPECT notify-sequence-number OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE >-1 COUNT 1
+	EXPECT notify-charset OF-TYPE charset IN-GROUP event-notification-attributes-tag WITH-VALUE "utf-8" COUNT 1
+	EXPECT notify-natural-language OF-TYPE naturalLanguage IN-GROUP event-notification-attributes-tag WITH-VALUE "en"	
+	EXPECT notify-user-data OF-TYPE octetString IN-GROUP event-notification-attributes-tag WITH-VALUE "ippuser" COUNT 1
+	EXPECT notify-text OF-TYPE text IN-GROUP event-notification-attributes-tag
+	
+#ISSUE: notify-job-id is returned but job-id is not. rfc3996 (Section 5.2) requires printer to return job-id.
+# It is very likely that there in a typographical error in the rfc and notify-job-id should be returned instead of job-id.
+    EXPECT job-id OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE $job-id COUNT 1
+	
+    EXPECT job-state OF-TYPE enum IN-GROUP event-notification-attributes-tag COUNT 1 											
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP event-Notification-attributes-tag
+}
+
+{
+    # testing job creation operations - extensions for notifications 2 - Print-URI
+
+    SKIP-IF-NOT-DEFINED HAVE_PRINT_URI
+
+	NAME "Print file using Print-URI"
+	OPERATION Print-URI
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name document-name $document-uri
+	ATTR uri document-uri $document-uri
+
+	GROUP job-attributes-tag
+	ATTR integer copies 1
+
+    GROUP subscription-attributes-tag
+	ATTR keyword notify-pull-method ippget
+	ATTR keyword notify-events job-completed,job-created
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+	EXPECT notify-subscription-id OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >0 COUNT 1
+}
+
+{
+    # testing job creation operations - extensions for notifications 3 - Create-Job
+
+    SKIP-IF-NOT-DEFINED HAVE_CREATE_JOB
+
+	NAME "Print test page using create-job"
+    RESOURCE /admin
+	OPERATION create-job
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	GROUP job
+	ATTR integer copies 1
+
+    GROUP subscription-attributes-tag
+	ATTR keyword notify-pull-method ippget
+	ATTR keyword notify-events job-completed,job-created
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+	EXPECT notify-subscription-id OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >0 COUNT 1
+}
+
+{
+	# testing get-subscriptions operation
+
+	NAME "get-subscriptions"
+	OPERATION Get-Subscriptions
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR integer limit 10 																										# 10 is just a random value.
+	ATTR keyword requested-attributes all
+	ATTR boolean my-subscriptions true
+
+	STATUS successful-ok
+
+    EXPECT-ALL notify-pull-method OF-TYPE keyword IN-GROUP subscription-attributes-tag WITH-VALUE "ippget" COUNT 1
+    EXPECT-ALL notify-events OF-TYPE keyword
+    EXPECT notify-user-data OF-TYPE octetString IN-GROUP subscription-attributes-tag WITH-VALUE "ippuser"
+	EXPECT-ALL notify-charset OF-TYPE charset IN-GROUP subscription-attributes-tag WITH-VALUE "utf-8" COUNT 1   
+	EXPECT-ALL notify-natural-language OF-TYPE naturalLanguage IN-GROUP subscription-attributes-tag WITH-VALUE "en" COUNT 1
+    EXPECT-ALL notify-lease-duration OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT-ALL notify-subscription-id OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT-ALL notify-sequence-number OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >-1 COUNT 1
+    EXPECT-ALL notify-lease-expiration-time OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >-1 COUNT 1
+	EXPECT !notify-time-interval
+    EXPECT-ALL notify-printer-up-time OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT-ALL notify-printer-uri OF-TYPE uri IN-GROUP subscription-attributes-tag COUNT 1
+    EXPECT notify-subscriber-user-name OF-TYPE name IN-GROUP subscription-attributes-tag WITH-VALUE $user COUNT 1
+
+	EXPECT !notify-status-code
+}
+
+{
+	# testing renew-subscription operation
+
+	NAME "renew-subscription"
+	OPERATION "Renew-Subscription"
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer notify-subscription-id $renew-cancel-id
+    ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+
+#ISSUE: notify-lease-duration value must be returned.
+	EXPECT notify-lease-duration WITH-VALUE >0
+}
+
+{
+	# testing renew-subscription operation
+
+	NAME "renew-subscription"
+	OPERATION "Renew-Subscription"
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer notify-subscription-id $renew-cancel-id
+    ATTR name requesting-user-name $user
+
+#ISSUE: response says "bad notify-lease-duration". 0 is allowed by rfc3995 (section 11.2.6.1.2) and corresponds to infinite lease.
+#values other than 0 for notify-lease-duration also get same "bad notify-lease-duration" in response.
+	ATTR integer notify-lease-duration 1000
+
+	STATUS successful-ok
+
+	EXPECT notify-lease-duration WITH-VALUE >0
+}
+
+{
+	# testing cancel-subscription operation
+
+	NAME "cancel-subscription"
+	OPERATION "Cancel-Subscription"
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer notify-subscription-id $renew-cancel-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+}
+
+{
+    # checking whether the subscription has been canceled
+
+    NAME "get-notifications"
+	OPERATION Get-Notifications
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer notify-subscription-ids $renew-cancel-id
+	ATTR name requesting-user-name $user
+
+	STATUS client-error-not-found
+}
+
+{
+	# checking the create-job-subscription-operation
+
+	SKIP-IF-NOT-DEFINED HAVE_CREATE_JOB_SUBSCRIPTION
+
+	NAME "print-job"
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+
+	GROUP job-attributes-tag
+	ATTR integer copies 1
+
+	FILE $filename
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+}
+
+{
+	# checking the create-job-subscription-operation
+
+	SKIP-IF-NOT-DEFINED HAVE_CREATE_JOB_SUBSCRIPTION
+
+	NAME "Create per-job subscription"
+	OPERATION create-job-subscription
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer notify-job-id $job-id
+	ATTR name requesting-user-name $user
+	
+	GROUP subscription-attributes-tag
+	ATTR keyword notify-pull-method ippget
+	ATTR keyword notify-events job-state-changed
+
+	STATUS successful-ok
+
+	EXPECT notify-subscription-id OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >0 COUNT 1
+}
+
+{
+    # get subscription attributes and check for REQUIRED attributes
+
+	SKIP-IF-NOT-DEFINED HAVE_CREATE_JOB_SUBSCRIPTION
+
+    NAME "Get subscription attributes"
+    OPERATION Get-subscription-attributes
+
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+    ATTR integer notify-subscription-id $notify-subscription-id
+    ATTR name requesting-user-name $user
+    ATTR keyword requested-attributes all
+
+    STATUS successful-ok
+
+    EXPECT notify-pull-method OF-TYPE keyword IN-GROUP subscription-attributes-tag WITH-VALUE "ippget" COUNT 1
+	EXPECT notify-events OF-TYPE keyword IN-GROUP subscription-attributes-tag WITH-VALUE "job-state-changed"
+    
+	EXPECT notify-charset OF-TYPE charset IN-GROUP subscription-attributes-tag WITH-VALUE "utf-8" COUNT 1      		
+	EXPECT notify-natural-language OF-TYPE naturalLanguage IN-GROUP subscription-attributes-tag WITH-VALUE "en" COUNT 1	
+
+#ISSUE: notify-lease-duration isn't defined for a per-job-subscription object, but it shows up here.
+    EXPECT !notify-lease-duration
+
+	EXPECT !notify-time-interval
+    EXPECT notify-subscription-id OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT notify-sequence-number OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >-1 COUNT 1
+
+#ISSUE: notify-lease-expiration-time and notify-printer-up-time must not show up for per-job subscription object.
+    EXPECT !notify-lease-expiration-time 
+    EXPECT !notify-printer-up-time
+    
+	EXPECT notify-printer-uri OF-TYPE uri IN-GROUP subscription-attributes-tag COUNT 1
+
+#ISSUE: notify-job-id must be returned for per-job-subscription object.
+	EXPECT notify-job-id OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE $job-id COUNT 1
+    
+	EXPECT notify-subscriber-user-name OF-TYPE name IN-GROUP subscription-attributes-tag WITH-VALUE $user COUNT 1	
+	EXPECT !notify-status-code	
+}
