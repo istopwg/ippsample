@@ -1,0 +1,257 @@
+# Test file to test the -actual attribute extension (pwg5100.8)
+
+
+# Test Print-Job operation
+{
+	NAME "RFC 8011 section 4.2.1: Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state WITH-VALUE 7,8,9 DEFINE-MATCH PRINT_JOB_COMPLETED
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Get-Jobs operation for not-completed jobs to check the '-actual' attributes
+{
+	SKIP-IF-DEFINED PRINT_JOB_COMPLETED
+
+	NAME "RFC 8011 section 4.2.6: Get-Jobs Operation (which-jobs=not-completed, requested-attributes)"
+	OPERATION Get-Jobs
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR keyword requested-attributes all
+	ATTR keyword which-jobs not-completed
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	
+	#tests on -actual attributes
+	EXPECT ?copies-actual OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0
+	EXPECT ?cover-back-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?cover-front-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?document-overrides-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag  
+	EXPECT ?finishings-actual OF-TYPE enum|unknown IN-GROUP job-attributes-tag
+	EXPECT ?finishings-col-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?force-front-side-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag  
+	EXPECT ?imposition-template-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?insert-sheet-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-account-id-actual OF-TYPE name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-accounting-sheets-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-accounting-user-id-actual OF-TYPE name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-error-sheet-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-hold-until-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag 
+	EXPECT ?job-message-to-operator-actual OF-TYPE text|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-priority-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0,<101
+	EXPECT ?job-sheets-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-sheets-col-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-sheet-message-actual OF-TYPE text|unknown IN-GROUP job-attributes-tag
+	EXPECT ?media-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag 
+	EXPECT ?media-col-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?media-input-tray-check-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?multiple-document-handling-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(single-document|separate-documents-uncollated-copies|separate-documents-collated-copies|single-document-new-sheet)$$/"
+	EXPECT ?number-up-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag WITH-VALUE >0
+	EXPECT ?orientation-requested-actual OF-TYPE enum|unknown IN-GROUP job-attributes-tag WITH-VALUE 3,4,5,6
+	EXPECT ?output-bin-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?page-delivery-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(same-order-face-up|same-order-face-down|reverse-order-face-up|reverse-order-face-down|system-specified)$$/"
+	EXPECT ?page-order-received-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(1-to-n-order|n-to-1-order)$$/"
+	EXPECT ?page-ranges-actual OF-TYPE rangeOfInteger|unknown IN-GROUP job-attributes-tag
+	EXPECT ?pages-per-subset-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+	EXPECT ?print-color-mode-actual OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "/^(auto|auto-monochrome|bi-level|color|highlight|monochrome|process-bi-level|process-monochrome)$/"
+	EXPECT ?print-content-optimize-actual OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "/^(auto|graphic|photo|text|text-and-graphic)$/"
+	EXPECT ?print-rendering-intent-actual OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "/^(auto|absolute|perceptual|relative|relative-bpc|saturation)$/"
+	EXPECT ?presentation-direction-number-up-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(toright-tobottom|tobottom-toright|toleft-tobottom|tobottom-toleft|toright-totop|totop-toright|toleft-totop|totop-toleft)$$/" 
+	EXPECT ?print-quality-actual OF-TYPE enum|unknown IN-GROUP job-attributes-tag WITH-VALUE 3,4,5
+	EXPECT ?printer-resolution-actual OF-TYPE resolution|unknown IN-GROUP job-attributes-tag 
+	EXPECT ?separator-sheets-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?sheet-collate-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(uncollated|collated)$$/"
+	EXPECT ?sides-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(one-sided|two-sided-long-edge|two-sided-short-edge)$$/"
+	EXPECT ?x-image-position-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(none|center|left|right)$$/"
+	EXPECT ?x-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+	EXPECT ?x-side1-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+	EXPECT ?x-side2-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag	
+	EXPECT ?y-image-position-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(none|center|left|right)$$/"
+	EXPECT ?y-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+	EXPECT ?y-side1-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+	EXPECT ?y-side2-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+}
+
+
+
+# Wait for job to complete...
+{
+	SKIP-IF-NOT-DEFINED job-id
+
+	NAME "Get-Job-Attributes Until Job Complete"
+	OPERATION Get-Job-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	EXPECT job-state OF-TYPE unknown|enum IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >6 REPEAT-NO-MATCH REPEAT-LIMIT 30
+	DISPLAY job-state
+}
+
+# Test Get-Jobs operation
+{
+	NAME "RFC 8011 section 4.2.6: Get-Jobs Operation (which-jobs, requested-attributes)"
+	OPERATION Get-Jobs
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR keyword requested-attributes all
+	ATTR keyword which-jobs completed
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	
+	#tests on -actual attributes
+	EXPECT ?copies-actual OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0
+	EXPECT ?cover-back-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?cover-front-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?document-overrides-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag  
+	EXPECT ?finishings-actual OF-TYPE enum|unknown IN-GROUP job-attributes-tag
+	EXPECT ?finishings-col-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?force-front-side-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag  
+	EXPECT ?imposition-template-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?insert-sheet-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-account-id-actual OF-TYPE name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-accounting-sheets-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-accounting-user-id-actual OF-TYPE name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-error-sheet-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-hold-until-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag 
+	EXPECT ?job-message-to-operator-actual OF-TYPE text|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-priority-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0,<101
+	EXPECT ?job-sheets-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-sheets-col-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-sheet-message-actual OF-TYPE text|unknown IN-GROUP job-attributes-tag
+	EXPECT ?media-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag 
+	EXPECT ?media-col-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?media-input-tray-check-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?multiple-document-handling-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(single-document|separate-documents-uncollated-copies|separate-documents-collated-copies|single-document-new-sheet)$$/"
+	EXPECT ?number-up-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag WITH-VALUE >0
+	EXPECT ?orientation-requested-actual OF-TYPE enum|unknown IN-GROUP job-attributes-tag WITH-VALUE 3,4,5,6
+	EXPECT ?output-bin-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?page-delivery-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(same-order-face-up|same-order-face-down|reverse-order-face-up|reverse-order-face-down|system-specified)$$/"
+	EXPECT ?page-order-received-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(1-to-n-order|n-to-1-order)$$/"
+	EXPECT ?page-ranges-actual OF-TYPE rangeOfInteger|unknown IN-GROUP job-attributes-tag
+	EXPECT ?pages-per-subset-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+	EXPECT ?print-color-mode-actual OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "/^(auto|auto-monochrome|bi-level|color|highlight|monochrome|process-bi-level|process-monochrome)$/"
+	EXPECT ?print-content-optimize-actual OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "/^(auto|graphic|photo|text|text-and-graphic)$/"
+	EXPECT ?print-rendering-intent-actual OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "/^(auto|absolute|perceptual|relative|relative-bpc|saturation)$/"
+	EXPECT ?presentation-direction-number-up-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(toright-tobottom|tobottom-toright|toleft-tobottom|tobottom-toleft|toright-totop|totop-toright|toleft-totop|totop-toleft)$$/" 
+	EXPECT ?print-quality-actual OF-TYPE enum|unknown IN-GROUP job-attributes-tag WITH-VALUE 3,4,5
+	EXPECT ?printer-resolution-actual OF-TYPE resolution|unknown IN-GROUP job-attributes-tag 
+	EXPECT ?separator-sheets-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?sheet-collate-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(uncollated|collated)$$/"
+	EXPECT ?sides-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(one-sided|two-sided-long-edge|two-sided-short-edge)$$/"
+	EXPECT ?x-image-position-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(none|center|left|right)$$/"
+	EXPECT ?x-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+	EXPECT ?x-side1-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+	EXPECT ?x-side2-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag	
+	EXPECT ?y-image-position-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(none|center|left|right)$$/"
+	EXPECT ?y-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+	EXPECT ?y-side1-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+	EXPECT ?y-side2-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+}
+
+
+
+
+# Test Get-Job-Attributes operation
+{
+	NAME "RFC 8011 section 4.3.4: Get-Job-Attributes Operation"
+	OPERATION Get-Job-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "$IPP_URI_SCHEME"
+	
+	#tests on -actual attributes
+	EXPECT ?copies-actual OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0
+	EXPECT ?cover-back-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?cover-front-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?document-overrides-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag  
+	EXPECT ?finishings-actual OF-TYPE enum|unknown IN-GROUP job-attributes-tag
+	EXPECT ?finishings-col-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?force-front-side-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag  
+	EXPECT ?imposition-template-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?insert-sheet-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-account-id-actual OF-TYPE name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-accounting-sheets-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-accounting-user-id-actual OF-TYPE name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-error-sheet-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-hold-until-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag 
+	EXPECT ?job-message-to-operator-actual OF-TYPE text|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-priority-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >0,<101
+	EXPECT ?job-sheets-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-sheets-col-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?job-sheet-message-actual OF-TYPE text|unknown IN-GROUP job-attributes-tag
+	EXPECT ?media-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag 
+	EXPECT ?media-col-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?media-input-tray-check-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?multiple-document-handling-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(single-document|separate-documents-uncollated-copies|separate-documents-collated-copies|single-document-new-sheet)$$/"
+	EXPECT ?number-up-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag WITH-VALUE >0
+	EXPECT ?orientation-requested-actual OF-TYPE enum|unknown IN-GROUP job-attributes-tag WITH-VALUE 3,4,5,6
+	EXPECT ?output-bin-actual OF-TYPE keyword|name|unknown IN-GROUP job-attributes-tag
+	EXPECT ?page-delivery-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(same-order-face-up|same-order-face-down|reverse-order-face-up|reverse-order-face-down|system-specified)$$/"
+	EXPECT ?page-order-received-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(1-to-n-order|n-to-1-order)$$/"
+	EXPECT ?page-ranges-actual OF-TYPE rangeOfInteger|unknown IN-GROUP job-attributes-tag
+	EXPECT ?pages-per-subset-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+	EXPECT ?print-color-mode-actual OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "/^(auto|auto-monochrome|bi-level|color|highlight|monochrome|process-bi-level|process-monochrome)$/"
+	EXPECT ?print-content-optimize-actual OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "/^(auto|graphic|photo|text|text-and-graphic)$/"
+	EXPECT ?print-rendering-intent-actual OF-TYPE keyword IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE "/^(auto|absolute|perceptual|relative|relative-bpc|saturation)$/"
+	EXPECT ?presentation-direction-number-up-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(toright-tobottom|tobottom-toright|toleft-tobottom|tobottom-toleft|toright-totop|totop-toright|toleft-totop|totop-toleft)$$/" 
+	EXPECT ?print-quality-actual OF-TYPE enum|unknown IN-GROUP job-attributes-tag WITH-VALUE 3,4,5
+	EXPECT ?printer-resolution-actual OF-TYPE resolution|unknown IN-GROUP job-attributes-tag 
+	EXPECT ?separator-sheets-actual OF-TYPE collection|unknown IN-GROUP job-attributes-tag
+	EXPECT ?sheet-collate-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(uncollated|collated)$$/"
+	EXPECT ?sides-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(one-sided|two-sided-long-edge|two-sided-short-edge)$$/"
+	EXPECT ?x-image-position-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(none|center|left|right)$$/"
+	EXPECT ?x-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+	EXPECT ?x-side1-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+	EXPECT ?x-side2-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag	
+	EXPECT ?y-image-position-actual OF-TYPE keyword|unknown IN-GROUP job-attributes-tag WITH-VALUE "/^(none|center|left|right)$$/"
+	EXPECT ?y-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+	EXPECT ?y-side1-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+	EXPECT ?y-side2-image-shift-actual OF-TYPE integer|unknown IN-GROUP job-attributes-tag
+}

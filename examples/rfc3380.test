@@ -1,0 +1,651 @@
+#This test files contains various tests related to concepts in RFC 3380-Job and Printer Set Operations
+
+#Checking for supported operations.
+{
+	NAME "Get-Printer-Attributes"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	STATUS successful-ok
+
+	# Operations
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag
+	EXPECT operations-supported WITH-VALUE 0x0013 DEFINE-MATCH SET_PRINTER_ATTRIBUTES_SUPPORTED #Set-Printer-Attributes
+	EXPECT operations-supported WITH-VALUE 0x0014 DEFINE-MATCH SET_JOB_ATTRIBUTES_SUPPORTED # Set-Job-Attributes
+	EXPECT operations-supported WITH-VALUE 0x0015 DEFINE-MATCH GET_PRINTER_SUPPORTED_VALUES_SUPPORTED # Get-Printer-Supported-Values	
+	EXPECT operations-supported WITH-VALUE 0x0010 DEFINE-MATCH PAUSE_PRINTER_SUPPORTED # Pause-Printer
+	EXPECT operations-supported WITH-VALUE 0x0011 DEFINE-MATCH RESUME_PRINTER_SUPPORTED # Resume-Printer
+	EXPECT operations-supported WITH-VALUE 0x000c DEFINE-MATCH HOLD_JOB_SUPPORTED # Hold-Job
+	EXPECT operations-supported WITH-VALUE 0x000d DEFINE-MATCH RELEASE_JOB_SUPPORTED # Release-Job
+	EXPECT operations-supported WITH-VALUE 0x0008 DEFINE-MATCH CANCEL_JOB_SUPPORTED #Cancel-Job 
+
+	#printer description attributes
+	EXPECT ?printer-message-from-operator OF-TYPE text IN-GROUP printer-attributes-tag DEFINE-MATCH PRINTER_MESSAGE_FROM_OPERATOR_SUPPORTED
+	EXPECT printer-settable-attributes-supported OF-TYPE keyword IN-GROUP printer-attributes-tag IF-DEFINED SET_PRINTER_ATTRIBUTES_SUPPORTED
+	EXPECT job-settable-attributes-supported OF-TYPE keyword IN-GROUP printer-attributes-tag IF-DEFINED SET_JOB_ATTRIBUTES_SUPPORTED
+	EXPECT ?document-format-varying-attributes OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT ?printer-message-date-time OF-TYPE dateTime IN-GROUP printer-attributes-tag
+	EXPECT printer-xri-supported OF-TYPE collection IN-GROUP printer-attributes-tag IF-DEFINED SETTING_PRINTER_XRI_SUPPORTED
+	EXPECT xri-security-supported OF-TYPE keyword IN-GROUP printer-attributes-tag IF-DEFINED SETTING_PRINTER_XRI_SUPPORTED
+	EXPECT  xri-authentication-supported OF-TYPE keyword IN-GROUP printer-attributes-tag IF-DEFINED SETTING_PRINTER_XRI_SUPPORTED
+	EXPECT xri-uri-scheme-supported OF-TYPE uriScheme IN-GROUP printer-attributes-tag IF-DEFINED SETTING_PRINTER_XRI_SUPPORTED
+	
+	
+
+	#defining variables for specific tests
+	EXPECT copies-supported WITH-VALUE >1 DEFINE-MATCH OPTIONAL_COPIES
+	EXPECT printer-settable-attributes-supported WITH-VALUE "none" DEFINE-MATCH PRINTER_ATTRIBUTES_NOT_SETTABLE
+	EXPECT printer-message-time OF-TYPE integer IN-GROUP printer-attributes-tag DEFINE-MATCH PRINTER_MESSAGE_TIME_SUPPORTED
+	EXPECT printer-current-time OF-TYPE datetime IN-GROUP printer-attributes-tag DEFINE-MATCH PRINTER_CURRENT_TIME_SUPPORTED
+}
+
+
+#test to check if the Get-Printer-Supported-Value operation is supported when the Set-Printer-Attribute operation is supported and some of the printer attributes are settable.
+{
+	SKIP-IF-DEFINED PRINTER_ATTRIBUTES_NOT_SETTABLE
+	SKIP-IF-NOT-DEFINED SET_PRINTER_ATTRIBUTES_SUPPORTED
+
+	NAME "Get-Printer-Attributes to confirm conditional support for Get-Printer-Values-Supported"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	STATUS successful-ok
+
+	EXPECT operations-supported WITH-VALUE 0x0015 
+} 
+
+#test to confirm support for printer-message-date-time attribute if printer-message-time and printer-current-time attribute are defined.
+{
+	SKIP-IF-NOT-DEFINED PRINTER_MESSAGE_TIME_SUPPORTED
+	SKIP-IF-NOT-DEFINED PRINTER_CURRENT_TIME_SUPPORTED
+
+	NAME "Get-Printer-Attributes to confirm conditional support for printer-message-date-time attribute"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	STATUS successful-ok
+
+	EXPECT printer-message-date-time OF-TYPE datetime IN-GROUP printer-attributes-tag
+}
+
+
+
+#Print-job. To check if job-message-from-operator is defined. Will be queried using the Get-Job-Attributes operation
+{
+
+	NAME "Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0 DEFINE-VALUE JOBID_GETJOBATTRIBUTES
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+	
+}
+
+#Check the job-message-from-operator is supported or not
+{
+	SKIP-IF-NOT-DEFINED JOBID_GETJOBATTRIBUTES
+
+	NAME "Get-Job-Attributes Operation to check support for job-message-from-operator"
+	OPERATION Get-Job-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $JOBID_GETJOBATTRIBUTES
+	ATTR name requesting-user-name $user
+	ATTR keyword requested-attributes job-message-from-operator
+
+	STATUS successful-ok
+	
+	EXPECT job-message-from-operator IN-GROUP job-attributes-tag DEFINE-MATCH JOB_MESSAGE_FROM_OPERATOR_SUPPORTED
+}
+
+
+
+
+#test current copies-default value. Will be modified using the Set-Printer-Attributes operation in the following test.
+{
+	SKIP-IF-NOT-DEFINED OPTIONAL_COPIES
+	SKIP-IF-NOT-DEFINED SET_PRINTER_ATTRIBUTES_SUPPORTED
+
+	NAME "Get-Printer-Attributes to check copies-default"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR keyword requested-attributes copies-default
+	
+	STATUS successful-ok
+
+	DISPLAY copies-default
+
+	EXPECT copies-default OF-TYPE integer IN-GROUP printer-attributes-tag
+}
+
+
+#Test for Set-Printer-Attributes operation (setting the default number of copies printed to 2)
+{
+	SKIP-IF-NOT-DEFINED SET_PRINTER_ATTRIBUTES_SUPPORTED
+	SKIP-IF-NOT-DEFINED OPTIONAL_COPIES
+
+	NAME "Section 4.1: Set-Printer-Attributes operation"
+	OPERATION Set-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	GROUP printer-attributes-tag
+	ATTR integer copies-default 2
+
+	STATUS successful-ok
+	STATUS client-error-attributes-not-settable
+	STATUS client-error-conflicting-attributes
+	STATUS client-error-request-entity-too-large
+	STATUS client-error-attributes-or-values-not-supported
+
+}
+
+#test current copies-default value after modifying using the Set-Printer-Attributes operation in the following test. Expected value is 2.
+{
+	SKIP-IF-NOT-DEFINED OPTIONAL_COPIES
+	SKIP-IF-NOT-DEFINED SET_PRINTER_ATTRIBUTES_SUPPORTED
+
+	NAME "Get-Printer-Attributes to check copies-default"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR keyword requested-attributes copies-default
+	
+	STATUS successful-ok
+
+	DISPLAY copies-default
+
+	EXPECT copies-default OF-TYPE integer IN-GROUP printer-attributes-tag
+}
+
+
+#test setting printer-message-from-operator printer description attribute if it is supported
+{
+	SKIP-IF-NOT-DEFINED PRINTER_MESSAGE_FROM_OPERATOR_SUPPORTED
+	SKIP-IF-NOT-DEFINED SET_PRINTER_ATTRIBUTES_SUPPORTED
+
+	NAME "Section 4.1: Set-Printer-Attributes operation"
+	OPERATION Set-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	GROUP printer-attributes-tag
+	ATTR text printer-message-from-operator "Setting the printer-message-from-operator"
+
+	STATUS successful-ok
+
+}
+
+
+# Test Print-Job operation with copies = 1. Copies attribute to be changed using Set-Job-Attribute test in the following operation.
+{
+	SKIP-IF-NOT-DEFINED OPTIONAL_COPIES
+	SKIP-IF-NOT-DEFINED SET_JOB_ATTRIBUTES_SUPPORTED
+
+	NAME "Print-Job Operation With copies = 1"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+
+	Group job-attributes-tag
+	ATTR integer copies 1
+
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0 DEFINE-VALUE JOBID_SET_JOB_ATTRIBUTES
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state WITH-VALUE 7,8,9 DEFINE-MATCH PRINT_JOB_COMPLETED_SET_JOB_ATTRIBUTES
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+#Test the Set-Job-Attributes operation
+{
+	SKIP-IF-NOT-DEFINED JOBID_SET_JOB_ATTRIBUTES
+	SKIP-IF-NOT-DEFINED SET_JOB_ATTRIBUTES_SUPPORTED
+	SKIP-IF-DEFINED PRINT_JOB_COMPLETED_SET_JOB_ATTRIBUTES
+
+
+	NAME "RFC 3380 section 4.2: Set-Job-Attributes Operation"
+	
+	OPERATION Set-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $JOBID_SET_JOB_ATTRIBUTES
+	ATTR name requesting-user-name $user
+
+	Group job-attributes-tag
+	ATTR integer copies 2 
+
+	STATUS successful-ok
+	STATUS client-error-not-possible
+	STATUS client-error-request-entity-too-large
+	STATUS client-error-attributes-or-values-not-supported
+	STATUS client-error-attributes-not-settable
+	STATUS client-error-attributes-or-values-not-supported
+	STATUS client-error-conflicting-attributes
+
+}
+
+#test setting job-message-from-operator job description attribute if it is supported
+{
+	#SKIP-IF-NOT-DEFINED JOB_MESSAGE_FROM_OPERATOR_SUPPORTED
+	SKIP-IF-NOT-DEFINED SET_JOB_ATTRIBUTES_SUPPORTED
+	SKIP-IF-NOT-DEFINED JOBID_SET_JOB_ATTRIBUTES
+
+	NAME "Section 4.1: Set-Job-Attributes operation"
+	OPERATION Set-Job-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $JOBID_SET_JOB_ATTRIBUTES
+	ATTR name requesting-user-name $user
+
+	Group job-attributes-tag
+	ATTR text job-message-from-operator "Setting the job-message-from-operator"
+
+	STATUS successful-ok
+
+}
+
+#Check the copies of the print-job using the get-job-attributes test
+{
+	SKIP-IF-NOT-DEFINED JOBID_SET_JOB_ATTRIBUTES
+	SKIP-IF-NOT-DEFINED SET_JOB_ATTRIBUTES_SUPPORTED
+
+	NAME "Get-Job-Attributes Operation to check number of copies "
+	OPERATION Get-Job-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $JOBID_SET_JOB_ATTRIBUTES
+	ATTR name requesting-user-name $user
+	ATTR keyword requested-attributes copies
+
+	STATUS successful-ok
+	
+	EXPECT copies OF-TYPE integer IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE 2
+}
+
+
+
+
+#test the detete-attribute value tag. Will create a job with the copies attribute and then delete the copies attribute
+{
+	SKIP-IF-NOT-DEFINED OPTIONAL_COPIES
+	SKIP-IF-NOT-DEFINED SET_JOB_ATTRIBUTES_SUPPORTED
+
+	NAME "Print-Job Operation With copies = 1"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+
+	Group job-attributes-tag
+	ATTR integer copies 1
+
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0 DEFINE-VALUE JOBID_DELETE_JOB
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state WITH-VALUE 7,8,9 DEFINE-MATCH PRINT_JOB_COMPLETED_DELETE_JOB
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+#Test the Set-Job-Attributes operation
+{
+	SKIP-IF-NOT-DEFINED JOBID_DELETE_JOB
+	SKIP-IF-NOT-DEFINED SET_JOB_ATTRIBUTES_SUPPORTED
+	SKIP-IF-DEFINED PRINT_JOB_COMPLETED_DELETE_JOB
+
+
+	NAME "Set-Job-Attributes Operation -Deleting a job attribute"
+	
+	OPERATION Set-Job-Attributes
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $JOBID_DELETE_JOB
+	ATTR name requesting-user-name $user
+
+	Group job-attributes-tag
+	ATTR delete-attribute copies
+
+	STATUS successful-ok
+	STATUS client-error-not-possible
+	STATUS client-error-request-entity-too-large
+	STATUS client-error-attributes-or-values-not-supported
+	STATUS client-error-attributes-not-settable
+	STATUS client-error-attributes-or-values-not-supported
+	STATUS client-error-conflicting-attributes
+
+}
+
+
+#Below tests invlove using the Get-Printer-Supported-Values operation to check if an attribute of form xxx-supported specified by the user has an 'admin-define' out-of-band attribute value. If it does then in that case we use the Set-Printer-Attributes to set a value specified by the user using the name attribute syntax
+
+#Test for the Get-Printer-Supported-Values Operation
+{
+	SKIP-IF-NOT-DEFINED GET_PRINTER_SUPPORTED_VALUES_SUPPORTED
+	SKIP-IF-NOT-DEFINED SET_ATTR_NAME
+
+	NAME "RFC 3380 Section 4.3: Get-Printer-Supported-Values operation"
+	OPERATION Get-Printer-Supported-Values
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+
+	EXPECT $SET_ATTR_NAME WITH-VALUE "admin-define" DEFINE-MATCH ADMIN_DEFINE_SUPPORTED
+
+}
+{
+	SKIP-IF-NOT-DEFINED ADMIN_DEFINE_SUPPORTED
+	SKIP-IF-NOT-DEFINED SET_ATTR_VALUE
+	SKIP-IF-NOT-DEFINED SET_PRINTER_ATTRIBUTES_SUPPORTED
+
+	NAME "Section 4.1: Set-Printer-Attributes operation"
+	OPERATION Set-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	GROUP printer-attributes-tag
+	ATTR name $SET_ATTR_NAME $SET_ATTR_VALUE
+
+	STATUS successful-ok
+	STATUS client-error-attributes-not-settable
+	STATUS client-error-conflicting-attributes
+	STATUS client-error-request-entity-too-large
+	STATUS client-error-attributes-or-values-not-supported
+
+}
+
+
+#Test for checking the support of printer-message-from-operator in the pause and resume printer operations provided the printer-message-from-operator printer description attribute is defined
+
+#test Pause-Printer operation followed by resume printer operation
+{
+	SKIP-IF-NOT-DEFINED PAUSE_PRINTER_SUPPORTED
+	SKIP-IF-NOT-DEFINED PRINTER_MESSAGE_FROM_OPERATOR_SUPPORTED
+
+	NAME "Pause-Printer Operation with printer-message-from-operator operation attribute"
+	
+	Operation Pause-Printer
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri                                                             
+	ATTR name requesting-user-name $user
+	ATTR text printer-message-from-operator "pausing the printer"
+
+	STATUS successful-ok
+}
+#Resume-Printer operation
+{
+	SKIP-IF-NOT-DEFINED RESUME_PRINTER_SUPPORTED
+	SKIP-IF-NOT-DEFINED PRINTER_MESSAGE_FROM_OPERATOR_SUPPORTED
+
+	Name "Resume-Printer with printer-message-from-operator operation attribute"
+
+	Operation Resume-Printer
+
+	Group operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR text printer-message-from-operator "The printer is curently working"
+
+	Status successful-ok
+} 
+{
+	SKIP-IF-NOT-DEFINED PRINTER_MESSAGE_FROM_OPERATOR_SUPPORTED
+
+	NAME "Get-Printer-Attributes to check printer-message-from-operator"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR keyword requested-attributes printer-message-from-operator
+	
+	STATUS successful-ok
+
+	DISPLAY printer-message-from-operator
+
+	EXPECT printer-message-from-operator OF-TYPE text IN-GROUP printer-attributes-tag WITH-VALUE "The printer is curently working"
+}
+
+#Test if job-message-from-operator operation attributes works with Cancel-Job, Hold-Job and Release-Job operations. These tests are provided that the job-message-from-operator job description attribute is supported.
+
+#print-job operation. Job to be cancelled using cancel job operation along with job-message-from-operator
+{
+	SKIP-IF-NOT-DEFINED CANCEL_JOB_SUPPORTED
+	SKIP-IF-NOT-DEFINED JOB_MESSAGE_FROM_OPERATOR_SUPPORTED
+
+	NAME "Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0 DEFINE-VALUE JOBID_CANCEL_JOB
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Cancel-Job operation
+{
+	SKIP-IF-NOT-DEFINED JOBID_CANCEL_JOB
+	SKIP-IF-NOT-DEFINED CANCEL_JOB_SUPPORTED
+	SKIP-IF-NOT-DEFINED JOB_MESSAGE_FROM_OPERATOR_SUPPORTED
+
+	NAME "Cancel-Job Operation with job-message-from-operator"
+	OPERATION Cancel-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $JOBID_CANCEL_JOB
+	ATTR name requesting-user-name $user
+	ATTR text job-message-from-operator "This job is being cancelled"
+
+	STATUS successful-ok
+	STATUS client-error-not-possible
+}
+
+#print-job.Job to be held and released using Hold-Job and Release-Job operation along with job-message-from-operator
+{
+	SKIP-IF-NOT-DEFINED RELEASE_JOB_SUPPORTED
+	SKIP-IF-NOT-DEFINED HOLD_JOB_SUPPORTED
+	SKIP-IF-NOT-DEFINED JOB_MESSAGE_FROM_OPERATOR_SUPPORTED
+
+	NAME "Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0 DEFINE-VALUE JOBID_HOLD_JOB
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+# Test Hold-Job operation with job-message-from-operator operation attribute
+{
+	SKIP-IF-NOT-DEFINED HOLD_JOB_SUPPORTED
+	SKIP-IF-NOT-DEFINED JOBID_HOLD_JOB
+	SKIP-IF-NOT-DEFINED JOB_MESSAGE_FROM_OPERATOR_SUPPORTED
+
+
+	Name "Hold-Job operation with job-message-from-operator operation attribute"
+
+	Operation Hold-Job
+
+	Group operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $JOBID_HOLD_JOB
+	ATTR name requesting-user-name $user
+	ATTR text job-message-from-operator "The job has been held"
+
+	STATUS successful-ok
+	STATUS client-error-not-possible
+}
+#Release-Job Operation with job-message-from-operator operation attribute
+{
+	SKIP-IF-NOT-DEFINED RELEASE_JOB_SUPPORTED		
+	SKIP-IF-NOT-DEFINED JOBID_HOLD_JOB
+	SKIP-IF-NOT-DEFINED JOB_MESSAGE_FROM_OPERATOR_SUPPORTED
+
+	NAME "Release-Job with job-message-from-operator operation attribute"
+	OPERATION Release-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $JOBID_HOLD_JOB
+	ATTR name requesting-user-name $user
+	ATTR text job-message-from-operator "The job has been released"
+
+	STATUS successful-ok
+	STATUS client-error-not-possible
+}
+
+	
+
+
