@@ -85,7 +85,7 @@ _ippFileParse(
         {
 	  _ippVarsExpand(v, value, temp, sizeof(value));
 	  _ippVarsSet(v, name, value);
-	}
+		}
       }
       else
       {
@@ -93,6 +93,24 @@ _ippFileParse(
         break;
       }
     }
+    else if (f.attrs && !_cups_strcasecmp(token, "GROUP"))
+    {
+      char  syntax[128];    /* Attribute syntax (value tag) */
+      ipp_tag_t group_tag;    /* Group tag */
+
+      if (!_ippFileReadToken(&f, syntax, sizeof(syntax)))
+      {
+        report_error(&f, v, user_data, "Missing GROUP syntax on line %d of \"%s\".", f.linenum, f.filename);
+        break;
+      }
+      else if ((group_tag = ippTagValue(syntax)) > IPP_TAG_SYSTEM || group_tag < IPP_TAG_ZERO )
+      {
+        report_error(&f, v, user_data, "Bad GROUP syntax \"%s\" on line %d of \"%s\".", syntax, f.linenum, f.filename);
+        break;
+      }
+      f.group_tag = group_tag;
+    }
+
     else if (f.attrs && !_cups_strcasecmp(token, "ATTR"))
     {
      /*
@@ -100,7 +118,8 @@ _ippFileParse(
       */
 
       char	syntax[128],		/* Attribute syntax (value tag) */
-		name[128];		/* Attribute name */
+		        name[128],		/* Attribute name */
+            syntax_value[128]; /*Variable Expanded Value*/
       ipp_tag_t	value_tag;		/* Value tag */
 
       attr = NULL;
@@ -110,7 +129,9 @@ _ippFileParse(
         report_error(&f, v, user_data, "Missing ATTR syntax on line %d of \"%s\".", f.linenum, f.filename);
 	break;
       }
-      else if ((value_tag = ippTagValue(syntax)) < IPP_TAG_UNSUPPORTED_VALUE)
+      _ippVarsExpand(v, syntax_value, syntax, sizeof(syntax_value));
+      
+      if ((value_tag = ippTagValue(syntax_value)) < IPP_TAG_UNSUPPORTED_VALUE)
       {
         report_error(&f, v, user_data, "Bad ATTR syntax \"%s\" on line %d of \"%s\".", syntax, f.linenum, f.filename);
 	break;
@@ -142,7 +163,7 @@ _ippFileParse(
         attrs = ignored;
       }
 
-      if (value_tag < IPP_TAG_INTEGER)
+      if (value_tag < IPP_TAG_INTEGER-1)
       {
        /*
 	* Add out-of-band attribute - no value string needed...
@@ -163,6 +184,7 @@ _ippFileParse(
       }
 
     }
+
     else if (attr && !_cups_strcasecmp(token, ","))
     {
      /*
@@ -170,7 +192,7 @@ _ippFileParse(
       */
 
       if (!parse_value(&f, v, user_data, attrs, &attr, ippGetCount(attr)))
-	break;
+        break;
     }
     else
     {
@@ -357,15 +379,15 @@ _ippFileReadToken(_ipp_file_t *f,	/* I - File to read from */
 
         if ((ch = cupsFileGetChar(f->fp)) == EOF)
         {
-	  *token = '\0';
-	  DEBUG_puts("1_ippFileReadToken: EOF");
-	  return (0);
-	}
-	else if (ch == '\n')
-	{
-	  f->linenum ++;
-	  DEBUG_printf(("1_ippFileReadToken: quoted LF, linenum=%d, pos=%ld", f->linenum, (long)cupsFileTell(f->fp)));
-	}
+      	  *token = '\0';
+      	  DEBUG_puts("1_ippFileReadToken: EOF");
+      	  return (0);
+	      }
+      	else if (ch == '\n')
+      	{
+      	  f->linenum ++;
+      	  DEBUG_printf(("1_ippFileReadToken: quoted LF, linenum=%d, pos=%ld", f->linenum, (long)cupsFileTell(f->fp)));
+      	}
       }
 
       if (tokptr < tokend)
@@ -438,7 +460,8 @@ parse_collection(
       */
 
       char	syntax[128],		/* Attribute syntax (value tag) */
-		name[128];		/* Attribute name */
+		        name[128],		/* Attribute name */
+            syntax_value[128]; /*Variable Expanded Value*/
       ipp_tag_t	value_tag;		/* Value tag */
 
       attr = NULL;
@@ -449,8 +472,10 @@ parse_collection(
 	ippDelete(col);
 	col = NULL;
 	break;
+      
       }
-      else if ((value_tag = ippTagValue(syntax)) < IPP_TAG_UNSUPPORTED_VALUE)
+      _ippVarsExpand(v, syntax_value, syntax, sizeof(syntax_value));
+      if ((value_tag = ippTagValue(syntax_value)) < IPP_TAG_UNSUPPORTED_VALUE)
       {
         report_error(f, v, user_data, "Bad ATTR syntax \"%s\" on line %d of \"%s\".", syntax, f->linenum, f->filename);
 	ippDelete(col);
@@ -466,7 +491,7 @@ parse_collection(
 	break;
       }
 
-      if (value_tag < IPP_TAG_INTEGER)
+      if (value_tag < IPP_TAG_INTEGER-1)
       {
        /*
 	* Add out-of-band attribute - no value string needed...
@@ -537,6 +562,7 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
 {
   char	value[1024],			/* Value string */
 	temp[1024];			/* Temporary string */
+  ipp_tag_t value_tag;
 
 
   if (!_ippFileReadToken(f, temp, sizeof(temp)))
@@ -547,7 +573,22 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
 
   _ippVarsExpand(v, value, temp, sizeof(value));
 
-  switch (ippGetValueTag(*attr))
+/* value_tag processing to support unassigned tag values */
+  value_tag = ippGetValueTag(*attr);
+  if (value_tag == 0x20 || (value_tag >= 0x24 && value_tag <= 0x2f))
+    value_tag = IPP_TAG_INTEGER;
+  else
+    if (value_tag >= 0x38 && value_tag <= 0x3f)
+      value_tag = IPP_TAG_STRING;
+    else
+      if (value_tag == 0x40 || (value_tag >= 0x4b && value_tag <= 0x5f))
+        value_tag = IPP_TAG_RESERVED_STRING;
+      else
+        if (value_tag >= 0x40000000 && value_tag <= 0x7fffffff)
+          value_tag = IPP_TAG_STRING;
+
+
+  switch (value_tag)
   {
     case IPP_TAG_BOOLEAN :
         return (ippSetBoolean(ipp, attr, element, !_cups_strcasecmp(value, "true")));
@@ -587,7 +628,7 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
           {
             utc_offset = -utc_offset;
             date[8]    = (ipp_uchar_t)'-';
-	  }
+	         }
 	  else
 	  {
             date[8] = (ipp_uchar_t)'+';
@@ -644,19 +685,80 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
 	break;
 
     case IPP_TAG_STRING :
-        return (ippSetOctetString(ipp, attr, element, value, (int)strlen(value)));
+    	{
+    		if(value[0]=='<')				/* Input is binary(in form of hex) values*/
+    		{
+          unsigned char data[32767], *dataptr = data; /*data: decoded hex, dataptr:iterating pointer */
+          char *valptr = value + 1; /*Value iterating pointer*/
+          while (1)
+            {
+              while (isxdigit(valptr[0]) && isxdigit(valptr[1]))              
+              {
+                 char c = tolower(valptr[0]), d=tolower(valptr[1]);
+
+                 /*decode hex pair into 8 bit string */
+                 *dataptr = (d>='a')?(10+d-'a'):(d-'0')  |  (c>= 'a') ? ((10+c -'a') << 4) : ((c-'0') <<4);
+                 valptr += 2;
+                 dataptr ++;
+                 if (dataptr >= (data + sizeof(data)))
+                   break;
+              }
+              if (*valptr == '>')
+                break;
+              else if (*valptr)  /*If string is not in pairs, or has a non-hex digit*/
+              {
+                report_error(f, v, user_data, "Bad hexadecimal value \"%s\" on line %d of \"%s\".", value+1, f->linenum, f->filename);
+                return (0);
+              }
+              if (!_ippFileReadToken(f, value, sizeof(value)))
+              {
+                report_error(f, v, user_data, "Missing value on line %d of \"%s\".", f->linenum, f->filename);
+                return (0);
+              }
+              valptr = value;
+            }
+          return (ippSetOctetString(ipp, attr, element, data, (int) (dataptr-data))); 
+        }
+    		
+    		else
+    		{
+    			return (ippSetOctetString(ipp, attr, element, value, (int)strlen(value)));
+    		
+    	   } 
+       }
+        
         break;
 
     case IPP_TAG_TEXTLANG :
     case IPP_TAG_NAMELANG :
+    {
+    	(*attr)->values[element].string.text = _cupsStrAlloc(value);
+    	if (!_ippFileReadToken(f, value, sizeof(value)))	
+		  {
+		    report_error(f, v, user_data, "No Language Data in line %d of \"%s\".", f->linenum, f->filename);
+		    return (0);
+		  }
+      if (!(value[0] == '(' && value[strlen(value)-1] == ')'))
+      {
+        report_error(f, v, user_data, "Bad Language Value in line %d of \"%s\".", f->linenum, f->filename);
+        return (0);
+      }
+		  memmove(value, value+1, strlen(value));
+		  value[strlen(value)-1]='\0';		/* Purge parenthesis */
+		  (*attr)->values[element].string.language = _cupsStrAlloc(value);
+
+    }
+    break;
     case IPP_TAG_TEXT :
     case IPP_TAG_NAME :
+    case IPP_TAG_RESERVED_STRING :
     case IPP_TAG_KEYWORD :
     case IPP_TAG_URI :
     case IPP_TAG_URISCHEME :
     case IPP_TAG_CHARSET :
     case IPP_TAG_LANGUAGE :
     case IPP_TAG_MIMETYPE :
+    case IPP_TAG_MEMBERNAME :
         return (ippSetString(ipp, attr, element, value));
         break;
 
