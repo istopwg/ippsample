@@ -1,72 +1,54 @@
-# IPPDOCLINT
+# IPP Sample Implementations
 
-***IMPORTANT:This repo is just a proof-of-work for my participation in Google
-Summer of Code 2018. This repo has been out of sync with the upstream repo
-since I started working on this and will continue to remain so (at least the
- master branch) in the future so that my commits are clearly visible***
+This code provides sample implementations of IPP Clients, Printers, and Proxies.
+It is largely based upon the [CUPS](https://www.cups.org/) software, with
+substantial changes to the ippproxy and ippserver implementations to make them
+more general-purpose and configurable.
 
-## Introduction
+[![Travis Build Status](https://travis-ci.org/istopwg/ippsample.svg?branch=master)](https://travis-ci.org/istopwg/ippsample)
+[![Snap Status](https://build.snapcraft.io/badge/istopwg/ippsample.svg)](https://build.snapcraft.io/user/istopwg/ippsample)
 
-I have been selected as a student for the
-[Google Summer of Code](https://summerofcode.withgoogle.com/) program to work
-for The Linux Foundation, more specifically the
-[OpenPrinting project](https://wiki.linuxfoundation.org/openprinting/start).
-My project was to build a tool which takes in different printing file formats
-and checks them for structural errors before sending it to the printer. This
-idea was taken from an open
-[issue](https://github.com/istopwg/ippsample/issues/29) in the
-[ippsample](http://istopwg.github.io/ippsample/) project.
 
-## Brief Summary
+## ippfind
 
-The proposed linter program will take as input common print file formats and
-checks them for any structural or content errors. The linter should support
-basic raster formats such as PWG and CUPS rasters along with JPEG and PDF
-formats. The program can be used as a standalone program or as a command for
-the ippserver program to check the document submitted along with a job. The
-program also reports various job attributes such as job-impressions-xxx,
-job-media-sheets-xxx, job-pages-xxx. The skeleton file for the program has
-already been created by Michael R. Sweet from Apple Inc. and my work will
-start from it and build on top of it.
+The ippfind program implements Bonjour/DNS-SD discovery of IPP printers and can
+be used to find and test specific printers.  Among other things, it is used as
+part of the IPP Everywhere Printer Self-Certification test tools.
 
-## Build
+## ipptool
 
-Refer to
-[BUILD.md](https://github.com/rithvikp1998/ippsample/blob/master/BUILD.md)
+The ipptool program implements a generic IPP Client interface that allows a
+user to send different IPP requests and act based on the response from the
+Printer.  Among other things, it is used as part of the IPP Everywhere Printer
+Self-Certification test tools.
 
-## Testing
+## ippproxy
 
-```
-Usage: ippdoclint [options] filename
-Options:
-  --help              Show program usage.
-  --version           Show program version.
-  -i content-type     Set MIME media type for file.
-  -o name=value       Set print options.
-  -v                  Be verbose.
-```
+The ippproxy program implements a generic IPP Proxy interface that allows you to
+connect a local IPP or PCL printer to an IPP Infrastructure Printer such as the
+ippserver program.
 
-## TODO
+## ippserver
 
-* Try to test with files from as many different sources as possible and look
-for corner cases or exceptions.
-* Merge the code into the upstream repo.
+The ippserver program implements a generic IPP Printer interface that allows you
+to host shared printers using the IPP Shared Infrastructure Extensions as well
+as support local printing or document processing.
 
-## Contact
+## ipptransform
 
-* Me - rithvikp98@gmail.com
-* Mentors:
-    * Aveek Basu, Lexmark - aveek.basu@lexmark.com
-    * Danny Brennan, IBM - brennand@us.ibm.com
-    * Smith Kennedy, HP - smith.kennedy@hp.com
-* Till Kamppeter, Head, OpenPrinting - till.kamppeter@gmail.com
-* Michael Sweet, Apple - msweet@apple.com
+The ipptransform program is a generic file conversion utility that is used primarily with ippserver to support rasterization of JPEG and PDF documents for IPP Everywhere and HP PCL printers.
 
-## Thank You
+# Legal Stuff
 
-Working with OpenPrinting has been extraordinary as before (this is my second
-GSoC with them :) ). If anything, it was even better. I thank all my mentors
-for guiding me to write good code and making me a better developer. And I
-thank OpenPrinting for this excellent opportunity one more time. I will try my
-best to keep contributing to OpenPrinting regularly and I will be looking
-forward to working with them again.
+Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
+Copyright © 2007-2018 by Apple Inc.
+Copyright © 1997-2007 by Easy Software Products.
+
+This software is provided under the terms of the Apache License, Version 2.0.
+A copy of this license can be found in the file `LICENSE`.  Additional legal
+information is provided in the file `NOTICE`.
+
+Unless required by applicable law or agreed to in writing, software distributed
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations under the License.
