@@ -1,0 +1,964 @@
+#This test file is developed for RFC3998:IPP Job and Printer Administrative Operations
+
+#Tests the Optional IPP operations and the Conformance Requirement Dependencies for Operations
+{
+	NAME "Section 3: Optional IPP Operations"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+
+	DISPLAY printer-state-reasons
+
+	# Operations
+	EXPECT ?operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag
+	EXPECT ?operations-supported WITH-VALUE 0x22 DEFINE-MATCH ENABLE_PRINTER_SUPPORTED # Enable-Printer
+	EXPECT ?operations-supported WITH-VALUE 0x23 DEFINE-MATCH DISABLE_PRINTER_SUPPORTED # Disable-Printer
+	EXPECT ?operations-supported WITH-VALUE 0x24 DEFINE-MATCH PAUSE_PRINTER_AFTER_CURRENT_JOB_SUPPORTED # Pause-Printer-After-Current-Job
+	EXPECT ?operations-supported WITH-VALUE 0x25 DEFINE-MATCH HOLD_NEW_JOBS_SUPPORTED # Hold-New-Jobs
+	EXPECT ?operations-supported WITH-VALUE 0x26 DEFINE-MATCH RELEASE_HELD_NEW_JOBS_SUPPORTED # Release-Held-New-Jobs
+	EXPECT ?operations-supported WITH-VALUE 0x27 DEFINE-MATCH DEACTIVATE_PRINTER_SUPPORTED # Deactivate-Printer
+	EXPECT ?operations-supported WITH-VALUE 0x28 DEFINE-MATCH ACTIVATE_PRINTER_SUPPORTED # Activate-Printer
+	EXPECT ?operations-supported WITH-VALUE 0x29 DEFINE-MATCH RESTART_PRINTER_SUPPORTED # Restart-Printer
+	EXPECT ?operations-supported WITH-VALUE 0x2A DEFINE-MATCH SHUTDOWN_PRINTER_SUPPORTED # Shutdown-Printer
+	EXPECT ?operations-supported WITH-VALUE 0x2B DEFINE-MATCH STARTUP_PRINTER_SUPPORTED # Startup-Printer
+	EXPECT ?operations-supported WITH-VALUE 0x2C DEFINE-MATCH REPROCESS_JOB_SUPPORTED # Reprocess-Job
+	EXPECT ?operations-supported WITH-VALUE 0x2D DEFINE-MATCH CANCEL_CURRENT_JOB_SUPPORTED # Cancel-Current-Job
+	EXPECT ?operations-supported WITH-VALUE 0x2E DEFINE-MATCH SUSPEND_CURRENT_JOB_SUPPORTED # Suspend-Current-Job
+	EXPECT ?operations-supported WITH-VALUE 0x2F DEFINE-MATCH RESUME_JOB_SUPPORTED # Resume-Job
+	EXPECT ?operations-supported WITH-VALUE 0x30 DEFINE-MATCH PROMOTE_JOB_SUPPORTED # Promote-Job
+	EXPECT ?operations-supported WITH-VALUE 0x31 DEFINE-MATCH SCHEDULE_JOB_AFTER_SUPPORTED # Schedule-Job-After
+	EXPECT operations-supported WITH-VALUE 0x0010 DEFINE-MATCH PAUSE_PRINTER_SUPPORTED # Pause-Printer
+	EXPECT operations-supported WITH-VALUE 0x0011 DEFINE-MATCH RESUME_PRINTER_SUPPORTED # Resume-Printer
+
+	#conformance requirement dependencies for operations
+	EXPECT operations-supported WITH-VALUE 0x22 IF-DEFINED DISABLE_PRINTER_SUPPORTED
+	EXPECT operations-supported WITH-VALUE 0X23 IF-DEFINED ENABLE_PRINTER_SUPPORTED
+	EXPECT operations-supported WITH-VALUE 0x0010 IF-DEFINED RESUME_PRINTER_SUPPORTED
+	EXPECT operations-supported WITH-VALUE 0x0011 IF-DEFINED PAUSE_PRINTER_SUPPORTED
+	EXPECT operations-supported WITH-VALUE 0X0011 IF-DEFINED PAUSE_PRINTER_AFTER_CURRENT_JOB_SUPPORTED
+	EXPECT operations-supported WITH-VALUE 0x25 IF-DEFINED RELEASE_HELD_NEW_JOBS_SUPPORTED
+	EXPECT operations-supported WITH-VALUE 0x26 IF-DEFINED HOLD_NEW_JOBS_SUPPORTED
+	EXPECT operations-supported WITH-VALUE 0x28 IF-DEFINED DEACTIVATE_PRINTER_SUPPORTED
+	EXPECT operations-supported WITH-VALUE 0x23 IF-DEFINED DEACTIVATE_PRINTER_SUPPORTED
+	EXPECT operations-supported WITH-VALUE 0x24 IF-DEFINED DEACTIVATE_PRINTER_SUPPORTED
+	EXPECT operations-supported WITH-VALUE 0x27 IF-DEFINED ACTIVATE_PRINTER_SUPPORTED
+	EXPECT operations-supported WITH-VALUE 0x0011 IF-DEFINED ACTIVATE_PRINTER_SUPPORTED
+	EXPECT operations-supported WITH-VALUE 0x22 IF-DEFINED ACTIVATE_PRINTER_SUPPORTED
+	EXPECT operations-supported WITH-VALUE 0x2F IF-DEFINED SUSPEND_CURRENT_JOB_SUPPORTED
+	EXPECT operations-supported WITH-VALUE 0x2E IF-DEFINED RESUME_JOB_SUPPORTED
+	EXPECT operations-supported WITH-VALUE 0x31 IF-DEFINED PROMOTE_JOB_SUPPORTED
+
+
+	#testing new printer description attributes
+	EXPECT subordinate-printers-supported OF-TYPE uri IN-GROUP printer-attributes-tag IF-DEFINED SUBORDINATE_PRINTERS_SUPPORTED_NONLEAF_PRINTER
+	EXPECT parent-printers-supported OF-TYPE uri IN-GROUP printer-attributes-tag IF-DEFINED SUBORDINATE_PRINTERS_SUPPORTED_LEAF_SUBORDINATE_PRINTER
+
+}
+
+#test Disable-Printer operation
+{
+	SKIP-IF-NOT-DEFINED DISABLE_PRINTER_SUPPORTED
+
+	NAME "RFC 3998 section 3.1.1: Disable-Printer Operation"
+	OPERATION Disable-Printer
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+}
+
+# Test Print-Job operation after disabling printer. Printer is not supposed to accept any job-creation operation after disabling.
+{
+	SKIP-IF-NOT-DEFINED DISABLE_PRINTER_SUPPORTED
+
+	NAME "RFC 8011 section 4.2.1: Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	STATUS server-error-not-accepting-jobs
+}
+
+# Test Validate-Job operation after disabling printer. Printer accepts this operation.
+{
+	SKIP-IF-NOT-DEFINED DISABLE_PRINTER_SUPPORTED
+
+	NAME "RFC 8011 section 4.2.3: Validate-Job Operation"
+	OPERATION Validate-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+
+	STATUS successful-ok
+}
+
+#test the value of the attribute printer-is-accepting-jobs
+{
+	SKIP-IF-NOT-DEFINED DISABLE_PRINTER_SUPPORTED
+
+	NAME "RFC 8011 section 4.2.5: Get-Printer-Attributes Operation"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+	ATTR keyword requested-attributes "printer-is-accepting-jobs"
+
+	STATUS successful-ok
+
+	EXPECT printer-is-accepting-jobs WITH-VALUE false
+}
+
+#test for Enable-Printer
+{
+	SKIP-IF-NOT-DEFINED ENABLE_PRINTER_SUPPORTED
+
+	NAME "RFC 3998 section 3.1.2: Enable-Printer Operation"
+	OPERATION Enable-Printer
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+}
+
+#test the value of the attribute printer-is-accepting-jobs
+{
+	SKIP-IF-NOT-DEFINED ENABLE_PRINTER_SUPPORTED
+
+	NAME "RFC 8011 section 4.2.5: Get-Printer-Attributes Operation"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+	ATTR keyword requested-attributes "printer-is-accepting-jobs"
+
+	STATUS successful-ok
+
+	EXPECT printer-is-accepting-jobs WITH-VALUE true
+}
+
+# Test Print-Job operation
+{
+	NAME "RFC 8011 section 4.2.1: Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+#test for Pause-Printer-After-Current-Job operation
+{
+	SKIP-IF-NOT-DEFINED PAUSE_PRINTER_AFTER_CURRENT_JOB_SUPPORTED
+
+	NAME "RFC 3998 section 3.2.1: Pause-Printer-After-Current-Job Operation"
+	OPERATION Pause-Printer-After-Current-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR integer job-id $job-id
+
+	STATUS successful-ok
+}
+
+{
+	SKIP-IF-NOT-DEFINED PAUSE_PRINTER_AFTER_CURRENT_JOB_SUPPORTED
+
+	NAME "Get-Printer-Attributes Operation to check paused value of printer-state-reasons"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+	ATTR keyword requested-attributes "printer-state-reasons"
+
+	STATUS successful-ok
+
+	EXPECT ?printer-state-reasons OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "paused"
+	EXPECT ?printer-state-reasons OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "moving-to-paused"
+}
+
+
+#Resuming the printer again
+{
+	NAME "Resume-Printer"
+
+	OPERATION Resume-Printer
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+
+	STATUS successful-ok
+}
+
+
+#test Pause-Printer operation followed by test for "paused" value of printer-state-reasons
+{
+	SKIP-IF-NOT-DEFINED PAUSE_PRINTER_SUPPORTED
+
+	NAME "Pause-Printer Operation"
+	
+	Operation Pause-Printer
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri                                                             
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+}
+
+{
+	SKIP-IF-NOT-DEFINED PAUSE_PRINTER_SUPPORTED
+
+	NAME "Get-Printer-Attributes Operation to check paused value of printer-state-reasons"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+	ATTR keyword requested-attributes "printer-state-reasons"
+
+	STATUS successful-ok
+
+	EXPECT ?printer-state-reasons OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "paused"
+	EXPECT ?printer-state-reasons OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "moving-to-paused"
+}
+
+#Resume-Printer operation
+{
+	SKIP-IF-NOT-DEFINED OPTIONAL_RESUME_PRINTER
+
+	Name "Resume-Printer"
+
+	Operation Resume-Printer
+
+	Group operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	Status successful-ok
+}
+
+
+
+#test for Hold-New-Jobs operation
+{
+	SKIP-IF-NOT-DEFINED HOLD_NEW_JOBS_SUPPORTED
+
+	NAME "RFC 3998 section 3.3.1: Hold-New-Jobs Operation"
+	OPERATION Hold-New-Jobs
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+}  
+
+
+# Test Print-Job operation - This job should be put into the pending-held state
+{
+	SKIP-IF-NOT-DEFINED HOLD_NEW_JOBS_SUPPORTED
+	
+	NAME "RFC 8011 section 4.2.1: Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0 DEFINE-VALUE JOBID_HELDJOB
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 4        #expecting the pending-held job-state message.
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+#test the "hold-new-jobs" value of the printer-state-reason attribute
+{
+	SKIP-IF-NOT-DEFINED HOLD_NEW_JOBS_SUPPORTED
+
+	NAME "Get-Printer-Attributes Operation to check hold-new-jobs value of printer-state-reasons"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+	ATTR keyword requested-attributes "printer-state-reasons"
+
+	STATUS successful-ok
+
+	EXPECT printer-state-reasons OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "hold-new-jobs"
+}
+
+#test for Release-Held-New-Jobs Operation
+{
+	SKIP-IF-NOT-DEFINED RELEASE_HELD_NEW_JOBS_SUPPORTED
+
+	NAME "RFC 3998 section 3.3.2: Release-Held-New-Jobs Operation"
+	OPERATION Release-Held-New-Jobs 
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+}
+
+
+# Wait for job to complete...( to check if the earlier job held has been competed )
+{
+	SKIP-IF-NOT-DEFINED JOBID_HELDJOB
+
+	NAME "Get-Job-Attributes Until Job Complete"
+	OPERATION Get-Job-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $JOBID_HELDJOB
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	EXPECT job-state OF-TYPE unknown|enum IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >6 REPEAT-NO-MATCH REPEAT-LIMIT 30
+	DISPLAY job-state
+}
+
+#test for the Deactivate-Printer Operation
+{
+	SKIP-IF-NOT-DEFINED DEACTIVATE_PRINTER_SUPPORTED
+
+	NAME "RFC 3998 section 3.4.1: Deactivate-Printer Operation"
+	OPERATION Deactivate-Printer
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+}
+
+# Test Print-Job operation after de-activating printer. Printer is not supposed to accept any job-creation operation after deactivating. Must return a server-error-service unavailable
+{
+	SKIP-IF-NOT-DEFINED DEACTIVATE_PRINTER_SUPPORTED
+
+	NAME "RFC 8011 section 4.2.1: Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag 
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	STATUS server-error-service-unavailable
+}
+
+#test the "paused" and "deactivated" value of the printer-state-reason attribute
+{
+	SKIP-IF-NOT-DEFINED DEACTIVATE_PRINTER_SUPPORTED
+
+	NAME "Get-Printer-Attributes Operation to check paused value of printer-state-reasons"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+	ATTR keyword requested-attributes "printer-state-reasons"
+
+	STATUS successful-ok
+
+	EXPECT ?printer-state-reasons OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "paused"
+	EXPECT ?printer-state-reasons OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "deactivated"
+	EXPECT ?printer-state-reasons OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "moving-to-paused"
+}
+
+
+#test for the Activate-Printer Operation
+{
+	SKIP-IF-NOT-DEFINED ACTIVATE_PRINTER_SUPPORTED
+
+	NAME "RFC 3998 section 3.4.2: Activate-Printer Operation"
+	OPERATION Activate-Printer
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+}
+
+#test for Restart-Printer Operation
+{
+	SKIP-IF-NOT-DEFINED RESTART_PRINTER_SUPPORTED
+
+	NAME "RFC 3998 section 3.5.1: Restart-Printer Operation"
+	OPERATION Restart-Printer
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+}
+
+#test for Shutdown-Printer Operation
+{
+	SKIP-IF-NOT-DEFINED SHUTDOWN_PRINTER_SUPPORTED
+
+	NAME "RFC 3998 section 3.5.2: Shutdown-Printer Operation"
+	OPERATION Shutdown-Printer
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+}
+
+#test for Startup-Printer operation
+{
+	SKIP-IF-NOT-DEFINED STARTUP_PRINTER_SUPPORTED
+
+	NAME "RFC 3998 section 3.5.3: Startup-Printer Operation"
+	OPERATION Startup-Printer
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	STATUS client-error-not-possible
+}
+
+# Test Print-Job operation - Will be reprocessed using the Reprocess-Job operation below.
+{
+	SKIP-IF-NOT-DEFINED REPROCESS_JOB_SUPPORTED
+
+	NAME "RFC 8011 section 4.2.1: Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0 DEFINE-VALUE JOBID_REPROCESSJOB
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+#test the Reprocess-Job Operation
+{
+	SKIP-IF-NOT-DEFINED JOBID_REPROCESSJOB
+	SKIP-IF-NOT-DEFINED REPROCESS_JOB_SUPPORTED
+
+	NAME "RFC 3998 section 4.1: Reprocess-Job Operation"
+
+	OPERATION Reprocess-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri	
+	ATTR integer job-id $JOBID_REPROCESSJOB
+
+	STATUS successful-ok
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Print-Job operation - Will be cancelled using the Cancel-Current-Job operation below.
+{
+	SKIP-IF-NOT-DEFINED CANCEL_CURRENT_JOB_SUPPORTED
+
+	NAME "RFC 8011 section 4.2.1: Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0 DEFINE-VALUE JOBID_CANCELJOB
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+
+#test for Cancel-Current-Job Operation
+{
+	SKIP-IF-NOT-DEFINED CANCEL_CURRENT_JOB_SUPPORTED
+
+	NAME "RFC 3998 section 4.2: Cancel-Current-Job Operation"
+
+	OPERATION Cancel-Current-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri	
+	ATTR integer job-id $JOBID_CANCELJOB
+
+	STATUS successful-ok
+	STATUS client-error-not-possible
+}
+
+# Test Print-Job operation - Will be suspended using the Suspend-Current-Job operation below.
+{
+	SKIP-IF-NOT-DEFINED SUSPEND_CURRENT_JOB_SUPPORTED
+
+	NAME "RFC 8011 section 4.2.1: Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0 DEFINE-VALUE JOBID_SUSPENDJOB
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+#test for Suspend-Current-Job Operation
+{
+	SKIP-IF-NOT-DEFINED SUSPEND_CURRENT_JOB_SUPPORTED
+	SKIP-IF-NOT-DEFINED JOBID_SUSPENDJOB
+
+	NAME "RFC 3998 section 4.3.1: Suspend-Current-Job Operation"
+
+	OPERATION Suspend-Current-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri	
+	ATTR integer job-id $JOBID_SUSPENDJOB
+
+	STATUS successful-ok
+	STATUS client-error-not-possible
+}
+
+#test to confirm the suspension of the job
+{	
+	SKIP-IF-NOT-DEFINED JOBID_SUSPENDJOB
+
+	NAME "Get-Job-Attributes -Check if job is suspended"
+	OPERATION Get-Job-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $JOBID_SUSPENDJOB
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE 6 
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE "job-suspended" 
+	DISPLAY job-state
+}
+
+#test for Resume-Job operation
+{
+	SKIP-IF-NOT-DEFINED RESUME_JOB_SUPPORTED
+	SKIP-IF-NOT-DEFINED JOBID_SUSPENDJOB
+
+	NAME "RFC 3998 section 4.3.2: Resume-Job Operation"
+
+	OPERATION Resume-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri	
+	ATTR integer job-id $JOBID_SUSPENDJOB
+
+	STATUS successful-ok
+	STATUS client-error-not-possible	
+}
+
+# Wait for job to complete... The job had been released so it sholud complete now. Confirming the same with the below test.
+{
+	SKIP-IF-NOT-DEFINED JOBID_SUSPENDJOB
+
+	NAME "Get-Job-Attributes Until Job Complete"
+	OPERATION Get-Job-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $JOBID_SUSPENDJOB
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	EXPECT job-state OF-TYPE unknown|enum IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >6 REPEAT-NO-MATCH REPEAT-LIMIT 30
+	DISPLAY job-state
+}
+
+#testing the Promote-Job Operation
+# Print-Job operation 
+{
+	SKIP-IF-NOT-DEFINED PROMOTE_JOB_SUPPORTED
+
+	NAME "RFC 8011 section 4.2.1: Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0 
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+# Test Print-Job operation - Will be promoted using the Promote-Job operation below.
+{
+	SKIP-IF-NOT-DEFINED PROMOTE_JOB_SUPPORTED
+
+	NAME "RFC 8011 section 4.2.1: Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0 DEFINE-VALUE JOBID_PROMOTEJOB
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+
+#tests for Promote-Job Operation. 
+{
+	SKIP-IF-NOT-DEFINED PROMOTE_JOB_SUPPORTED
+	SKIP-IF-NOT-DEFINED JOBID_PROMOTEJOB
+
+	NAME "RFC 3998 section 4.4.1: Promote-Job"
+	OPERATION Promote-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	STATUS client-error-not-possible
+}
+
+
+#testing the Schedule-Job-After Operation
+{
+	SKIP-IF-NOT-DEFINED SCHEDULE_JOB_AFTER_SUPPORTED
+	NAME "RFC 8011 section 4.2.1: Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0 DEFINE-VALUE JOBID_PREDECESSOR
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+{
+	SKIP-IF-NOT-DEFINED SCHEDULE_JOB_AFTER_SUPPORTED
+	NAME "RFC 8011 section 4.2.1: Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+{
+	SKIP-IF-NOT-DEFINED SCHEDULE_JOB_AFTER_SUPPORTED
+	NAME "RFC 8011 section 4.2.1: Print-Job Operation"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR boolean ipp-attribute-fidelity false
+	ATTR name document-name $filename
+	ATTR keyword compression none
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0 DEFINE-VALUE JOBID_TARGET
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+#Test for Schedule-Job-After Operation
+{
+	SKIP-IF-NOT-DEFINED SCHEDULE_JOB_AFTER_SUPPORTED
+	SKIP-IF-NOT-DEFINED JOBID_TARGET
+	SKIP-IF-NOT-DEFINED JOBID_PREDECESSOR
+
+	NAME "RFC 3998 section 4.4.1: Promote-Job"
+	OPERATION Promote-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer predecessor-job-id $JOBID_PREDECESSOR
+	ATTR integer job-id $JOBID_TARGET
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	STATUS client-error-not-possible
+	STATUS client-error-not-found
+}
+
+

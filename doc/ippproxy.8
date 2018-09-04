@@ -1,13 +1,13 @@
 .\"
 .\" ippproxy man page.
 .\"
-.\" Copyright © 2014-2016 by the IEEE-ISTO Printer Working Group.
-.\" Copyright © 2014-2016 by Apple Inc.
+.\" Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
+.\" Copyright © 2014-2018 by Apple Inc.
 .\"
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ippproxy 8 "ippsample" "18 November 2016" "Apple Inc."
+.TH ippproxy 8 "ippsample" "15 March 2018" "Apple Inc."
 .SH NAME
 ippproxy \- a simple ipp proxy client
 .SH SYNOPSIS
@@ -15,8 +15,13 @@ ippproxy \- a simple ipp proxy client
 [
 .B \-\-help
 ] [
+.B \-\-version
+] [
 .B \-d
 .I device-uri
+] [
+.B \-m
+.I mime/type
 ] [
 .B \-p
 .I password
@@ -30,7 +35,7 @@ ippproxy \- a simple ipp proxy client
 .SH DESCRIPTION
 .B ippproxy
 is a simple IPP proxy client conforming to the IPP Shared Infrastructure Extensions (INFRA) specification. It can be used to proxy access to a local IPP printer through an Infrastructure Printer such as
-.BR ippserver (1).
+.BR ippserver (8).
 .SH OPTIONS
 The following options are recognized by
 .B ippproxy:
@@ -38,10 +43,19 @@ The following options are recognized by
 .B \-\-help
 Show program help.
 .TP 5
+.B \-\-version
+Show program version.
+.TP 5
 \fB\-d \fIdevice-uri\fR
 Specifies the local device using its URI.
 .B ippproxy
 supports "ipp", "ipps", and "socket" URIs.
+.TP 5
+\fB\-m \fImime/types\fR
+Specifies the output format as a MIME media type.
+.B ippproxy
+supports "application/vnd.hp-pcl" (HP PCL), "image/pwg-raster" (PWG Raster), and "image/urf" (Apple Raster).
+The default is to choose an output format automatically.
 .TP 5
 \fB\-p \fIpassword\fR
 Specifies the password to use when authenticating with the Infrastructure Printer.
@@ -71,7 +85,8 @@ with an infrastructure URI of "ipps://host.example.com/ipp/print" and a local UR
     ippproxy -d ipp://10.0.1.42/ipp/print ipps://host.example.com/ipp/print
 .fi
 .SH SEE ALSO
+.BR ippserver (8),
 PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp)
 .SH COPYRIGHT
-Copyright \[co] 2014-2016 by the IEEE-ISTO Printer Working Group.
-Copyright \[co] 2007-2016 by Apple Inc.
+Copyright \[co] 2014-2018 by the IEEE-ISTO Printer Working Group.
+Copyright \[co] 2007-2018 by Apple Inc.

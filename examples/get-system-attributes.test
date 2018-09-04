@@ -1,0 +1,60 @@
+{
+	# The name of the test...
+	NAME "Get-System-Attributes"
+
+	# Always IPP/2.0
+	VERSION 2.0
+
+	# The operation to use
+	OPERATION Get-System-Attributes
+
+	# Attributes, starting in the operation group...
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri system-uri $uri
+
+	# What statuses are OK?
+	STATUS successful-ok
+
+	# What attributes do we expect?
+	EXPECT charset-configured IN-GROUP system-attributes-tag OF-TYPE charset COUNT 1
+	EXPECT charset-supported IN-GROUP system-attributes-tag OF-TYPE charset
+	EXPECT document-format-supported IN-GROUP system-attributes-tag OF-TYPE mimeMediaType
+	EXPECT generated-natural-language-supported IN-GROUP system-attributes-tag OF-TYPE naturalLanguage
+	EXPECT ipp-features-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+	EXPECT ipp-versions-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+	EXPECT natural-language-configured IN-GROUP system-attributes-tag OF-TYPE naturalLanguage COUNT 1
+	EXPECT operations-supported IN-GROUP system-attributes-tag OF-TYPE enum
+	EXPECT printer-creation-attributes-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+	EXPECT resource-format-supported IN-GROUP system-attributes-tag OF-TYPE mimeMediaType
+	EXPECT resource-type-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+	EXPECT resource-settable-attributes-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+	EXPECT system-config-change-date-time IN-GROUP system-attributes-tag OF-TYPE dateTime COUNT 1
+	EXPECT system-config-change-time IN-GROUP system-attributes-tag OF-TYPE integer COUNT 1
+	EXPECT system-config-changes IN-GROUP system-attributes-tag OF-TYPE integer COUNT 1
+	EXPECT system-configured-printers IN-GROUP system-attributes-tag OF-TYPE collection|no-value
+	EXPECT system-configured-resources IN-GROUP system-attributes-tag OF-TYPE collection|no-value
+	EXPECT system-current-time IN-GROUP system-attributes-tag OF-TYPE dateTime COUNT 1
+	EXPECT system-default-printer-id IN-GROUP system-attributes-tag OF-TYPE integer|no-value COUNT 1
+	EXPECT system-device-id IN-GROUP system-attributes-tag OF-TYPE text COUNT 1
+	EXPECT system-geo-location IN-GROUP system-attributes-tag OF-TYPE uri|unknown COUNT 1
+	EXPECT system-info IN-GROUP system-attributes-tag OF-TYPE text COUNT 1
+	EXPECT system-location IN-GROUP system-attributes-tag OF-TYPE text COUNT 1
+	EXPECT system-make-and-model IN-GROUP system-attributes-tag OF-TYPE text COUNT 1
+	EXPECT system-mandatory-printer-attributes IN-GROUP system-attributes-tag OF-TYPE keyword
+	EXPECT system-name IN-GROUP system-attributes-tag OF-TYPE name COUNT 1
+	EXPECT system-owner-col IN-GROUP system-attributes-tag OF-TYPE collection COUNT 1
+	EXPECT system-settable-attributes-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+	EXPECT system-state IN-GROUP system-attributes-tag OF-TYPE enum COUNT 1
+	EXPECT system-state-change-date-time IN-GROUP system-attributes-tag OF-TYPE dateTime COUNT 1
+	EXPECT system-state-change-time IN-GROUP system-attributes-tag OF-TYPE integer COUNT 1
+	EXPECT system-state-message IN-GROUP system-attributes-tag OF-TYPE text COUNT 1
+	EXPECT system-state-reasons IN-GROUP system-attributes-tag OF-TYPE keyword
+	EXPECT system-up-time IN-GROUP system-attributes-tag OF-TYPE integer COUNT 1
+	EXPECT system-uuid IN-GROUP system-attributes-tag OF-TYPE uri COUNT 1
+	EXPECT system-xri-supported IN-GROUP system-attributes-tag OF-TYPE collection
+	EXPECT xri-authentication-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+	EXPECT xri-security-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+	EXPECT xri-uri-scheme-supported IN-GROUP system-attributes-tag OF-TYPE uriScheme
+}

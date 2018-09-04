@@ -212,7 +212,7 @@ cupsDoAuthentication(
       if (!cg->lang_default)
 	cg->lang_default = cupsLangDefault();
 
-      if (cups_auth_param(scheme, "username", default_username, sizeof(default_username)))
+      if (cups_auth_param(schemedata, "username", default_username, sizeof(default_username)))
 	cupsSetUser(default_username);
 
       snprintf(prompt, sizeof(prompt), _cupsLangString(cg->lang_default, _("Password for %s on %s? ")), cupsUser(), http->hostname[0] == '/' ? "localhost" : http->hostname);
@@ -614,7 +614,7 @@ cups_auth_find(const char *www_authenticate,	/* I - Pointer into WWW-Authenticat
     * See if this is "Scheme" followed by whitespace or the end of the string.
     */
 
-    if (!strncmp(www_authenticate, scheme, schemelen) && (isspace(www_authenticate[schemelen] & 255) || !www_authenticate[schemelen]))
+    if (!strncmp(www_authenticate, scheme, schemelen) && (isspace(www_authenticate[schemelen] & 255) || www_authenticate[schemelen] == ',' || !www_authenticate[schemelen]))
     {
      /*
       * Yes, this is the start of the scheme-specific information...
@@ -795,7 +795,7 @@ cups_auth_scheme(const char *www_authenticate,	/* I - Pointer into WWW-Authentic
     * Parse the scheme name or param="value" string...
     */
 
-    for (sptr = scheme, start = www_authenticate, param = 0; *www_authenticate && !isspace(*www_authenticate & 255); www_authenticate ++)
+    for (sptr = scheme, start = www_authenticate, param = 0; *www_authenticate && *www_authenticate != ',' && !isspace(*www_authenticate & 255); www_authenticate ++)
     {
       if (*www_authenticate == '=')
         param = 1;
@@ -1115,10 +1115,6 @@ cups_local_auth(http_t *http)		/* I - HTTP connection to server */
   if (cups_auth_find(www_auth, "Negotiate"))
     return (1);
 #  endif /* HAVE_GSSAPI */
-#  ifdef HAVE_AUTHORIZATION_H
-  if (cups_auth_find(www_auth, "AuthRef"))
-    return (1);
-#  endif /* HAVE_AUTHORIZATION_H */
 
 #  if defined(SO_PEERCRED) && defined(AF_LOCAL)
  /*
@@ -1168,7 +1164,7 @@ cups_local_auth(http_t *http)		/* I - HTTP connection to server */
     * No certificate for this PID; see if we can get the root certificate...
     */
 
-    DEBUG_printf(("9cups_local_auth: Unable to open file %s: %s", filename, strerror(errno)));
+    DEBUG_printf(("9cups_local_auth: Unable to open file \"%s\": %s", filename, strerror(errno)));
 
     if (!cups_auth_param(schemedata, "trc", trc, sizeof(trc)))
     {
@@ -1180,7 +1176,8 @@ cups_local_auth(http_t *http)		/* I - HTTP connection to server */
     }
 
     snprintf(filename, sizeof(filename), "%s/certs/0", cg->cups_statedir);
-    fp = fopen(filename, "r");
+    if ((fp = fopen(filename, "r")) == NULL)
+      DEBUG_printf(("9cups_local_auth: Unable to open file \"%s\": %s", filename, strerror(errno)));
   }
 
   if (fp)

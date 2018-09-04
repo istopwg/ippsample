@@ -1,0 +1,629 @@
+#
+#Check a printer for conformance with PWG 5100.6-2003
+#
+#
+#Usage:
+#
+#	./ipptool -f FILENAME -d "document-uri=URI" printer-uri pwg5100.6.4.test
+# 	(need to provide document-uri only if print-uri or send-uri operations are supported by printer.)
+#	(the file having name FILENAME and the document specified by document-uri should have atleast 4 pages.)
+#
+
+{
+    # get printer attributes and check support for REQUIRED attributes
+
+	NAME "Get printer attributes using Get-Printer-Attributes"
+	OPERATION Get-Printer-Attributes
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+
+	STATUS successful-ok
+
+	EXPECT overrides-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE pages
+	EXPECT overrides-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE document-numbers
+	EXPECT overrides-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag WITH-VALUE document-copies DEFINE-MATCH HAVE_DOCUMENT_COPIES
+
+	EXPECT overrides-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE finishings DEFINE-MATCH HAVE_FINISHINGS
+	EXPECT overrides-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE media-col DEFINE-MATCH HAVE_MEDIA_COL
+	EXPECT overrides-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE sides DEFINE-MATCH HAVE_SIDES
+
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0005 DEFINE-MATCH HAVE_CREATE_JOB		# Create-Job
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0003 DEFINE-MATCH HAVE_PRINT_URI		# Print-URI
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0007 DEFINE-MATCH HAVE_SEND_URI		# Send-URI
+}
+
+{
+	# A print-job request valid for all conforming printers.
+
+	NAME "Checking overrides on print-job request - 1"
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+	ATTR boolean ipp-attribute-fidelity false
+
+	GROUP job-attributes-tag
+	ATTR integer copies 2
+	ATTR collection overrides {
+		MEMBER rangeOfInteger pages 1-2
+		MEMBER rangeOfInteger document-numbers 1-1
+	}
+
+	FILE $filename
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+	NAME "Get job info with get-job-attributes"
+
+	OPERATION Get-Job-Attributes
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+    EXPECT job-state OF-TYPE unknown|enum IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >6 REPEAT-NO-MATCH REPEAT-LIMIT 30
+    DISPLAY job-state
+
+	EXPECT overrides/pages OF-TYPE rangeOfInteger IN-GROUP job-attributes-tag WITH-VALUE 1-2 COUNT 1
+	EXPECT overrides/document-numbers OF-TYPE rangeOfInteger IN-GROUP job-attributes-tag WITH-VALUE 1-1 COUNT 1
+}
+
+{
+	# A print-job request for printers not supporting document-copies override.
+	# But the document-copies value has been supplied.
+	# Also, ipp-attribute-fidelity is false.
+	# Therefore the client must accept the request.
+	# The status should be successful-ok-ignored-or-substituted-attributes.
+
+	SKIP-IF-DEFINED HAVE_DOCUMENT_COPIES
+
+	NAME "Checking overrides on print-job request - 2"
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+	ATTR boolean ipp-attribute-fidelity false
+
+	GROUP job-attributes-tag
+	ATTR integer copies 2
+	ATTR collection overrides {
+		MEMBER rangeOfInteger pages 1-2
+		MEMBER rangeOfInteger document-numbers 1-1
+		MEMBER rangeOfInteger document-copies 1-2
+	}
+
+	FILE $filename
+
+	STATUS successful-ok-ignored-or-substituted-attributes
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+	SKIP-IF-DEFINED HAVE_DOCUMENT_COPIES
+
+	NAME "Get job info with get-job-attributes"
+
+	OPERATION Get-Job-Attributes
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+    EXPECT job-state OF-TYPE unknown|enum IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >6 REPEAT-NO-MATCH REPEAT-LIMIT 30
+    DISPLAY job-state
+}
+
+{
+	# A print-job request for printers not supporting document-copies override.
+	# But the document-copies value has been supplied.
+	# Also, ipp-attribute-fidelity is true.
+	# Therefore the client must reject the request.
+	# The status should be client-error-attributes-or-values-not-supported.
+
+	SKIP-IF-DEFINED HAVE_DOCUMENT_COPIES
+
+	NAME "Checking overrides on print-job request - 3"
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+	ATTR boolean ipp-attribute-fidelity true
+
+	GROUP job-attributes-tag
+	ATTR integer copies 2
+	ATTR collection overrides {
+		MEMBER rangeOfInteger pages 1-2
+		MEMBER rangeOfInteger document-numbers 1-1
+		MEMBER rangeOfInteger document-copies 1-2
+	}
+
+	FILE $filename
+
+	STATUS client-error-attributes-or-values-not-supported
+}
+
+{
+    # wait for job to complete..
+
+    NAME "Get-Job-Attributes Until Job Complete"
+    OPERATION Get-Job-Attributes
+    
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri printer-uri $uri
+    ATTR integer job-id $job-id
+    ATTR name requesting-user-name $user
+
+    EXPECT ?job-state OF-TYPE unknown|enum IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >6 REPEAT-NO-MATCH REPEAT-LIMIT 30
+}
+
+# testing support for overrides on Send-Document operation
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_CREATE_JOB
+
+	NAME "create-job"
+	OPERATION create-job
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_CREATE_JOB
+
+	NAME "send-document"
+	OPERATION send-document
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+	ATTR boolean last-document true
+
+	GROUP job
+	ATTR integer copies 2
+	ATTR collection overrides {
+		MEMBER rangeOfInteger pages 1-2
+		MEMBER rangeOfInteger document-numbers 1-1
+	}
+
+	FILE $filename
+
+	STATUS successful-ok
+}
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_CREATE_JOB
+
+	NAME "Get job info with get-job-attributes"
+
+	OPERATION Get-Job-Attributes
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+    EXPECT job-state OF-TYPE unknown|enum IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >6 REPEAT-NO-MATCH REPEAT-LIMIT 30
+    DISPLAY job-state
+
+	EXPECT overrides/pages OF-TYPE rangeOfInteger IN-GROUP job-attributes-tag WITH-VALUE 1-2 COUNT 1
+	EXPECT overrides/document-numbers OF-TYPE rangeOfInteger IN-GROUP job-attributes-tag WITH-VALUE 1-1 COUNT 1
+}
+
+
+# testing support for overrides on Print-URI operation
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_PRINT_URI
+
+	NAME "Print file using Print-URI"
+	OPERATION Print-URI
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name document-name $document-uri
+	ATTR uri document-uri $document-uri
+
+	GROUP job-attributes-tag
+	ATTR integer copies 2
+	ATTR collection overrides {
+		MEMBER rangeOfInteger pages 1-2
+		MEMBER rangeOfInteger document-numbers 1-1
+	}
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_PRINT_URI
+
+	NAME "Get job info with get-job-attributes"
+
+	OPERATION Get-Job-Attributes
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+    EXPECT job-state OF-TYPE unknown|enum IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >6 REPEAT-NO-MATCH REPEAT-LIMIT 30
+    DISPLAY job-state
+
+	EXPECT overrides/pages OF-TYPE rangeOfInteger WITH-VALUE 1-2 COUNT 1
+	EXPECT overrides/document-numbers OF-TYPE rangeOfInteger IN-GROUP operation-attributes-tag WITH-VALUE 1-1 COUNT 1
+}
+
+# testing support for overrides on Send-URI operation
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_CREATE_JOB
+	SKIP-IF-NOT-DEFINED HAVE_SEND_URI
+
+	NAME "create-job"
+	OPERATION Create-Job
+	
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_CREATE_JOB
+	SKIP-IF-NOT-DEFINED HAVE_SEND_URI
+
+	NAME "send-uri"
+	OPERATION Send-URI
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user	
+	ATTR boolean last-document true
+	ATTR uri document-uri $document-uri
+
+	GROUP job-attributes-tag
+	ATTR integer copies 2
+	ATTR collection overrides {
+		MEMBER rangeOfInteger pages 1-2
+		MEMBER rangeOfInteger document-numbers 1-1
+	}
+
+	STATUS successful-ok
+}
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_CREATE_JOB
+	SKIP-IF-NOT-DEFINED HAVE_SEND_URI
+
+	NAME "Get job info with get-job-attributes"
+
+	OPERATION Get-Job-Attributes
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+    EXPECT job-state OF-TYPE unknown|enum IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >6 REPEAT-NO-MATCH REPEAT-LIMIT 30
+    DISPLAY job-state
+
+	EXPECT overrides/pages OF-TYPE rangeOfInteger IN-GROUP job-attributes-tag WITH-VALUE 1-2 COUNT 1
+	EXPECT overrides/document-numbers OF-TYPE rangeOfInteger IN-GROUP job-attributes-tag WITH-VALUE 1-1 COUNT 1
+}
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_FINISHINGS
+	SKIP-IF-NOT-DEFINED HAVE_SIDES
+	SKIP-IF-NOT-DEFINED HAVE_MEDIA_COL
+
+	NAME "Checking finishings, sides, and media-col override"
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+	ATTR boolean ipp-attribute-fidelity false
+
+	GROUP job-attributes-tag
+	ATTR integer copies 2
+	ATTR collection overrides {
+		MEMBER rangeOfInteger pages 1-2
+		MEMBER rangeOfInteger document-numbers 1-1
+		MEMBER enum finishings 4 						# staple.
+		MEMBER keyword sides two-sided-long-edge
+	},
+	
+	{
+		MEMBER rangeOfInteger pages 3-4
+		MEMBER rangeOfInteger document-numbers 1-1
+		MEMBER collection media-col {
+			MEMBER keyword media-type envelope 
+		}
+	}
+
+	FILE $filename
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_FINISHINGS
+	SKIP-IF-NOT-DEFINED HAVE_SIDES
+	SKIP-IF-NOT-DEFINED HAVE_MEDIA_COL
+
+	NAME "Get job info with get-job-attributes"
+
+	OPERATION Get-Job-Attributes
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+    EXPECT job-state OF-TYPE unknown|enum IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >6 REPEAT-NO-MATCH REPEAT-LIMIT 30
+    DISPLAY job-state
+
+	EXPECT overrides/pages OF-TYPE rangeOfInteger IN-GROUP job-attributes-tag WITH-VALUE 1-2 COUNT 1
+	EXPECT overrides/document-numbers OF-TYPE rangeOfInteger IN-GROUP job-attributes-tag WITH-VALUE 1-1 COUNT 2
+	EXPECT overrides/finishings OF-TYPE enum IN-GROUP job-attributes-tag WITH-VALUE 4 COUNT 1
+	EXPECT overrides/sides OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE two-sided-long-edge COUNT 1
+
+	EXPECT overrides/pages OF-TYPE rangeOfInteger IN-GROUP job-attributes-tag WITH-VALUE 3-4 COUNT 1
+	EXPECT overrides/media-col/media-type OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE envelope COUNT 1
+}
+
+
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_FINISHINGS
+
+	NAME "Checking finishings override"
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+	ATTR boolean ipp-attribute-fidelity false
+
+	GROUP job-attributes-tag
+	ATTR integer copies 2
+	ATTR collection overrides {
+		MEMBER rangeOfInteger pages 1-2
+		MEMBER rangeOfInteger document-numbers 1-1
+		MEMBER enum finishings 4 		# staple.
+	}
+
+	FILE $filename
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_FINISHINGS
+
+	NAME "Get job info with get-job-attributes"
+
+	OPERATION Get-Job-Attributes
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+    EXPECT job-state OF-TYPE unknown|enum IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >6 REPEAT-NO-MATCH REPEAT-LIMIT 30
+    DISPLAY job-state
+
+	EXPECT overrides/pages OF-TYPE rangeOfInteger IN-GROUP job-attributes-tag WITH-VALUE 1-2 COUNT 1
+	EXPECT overrides/document-numbers OF-TYPE rangeOfInteger IN-GROUP job-attributes-tag WITH-VALUE 1-1 COUNT 1
+	EXPECT overrides/finishings OF-TYPE enum IN-GROUP job-attributes-tag WITH-VALUE 4 COUNT 1
+}
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_MEDIA_COL
+
+	NAME "Checking media-col override."
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+	ATTR boolean ipp-attribute-fidelity false
+
+	GROUP job-attributes-tag
+	ATTR integer copies 2
+	ATTR collection overrides {
+		MEMBER rangeOfInteger pages 1-1
+		MEMBER rangeOfInteger document-numbers 1-1
+		MEMBER collection media-col {
+			MEMBER keyword media-type letterhead
+		}
+	}
+
+	FILE $filename
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_MEDIA_COL
+
+	NAME "Get job info with get-job-attributes"
+
+	OPERATION Get-Job-Attributes
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+    EXPECT job-state OF-TYPE unknown|enum IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >6 REPEAT-NO-MATCH REPEAT-LIMIT 30
+    DISPLAY job-state
+
+	EXPECT overrides/pages OF-TYPE rangeOfInteger IN-GROUP job-attributes-tag WITH-VALUE 1-1 COUNT 1
+	EXPECT overrides/document-numbers OF-TYPE rangeOfInteger IN-GROUP job-attributes-tag WITH-VALUE 1-1 COUNT 1
+	EXPECT overrides/media-col/media-type OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE fold COUNT 1
+}
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_SIDES
+
+	NAME "Checking sides override."
+	OPERATION Print-Job
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format $filetype
+	ATTR boolean ipp-attribute-fidelity false
+
+	GROUP job-attributes-tag
+	ATTR integer copies 2
+	ATTR collection overrides {
+		MEMBER rangeOfInteger pages 1-2
+		MEMBER rangeOfInteger document-numbers 1-1
+		MEMBER keyword sides two-sided-long-edge
+	}
+
+	FILE $filename
+
+	STATUS successful-ok
+
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+	SKIP-IF-NOT-DEFINED HAVE_SIDES
+
+	NAME "Get job info with get-job-attributes"
+	OPERATION Get-Job-Attributes
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+	
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+    EXPECT job-state OF-TYPE unknown|enum IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE >6 REPEAT-NO-MATCH REPEAT-LIMIT 30
+    DISPLAY job-state
+
+	EXPECT overrides/pages OF-TYPE rangeOfInteger IN-GROUP job-attributes-tag WITH-VALUE 1-2 COUNT 1
+	EXPECT overrides/document-numbers OF-TYPE rangeOfInteger IN-GROUP job-attributes-tag WITH-VALUE 1-1 COUNT 1
+	EXPECT overrides/sides OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE two-sided-long-edge COUNT 1
+}

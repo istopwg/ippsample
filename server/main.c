@@ -95,10 +95,8 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-              if (pinfo.make)
-                free(pinfo.make);
 
-	      pinfo.make = strdup(argv[i]);
+	      pinfo.make = argv[i];
 	      break;
 
           case 'P' : /* -P (PIN printing mode) */
@@ -119,9 +117,6 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-              if (pinfo.command)
-                free(pinfo.command);
-
 	      pinfo.command = argv[i];
 	      break;
 
@@ -138,10 +133,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-              if (pinfo.document_formats)
-                free(pinfo.document_formats);
-
-	      pinfo.document_formats = strdup(argv[i]);
+	      pinfo.document_formats = argv[i];
 	      break;
 
           case 'h' : /* -h (show help) */
@@ -152,10 +144,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-              if (pinfo.icon)
-                free(pinfo.icon);
-
-	      pinfo.icon = strdup(argv[i]);
+	      pinfo.icon = argv[i];
 	      break;
 
 	  case 'k' : /* -k (keep files) */
@@ -167,10 +156,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-              if (pinfo.location)
-                free(pinfo.location);
-
-	      pinfo.location = strdup(argv[i]);
+	      pinfo.location = argv[i];
 	      break;
 
 	  case 'm' : /* -m model */
@@ -178,10 +164,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-              if (pinfo.model)
-                free(pinfo.model);
-
-	      pinfo.model = strdup(argv[i]);
+	      pinfo.model = argv[i];
 	      break;
 
 	  case 'n' : /* -n hostname */
@@ -246,22 +229,6 @@ main(int  argc,				/* I - Number of command-line args */
     usage(1);
   }
 
-  if (!confdir)
-  {
-   /*
-    * Apply defaults for some of the other options...
-    */
-
-    if (!pinfo.location)
-      pinfo.location = strdup("");
-    if (!pinfo.make)
-      pinfo.make = strdup("Test");
-    if (!pinfo.model)
-      pinfo.model = strdup("Printer");
-    if (!pinfo.document_formats)
-      pinfo.document_formats = strdup("application/pdf,image/jpeg,image/pwg-raster");
-  }
-
   if (!name && !confdir)
     usage(1);
   else if (confdir)
@@ -270,7 +237,7 @@ main(int  argc,				/* I - Number of command-line args */
     * Load the configuration from the specified directory...
     */
 
-    if (!serverLoadConfiguration(confdir))
+    if (!serverCreateSystem(confdir))
       return (1);
   }
   else
@@ -281,14 +248,25 @@ main(int  argc,				/* I - Number of command-line args */
 
     serverLog(SERVER_LOGLEVEL_INFO, "Using default configuration with a single printer.");
 
-    if (!serverFinalizeConfiguration())
+    if (!pinfo.document_formats)
+      pinfo.document_formats = "application/pdf,image/jpeg,image/pwg-raster";
+    if (!pinfo.location)
+      pinfo.location = "";
+    if (!pinfo.make)
+      pinfo.make = "Test";
+    if (!pinfo.model)
+      pinfo.model = "Printer";
+
+    if (!serverCreateSystem(NULL))
       return (1);
 
-    if ((printer = serverCreatePrinter("/ipp/print", name, &pinfo)) == NULL)
+    if ((printer = serverCreatePrinter("/ipp/print", name, &pinfo, 1)) == NULL)
       return (1);
 
-    Printers = cupsArrayNew(NULL, NULL);
-    cupsArrayAdd(Printers, printer);
+    printer->state        = IPP_PSTATE_IDLE;
+    printer->is_accepting = 1;
+
+    serverAddPrinter(printer);
   }
 
  /*

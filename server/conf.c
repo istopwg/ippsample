@@ -20,7 +20,7 @@
  * Local globals...
  */
 
-static _cups_mutex_t	printer_mutex = _CUPS_MUTEX_INITIALIZER;
+static char		*default_printer = NULL;
 
 
 /*
@@ -34,13 +34,35 @@ static int		attr_cb(_ipp_file_t *f, server_pinfo_t *pinfo, const char *attr);
 static int		compare_lang(server_lang_t *a, server_lang_t *b);
 static int		compare_printers(server_printer_t *a, server_printer_t *b);
 static server_lang_t	*copy_lang(server_lang_t *a);
+static void		create_system_attributes(void);
 #ifdef HAVE_AVAHI
 static void		dnssd_client_cb(AvahiClient *c, AvahiClientState state, void *userdata);
 #endif /* HAVE_AVAHI */
+static void		dnssd_init(void);
 static int		error_cb(_ipp_file_t *f, server_pinfo_t *pinfo, const char *error);
+static int		finalize_system(void);
 static void		free_lang(server_lang_t *a);
 static int		load_system(const char *conf);
 static int		token_cb(_ipp_file_t *f, _ipp_vars_t *vars, server_pinfo_t *pinfo, const char *token);
+
+
+/*
+ * 'serverAddPrinter()' - Add a printer object to the list of printers.
+ */
+
+void
+serverAddPrinter(
+    server_printer_t *printer)		/* I - Printer to add */
+{
+  _cupsRWLockWrite(&SystemRWLock);
+
+  if (!Printers)
+    Printers = cupsArrayNew((cups_array_func_t)compare_printers, NULL);
+
+  cupsArrayAdd(Printers, printer);
+
+  _cupsRWUnlock(&SystemRWLock);
+}
 
 
 /*
@@ -55,292 +77,22 @@ serverCleanAllJobs(void)
 
   serverLog(SERVER_LOGLEVEL_DEBUG, "Cleaning old jobs.");
 
-  _cupsMutexLock(&printer_mutex);
+  _cupsRWLockRead(&PrintersRWLock);
 
   for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
     serverCleanJobs(printer);
 
-  _cupsMutexUnlock(&printer_mutex);
+  _cupsRWUnlock(&PrintersRWLock);
 }
 
 
 /*
- * 'serverDNSSDInit()' - Initialize DNS-SD registrations.
- */
-
-void
-serverDNSSDInit(void)
-{
-#ifdef HAVE_DNSSD
-  if (DNSServiceCreateConnection(&DNSSDMaster) != kDNSServiceErr_NoError)
-  {
-    fputs("Error: Unable to initialize Bonjour.\n", stderr);
-    exit(1);
-  }
-
-#elif defined(HAVE_AVAHI)
-  int error;			/* Error code, if any */
-
-  if ((DNSSDMaster = avahi_threaded_poll_new()) == NULL)
-  {
-    fputs("Error: Unable to initialize Bonjour.\n", stderr);
-    exit(1);
-  }
-
-  if ((DNSSDClient = avahi_client_new(avahi_threaded_poll_get(DNSSDMaster), AVAHI_CLIENT_NO_FAIL, dnssd_client_cb, NULL, &error)) == NULL)
-  {
-    fputs("Error: Unable to initialize Bonjour.\n", stderr);
-    exit(1);
-  }
-
-  avahi_threaded_poll_start(DNSSDMaster);
-#endif /* HAVE_DNSSD */
-}
-
-
-/*
- * 'serverFinalizeConfiguration()' - Make final configuration choices.
- */
-
-int					/* O - 1 on success, 0 on failure */
-serverFinalizeConfiguration(void)
-{
-  char	local[1024];			/* Local hostname */
-
-
- /*
-  * Default hostname...
-  */
-
-  if (!ServerName && httpGetHostname(NULL, local, sizeof(local)))
-    ServerName = strdup(local);
-
-  if (!ServerName)
-    ServerName = strdup("localhost");
-
-#ifdef HAVE_SSL
- /*
-  * Setup TLS certificate for server...
-  */
-
-  cupsSetServerCredentials(KeychainPath, ServerName, 1);
-#endif /* HAVE_SSL */
-
- /*
-  * Default directories...
-  */
-
-  if (!DataDirectory)
-  {
-    char	directory[1024];	/* New directory */
-    const char	*tmpdir;		/* Temporary directory */
-
-#ifdef WIN32
-    if ((tmpdir = getenv("TEMP")) == NULL)
-      tmpdir = "C:/TEMP";
-#elif defined(__APPLE__)
-    if ((tmpdir = getenv("TMPDIR")) == NULL)
-      tmpdir = "/private/tmp";
-#else
-    if ((tmpdir = getenv("TMPDIR")) == NULL)
-      tmpdir = "/tmp";
-#endif /* WIN32 */
-
-    snprintf(directory, sizeof(directory), "%s/ippserver.%d", tmpdir, (int)getpid());
-
-    if (mkdir(directory, 0755) && errno != EEXIST)
-    {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Unable to create default data directory \"%s\": %s", directory, strerror(errno));
-      return (0);
-    }
-
-    serverLog(SERVER_LOGLEVEL_INFO, "Using default data directory \"%s\".", directory);
-
-    DataDirectory = strdup(directory);
-  }
-
-  if (!SpoolDirectory)
-  {
-    SpoolDirectory = strdup(DataDirectory);
-
-    serverLog(SERVER_LOGLEVEL_INFO, "Using default spool directory \"%s\".", DataDirectory);
-  }
-
- /*
-  * Authentication/authorization support...
-  */
-
-  if (Authentication)
-  {
-    if (AuthAdminGroup == SERVER_GROUP_NONE)
-      AuthAdminGroup = SERVER_GROUP_WHEEL;
-    if (AuthOperatorGroup == SERVER_GROUP_NONE)
-      AuthOperatorGroup = getgid();
-
-    if (!AuthName)
-      AuthName = strdup("Printing");
-    if (!AuthService && !AuthTestPassword)
-      AuthService = strdup(DEFAULT_PAM_SERVICE);
-    if (!AuthType)
-      AuthType = strdup("Basic");
-
-    if (!DocumentPrivacyScope)
-      DocumentPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
-    if (!DocumentPrivacyAttributes)
-      DocumentPrivacyAttributes = strdup("default");
-
-    if (!JobPrivacyScope)
-      JobPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
-    if (!JobPrivacyAttributes)
-      JobPrivacyAttributes = strdup("default");
-
-    if (!SubscriptionPrivacyScope)
-      SubscriptionPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
-    if (!SubscriptionPrivacyAttributes)
-      SubscriptionPrivacyAttributes = strdup("default");
-  }
-  else
-  {
-    if (!DocumentPrivacyScope)
-      DocumentPrivacyScope = strdup(SERVER_SCOPE_ALL);
-    if (!DocumentPrivacyAttributes)
-      DocumentPrivacyAttributes = strdup("none");
-
-    if (!JobPrivacyScope)
-      JobPrivacyScope = strdup(SERVER_SCOPE_ALL);
-    if (!JobPrivacyAttributes)
-      JobPrivacyAttributes = strdup("none");
-
-    if (!SubscriptionPrivacyScope)
-      SubscriptionPrivacyScope = strdup(SERVER_SCOPE_ALL);
-    if (!SubscriptionPrivacyAttributes)
-      SubscriptionPrivacyAttributes = strdup("none");
-  }
-
-  PrivacyAttributes = ippNew();
-
-  add_document_privacy();
-  add_job_privacy();
-  add_subscription_privacy();
-
- /*
-  * Initialize Bonjour...
-  */
-
-  serverDNSSDInit();
-
- /*
-  * Apply default listeners if none are specified...
-  */
-
-  if (!Listeners)
-  {
-#ifdef WIN32
-   /*
-    * Windows is almost always used as a single user system, so use a default port
-    * number of 8631.
-    */
-
-    if (!DefaultPort)
-      DefaultPort = 8631;
-
-#else
-   /*
-    * Use 8000 + UID mod 1000 for the default port number...
-    */
-
-    if (!DefaultPort)
-      DefaultPort = 8000 + ((int)getuid() % 1000);
-#endif /* WIN32 */
-
-    serverLog(SERVER_LOGLEVEL_INFO, "Using default listeners for %s:%d.", ServerName, DefaultPort);
-
-    if (!serverCreateListeners(strcmp(ServerName, "localhost") ? NULL : "localhost", DefaultPort))
-      return (0);
-  }
-
-  return (1);
-}
-
-
-/*
- * 'serverFindPrinter()' - Find a printer by resource...
- */
-
-server_printer_t *			/* O - Printer or NULL */
-serverFindPrinter(const char *resource)	/* I - Resource path */
-{
-  server_printer_t	key,		/* Search key */
-			*match = NULL;	/* Matching printer */
-
-
-  _cupsMutexLock(&printer_mutex);
-  if (cupsArrayCount(Printers) == 1 || !strcmp(resource, "/ipp/print"))
-  {
-   /*
-    * Just use the first printer...
-    */
-
-    match = cupsArrayFirst(Printers);
-    if (strcmp(match->resource, resource) && strcmp(resource, "/ipp/print"))
-      match = NULL;
-  }
-  else
-  {
-    key.resource = (char *)resource;
-    match        = (server_printer_t *)cupsArrayFind(Printers, &key);
-  }
-  _cupsMutexUnlock(&printer_mutex);
-
-  return (match);
-}
-
-
-/*
- * 'serverLoadAttributes()' - Load printer attributes from a file.
- *
- * Syntax is based on ipptool format:
- *
- *    ATTR value-tag name value
- *    ATTR value-tag name value,value,...
- *    AUTHTYPE "scheme"
- *    COMMAND "/path/to/command"
- *    DEVICE-URI "uri"
- *    MAKE "manufacturer"
- *    MODEL "model name"
- *    PROXY-USER "username"
- *    STRINGS lang filename.strings
- *
- * AUTH schemes are "none" for no authentication or "basic" for HTTP Basic
- * authentication.
- *
- * DEVICE-URI values can be "socket", "ipp", or "ipps" URIs.
- */
-
-int					/* O - 1 on success, 0 on failure */
-serverLoadAttributes(
-    const char     *filename,		/* I - File to load */
-    server_pinfo_t *pinfo)		/* I - Printer information */
-{
-  _ipp_vars_t	vars;			/* IPP variables */
-
-
-  _ippVarsInit(&vars, (_ipp_fattr_cb_t)attr_cb, (_ipp_ferror_cb_t)error_cb, (_ipp_ftoken_cb_t)token_cb);
-
-  pinfo->attrs = _ippFileParse(&vars, filename, (void *)pinfo);
-
-  _ippVarsDeinit(&vars);
-
-  return (pinfo->attrs != NULL);
-}
-
-
-/*
- * 'serverLoadConfiguration()' - Load the server configuration file.
+ * 'serverCreateSystem()' - Load the server configuration file and create the
+ *                          System object..
  */
 
 int					/* O - 1 if successful, 0 on error */
-serverLoadConfiguration(
+serverCreateSystem(
     const char *directory)		/* I - Configuration directory */
 {
   cups_dir_t	*dir;			/* Directory pointer */
@@ -353,16 +105,27 @@ serverLoadConfiguration(
   server_pinfo_t pinfo;			/* Printer information */
 
 
- /*
-  * First read the system configuration file, if any...
-  */
+  SystemStartTime = SystemConfigChangeTime = time(NULL);
 
-  snprintf(filename, sizeof(filename), "%s/system.conf", directory);
-  if (!load_system(filename))
+  if (directory)
+  {
+   /*
+    * First read the system configuration file, if any...
+    */
+
+    snprintf(filename, sizeof(filename), "%s/system.conf", directory);
+    if (!load_system(filename))
+      return (0);
+  }
+
+  if (!finalize_system())
     return (0);
 
-  if (!serverFinalizeConfiguration())
-    return (0);
+  if (!directory)
+  {
+    DefaultPrinter = NULL;
+    return (1);
+  }
 
  /*
   * Then see if there are any print queues...
@@ -398,13 +161,13 @@ serverLoadConfiguration(
 	{
           snprintf(resource, sizeof(resource), "/ipp/print/%s", dent->filename);
 
-	  if ((printer = serverCreatePrinter(resource, dent->filename, &pinfo)) == NULL)
+	  if ((printer = serverCreatePrinter(resource, dent->filename, &pinfo, 0)) == NULL)
             continue;
 
-	  if (!Printers)
-	    Printers = cupsArrayNew((cups_array_func_t)compare_printers, NULL);
+          printer->state        = IPP_PSTATE_IDLE;
+          printer->is_accepting = 1;
 
-	  cupsArrayAdd(Printers, printer);
+          serverAddPrinter(printer);
 	}
       }
       else if (!strstr(dent->filename, ".png"))
@@ -448,7 +211,7 @@ serverLoadConfiguration(
 	{
           snprintf(resource, sizeof(resource), "/ipp/print3d/%s", dent->filename);
 
-	  if ((printer = serverCreatePrinter(resource, dent->filename, &pinfo)) == NULL)
+	  if ((printer = serverCreatePrinter(resource, dent->filename, &pinfo, 0)) == NULL)
           continue;
 
 	  if (!Printers)
@@ -464,7 +227,92 @@ serverLoadConfiguration(
     cupsDirClose(dir);
   }
 
+  if (default_printer)
+  {
+    for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+      if (!strcmp(printer->name, default_printer))
+        break;
+
+    DefaultPrinter = printer;
+  }
+  else
+  {
+    DefaultPrinter = NULL;
+  }
+
   return (1);
+}
+
+
+/*
+ * 'serverFindPrinter()' - Find a printer by resource...
+ */
+
+server_printer_t *			/* O - Printer or NULL */
+serverFindPrinter(const char *resource)	/* I - Resource path */
+{
+  server_printer_t	key,		/* Search key */
+			*match = NULL;	/* Matching printer */
+
+
+  _cupsRWLockRead(&PrintersRWLock);
+  if (cupsArrayCount(Printers) == 1 || !strcmp(resource, "/ipp/print"))
+  {
+   /*
+    * Just use the first printer...
+    */
+
+    match = cupsArrayFirst(Printers);
+    if (strcmp(match->resource, resource) && strcmp(resource, "/ipp/print"))
+      match = NULL;
+  }
+  else
+  {
+    key.resource = (char *)resource;
+    match        = (server_printer_t *)cupsArrayFind(Printers, &key);
+  }
+  _cupsRWUnlock(&PrintersRWLock);
+
+  return (match);
+}
+
+
+/*
+ * 'serverLoadAttributes()' - Load printer attributes from a file.
+ *
+ * Syntax is based on ipptool format:
+ *
+ *    ATTR value-tag name value
+ *    ATTR value-tag name value,value,...
+ *    AUTHTYPE "scheme"
+ *    COMMAND "/path/to/command"
+ *    DEVICE-URI "uri"
+ *    MAKE "manufacturer"
+ *    MODEL "model name"
+ *    PROXY-USER "username"
+ *    STRINGS lang filename.strings
+ *
+ * AUTH schemes are "none" for no authentication or "basic" for HTTP Basic
+ * authentication.
+ *
+ * DEVICE-URI values can be "socket", "ipp", or "ipps" URIs.
+ */
+
+int					/* O - 1 on success, 0 on failure */
+serverLoadAttributes(
+    const char     *filename,		/* I - File to load */
+    server_pinfo_t *pinfo)		/* I - Printer information */
+{
+  _ipp_vars_t	vars;			/* IPP variables */
+
+
+  _ippVarsInit(&vars, (_ipp_fattr_cb_t)attr_cb, (_ipp_ferror_cb_t)error_cb, (_ipp_ftoken_cb_t)token_cb);
+
+  pinfo->attrs = _ippFileParse(&vars, filename, (void *)pinfo);
+
+  _ippVarsDeinit(&vars);
+
+  return (pinfo->attrs != NULL);
 }
 
 
@@ -1086,6 +934,7 @@ attr_cb(_ipp_file_t    *f,		/* I - IPP file */
     "device-uuid",
     "document-format-varying-attributes",
     "job-settable-attributes-supported",
+    "operations-supported",
     "printer-alert",
     "printer-alert-description",
     "printer-camera-image-uri",
@@ -1185,6 +1034,427 @@ copy_lang(server_lang_t *a)		/* I - Localization to copy */
 }
 
 
+/*
+ * 'create_system_attributes()' - Create the core system object attributes.
+ */
+
+static void
+create_system_attributes(void)
+{
+  int			i;		/* Looping var */
+  ipp_t			*col;		/* Collection value */
+  const char		*setting;	/* System setting value */
+  char			vcard[1024];	/* VCARD value */
+  server_listener_t	*lis;		/* Current listener */
+  cups_array_t		*uris;		/* Array of URIs */
+  char			uri[1024];	/* URI */
+  int			num_values = 0;	/* Number of values */
+  ipp_t			*values[32];	/* Collection values */
+  int			alloc_groups,	/* Allocated groups */
+			num_groups;	/* Number of groups */
+  char			**groups;	/* Group names */
+  struct group		*grp;		/* Current group */
+  char			uuid[128];	/* system-uuid */
+  static const char * const charset_supported[] =
+  {					/* Values for charset-supported */
+    "us-ascii",
+    "utf-8"
+  };
+  static const char * const document_format_supported[] =
+  {					/* Values for document-format-supported */
+    "application/pdf",
+    "application/postscript",
+    "application/vnd.hp-pcl",
+    "application/vnd.pwg-safe-gcode",
+    "image/jpeg",
+    "image/png",
+    "image/pwg-raster",
+    "image/urf",
+    "model/3mf",
+    "model/3mf+slice",
+    "text/plain"
+  };
+  static const char * const ipp_features_supported[] =
+  {					/* Values for ipp-features-supported */
+    "document-object",
+    "infrastructure-printer",
+    "ipp-3d",
+    "ipp-everywhere",
+    "page-overrides",
+    "system-service"
+  };
+  static const char * const ipp_versions_supported[] =
+  {					/* Values for ipp-versions-supported */
+    "2.0",
+    "2.1",
+    "2.2"
+  };
+  static const char * const notify_attributes_supported[] =
+  {					/* Values for notify-attributes-supported */
+    "printer-state-change-time",
+    "notify-lease-expiration-time",
+    "notify-subscriber-user-name"
+  };
+  static const int operations_supported[] =
+  {					/* Values for operations-supported */
+    IPP_OP_GET_PRINTER_ATTRIBUTES,
+    IPP_OP_GET_SUBSCRIPTION_ATTRIBUTES,
+    IPP_OP_GET_SUBSCRIPTIONS,
+    IPP_OP_RENEW_SUBSCRIPTION,
+    IPP_OP_CANCEL_SUBSCRIPTION,
+    IPP_OP_GET_NOTIFICATIONS,
+    IPP_OP_ALLOCATE_PRINTER_RESOURCES,
+    IPP_OP_CREATE_PRINTER,
+    IPP_OP_DEALLOCATE_PRINTER_RESOURCES,
+    IPP_OP_DELETE_PRINTER,
+    IPP_OP_GET_PRINTERS,
+    IPP_OP_SHUTDOWN_ONE_PRINTER,
+    IPP_OP_STARTUP_ONE_PRINTER,
+    IPP_OP_CANCEL_RESOURCE,
+    IPP_OP_CREATE_RESOURCE,
+    IPP_OP_INSTALL_RESOURCE,
+    IPP_OP_SEND_RESOURCE_DATA,
+    IPP_OP_SET_RESOURCE_ATTRIBUTES,
+    IPP_OP_CREATE_RESOURCE_SUBSCRIPTIONS,
+    IPP_OP_CREATE_SYSTEM_SUBSCRIPTIONS,
+    IPP_OP_DISABLE_ALL_PRINTERS,
+    IPP_OP_ENABLE_ALL_PRINTERS,
+    IPP_OP_GET_SYSTEM_ATTRIBUTES,
+    IPP_OP_GET_SYSTEM_SUPPORTED_VALUES,
+    IPP_OP_PAUSE_ALL_PRINTERS,
+    IPP_OP_PAUSE_ALL_PRINTERS_AFTER_CURRENT_JOB,
+    IPP_OP_REGISTER_OUTPUT_DEVICE,
+    IPP_OP_RESTART_SYSTEM,
+    IPP_OP_RESUME_ALL_PRINTERS,
+    IPP_OP_SET_SYSTEM_ATTRIBUTES,
+    IPP_OP_SHUTDOWN_ALL_PRINTERS,
+    IPP_OP_STARTUP_ALL_PRINTERS
+  };
+  static const char * const device_command_supported[] =
+  {					/* Values for device-command-supported */
+    /* TODO: Scan BinDir for commands? Or make this configurable? */
+    "ippdoclint",
+    "ipptransform",
+    "ipptransform3d"
+  };
+  static const char * const device_format_supported[] =
+  {					/* Values for device-format-supported */
+    "application/pdf",
+    "application/postscript",
+    "application/vnd.hp-pcl",
+    "application/vnd.pwg-safe-gcode",
+    "image/pwg-raster",
+    "image/urf",
+    "model/3mf",
+    "model/3mf+slice",
+    "text/plain"
+  };
+  static const char * const device_uri_schemes_supported[] =
+  {					/* Values for device-uri-schemes-supported */
+    "ipp",
+    "ipps",
+    "socket",
+    "usbserial"
+  };
+  static const char * const printer_creation_attributes_supported[] =
+  {					/* Values for printer-creation-attributes-supported */
+    "auth-print-group",
+    "auth-proxy-group",
+    "color-supported",
+    "device-command",
+    "device-format",
+    "device-name",
+    "device-uri",
+    "document-format-default",
+    "document-format-supported",
+    "multiple-document-jobs-supported",
+    "natural-language-configured",
+    "pages-per-minute",
+    "pages-per-minute-color",
+    "pdl-override-supported",
+    "printer-device-id",
+    "printer-geo-location",
+    "printer-info",
+    "printer-location",
+    "printer-make-and-model",
+    "printer-name",
+    "pwg-raster-document-resolution-supported",
+    "pwg-raster-document-sheet-back",
+    "pwg-raster-document-type-supported",
+    "urf-supported"
+  };
+  static const char * const resource_format_supported[] =
+  {					/* Values for resource-format-supported */
+    "application/vnd.iccprofile",
+    "image/png",
+    "text/strings"
+  };
+  static const char * const resource_settable_attributes_supported[] =
+  {					/* Values for resource-settable-attributes-supported */
+    "resource-name"
+  };
+  static const char * const resource_type_supported[] =
+  {					/* Values for resource-type-supported */
+    "static-icc-profile",
+    "static-image",
+    "static-strings"
+  };
+  static const char * const system_mandatory_printer_attributes[] =
+  {					/* Values for system-mandatory-printer-attributes */
+    "printer-name"
+  };
+  static const char * const system_settable_attributes_supported[] =
+  {					/* Values for system-settable-attributes-supported */
+    "system-default-printer-id",
+    "system-geo-location",
+    "system-info",
+    "system-location",
+    "system-make-and-model",
+    "system-name",
+    "system-owner-col"
+  };
+
+
+  SystemAttributes = ippNew();
+
+  /* auth-group-supported */
+  alloc_groups = num_groups = 0;
+  groups       = NULL;
+
+  setgrent();
+  while ((grp = getgrent()) != NULL)
+  {
+    if (grp->gr_name[0] == '_')
+      continue;				/* Skip system groups */
+
+    if (num_groups >= alloc_groups)
+    {
+      alloc_groups += 10;
+      groups       = (char **)realloc(groups, (size_t)alloc_groups * sizeof(char *));
+    }
+
+    groups[num_groups ++] = strdup(grp->gr_name);
+  }
+  endgrent();
+
+  if (num_groups > 0)
+  {
+    ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_NAME, "auth-group-supported", num_groups, NULL, (const char **)groups);
+
+    for (i = 0; i < num_groups; i ++)
+      free(groups[i]);
+    free(groups);
+  }
+
+  /* charset-configured */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_CHARSET), "charset-configured", NULL, "utf-8");
+
+  /* charset-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_CHARSET), "charset-supported", (int)(sizeof(charset_supported) / sizeof(charset_supported[0])), NULL, charset_supported);
+
+  /* device-command-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_NAME), "device-command-supported", (int)(sizeof(device_command_supported) / sizeof(device_command_supported[0])), NULL, device_command_supported);
+
+  /* device-format-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "device-format-supported", (int)(sizeof(device_format_supported) / sizeof(device_format_supported[0])), NULL, device_format_supported);
+
+  /* device-uri-schemes-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "device-uri-schemes-supported", (int)(sizeof(device_uri_schemes_supported) / sizeof(device_uri_schemes_supported[0])), NULL, device_uri_schemes_supported);
+
+  /* document-format-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "document-format-supported", (int)(sizeof(document_format_supported) / sizeof(document_format_supported[0])), NULL, document_format_supported);
+
+  /* generated-natural-language-supported */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_LANGUAGE), "generated-natural-language-supported", NULL, "en");
+
+  /* ipp-features-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "ipp-features-supported", (int)(sizeof(ipp_features_supported) / sizeof(ipp_features_supported[0])), NULL, ipp_features_supported);
+
+  /* ipp-versions-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "ipp-versions-supported", (int)(sizeof(ipp_versions_supported) / sizeof(ipp_versions_supported[0])), NULL, ipp_versions_supported);
+
+  /* ippget-event-life */
+  ippAddInteger(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "ippget-event-life", SERVER_IPPGET_EVENT_LIFE);
+
+  /* natural-language-configured */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_LANGUAGE), "natural-language-configured", NULL, "en");
+
+  /* notify-attributes-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-attributes-supported", sizeof(notify_attributes_supported) / sizeof(notify_attributes_supported[0]), NULL, notify_attributes_supported);
+
+  /* notify-events-default */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-events-default", NULL, "job-completed");
+
+  /* notify-events-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-events-supported", sizeof(server_events) / sizeof(server_events[0]), NULL, server_events);
+
+  /* notify-lease-duration-default */
+  ippAddInteger(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "notify-lease-duration-default", SERVER_NOTIFY_LEASE_DURATION_DEFAULT);
+
+  /* notify-lease-duration-supported */
+  ippAddRange(SystemAttributes, IPP_TAG_SYSTEM, "notify-lease-duration-supported", 0, SERVER_NOTIFY_LEASE_DURATION_MAX);
+
+  /* notify-max-events-supported */
+  ippAddInteger(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "notify-max-events-supported", (int)(sizeof(server_events) / sizeof(server_events[0])));
+
+  /* notify-pull-method-supported */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-pull-method-supported", NULL, "ippget");
+
+  /* operations-supported */
+  ippAddIntegers(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_ENUM, "operations-supported", sizeof(operations_supported) / sizeof(operations_supported[0]), operations_supported);
+
+  /* printer-creation-attributes-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-creation-attributes-supported", sizeof(printer_creation_attributes_supported) / sizeof(printer_creation_attributes_supported[0]), NULL, printer_creation_attributes_supported);
+
+  /* resource-format-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "resource-format-supported", (int)(sizeof(resource_format_supported) / sizeof(resource_format_supported[0])), NULL, resource_format_supported);
+
+  /* resource-settable-attributes-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "resource-settable-attributes-supported", (int)(sizeof(resource_settable_attributes_supported) / sizeof(resource_settable_attributes_supported[0])), NULL, resource_settable_attributes_supported);
+
+  /* resource-type-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "resource-type-supported", (int)(sizeof(resource_type_supported) / sizeof(resource_type_supported[0])), NULL, resource_type_supported);
+
+  /* system-device-id, TODO: maybe remove this, it has no purpose */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-device-id", NULL, "MANU:None;MODEL:None;");
+
+  /* system-geo-location */
+  setting = cupsGetOption("GeoLocation", SystemNumSettings, SystemSettings);
+  if (setting)
+    ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_URI, "system-geo-location", NULL, setting);
+  else
+    ippAddOutOfBand(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_UNKNOWN, "system-geo-location");
+
+  /* system-info */
+  setting = cupsGetOption("Info", SystemNumSettings, SystemSettings);
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-info", NULL, setting ? setting : "ippserver system service");
+
+  /* system-location */
+  setting = cupsGetOption("Location", SystemNumSettings, SystemSettings);
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-location", NULL, setting ? setting : "nowhere");
+
+  /* system-mandatory-printer-attributes */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "system-mandatory-printer-attributes", sizeof(system_mandatory_printer_attributes) / sizeof(system_mandatory_printer_attributes[0]), NULL, system_mandatory_printer_attributes);
+
+  /* system-make-and-model */
+  setting = cupsGetOption("MakeAndModel", SystemNumSettings, SystemSettings);
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-make-and-model", NULL, setting ? setting : "ippserver prototype");
+
+  /* system-name */
+  setting = cupsGetOption("Name", SystemNumSettings, SystemSettings);
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_NAME), "system-name", NULL, setting ? setting : "ippserver");
+
+  /* system-owner-col */
+  col = ippNew();
+
+  setting = cupsGetOption("OwnerEmail", SystemNumSettings, SystemSettings);
+  httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "mailto", NULL, NULL, 0, setting ? setting : "unknown@example.com");
+  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_URI, "owner-uri", NULL, uri);
+
+  setting = cupsGetOption("OwnerName", SystemNumSettings, SystemSettings);
+  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_NAME, "owner-name", NULL, setting ? setting : cupsUser());
+
+  serverMakeVCARD(NULL, cupsGetOption("OwnerName", SystemNumSettings, SystemSettings), cupsGetOption("OwnerLocation", SystemNumSettings, SystemSettings), cupsGetOption("OwnerEmail", SystemNumSettings, SystemSettings), cupsGetOption("OwnerPhone", SystemNumSettings, SystemSettings), vcard, sizeof(vcard));
+  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_TEXT, "owner-vcard", NULL, vcard);
+
+  ippAddCollection(SystemAttributes, IPP_TAG_SYSTEM, "system-owner-col", col);
+  ippDelete(col);
+
+  /* system-settable-attributes-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "system-settable-attributes-supported", (int)(sizeof(system_settable_attributes_supported) / sizeof(system_settable_attributes_supported[0])), NULL, system_settable_attributes_supported);
+
+#if 0
+  /* TODO: Support system-strings-languages-supported */
+  if (SystemStrings)
+  {
+    server_lang_t *lang;
+
+    for (attr = NULL, lang = (server_lang_t *)cupsArrayFirst(SystemStrings); lang; lang = (server_lang_t *)cupsArrayNext(SystemStrings))
+    {
+      if (attr)
+        ippSetString(printer->pinfo.attrs, &attr, ippGetCount(attr), lang->lang);
+      else
+        attr = ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_LANGUAGE, "system-strings-languages-supported", NULL, lang->lang);
+    }
+  }
+#endif /* 0 */
+
+  /* system-uuid */
+  if ((setting = cupsGetOption("UUID", SystemNumSettings, SystemSettings)) == NULL)
+  {
+    lis = cupsArrayFirst(Listeners);
+    httpAssembleUUID(lis->host, lis->port, "", 0, uuid, sizeof(uuid));
+    setting = uuid;
+  }
+  else if (strncmp(setting, "urn:uuid:", 9))
+  {
+    snprintf(uuid, sizeof(uuid), "urn:uuid:%s", setting);
+    setting = uuid;
+  }
+
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_URI, "system-uuid", NULL, setting);
+
+  /* system-xri-supported */
+  uris = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+  for (lis = cupsArrayFirst(Listeners); lis && num_values < (int)(sizeof(values) / sizeof(values[0])); lis = cupsArrayNext(Listeners))
+  {
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPP_SCHEME, NULL, lis->host, lis->port, "/ipp/system");
+
+    if (!DefaultSystemURI)
+      DefaultSystemURI = strdup(uri);
+
+    if (!cupsArrayFind(uris, uri))
+    {
+      cupsArrayAdd(uris, uri);
+
+      col = ippNew();
+
+      ippAddString(col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
+
+#ifdef HAVE_SSL
+      if (Encryption != HTTP_ENCRYPTION_NEVER)
+        ippAddString(col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "tls");
+      else
+#endif /* HAVE_SSL */
+        ippAddString(col, IPP_TAG_ZERO, IPP_TAG_KEYWORD, "xri-security", NULL, "none");
+
+      ippAddString(col, IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uri);
+
+      values[num_values ++] = col;
+    }
+  }
+
+  if (num_values > 0)
+  {
+    ippAddCollections(SystemAttributes, IPP_TAG_SYSTEM, "system-xri-supported", num_values, (const ipp_t **)values);
+
+    for (i = 0; i < num_values; i ++)
+      ippDelete(values[i]);
+  }
+
+  cupsArrayDelete(uris);
+
+  /* xri-authentication-supported */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication-supported", NULL, Authentication ? "basic" : "none");
+
+  /* xri-security-supported */
+#ifdef HAVE_SSL
+  if (Encryption != HTTP_ENCRYPTION_NEVER)
+    ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "tls");
+  else
+#endif /* HAVE_SSL */
+    ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "none");
+
+  /* xri-uri-scheme-supported */
+#ifdef HAVE_SSL
+  if (Encryption != HTTP_ENCRYPTION_NEVER)
+    ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipps");
+  else
+#endif /* HAVE_SSL */
+    ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipp");
+}
+
+
 #ifdef HAVE_AVAHI
 /*
  * 'dnssd_client_cb()' - Client callback for Avahi.
@@ -1222,6 +1492,40 @@ dnssd_client_cb(
 
 
 /*
+ * 'dnssd_init()' - Initialize DNS-SD registrations.
+ */
+
+static void
+dnssd_init(void)
+{
+#ifdef HAVE_DNSSD
+  if (DNSServiceCreateConnection(&DNSSDMaster) != kDNSServiceErr_NoError)
+  {
+    fputs("Error: Unable to initialize Bonjour.\n", stderr);
+    exit(1);
+  }
+
+#elif defined(HAVE_AVAHI)
+  int error;			/* Error code, if any */
+
+  if ((DNSSDMaster = avahi_threaded_poll_new()) == NULL)
+  {
+    fputs("Error: Unable to initialize Bonjour.\n", stderr);
+    exit(1);
+  }
+
+  if ((DNSSDClient = avahi_client_new(avahi_threaded_poll_get(DNSSDMaster), AVAHI_CLIENT_NO_FAIL, dnssd_client_cb, NULL, &error)) == NULL)
+  {
+    fputs("Error: Unable to initialize Bonjour.\n", stderr);
+    exit(1);
+  }
+
+  avahi_threaded_poll_start(DNSSDMaster);
+#endif /* HAVE_DNSSD */
+}
+
+
+/*
  * 'error_cb()' - Log an error message.
  */
 
@@ -1234,6 +1538,180 @@ error_cb(_ipp_file_t    *f,		/* I - IPP file data */
   (void)pinfo;
 
   serverLog(SERVER_LOGLEVEL_ERROR, "%s", error);
+
+  return (1);
+}
+
+
+/*
+ * 'finalize_system()' - Finalize values for the System object.
+ */
+
+static int				/* O - 1 on success, 0 on failure */
+finalize_system(void)
+{
+  char	local[1024];			/* Local hostname */
+
+
+ /*
+  * Default BinDir...
+  */
+
+  if (!BinDir)
+    BinDir = strdup(CUPS_SERVERBIN);
+
+ /*
+  * Default hostname...
+  */
+
+  if (!ServerName && httpGetHostname(NULL, local, sizeof(local)))
+    ServerName = strdup(local);
+
+  if (!ServerName)
+    ServerName = strdup("localhost");
+
+#ifdef HAVE_SSL
+ /*
+  * Setup TLS certificate for server...
+  */
+
+  cupsSetServerCredentials(KeychainPath, ServerName, 1);
+#endif /* HAVE_SSL */
+
+ /*
+  * Default directories...
+  */
+
+  if (!DataDirectory)
+  {
+    char	directory[1024];	/* New directory */
+    const char	*tmpdir;		/* Temporary directory */
+
+#ifdef WIN32
+    if ((tmpdir = getenv("TEMP")) == NULL)
+      tmpdir = "C:/TEMP";
+#elif defined(__APPLE__)
+    if ((tmpdir = getenv("TMPDIR")) == NULL)
+      tmpdir = "/private/tmp";
+#else
+    if ((tmpdir = getenv("TMPDIR")) == NULL)
+      tmpdir = "/tmp";
+#endif /* WIN32 */
+
+    snprintf(directory, sizeof(directory), "%s/ippserver.%d", tmpdir, (int)getpid());
+
+    if (mkdir(directory, 0755) && errno != EEXIST)
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Unable to create default data directory \"%s\": %s", directory, strerror(errno));
+      return (0);
+    }
+
+    serverLog(SERVER_LOGLEVEL_INFO, "Using default data directory \"%s\".", directory);
+
+    DataDirectory = strdup(directory);
+  }
+
+  if (!SpoolDirectory)
+  {
+    SpoolDirectory = strdup(DataDirectory);
+
+    serverLog(SERVER_LOGLEVEL_INFO, "Using default spool directory \"%s\".", DataDirectory);
+  }
+
+ /*
+  * Authentication/authorization support...
+  */
+
+  if (Authentication)
+  {
+    if (AuthAdminGroup == SERVER_GROUP_NONE)
+      AuthAdminGroup = getgid();
+    if (AuthOperatorGroup == SERVER_GROUP_NONE)
+      AuthOperatorGroup = getgid();
+
+    if (!AuthName)
+      AuthName = strdup("Printing");
+    if (!AuthService && !AuthTestPassword)
+      AuthService = strdup(DEFAULT_PAM_SERVICE);
+    if (!AuthType)
+      AuthType = strdup("Basic");
+
+    if (!DocumentPrivacyScope)
+      DocumentPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
+    if (!DocumentPrivacyAttributes)
+      DocumentPrivacyAttributes = strdup("default");
+
+    if (!JobPrivacyScope)
+      JobPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
+    if (!JobPrivacyAttributes)
+      JobPrivacyAttributes = strdup("default");
+
+    if (!SubscriptionPrivacyScope)
+      SubscriptionPrivacyScope = strdup(SERVER_SCOPE_DEFAULT);
+    if (!SubscriptionPrivacyAttributes)
+      SubscriptionPrivacyAttributes = strdup("default");
+  }
+  else
+  {
+    if (!DocumentPrivacyScope)
+      DocumentPrivacyScope = strdup(SERVER_SCOPE_ALL);
+    if (!DocumentPrivacyAttributes)
+      DocumentPrivacyAttributes = strdup("none");
+
+    if (!JobPrivacyScope)
+      JobPrivacyScope = strdup(SERVER_SCOPE_ALL);
+    if (!JobPrivacyAttributes)
+      JobPrivacyAttributes = strdup("none");
+
+    if (!SubscriptionPrivacyScope)
+      SubscriptionPrivacyScope = strdup(SERVER_SCOPE_ALL);
+    if (!SubscriptionPrivacyAttributes)
+      SubscriptionPrivacyAttributes = strdup("none");
+  }
+
+  PrivacyAttributes = ippNew();
+
+  add_document_privacy();
+  add_job_privacy();
+  add_subscription_privacy();
+
+ /*
+  * Initialize Bonjour...
+  */
+
+  dnssd_init();
+
+ /*
+  * Apply default listeners if none are specified...
+  */
+
+  if (!Listeners)
+  {
+#ifdef WIN32
+   /*
+    * Windows is almost always used as a single user system, so use a default port
+    * number of 8631.
+    */
+
+    if (!DefaultPort)
+      DefaultPort = 8631;
+
+#else
+   /*
+    * Use 8000 + UID mod 1000 for the default port number...
+    */
+
+    if (!DefaultPort)
+      DefaultPort = 8000 + ((int)getuid() % 1000);
+#endif /* WIN32 */
+
+    serverLog(SERVER_LOGLEVEL_INFO, "Using default listeners for %s:%d.", ServerName, DefaultPort);
+
+    if (!serverCreateListeners(strcmp(ServerName, "localhost") ? NULL : "localhost", DefaultPort))
+      return (0);
+  }
+
+  create_system_attributes();
 
   return (1);
 }
@@ -1263,8 +1741,49 @@ load_system(const char *conf)		/* I - Configuration file */
   int		status = 1,		/* Return value */
 		linenum = 0;		/* Current line number */
   char		line[1024],		/* Line from file */
-		*value;			/* Pointer to value on line */
+		*value,			/* Pointer to value on line */
+		temp[1024];		/* Temporary string */
+  const char	*setting;		/* Current setting */
   struct group	*group;			/* Group information */
+  int		i;			/* Looping var */
+  static const char * const settings[] =/* List of directives */
+  {
+    "Authentication",
+    "AuthAdminGroup",
+    "AuthName",
+    "AuthOperatorGroup",
+    "AuthService",
+    "AuthTestPassword",
+    "AuthType",
+    "BinDir",
+    "DataDir",
+    "DefaultPrinter",
+    "DocumentPrivacyAttributes",
+    "DocumentPrivacyScope",
+    "Encryption",
+    "FileDirectory",
+    "GeoLocation",
+    "Info",
+    "JobPrivacyAttributes",
+    "JobPrivacyScope",
+    "KeepFiles",
+    "Listen",
+    "Location",
+    "LogFile",
+    "LogLevel",
+    "MakeAndModel",
+    "MaxCompletedJobs",
+    "MaxJobs",
+    "Name",
+    "OwnerEmail",
+    "OwnerLocation",
+    "OwnerName",
+    "OwnerPhone",
+    "SpoolDir",
+    "SubscriptionPrivacyAttributes",
+    "SubscriptionPrivacyScope",
+    "UUID"
+  };
 
 
   if ((fp = cupsFileOpen(conf, "r")) == NULL)
@@ -1277,6 +1796,46 @@ load_system(const char *conf)		/* I - Configuration file */
       fprintf(stderr, "ippserver: Missing value on line %d of \"%s\".\n", linenum, conf);
       status = 0;
       break;
+    }
+
+    for (i = 0; i < (int)(sizeof(settings) / sizeof(settings[0])); i ++)
+      if (!_cups_strcasecmp(line, settings[i]))
+        break;
+
+    if (i >= (int)(sizeof(settings) / sizeof(settings[0])))
+    {
+      fprintf(stderr, "ippserver: Unknown \"%s\" directive on line %d.\n", line, linenum);
+      continue;
+    }
+
+    if ((setting = cupsGetOption(line, SystemNumSettings, SystemSettings)) != NULL)
+    {
+     /*
+      * Already have this setting, check whether this is OK...
+      */
+
+      if (!_cups_strcasecmp(line, "FileDirectory") || !_cups_strcasecmp(line, "Listen"))
+      {
+       /*
+        * Listen allows multiple values, others do not...
+        */
+
+	snprintf(temp, sizeof(temp), "%s %s", setting, value);
+	SystemNumSettings = cupsAddOption(line, temp, SystemNumSettings, &SystemSettings);
+      }
+      else
+      {
+	fprintf(stderr, "ippserver: Duplicate \"%s\" directive on line %d.\n", line, linenum);
+	continue;
+      }
+    }
+    else
+    {
+     /*
+      * First time we've seen this setting...
+      */
+
+      SystemNumSettings = cupsAddOption(line, value, SystemNumSettings, &SystemSettings);
     }
 
     if (!_cups_strcasecmp(line, "Authentication"))
@@ -1334,7 +1893,18 @@ load_system(const char *conf)		/* I - Configuration file */
     {
       AuthType = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "DataDirectory"))
+    else if (!_cups_strcasecmp(line, "BinDir"))
+    {
+      if (access(value, X_OK))
+      {
+        fprintf(stderr, "ippserver: Unable to access BinDir \"%s\": %s\n", value, strerror(errno));
+        status = 0;
+        break;
+      }
+
+      BinDir = strdup(value);
+    }
+    else if (!_cups_strcasecmp(line, "DataDir"))
     {
       if (access(value, R_OK))
       {
@@ -1347,14 +1917,14 @@ load_system(const char *conf)		/* I - Configuration file */
     }
     else if (!_cups_strcasecmp(line, "DefaultPrinter"))
     {
-      if (DefaultPrinter)
+      if (default_printer)
       {
         fprintf(stderr, "ippserver: Extra DefaultPrinter seen on line %d of \"%s\".\n", linenum, conf);
         status = 0;
         break;
       }
 
-      DefaultPrinter = strdup(value);
+      default_printer = strdup(value);
     }
     else if (!_cups_strcasecmp(line, "DocumentPrivacyAttributes"))
     {
@@ -1395,6 +1965,63 @@ load_system(const char *conf)		/* I - Configuration file */
         break;
       }
     }
+    else if (!_cups_strcasecmp(line, "FileDirectory"))
+    {
+      char		*dir,		/* Directory value */
+			dirabs[PATH_MAX];
+					/* Absolute directory path */
+      struct stat	dirinfo;	/* Directory information */
+
+      while (*value)
+      {
+        while (isspace(*value & 255))
+          value ++;
+
+        if (*value == '\'' || *value == '\"')
+        {
+          char	quote = *value++;	/* Quote to look for */
+
+          dir = value;
+          while (*value && *value != quote)
+            value ++;
+
+          if (*value == quote)
+          {
+            *value++ = '\0';
+	  }
+	  else
+	  {
+	    fprintf(stderr, "ippserver: Missing closing quote for FileDirectory on line %d of \"%s\".\n", linenum, conf);
+	    status = 0;
+	    break;
+	  }
+	}
+	else
+	{
+          dir = value;
+          while (*value && !isspace(*value & 255))
+            value ++;
+
+          if (*value)
+            *value++ = '\0';
+	}
+
+        if (!FileDirectories)
+          FileDirectories = cupsArrayNew3(NULL, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+
+        if (dir[0] != '/')
+          dir = realpath(dir, dirabs);
+
+        if (!dir || access(dir, X_OK) || stat(dir, &dirinfo) || !S_ISDIR(dirinfo.st_mode))
+        {
+	  fprintf(stderr, "ippserver: Bad FileDirectory on line %d of \"%s\".\n", linenum, conf);
+	  status = 0;
+	  break;
+        }
+
+        cupsArrayAdd(FileDirectories, dir);
+      }
+    }
     else if (!_cups_strcasecmp(line, "JobPrivacyAttributes"))
     {
       if (JobPrivacyAttributes)
@@ -1423,29 +2050,38 @@ load_system(const char *conf)		/* I - Configuration file */
     }
     else if (!_cups_strcasecmp(line, "Listen"))
     {
-      char	*ptr;			/* Pointer into host value */
+      char	*host,			/* Host value */
+		*ptr;			/* Pointer into host value */
       int	port;			/* Port number */
 
-      if ((ptr = strrchr(value, ':')) != NULL && !isdigit(ptr[1] & 255))
+      while ((host = strsep(&value, " \t")) != NULL)
       {
-        fprintf(stderr, "ippserver: Bad Listen value \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
-        status = 0;
-        break;
+	if ((ptr = strrchr(host, ':')) != NULL && !isdigit(ptr[1] & 255))
+	{
+	  fprintf(stderr, "ippserver: Bad Listen value \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
+	  status = 0;
+	  break;
+	}
+
+	if (ptr)
+	{
+	  *ptr++ = '\0';
+	  port   = atoi(ptr);
+	}
+	else
+	{
+	  port = 8000 + ((int)getuid() % 1000);
+	}
+
+	if (!serverCreateListeners(host, port))
+	{
+	  status = 0;
+	  break;
+	}
       }
 
-      if (ptr)
-      {
-        *ptr++ = '\0';
-        port   = atoi(ptr);
-      }
-      else
-        port = 8000 + ((int)getuid() % 1000);
-
-      if (!serverCreateListeners(value, port))
-      {
-        status = 0;
+      if (!status)
         break;
-      }
     }
     else if (!_cups_strcasecmp(line, "LogFile"))
     {
@@ -1491,7 +2127,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       MaxJobs = atoi(value);
     }
-    else if (!_cups_strcasecmp(line, "SpoolDirectory"))
+    else if (!_cups_strcasecmp(line, "SpoolDir"))
     {
       if (access(value, R_OK))
       {
@@ -1524,10 +2160,6 @@ load_system(const char *conf)		/* I - Configuration file */
 
       SubscriptionPrivacyScope = strdup(value);
     }
-    else
-    {
-      fprintf(stderr, "ippserver: Unknown directive \"%s\" on line %d.\n", line, linenum);
-    }
   }
 
   cupsFileClose(fp);
@@ -1557,7 +2189,8 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
     * return...
     */
 
-    f->attrs = ippNew();
+    f->attrs     = ippNew();
+    f->group_tag = IPP_TAG_PRINTER;
 
     return (1);
   }

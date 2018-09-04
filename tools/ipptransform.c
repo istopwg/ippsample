@@ -2,6 +2,7 @@
  * Utility for converting PDF and JPEG files to raster data or HP PCL.
  *
  * Copyright © 2016-2018 by the IEEE-ISTO Printer Working Group.
+ * Copyright © 2016-2018 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -13,17 +14,20 @@
 #include <cups/string-private.h>
 #include <cups/thread-private.h>
 
-#ifdef __APPLE__
-#  include <ApplicationServices/ApplicationServices.h>
+#ifdef HAVE_COREGRAPHICS
+#  include <CoreGraphics/CoreGraphics.h>
+#  include <ImageIO/ImageIO.h>
 
 extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
 #elif defined(HAVE_MUPDF)
 #  include <mupdf/fitz.h>
+#  ifndef HAVE_FZ_MAKE_MATRIX
 static inline fz_matrix fz_make_matrix(float a, float b, float c, float d, float e, float f) {
   fz_matrix ret = { a, b, c, d, e, f };
   return (ret);
 }
-#endif /* __APPLE__ */
+#  endif /* !HAVE_FZ_MAKE_MATRIX */
+#endif /* HAVE_COREGRAPHICS */
 
 #include "dither.h"
 
@@ -74,6 +78,8 @@ struct xform_raster_s
   unsigned char		*out_buffer;	/* Output (bit) buffer */
   unsigned char		*comp_buffer;	/* Compression buffer */
 
+  unsigned char		dither[64][64];	/* Dither array */
+
   /* Callbacks */
   void			(*end_job)(xform_raster_t *, xform_write_cb_t, void *);
   void			(*end_page)(xform_raster_t *, unsigned, xform_write_cb_t, void *);
@@ -94,12 +100,15 @@ static int	Verbosity = 0;		/* Log level */
  * Local functions...
  */
 
+#ifdef HAVE_MUPDF
+static void	invert_gray(unsigned char *row, size_t num_pixels);
+#endif /* HAVE_MUPDF */
 static int	load_env_options(cups_option_t **options);
 static void	*monitor_ipp(const char *device_uri);
-#ifdef HAVE_MUPDF
-static void	pack_graya(unsigned char *row, size_t num_pixels);
-#endif /* HAVE_MUPDF */
+#ifdef HAVE_COREGRAPHICS
 static void	pack_rgba(unsigned char *row, size_t num_pixels);
+static void	pack_rgba16(unsigned char *row, size_t num_pixels);
+#endif /* HAVE_COREGRAPHICS */
 static void	pcl_end_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	pcl_end_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	pcl_init(xform_raster_t *ras);
@@ -195,15 +204,32 @@ main(int  argc,				/* I - Number of command-line args */
 	  case 'd' :
 	      i ++;
 	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-d'.\n", stderr);
 	        usage(1);
+	      }
 
 	      device_uri = argv[i];
+	      break;
+
+	  case 'f' :
+	      i ++;
+	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-f'.\n", stderr);
+	        usage(1);
+	      }
+
+	      stdout = freopen(argv[i], "w", stdout);
 	      break;
 
 	  case 'i' :
 	      i ++;
 	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-i'.\n", stderr);
 	        usage(1);
+	      }
 
 	      content_type = argv[i];
 	      break;
@@ -211,7 +237,10 @@ main(int  argc,				/* I - Number of command-line args */
 	  case 'm' :
 	      i ++;
 	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-m'.\n", stderr);
 	        usage(1);
+	      }
 
 	      output_type = argv[i];
 	      break;
@@ -219,7 +248,10 @@ main(int  argc,				/* I - Number of command-line args */
 	  case 'o' :
 	      i ++;
 	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-o'.\n", stderr);
 	        usage(1);
+	      }
 
 	      num_options = cupsParseOptions(argv[i], num_options, &options);
 	      break;
@@ -227,7 +259,10 @@ main(int  argc,				/* I - Number of command-line args */
 	  case 'r' : /* pwg-raster-document-resolution-supported values */
 	      i ++;
 	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-r'.\n", stderr);
 	        usage(1);
+	      }
 
 	      resolutions = argv[i];
 	      break;
@@ -235,7 +270,10 @@ main(int  argc,				/* I - Number of command-line args */
 	  case 's' : /* pwg-raster-document-sheet-back value */
 	      i ++;
 	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-s'.\n", stderr);
 	        usage(1);
+	      }
 
 	      sheet_back = argv[i];
 	      break;
@@ -243,7 +281,10 @@ main(int  argc,				/* I - Number of command-line args */
 	  case 't' : /* pwg-raster-document-type-supported values */
 	      i ++;
 	      if (i >= argc)
+	      {
+	        fputs("ERROR: Missing argument after '-t'.\n", stderr);
 	        usage(1);
+	      }
 
 	      types = argv[i];
 	      break;
@@ -262,7 +303,10 @@ main(int  argc,				/* I - Number of command-line args */
     else if (!filename)
       filename = argv[i];
     else
+    {
+      fprintf(stderr, "ERROR: Unknown argument '%s'.\n", argv[i]);
       usage(1);
+    }
   }
 
  /*
@@ -363,9 +407,15 @@ main(int  argc,				/* I - Number of command-line args */
 			*response;	/* IPP response */
       ipp_attribute_t	*attr;		/* operations-supported */
       int		create_job = 0;	/* Support for Create-Job/Send-Document? */
+      int		gzip;		/* gzip compression supported? */
       const char	*job_name;	/* Title of job */
       const char	*media;		/* Value of "media" option */
       const char	*sides;		/* Value of "sides" option */
+      static const char * const pattrs[] =
+      {					/* requested-attributes */
+        "compression-supported",
+        "operations-supported"
+      };
 
      /*
       * Connect to the IPP/IPPS printer...
@@ -389,7 +439,7 @@ main(int  argc,				/* I - Number of command-line args */
       request = ippNewRequest(IPP_OP_GET_PRINTER_ATTRIBUTES);
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
-      ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", NULL, "operations-supported");
+      ippAddStrings(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", (int)(sizeof(pattrs) / sizeof(pattrs[0])), NULL, pattrs);
 
       response = cupsDoRequest(http, request, resource);
       if (cupsLastError() > IPP_STATUS_OK_EVENTS_COMPLETE)
@@ -405,6 +455,7 @@ main(int  argc,				/* I - Number of command-line args */
       }
 
       create_job = ippContainsInteger(attr, IPP_OP_CREATE_JOB) && ippContainsInteger(attr, IPP_OP_SEND_DOCUMENT);
+      gzip       = ippContainsString(ippFindAttribute(response, "compression-supported", IPP_TAG_KEYWORD), "gzip");
 
       ippDelete(response);
 
@@ -450,6 +501,8 @@ main(int  argc,				/* I - Number of command-line args */
 	ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "job-id", job_id);
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, output_type);
+	if (gzip)
+	  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression", NULL, "gzip");
         ippAddBoolean(request, IPP_TAG_OPERATION, "last-document", 1);
       }
       else
@@ -458,6 +511,8 @@ main(int  argc,				/* I - Number of command-line args */
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, output_type);
+	if (gzip)
+	  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression", NULL, "gzip");
       }
 
       if ((media = cupsGetOption("media", num_options, options)) != NULL)
@@ -473,6 +528,9 @@ main(int  argc,				/* I - Number of command-line args */
       }
 
       ippDelete(request);
+
+      if (gzip)
+        httpSetField(http, HTTP_FIELD_CONTENT_ENCODING, "gzip");
 
       write_cb  = (xform_write_cb_t)httpWrite2;
       write_ptr = http;
@@ -509,6 +567,40 @@ main(int  argc,				/* I - Number of command-line args */
 
   return (status);
 }
+
+
+/*
+ * 'invert_gray()' - Invert grayscale to black.
+ */
+
+#ifdef HAVE_MUPDF
+static void
+invert_gray(unsigned char *row,		/* I - Current row */
+            size_t        num_pixels)	/* I - Number of pixels */
+{
+  unsigned	*ptr;			/* Pointer to 32-bits worth of pixels */
+
+
+  ptr = (unsigned *)row;
+  while (num_pixels > 3)
+  {
+    *ptr = ~*ptr;
+    ptr ++;
+    num_pixels -= 4;
+  }
+
+  if (num_pixels > 0)
+  {
+    row = (unsigned char *)ptr;
+    while (num_pixels > 0)
+    {
+      *row = ~*row;
+      row ++;
+      num_pixels --;
+    }
+  }
+}
+#endif /* HAVE_MUPDF */
 
 
 /*
@@ -680,27 +772,7 @@ monitor_ipp(const char *device_uri)	/* I - Device URI */
 }
 
 
-#ifdef HAVE_MUPDF
-/*
- * 'pack_graya()' - Pack GRAYX scanlines into GRAY scanlines.
- *
- * This routine is suitable only for 8 bit GRAYX data packed into GRAY bytes.
- */
-
-static void
-pack_graya(unsigned char *row,		/* I - Row of pixels to pack */
-	   size_t        num_pixels)	/* I - Number of pixels in row */
-{
-  unsigned char *src_byte;		/* Remaining source bytes */
-  unsigned char *dest_byte;		/* Remaining destination bytes */
-
-
-  for (src_byte = row + 2, dest_byte = row + 1, num_pixels --; num_pixels > 0; num_pixels --, src_byte += 2)
-    *dest_byte++ = *src_byte;
-}
-#endif /* HAVE_MUPDF */
-
-
+#ifdef HAVE_COREGRAPHICS
 /*
  * 'pack_rgba()' - Pack RGBX scanlines into RGB scanlines.
  *
@@ -752,6 +824,40 @@ pack_rgba(unsigned char *row,		/* I - Row of pixels to pack */
     leftover_pixels --;
   }
 }
+
+
+/*
+ * 'pack_rgba16()' - Pack 16 bit per component RGBX scanlines into RGB scanlines.
+ *
+ * This routine is suitable only for 16 bit RGBX data packed into RGB bytes.
+ */
+
+static void
+pack_rgba16(unsigned char *row,		/* I - Row of pixels to pack */
+	    size_t        num_pixels)	/* I - Number of pixels in row */
+{
+  const unsigned	*from = (unsigned *)row;
+					/* 32 bits from row */
+  unsigned		*dest = (unsigned *)row;
+					/* Destination pointer */
+
+
+  while (num_pixels > 1)
+  {
+    *dest++ = from[0];
+    *dest++ = (from[1] & 0x0000ffff) | ((from[2] & 0x0000ffff) << 16);
+    *dest++ = ((from[2] & 0xffff0000) >> 16) | ((from[3] & 0x0000ffff) << 16);
+    from += 4;
+    num_pixels -= 2;
+  }
+
+  if (num_pixels)
+  {
+    *dest++ = *from++;
+    *dest++ = *from++;
+  }
+}
+#endif /* HAVE_COREGRAPHICS */
 
 
 /*
@@ -1017,6 +1123,7 @@ pcl_write_line(
 		*start,			/* Start of sequence */
 		*compptr;		/* Pointer into compression buffer */
   unsigned	count;			/* Count of bytes for output */
+  const unsigned char	*ditherline;	/* Pointer into dither table */
 
 
   if (line[0] == 255 && !memcmp(line, line + 1, ras->right - ras->left))
@@ -1034,10 +1141,11 @@ pcl_write_line(
   */
 
   y &= 63;
+  ditherline = ras->dither[y];
 
   for (x = ras->left, bit = 128, byte = 0, outptr = ras->out_buffer; x <= ras->right; x ++, line ++)
   {
-    if (*line <= threshold[x & 63][y])
+    if (*line <= ditherline[x & 63])
       byte |= bit;
 
     if (bit == 1)
@@ -1258,14 +1366,16 @@ raster_write_line(
     unsigned char	bit,		/* Current bit */
 			byte,		/* Current byte */
 			*outptr;	/* Pointer into output buffer */
+    const unsigned char	*ditherline;	/* Pointer into dither table */
 
     y &= 63;
+    ditherline = ras->dither[y];
 
     if (ras->header.cupsColorSpace == CUPS_CSPACE_SW)
     {
       for (x = ras->left, bit = 128, byte = 0, outptr = ras->out_buffer; x <= ras->right; x ++, line ++)
       {
-	if (*line > threshold[x % 25][y])
+	if (*line > ditherline[x & 63])
 	  byte |= bit;
 
 	if (bit == 1)
@@ -1282,7 +1392,7 @@ raster_write_line(
     {
       for (x = ras->left, bit = 128, byte = 0, outptr = ras->out_buffer; x <= ras->right; x ++, line ++)
       {
-	if (*line <= threshold[x & 63][y])
+	if (*line <= ditherline[x & 63])
 	  byte |= bit;
 
 	if (bit == 1)
@@ -1317,6 +1427,7 @@ usage(int status)			/* I - Exit status */
   puts("Options:");
   puts("  --help");
   puts("  -d device-uri");
+  puts("  -f output-filename");
   puts("  -i input/format");
   puts("  -m output/format");
   puts("  -o \"name=value [... name=value]\"");
@@ -1329,7 +1440,13 @@ usage(int status)			/* I - Exit status */
   puts("Output Formats: application/vnd.hp-pcl, image/pwg-raster, image/urf");
   puts("Options: copies, media, media-col, page-ranges, print-color-mode, print-quality, print-scaling, printer-resolution, sides");
   puts("Resolutions: NNNdpi or NNNxNNNdpi");
-  puts("Types: black_1, sgray_1, sgray_8, srgb_8");
+#ifdef HAVE_COREGRAPHICS
+  puts("Types: adobe-rgb_8, adobe-rgb_16, black_1, black_8, cmyk_8, sgray_1, sgray_8, srgb_8");
+#elif defined(HAVE_FZ_CMM_ENGINE_LCMS)
+  puts("Types: adobe-rgb_8, black_1, black_8, cmyk_8, sgray_1, sgray_8, srgb_8");
+#else
+  puts("Types: black_1, black_8, cmyk_8, sgray_1, sgray_8, srgb_8");
+#endif /* HAVE_COREGRAPHICS */
 
   exit(status);
 }
@@ -1368,7 +1485,7 @@ write_fd(int                 *fd,	/* I - File descriptor */
 
 
 
-#ifdef __APPLE__
+#ifdef HAVE_COREGRAPHICS
 /*
  * 'xform_document()' - Transform a file for printing.
  */
@@ -1394,6 +1511,7 @@ xform_document(
   xform_raster_t	ras;		/* Raster info */
   size_t		max_raster;	/* Maximum raster memory to use */
   const char		*max_raster_env;/* IPPTRANSFORM_MAX_RASTER env var */
+  size_t		bpc;		/* Bits per color */
   CGColorSpaceRef	cs;		/* Quartz color space */
   CGContextRef		context;	/* Quartz bitmap context */
   CGBitmapInfo		info;		/* Bitmap flags */
@@ -1535,7 +1653,7 @@ xform_document(
     return (1);
   }
 
-  if (ras.header.cupsBitsPerPixel != 24)
+  if (ras.header.cupsBitsPerPixel <= 8)
   {
    /*
     * Grayscale output...
@@ -1543,17 +1661,41 @@ xform_document(
 
     ras.band_bpp = 1;
     info         = kCGImageAlphaNone;
-    cs           = CGColorSpaceCreateWithName(kCGColorSpaceGenericGrayGamma2_2);
+    cs           = CGColorSpaceCreateWithName(ras.header.cupsColorSpace == CUPS_CSPACE_SW ? kCGColorSpaceGenericGrayGamma2_2 : kCGColorSpaceLinearGray);
+    bpc          = 8;
   }
-  else
+  else if (ras.header.cupsBitsPerPixel == 24)
   {
    /*
-    * Color (sRGB) output...
+    * Color (sRGB or AdobeRGB) output...
     */
 
     ras.band_bpp = 4;
     info         = kCGImageAlphaNoneSkipLast;
-    cs           = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+    cs           = CGColorSpaceCreateWithName(ras.header.cupsColorSpace == CUPS_CSPACE_SRGB ? kCGColorSpaceSRGB : kCGColorSpaceAdobeRGB1998);
+    bpc          = 8;
+  }
+  else if (ras.header.cupsBitsPerPixel == 32)
+  {
+   /*
+    * Color (CMYK) output...
+    */
+
+    ras.band_bpp = 4;
+    info         = kCGImageAlphaNone;
+    cs           = CGColorSpaceCreateWithName(kCGColorSpaceGenericCMYK);
+    bpc          = 8;
+  }
+  else
+  {
+   /*
+    * Color (AdobeRGB) output...
+    */
+
+    ras.band_bpp = 8;
+    info         = kCGImageAlphaNoneSkipLast;
+    cs           = CGColorSpaceCreateWithName(kCGColorSpaceAdobeRGB1998);
+    bpc          = 16;
   }
 
   max_raster     = XFORM_MAX_RASTER;
@@ -1568,7 +1710,7 @@ xform_document(
     ras.band_height = ras.header.cupsHeight;
 
   ras.band_buffer = malloc(ras.band_height * band_size);
-  context         = CGBitmapContextCreate(ras.band_buffer, ras.header.cupsWidth, ras.band_height, 8, band_size, cs, info);
+  context         = CGBitmapContextCreate(ras.band_buffer, ras.header.cupsWidth, ras.band_height, bpc, band_size, cs, info);
 
   CGColorSpaceRelease(cs);
 
@@ -1602,6 +1744,14 @@ xform_document(
  /*
   * Start the conversion...
   */
+
+  fprintf(stderr, "ATTR: job-impressions=%d\n", pages);
+  fprintf(stderr, "ATTR: job-pages=%d\n", pages);
+
+  if (ras.header.Duplex)
+    fprintf(stderr, "ATTR: job-media-sheets=%d\n", (pages + 1) / 2);
+  else
+    fprintf(stderr, "ATTR: job-media-sheets=%d\n", pages);
 
   if (Verbosity > 1)
     fprintf(stderr, "DEBUG: cupsPageSize=[%g %g]\n", ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
@@ -1705,8 +1855,10 @@ xform_document(
 	  */
 
 	  lineptr = ras.band_buffer + (y - band_starty) * band_size + ras.left * ras.band_bpp;
-	  if (ras.band_bpp == 4)
+	  if (ras.header.cupsBitsPerPixel == 24)
 	    pack_rgba(lineptr, ras.right - ras.left + 1);
+	  else if (ras.header.cupsBitsPerPixel == 48)
+	    pack_rgba16(lineptr, ras.right - ras.left + 1);
 
 	  (*(ras.write_line))(&ras, y, lineptr, cb, ctx);
 	}
@@ -1899,8 +2051,10 @@ xform_document(
 	*/
 
 	lineptr = ras.band_buffer + (y - band_starty) * band_size + ras.left * ras.band_bpp;
-	if (ras.band_bpp == 4)
+	if (ras.header.cupsBitsPerPixel == 24)
 	  pack_rgba(lineptr, ras.right - ras.left + 1);
+	else if (ras.header.cupsBitsPerPixel == 48)
+	  pack_rgba16(lineptr, ras.right - ras.left + 1);
 
 	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
       }
@@ -2051,23 +2205,67 @@ xform_document(
     return (1);
   }
 
-  if (ras.header.cupsBitsPerPixel != 24)
+  if (ras.header.cupsBitsPerPixel == 8)
   {
    /*
     * Grayscale output...
     */
 
-    ras.band_bpp = 2; /* TODO: Update to not use alpha (Issue #93) */
+    ras.band_bpp = 1;
     cs           = fz_device_gray(context);
   }
-  else
+  else if (ras.header.cupsBitsPerPixel == 24)
   {
    /*
-    * Color (sRGB) output...
+    * Color (sRGB/AdobeRGB) output...
     */
 
-    ras.band_bpp = 4; /* TODO: Update to not use alpha (Issue #93) */
-    cs           = fz_device_rgb(context);
+    ras.band_bpp = 3;
+
+#ifdef HAVE_FZ_CMM_ENGINE_LCMS
+    if (ras.header.cupsColorSpace == CUPS_CSPACE_ADOBERGB)
+    {
+      fz_set_cmm_engine(context, &fz_cmm_engine_lcms);
+
+# if 0 /* MuPDF crashes - known bug */
+     /*
+      * Create a calibrated colorspace using the AdobeRGB (1998) values.
+      */
+
+      static float wp_val[] = { 0.9505f, 1.0f, 1.0891f };
+      static float bp_val[] = { 0.0f, 0.0f, 0.0f };
+      static float gamma_val[] = { 2.19921875f, 2.19921875f, 2.19921875f };
+      static float matrix_val[] = {  2.04159f, -0.56501f, -0.34473f,
+                                    -0.96924f,  1.87597f,  0.05156f,
+                                     0.01344f, -0.11836f,  1.01517f };
+
+      cs = fz_new_cal_colorspace(context, "AdobeRGB", wp_val, bp_val, gamma_val, matrix_val);
+#  endif // 0
+
+#  ifdef __APPLE__
+      cs = fz_new_icc_colorspace_from_file(context, "AdobeRGB1998", "/System/Library/ColorSync/Profiles/AdobeRGB1998.icc");
+#  else
+      cs = fz_new_icc_colorspace_from_file(context, "AdobeRGB1998", "/usr/share/color/icc/colord/AdobeRGB1998.icc");
+#  endif /* __APPLE__ */
+    }
+    else
+#endif /* HAVE_FZ_CMM_ENGINE_LCMS */
+    {
+     /*
+      * Use the "device RGB" colorspace which is sRGB for MuPDF...
+      */
+
+      cs = fz_device_rgb(context);
+    }
+  }
+  else if (ras.header.cupsBitsPerPixel == 32)
+  {
+   /*
+    * CMYK output...
+    */
+
+    ras.band_bpp = 4;
+    cs           = fz_device_cmyk(context);
   }
 
   max_raster     = XFORM_MAX_RASTER;
@@ -2081,11 +2279,10 @@ xform_document(
   else if (ras.band_height > ras.header.cupsHeight)
     ras.band_height = ras.header.cupsHeight;
 
-  /* TODO: Update code to not use RGBA/GrayA pixmap now that MuPDF supports it (Issue #93) */
 #  if HAVE_FZ_NEW_PIXMAP_5_ARG
-  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth,  (int)ras.band_height, 1);
+  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth,  (int)ras.band_height, 0);
 #  else
-  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth,  (int)ras.band_height, NULL, 1);
+  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth,  (int)ras.band_height, NULL, 0);
   pixmap->flags = 0;
 #  endif /* HAVE_FZ_NEW_PIXMAP_5_ARG */
 
@@ -2104,11 +2301,8 @@ xform_document(
 
   device = fz_new_draw_device(context, &base_transform, pixmap);
 
-#  ifndef HAVE_FZ_NEW_PIXMAP_5_ARG /* Bug in MuPDF 1.11 */
   /* Don't anti-alias or interpolate when creating raster data */
   fz_set_aa_level(context, 0);
-#  endif /* !HAVE_FZ_NEW_PIXMAP_5_ARG */
-
   fz_enable_device_hints(context, device, FZ_DONT_INTERPOLATE_IMAGES);
 
  /*
@@ -2287,10 +2481,9 @@ xform_document(
 	*/
 
 	lineptr = pixmap->samples + (y - band_starty) * band_size + ras.left * ras.band_bpp;
-        if (ras.band_bpp == 4)
-          pack_rgba(lineptr, ras.right - ras.left + 1);
-        else
-          pack_graya(lineptr, ras.right - ras.left + 1);
+
+        if (ras.header.cupsColorSpace == CUPS_CSPACE_K)
+          invert_gray(lineptr, ras.right - ras.left + 1);
 
 	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
       }
@@ -2317,7 +2510,7 @@ xform_document(
       if (Verbosity > 1)
         fprintf(stderr, "DEBUG: Printing blank page %u for duplex.\n", pages + 1);
 
-      memset(pixmap->samples, 255, ras.header.cupsBytesPerLine);
+      memset(pixmap->samples, ras.header.cupsBitsPerPixel == 32 ? 0 : 255, ras.header.cupsBytesPerLine);
 
       (*(ras.start_page))(&ras, page, cb, ctx);
 
@@ -2349,7 +2542,7 @@ xform_document(
 
   return (1);
 }
-#endif /* __APPLE__ */
+#endif /* HAVE_COREGRAPHICS */
 
 
 /*
@@ -2371,11 +2564,12 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
 		*media,			/* "media" option */
 		*media_col;		/* "media-col" option */
   pwg_media_t	*pwg_media = NULL;	/* PWG media value */
-  const char	*print_quality,		/* "print-quality" option */
+  const char	*print_color_mode,	/* "print-color-mode" option */
+		*print_quality,		/* "print-quality" option */
 		*printer_resolution,	/* "printer-resolution" option */
 		*sides,			/* "sides" option */
-		*type;			/* Raster type to use */
-  int		draft = 0,		/* Draft quality? */
+		*type = NULL;		/* Raster type to use */
+  int		pq = IPP_QUALITY_NORMAL,/* Print quality value */
 		xdpi, ydpi;		/* Resolution to use */
   cups_array_t	*res_array,		/* Resolutions in array */
 		*type_array;		/* Types in array */
@@ -2530,10 +2724,9 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   {
     if ((print_quality = cupsGetOption("print-quality", num_options, options)) != NULL)
     {
-      switch (atoi(print_quality))
+      switch (pq = atoi(print_quality))
       {
         case IPP_QUALITY_DRAFT :
-	    draft              = 1;
 	    printer_resolution = cupsArrayIndex(res_array, 0);
 	    break;
 
@@ -2585,16 +2778,97 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   * Now figure out the color space to use...
   */
 
+  if ((print_color_mode = cupsGetOption("print-color-mode", num_options, options)) == NULL)
+    print_color_mode = getenv("PRINTER_PRINT_COLOR_MODE_DEFAULT");
+
+  if (print_color_mode)
+  {
+    if (!strcmp(print_color_mode, "monochrome") || !strcmp(print_color_mode, "process-monochrome") || !strcmp(print_color_mode, "auto-monochrome"))
+    {
+      color = 0;
+    }
+    else if (!strcmp(print_color_mode, "bi-level") || !strcmp(print_color_mode, "process-bi-level"))
+    {
+      color = 0;
+      pq    = IPP_QUALITY_DRAFT;
+    }
+  }
+
   type_array = _cupsArrayNewStrings(types, ',');
 
-  if (color && cupsArrayFind(type_array, "srgb_8"))
-    type = "srgb_8";
-  else if (draft && cupsArrayFind(type_array, "black_1"))
-    type = "black_1";
-  else if (draft && cupsArrayFind(type_array, "sgray_1"))
-    type = "sgray_1";
-  else
-    type = "sgray_8";
+  if (color)
+  {
+    if (pq == IPP_QUALITY_HIGH)
+    {
+#ifdef HAVE_COREGRAPHICS
+      if (cupsArrayFind(type_array, "adobe-rgb_16"))
+	type = "adobe-rgb_16";
+      else if (cupsArrayFind(type_array, "adobe-rgb_8"))
+	type = "adobe-rgb_8";
+#elif defined(HAVE_FZ_CMM_ENGINE_LCMS)
+      if (cupsArrayFind(type_array, "adobe-rgb_8"))
+	type = "adobe-rgb_8";
+#endif /* HAVE_COREGRAPHICS */
+    }
+
+    if (!type && cupsArrayFind(type_array, "srgb_8"))
+      type = "srgb_8";
+    if (!type && cupsArrayFind(type_array, "cmyk_8"))
+      type = "cmyk_8";
+  }
+
+  if (!type)
+  {
+    if (pq == IPP_QUALITY_DRAFT)
+    {
+      if (cupsArrayFind(type_array, "black_1"))
+	type = "black_1";
+      else if (cupsArrayFind(type_array, "sgray_1"))
+	type = "sgray_1";
+    }
+    else
+    {
+      if (cupsArrayFind(type_array, "black_8"))
+	type = "black_8";
+      else if (cupsArrayFind(type_array, "sgray_8"))
+	type = "sgray_8";
+    }
+  }
+
+  if (!type)
+  {
+   /*
+    * No type yet, find any of the supported formats...
+    */
+
+    if (cupsArrayFind(type_array, "black_8"))
+      type = "black_8";
+    else if (cupsArrayFind(type_array, "sgray_8"))
+      type = "sgray_8";
+    else if (cupsArrayFind(type_array, "black_1"))
+      type = "black_1";
+    else if (cupsArrayFind(type_array, "sgray_1"))
+      type = "sgray_1";
+    else if (cupsArrayFind(type_array, "srgb_8"))
+      type = "srgb_8";
+#ifdef HAVE_COREGRAPHICS
+    else if (cupsArrayFind(type_array, "adobe-rgb_8"))
+      type = "adobe-rgb_8";
+    else if (cupsArrayFind(type_array, "adobe-rgb_16"))
+      type = "adobe-rgb_16";
+#elif defined(HAVE_FZ_CMM_ENGINE_LCMS)
+    else if (cupsArrayFind(type_array, "adobe-rgb_8"))
+	type = "adobe-rgb_8";
+#endif /* HAVE_COREGRAPHICS */
+    else if (cupsArrayFind(type_array, "cmyk_8"))
+      type = "cmyk_8";
+  }
+
+  if (!type)
+  {
+    fputs("ERROR: No supported raster types are available.\n", stderr);
+    return (-1);
+  }
 
  /*
   * Initialize the raster header...
@@ -2626,8 +2900,26 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     }
   }
 
+  if (ras->header.cupsBitsPerPixel == 1)
+  {
+    if (print_color_mode && (!strcmp(print_color_mode, "bi-level") || !strcmp(print_color_mode, "process-bi-level")))
+      memset(ras->dither, 127, sizeof(ras->dither));
+    else
+      memcpy(ras->dither, threshold, sizeof(ras->dither));
+  }
+
   ras->header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount]      = ras->copies * pages;
   ras->back_header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount] = ras->copies * pages;
+
+  if (Verbosity)
+  {
+    fprintf(stderr, "DEBUG: cupsColorSpace=%u\n", ras->header.cupsColorSpace);
+    fprintf(stderr, "DEBUG: cupsBitsPerColor=%u\n", ras->header.cupsBitsPerColor);
+    fprintf(stderr, "DEBUG: cupsBitsPerPixel=%u\n", ras->header.cupsBitsPerPixel);
+    fprintf(stderr, "DEBUG: cupsNumColors=%u\n", ras->header.cupsNumColors);
+    fprintf(stderr, "DEBUG: cupsWidth=%u\n", ras->header.cupsWidth);
+    fprintf(stderr, "DEBUG: cupsHeight=%u\n", ras->header.cupsHeight);
+  }
 
   return (0);
 }

@@ -1,14 +1,12 @@
 /*
- * Configuration file for the IPP samples.
+ * Configuration file for the IPP sample code.
  *
- * Copyright 2007-2017 by Apple Inc.
- * Copyright 1997-2007 by Easy Software Products.
+ * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
+ * Copyright © 2007-2018 by Apple Inc.
+ * Copyright © 1997-2007 by Easy Software Products.
  *
- * These coded instructions, statements, and computer programs are the
- * property of Apple Inc. and are protected by Federal copyright
- * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
- * which should have been included with this file.  If this file is
- * missing or damaged, see the license at "http://www.cups.org/".
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more
+ * information.
  */
 
 #ifndef _CUPS_CONFIG_H_
@@ -43,12 +41,11 @@
  *       variables at run-time...
  */
 
-#define CUPS_CACHEDIR	"/var/cache/cups"
-#define CUPS_DATADIR    "/usr/share/cups"
-#define CUPS_LOCALEDIR	"/usr/share/locale"
-#define CUPS_SERVERBIN	""
-#define CUPS_SERVERROOT	"/etc/cups"
-#define CUPS_STATEDIR	"/var/run/cups"
+#define CUPS_DATADIR "/usr/local/share/cups"
+#define CUPS_LOCALEDIR "/usr/local/lib/locale"
+#define CUPS_SERVERBIN "/usr/local/bin"
+#define CUPS_SERVERROOT "/usr/local/etc/cups"
+#define CUPS_STATEDIR "/usr/local/var/run/cups"
 
 
 /*
@@ -73,7 +70,7 @@
 #define HAVE_LIBPAM 1
 #define HAVE_SECURITY_PAM_APPL_H 1
 /* #undef HAVE_PAM_PAM_APPL_H */
-#define DEFAULT_PAM_SERVICE "cups"
+#define DEFAULT_PAM_SERVICE "other"
 
 
 /*
@@ -326,10 +323,10 @@
 
 
 /*
- * Do we have ApplicationServices public headers?
+ * Do we have CoreGraphics?
  */
 
-#define HAVE_APPLICATIONSERVICES_H 1
+#define HAVE_COREGRAPHICS
 
 
 /*
@@ -337,6 +334,9 @@
  */
 
 /* #undef HAVE_MUPDF */
+/* #undef HAVE_FZ_MAKE_MATRIX */
+/* #undef HAVE_FZ_NEW_PIXMAP_5_ARG */
+/* #undef HAVE_FZ_CMM_ENGINE_LCMS */
 
 
 /*

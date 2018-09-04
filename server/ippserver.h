@@ -9,11 +9,10 @@
  */
 
 /*
- * Disable private and deprecated stuff so we can verify that the public API
- * is sufficient to implement a server.
+ * Disable deprecated stuff so we can verify that the public API is sufficient
+ * to implement a server.
  */
 
-#define _IPP_PRIVATE_STRUCTURES 0	/* Disable private IPP stuff */
 #define _CUPS_NO_DEPRECATED 1		/* Disable deprecated stuff */
 
 
@@ -94,6 +93,9 @@ extern char **environ;
  * Constants...
  */
 
+/* Maximum number of resources per job/printer */
+#  define SERVER_RESOURCES_MAX				100
+
 /* Maximum lease duration value from RFC 3995 - 2^26-1 seconds or ~2 years */
 #  define SERVER_NOTIFY_LEASE_DURATION_MAX		67108863
 /* But a value of 0 means "never expires"... */
@@ -101,6 +103,8 @@ extern char **environ;
 /* Default duration is 1 day */
 #  define SERVER_NOTIFY_LEASE_DURATION_DEFAULT		86400
 
+/* ippget event lifetime is 5 minutes */
+#  define SERVER_IPPGET_EVENT_LIFE			300
 
 /* URL schemes and DNS-SD types for IPP and web resources... */
 #  define SERVER_IPP_SCHEME "ipp"
@@ -147,6 +151,7 @@ enum server_event_e			/* notify-events bit values */
   SERVER_EVENT_DOCUMENT_FETCHABLE = 0x00000008,
   SERVER_EVENT_DOCUMENT_STATE_CHANGED = 0x00000010,
   SERVER_EVENT_DOCUMENT_STOPPED = 0x00000020,
+
   SERVER_EVENT_JOB_COMPLETED = 0x00000040,
   SERVER_EVENT_JOB_CONFIG_CHANGED = 0x00000080,
   SERVER_EVENT_JOB_CREATED = 0x00000100,
@@ -154,6 +159,7 @@ enum server_event_e			/* notify-events bit values */
   SERVER_EVENT_JOB_PROGRESS = 0x00000400,
   SERVER_EVENT_JOB_STATE_CHANGED = 0x00000800,
   SERVER_EVENT_JOB_STOPPED = 0x00001000,
+
   SERVER_EVENT_PRINTER_CONFIG_CHANGED = 0x00002000,
   SERVER_EVENT_PRINTER_FINISHINGS_CHANGED = 0x00004000,
   SERVER_EVENT_PRINTER_MEDIA_CHANGED = 0x00008000,
@@ -162,6 +168,19 @@ enum server_event_e			/* notify-events bit values */
   SERVER_EVENT_PRINTER_SHUTDOWN = 0x00040000,
   SERVER_EVENT_PRINTER_STATE_CHANGED = 0x00080000,
   SERVER_EVENT_PRINTER_STOPPED = 0x00100000,
+
+  SERVER_EVENT_RESOURCE_CANCELED = 0x00200000,
+  SERVER_EVENT_RESOURCE_CONFIG_CHANGED = 0x00400000,
+  SERVER_EVENT_RESOURCE_CREATED = 0x00800000,
+  SERVER_EVENT_RESOURCE_INSTALLED = 0x01000000,
+  SERVER_EVENT_RESOURCE_STATE_CHANGED = 0x02000000,
+
+  SERVER_EVENT_PRINTER_CREATED = 0x04000000,
+  SERVER_EVENT_PRINTER_DELETED = 0x08000000,
+
+  SERVER_EVENT_SYSTEM_CONFIG_CHANGED = 0x10000000,
+  SERVER_EVENT_SYSTEM_STATE_CHANGED = 0x20000000,
+  SERVER_EVENT_SYSTEM_STOPPED = 0x40000000,
 
   /* "Wildcard" values... */
   SERVER_EVENT_NONE = 0x00000000,		/* Nothing */
@@ -172,12 +191,12 @@ enum server_event_e			/* notify-events bit values */
   SERVER_EVENT_PRINTER_ALL = 0x001fe000,
   SERVER_EVENT_PRINTER_CONFIG_ALL = 0x0000e000,
   SERVER_EVENT_PRINTER_STATE_ALL = 0x001e0000,
-  SERVER_EVENT_ALL = 0x001fffff		/* Everything */
+  SERVER_EVENT_ALL = 0x7fffffff		/* Everything */
 };
 typedef unsigned int server_event_t;	/* Bitfield for notify-events */
 #define SERVER_EVENT_DEFAULT SERVER_EVENT_JOB_COMPLETED
 #define SERVER_EVENT_DEFAULT_STRING "job-completed"
-VAR const char * const server_events[21]
+VAR const char * const server_events[31]
 VALUE({					/* Strings for bits */
   /* "none" is implied for no bits set */
   "document-completed",
@@ -186,6 +205,7 @@ VALUE({					/* Strings for bits */
   "document-fetchable",
   "document-state-changed",
   "document-stopped",
+
   "job-completed",
   "job-config-changed",
   "job-created",
@@ -193,6 +213,7 @@ VALUE({					/* Strings for bits */
   "job-progress",
   "job-state-changed",
   "job-stopped",
+
   "printer-config-changed",
   "printer-finishings-changed",
   "printer-media-changed",
@@ -200,8 +221,29 @@ VALUE({					/* Strings for bits */
   "printer-restarted",
   "printer-shutdown",
   "printer-state-changed",
-  "printer-stopped"
+  "printer-stopped",
+
+  "resource-canceled",
+  "resource-config-changed",
+  "resource-created",
+  "resource-installed",
+  "resource-changed",
+
+  "printer-created",
+  "printer-deleted",
+
+  "system-config-changed",
+  "system-state-changed",
+  "system-stopped"
 });
+
+enum server_identify_e			/* identify-actions bit values */
+{
+  SERVER_IDENTIFY_NONE = 0x00,		/* none */
+  SERVER_IDENTIFY_DISPLAY = 0x01,	/* display */
+  SERVER_IDENTIFY_SOUND = 0x02		/* sound */
+};
+typedef unsigned int server_identify_t;	/* Bitfield for identify-actions */
 
 enum server_jreason_e			/* job-state-reasons bit values */
 {
@@ -222,21 +264,22 @@ enum server_jreason_e			/* job-state-reasons bit values */
   SERVER_JREASON_JOB_COMPLETED_WITH_WARNINGS = 0x00002000,
   SERVER_JREASON_JOB_DATA_INSUFFICIENT = 0x00004000,
   SERVER_JREASON_JOB_FETCHABLE = 0x00008000,
-  SERVER_JREASON_JOB_INCOMING = 0x00010000,
-  SERVER_JREASON_JOB_PASSWORD_WAIT = 0x00020000,
-  SERVER_JREASON_JOB_PRINTING = 0x00040000,
-  SERVER_JREASON_JOB_QUEUED = 0x00080000,
-  SERVER_JREASON_JOB_SPOOLING = 0x00100000,
-  SERVER_JREASON_JOB_STOPPED = 0x00200000,
-  SERVER_JREASON_JOB_TRANSFORMING = 0x00400000,
-  SERVER_JREASON_PRINTER_STOPPED = 0x00800000,
-  SERVER_JREASON_PRINTER_STOPPED_PARTLY = 0x01000000,
-  SERVER_JREASON_PROCESSING_TO_STOP_POINT = 0x02000000,
-  SERVER_JREASON_QUEUED_IN_DEVICE = 0x04000000,
-  SERVER_JREASON_WARNINGS_DETECTED = 0x08000000
+  SERVER_JREASON_JOB_HOLD_UNTIL_SPECIFIED = 0x00010000,
+  SERVER_JREASON_JOB_INCOMING = 0x00020000,
+  SERVER_JREASON_JOB_PASSWORD_WAIT = 0x00040000,
+  SERVER_JREASON_JOB_PRINTING = 0x00080000,
+  SERVER_JREASON_JOB_QUEUED = 0x00100000,
+  SERVER_JREASON_JOB_SPOOLING = 0x00200000,
+  SERVER_JREASON_JOB_STOPPED = 0x00400000,
+  SERVER_JREASON_JOB_TRANSFORMING = 0x00800000,
+  SERVER_JREASON_PRINTER_STOPPED = 0x01000000,
+  SERVER_JREASON_PRINTER_STOPPED_PARTLY = 0x02000000,
+  SERVER_JREASON_PROCESSING_TO_STOP_POINT = 0x04000000,
+  SERVER_JREASON_QUEUED_IN_DEVICE = 0x08000000,
+  SERVER_JREASON_WARNINGS_DETECTED = 0x10000000
 };
 typedef unsigned int server_jreason_t;	/* Bitfield for job-state-reasons */
-VAR const char * const server_jreasons[28]
+VAR const char * const server_jreasons[29]
 VALUE({					/* Strings for bits */
   /* "none" is implied for no bits set */
   "aborted-by-system",
@@ -255,6 +298,7 @@ VALUE({					/* Strings for bits */
   "job-completed-with-warnings",
   "job-data-insufficient",
   "job-fetchable",
+  "job-hold-until-specified",
   "job-incoming",
   "job-password-wait",
   "job-printing",
@@ -272,7 +316,7 @@ VALUE({					/* Strings for bits */
 enum server_preason_e			/* printer-state-reasons bit values */
 {
   SERVER_PREASON_NONE = 0x0000,		/* none */
-  SERVER_PREASON_OTHER = 0x0001,		/* other */
+  SERVER_PREASON_OTHER = 0x0001,	/* other */
   SERVER_PREASON_COVER_OPEN = 0x0002,	/* cover-open */
   SERVER_PREASON_INPUT_TRAY_MISSING = 0x0004,
 					/* input-tray-missing */
@@ -290,13 +334,23 @@ enum server_preason_e			/* printer-state-reasons bit values */
   SERVER_PREASON_MEDIA_NEEDED = 0x0400,	/* media-needed */
   SERVER_PREASON_MOVING_TO_PAUSED = 0x0800,
 					/* moving-to-paused */
-  SERVER_PREASON_PAUSED = 0x1000,		/* paused */
-  SERVER_PREASON_SPOOL_AREA_FULL = 0x2000,/* spool-area-full */
-  SERVER_PREASON_TONER_EMPTY = 0x4000,	/* toner-empty */
-  SERVER_PREASON_TONER_LOW = 0x8000	/* toner-low */
+  SERVER_PREASON_PAUSED = 0x1000,	/* paused */
+  SERVER_PREASON_PRINTER_RESTARTED = 0x2000,
+					/* printer-restarted */
+  SERVER_PREASON_PRINTER_SHUTDOWN = 0x4000,
+					/* printer-shutdown */
+  SERVER_PREASON_SPOOL_AREA_FULL = 0x8000,
+					/* spool-area-full */
+  SERVER_PREASON_TONER_EMPTY = 0x10000,	/* toner-empty */
+  SERVER_PREASON_TONER_LOW = 0x20000,	/* toner-low */
+  SERVER_PREASON_IDENTIFY_PRINTER_REQUESTED = 0x40000,
+					/* identify-printer-requested */
+  SERVER_PREASON_DELETING = 0x80000,	/* deleting */
+  SERVER_PREASON_HOLD_NEW_JOBS = 0x100000
+					/* hold-new-jobs */
 };
 typedef unsigned int server_preason_t;	/* Bitfield for printer-state-reasons */
-VAR const char * const server_preasons[16]
+VAR const char * const server_preasons[21]
 VALUE({					/* Strings for bits */
   /* "none" is implied for no bits set */
   "other",
@@ -312,9 +366,14 @@ VALUE({					/* Strings for bits */
   "media-needed",
   "moving-to-paused",
   "paused",
+  "printer-restarted",
+  "printer-shutdown",
   "spool-area-full",
   "toner-empty",
-  "toner-low"
+  "toner-low",
+  "identify-printer-requested",
+  "deleting",
+  "hold-new-jobs"
 });
 
 typedef enum server_transform_e		/* Transform modes for server */
@@ -323,6 +382,14 @@ typedef enum server_transform_e		/* Transform modes for server */
   SERVER_TRANSFORM_TO_CLIENT,		/* Send output to client */
   SERVER_TRANSFORM_TO_FILE		/* Send output to file */
 } server_transform_t;
+
+typedef enum server_type_e		/* Service types */
+{
+  SERVER_TYPE_PRINT,			/* 2D print service */
+  SERVER_TYPE_PRINT3D			/* 3D print service */
+  /* SERVER_TYPE_FAXOUT - future */
+  /* SERVER_TYPE_SCAN - future */
+} server_type_t;
 
 
 /*
@@ -397,6 +464,8 @@ typedef struct server_pinfo_s		/**** Printer information ****/
 
 typedef struct server_printer_s		/**** Printer data ****/
 {
+  int			id;		/* Printer ID */
+  server_type_t		type;		/* Type of printer/service */
   _cups_rwlock_t	rwlock;		/* Printer lock */
   server_srv_t		ipp_ref,	/* Bonjour IPP service */
 #ifdef HAVE_SSL
@@ -415,6 +484,9 @@ typedef struct server_printer_s		/**** Printer data ****/
   ipp_t			*dev_attrs;	/* Current device attributes */
   time_t		start_time;	/* Startup time */
   time_t		config_time;	/* printer-config-change-time */
+  char			is_accepting,	/* printer-is-accepting-jobs value */
+			is_deleted,	/* Is the printer being deleted? */
+			is_shutdown;	/* Is the printer shutdown? */
   ipp_pstate_t		state,		/* printer-state value */
 			dev_state;	/* Current device printer-state value */
   server_preason_t	state_reasons,	/* printer-state-reasons values */
@@ -425,8 +497,13 @@ typedef struct server_printer_s		/**** Printer data ****/
 			*completed_jobs;/* Completed jobs */
   server_job_t		*processing_job;/* Current processing job */
   int			next_job_id;	/* Next job-id value */
-  cups_array_t		*subscriptions;	/* Subscriptions */
-  int			next_sub_id;	/* Next notify-subscription-id value */
+  server_identify_t	identify_actions;
+					/* identify-actions value, if any */
+  char			*identify_message;
+					/* Identify-Printer message value, if any */
+  int			num_resources,	/* Number of printer resources */
+			resources[SERVER_RESOURCES_MAX];
+					/* Printer resource IDs */
 } server_printer_t;
 
 struct server_job_s			/**** Job data ****/
@@ -445,7 +522,8 @@ struct server_job_s			/**** Job data ****/
 		      			/* output-device-job-state-reasons values */
   char			*dev_state_message;
 					/* output-device-job-state-message value */
-  time_t		created,	/* time-at-creation value */
+  time_t		hold_until,	/* job-hold-until time */
+			created,	/* time-at-creation value */
 			processing,	/* time-at-processing value */
 			completed;	/* time-at-completed value */
   int			impressions,	/* job-impressions value */
@@ -454,8 +532,24 @@ struct server_job_s			/**** Job data ****/
   int			cancel;		/* Non-zero when job canceled */
   char			*filename;	/* Print file name */
   int			fd;		/* Print file descriptor */
+  int			transform_pid;	/* Transform process ID, if any */
   server_printer_t	*printer;	/* Printer */
+  int			num_resources,	/* Number of job resources */
+			resources[SERVER_RESOURCES_MAX];
+					/* Job resource IDs */
 };
+
+typedef struct server_resource_s	/**** Resource data ****/
+{
+  int			id;		/* resource-id */
+  _cups_rwlock_t	rwlock;		/* Resource lock */
+  ipp_t			*attrs;		/* Resource attributes */
+  ipp_rstate_t		state;		/* Resource state */
+  char			*resource,	/* External resource path */
+			*filename,	/* Local filename */
+			*format;	/* MIME media type */
+  int			use;		/* Use count */
+} server_resource_t;
 
 typedef struct server_subscription_s	/**** Subscription data ****/
 {
@@ -463,10 +557,14 @@ typedef struct server_subscription_s	/**** Subscription data ****/
   const char		*uuid;		/* notify-subscription-uuid */
   _cups_rwlock_t	rwlock;		/* Subscription lock */
   server_event_t	mask;		/* Event mask */
-  server_printer_t	*printer;	/* Printer */
+  server_printer_t	*printer;	/* Printer, if any */
   server_job_t		*job;		/* Job, if any */
+  server_resource_t	*resource;	/* Resource, if any */
   ipp_t			*attrs;		/* Attributes */
-  const char		*username;	/* notify-subscriber-user-name */
+  const char		*charset,	/* notify-charset */
+			*language,	/* notify-language */
+			*username;	/* notify-subscriber-user-name */
+  ipp_attribute_t	*userdata;	/* notify-user-data */
   int			lease;		/* notify-lease-duration */
   int			interval;	/* notify-time-interval */
   time_t		expire;		/* Lease expiration time */
@@ -499,9 +597,9 @@ typedef struct server_client_s		/**** Client data ****/
 
 typedef struct server_listener_s	/**** Listener data ****/
 {
-  int	fd;				/* Listener socket */
-  char	host[256];			/* Hostname, if any */
-  int	port;				/* Port number */
+  int			fd;		/* Listener socket */
+  char			host[256];	/* Hostname, if any */
+  int			port;		/* Port number */
 } server_listener_t;
 
 
@@ -531,11 +629,22 @@ VAR cups_array_t	*SubscriptionPrivacyArray VALUE(NULL);
 
 VAR ipp_t		*PrivacyAttributes VALUE(NULL);
 
+VAR _cups_rwlock_t	SystemRWLock	VALUE(_CUPS_RWLOCK_INITIALIZER);
+VAR ipp_t		*SystemAttributes VALUE(NULL);
+VAR time_t		SystemStartTime,
+			SystemConfigChangeTime;
+VAR int			SystemConfigChanges VALUE(0);
+VAR int			SystemNumSettings VALUE(0);
+VAR cups_option_t	*SystemSettings	VALUE(NULL);
+
+VAR char		*BinDir		VALUE(NULL);
 VAR char		*ConfigDirectory VALUE(NULL);
 VAR char		*DataDirectory	VALUE(NULL);
 VAR int			DefaultPort	VALUE(0);
-VAR char		*DefaultPrinter	VALUE(NULL);
+VAR server_printer_t	*DefaultPrinter	VALUE(NULL);
+VAR char		*DefaultSystemURI VALUE(NULL);
 VAR http_encryption_t	Encryption	VALUE(HTTP_ENCRYPTION_IF_REQUESTED);
+VAR cups_array_t	*FileDirectories VALUE(NULL);
 VAR int			KeepFiles	VALUE(0);
 #ifdef HAVE_SSL
 VAR char		*KeychainPath	VALUE(NULL);
@@ -544,8 +653,10 @@ VAR cups_array_t	*Listeners	VALUE(NULL);
 VAR char		*LogFile	VALUE(NULL);
 VAR server_loglevel_t	LogLevel	VALUE(SERVER_LOGLEVEL_ERROR);
 VAR int			MaxJobs		VALUE(100),
-                        MaxCompletedJobs VALUE(100);
+                        MaxCompletedJobs VALUE(100),
+                        NextPrinterId	VALUE(1);
 VAR cups_array_t	*Printers	VALUE(NULL);
+VAR _cups_rwlock_t	PrintersRWLock	VALUE(_CUPS_RWLOCK_INITIALIZER);
 VAR int			RelaxedConformance VALUE(0);
 VAR char		*ServerName	VALUE(NULL);
 VAR char		*SpoolDirectory	VALUE(NULL);
@@ -558,15 +669,25 @@ VAR AvahiClient		*DNSSDClient	VALUE(NULL);
 #endif /* HAVE_DNSSD */
 VAR char		*DNSSDSubType	VALUE(NULL);
 
-VAR _cups_mutex_t	SubscriptionMutex VALUE(_CUPS_MUTEX_INITIALIZER);
-VAR _cups_cond_t	SubscriptionCondition VALUE(_CUPS_COND_INITIALIZER);
+VAR _cups_rwlock_t	ResourcesRWLock	VALUE(_CUPS_RWLOCK_INITIALIZER);
+VAR cups_array_t	*ResourcesById	VALUE(NULL);
+VAR cups_array_t	*ResourcesByPath VALUE(NULL);
+VAR int			NextResourceId 	VALUE(1);
+
+VAR _cups_mutex_t	NotificationMutex VALUE(_CUPS_MUTEX_INITIALIZER);
+VAR _cups_cond_t	NotificationCondition VALUE(_CUPS_COND_INITIALIZER);
+VAR _cups_rwlock_t	SubscriptionsRWLock VALUE(_CUPS_RWLOCK_INITIALIZER);
+VAR cups_array_t	*Subscriptions	VALUE(NULL);
+VAR int			NextSubscriptionId VALUE(1);
 
 
 /*
  * Functions...
  */
 
-extern void		serverAddEvent(server_printer_t *printer, server_job_t *job, server_event_t event, const char *message, ...) __attribute__((__format__(__printf__, 4, 5)));
+extern void		serverAddEventNoLock(server_printer_t *printer, server_job_t *job, server_resource_t *res, server_event_t event, const char *message, ...) __attribute__((__format__(__printf__, 5, 6)));
+extern void		serverAddPrinter(server_printer_t *printer);
+extern void		serverAddResourceFile(server_resource_t *res, const char *filename, const char *format);
 extern http_status_t	serverAuthenticateClient(server_client_t *client);
 extern int		serverAuthorizeUser(server_client_t *client, const char *owner, gid_t group, const char *scope);
 extern void		serverCheckJobs(server_printer_t *printer);
@@ -578,40 +699,51 @@ extern void		serverCopyPrinterStateReasons(ipp_t *ipp, ipp_tag_t group_tag, serv
 extern server_client_t	*serverCreateClient(int sock);
 extern server_device_t	*serverCreateDevice(server_client_t *client);
 extern server_job_t	*serverCreateJob(server_client_t *client);
-extern void		serverCreateJobFilename(server_printer_t *printer, server_job_t *job, const char *format, char *fname, size_t fnamesize);
+extern void		serverCreateJobFilename(server_job_t *job, const char *format, char *fname, size_t fnamesize);
 extern int		serverCreateListeners(const char *host, int port);
-extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, server_pinfo_t *pinfo);
-extern server_subscription_t *serverCreateSubcription(server_printer_t *printer, server_job_t *job, int interval, int lease, const char *username, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
+extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, server_pinfo_t *pinfo, int dupe_pinfo);
+extern server_resource_t *serverCreateResource(const char *resource, const char *filename, const char *format, const char *name, const char *info, const char *type, const char *owner);
+extern server_subscription_t *serverCreateSubscription(server_client_t *client, int interval, int lease, const char *username, ipp_attribute_t *notify_charset, ipp_attribute_t *notify_natural_language, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
+extern int		serverCreateSystem(const char *directory);
 extern void		serverDeleteClient(server_client_t *client);
 extern void		serverDeleteDevice(server_device_t *device);
 extern void		serverDeleteJob(server_job_t *job);
 extern void		serverDeletePrinter(server_printer_t *printer);
+extern void		serverDeleteResource(server_resource_t *res);
 extern void		serverDeleteSubscription(server_subscription_t *sub);
-extern void		serverDNSSDInit(void);
-extern int		serverFinalizeConfiguration(void);
+extern void		serverDisablePrinter(server_printer_t *printer);
+extern void		serverEnablePrinter(server_printer_t *printer);
 extern server_device_t	*serverFindDevice(server_client_t *client);
 extern server_job_t	*serverFindJob(server_client_t *client, int job_id);
 extern server_printer_t	*serverFindPrinter(const char *resource);
+extern server_resource_t *serverFindResourceById(int id);
+extern server_resource_t *serverFindResourceByPath(const char *resource);
 extern server_subscription_t *serverFindSubscription(server_client_t *client, int sub_id);
 extern server_jreason_t	serverGetJobStateReasonsBits(ipp_attribute_t *attr);
 extern server_event_t	serverGetNotifyEventsBits(ipp_attribute_t *attr);
 extern const char	*serverGetNotifySubscribedEvent(server_event_t event);
 extern server_preason_t	serverGetPrinterStateReasonsBits(ipp_attribute_t *attr);
+extern int		serverHoldJob(server_job_t *job, ipp_attribute_t *hold_until);
 extern int		serverLoadAttributes(const char *filename, server_pinfo_t *pinfo);
-extern int		serverLoadConfiguration(const char *directory);
 extern void		serverLog(server_loglevel_t level, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
 extern void		serverLogAttributes(server_client_t *client, const char *title, ipp_t *ipp, int type);
 extern void		serverLogClient(server_loglevel_t level, server_client_t *client, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
 extern void		serverLogJob(server_loglevel_t level, server_job_t *job, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
 extern void		serverLogPrinter(server_loglevel_t level, server_printer_t *printer, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
+extern char		*serverMakeVCARD(const char *user, const char *name, const char *location, const char *email, const char *phone, char *buffer, size_t bufsize);
+extern void		serverPausePrinter(server_printer_t *printer, int immediately);
 extern void		*serverProcessClient(server_client_t *client);
 extern int		serverProcessHTTP(server_client_t *client);
 extern int		serverProcessIPP(server_client_t *client);
 extern void		*serverProcessJob(server_job_t *job);
+extern int		serverReleaseJob(server_job_t *job);
 extern int		serverRespondHTTP(server_client_t *client, http_status_t code, const char *content_coding, const char *type, size_t length);
 extern void		serverRespondIPP(server_client_t *client, ipp_status_t status, const char *message, ...) __attribute__ ((__format__ (__printf__, 3, 4)));
 extern void		serverRespondUnsupported(server_client_t *client, ipp_attribute_t *attr);
+extern void		serverRestartPrinter(server_printer_t *printer);
+extern void		serverResumePrinter(server_printer_t *printer);
 extern void		serverRun(void);
+extern void		serverStopJob(server_job_t *job);
 extern char		*serverTimeString(time_t tv, char *buffer, size_t bufsize);
 extern int		serverTransformJob(server_client_t *client, server_job_t *job, const char *command, const char *format, server_transform_t mode);
 extern void		serverUpdateDeviceAttributesNoLock(server_printer_t *printer);

@@ -1,0 +1,66 @@
+#
+#Check a printer for conformance with pwg5100.3: Production Printing Attributes - Set 1
+#
+#
+#Usage:
+#
+#	./ipptool printer-uri pwg5100.3.1.test
+#
+{
+	NAME "Get printer attributes"
+	OPERATION Get-Printer-Attributes
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+
+	STATUS successful-ok
+
+# Checking which optional attributes (Section 7.1 pwg5100.3 Column 1) are satisfied.
+
+    EXPECT cover-back-supported OF-TYPE keyword IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_COVER_BACK
+    EXPECT finishings-col-supported OF-TYPE keyword IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_FINISHINGS_COL
+    EXPECT finishings-col-ready OF-TYPE collection IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_FINISHINGS_COL_READY    
+    EXPECT job-sheets-col-supported OF-TYPE keyword IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_JOB_SHEETS_COL
+    EXPECT media-col-supported OF-TYPE keyword IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_MEDIA_COL    
+    EXPECT media-col-ready OF-TYPE collection IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_MEDIA_COL_READY
+    EXPECT media-input-tray-check-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_MEDIA_INPUT_TRAY_CHECK 
+    EXPECT x-side2-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_X_SIDE2_IMAGE_SHIFT
+    EXPECT y-side2-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_Y_SIDE2_IMAGE_SHIFT
+    EXPECT x-side1-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_X_SIDE1_IMAGE_SHIFT
+    EXPECT y-side1-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_Y_SIDE1_IMAGE_SHIFT
+
+# Ensuring that attributes which become conditionally required (Section 7.1 pwg5100.3 Column 2) are present when corresponding condition is satisfied.
+
+    EXPECT cover-front-supported OF-TYPE keyword IN-GROUP printer-attributes-tag IF-DEFINED HAVE_COVER_BACK DEFINE-MATCH HAVE_COVER_FRONT
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag IF-DEFINED HAVE_FINISHINGS_COL DEFINE-MATCH HAVE_FINISHINGS
+    EXPECT finishings-ready OF-TYPE enum IN-GROUP printer-attributes-tag IF-DEFINED HAVE_FINISHINGS_COL_READY DEFINE-MATCH HAVE_FINISHINGS_READY
+    EXPECT job-sheets-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag IF-DEFINED HAVE_JOB_SHEETS_COL DEFINE-MATCH HAVE_JOB_SHEETS
+    EXPECT media-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag IF-DEFINED HAVE_MEDIA_COL DEFINE-MATCH HAVE_MEDIA
+    EXPECT media-ready OF-TYPE keyword|name IN-GROUP printer-attributes-tag IF-DEFINED HAVE_MEDIA_COL_READY DEFINE-MATCH HAVE_MEDIA_READY
+    EXPECT media-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag IF-DEFINED HAVE_MEDIA_INPUT_TRAY_CHECK DEFINE-MATCH HAVE_MEDIA    
+    EXPECT x-side1-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag IF-DEFINED HAVE_X_SIDE2_IMAGE_SHIFT DEFINE-MATCH HAVE_X_SIDE1_IMAGE_SHIFT
+    EXPECT y-side1-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag IF-DEFINED HAVE_Y_SIDE2_IMAGE_SHIFT DEFINE-MATCH HAVE_Y_SIDE1_IMAGE_SHIFT
+    EXPECT x-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag IF-DEFINED HAVE_X_SIDE1_IMAGE_SHIFT DEFINE-MATCH HAVE_X_IMAGE_SHIFT
+    EXPECT y-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag IF-DEFINED HAVE_Y_SIDE1_IMAGE_SHIFT DEFINE-MATCH HAVE_y_IMAGE_SHIFT
+
+# Ensuring that xxx-default attributes (if present) satisfy conformance requirements.
+
+    EXPECT ?cover-back-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT ?finishings-col-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT ?job-sheets-col-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT ?media-col-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT ?media-input-tray-check-default OF-TYPE keyword|name IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT ?x-side2-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT ?y-side2-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT ?x-side1-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT ?y-side1-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
+    
+    EXPECT ?cover-front-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT ?finishings-default OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE-FROM finishings-supported
+    EXPECT ?job-sheets-default OF-TYPE keyword|name IN-GROUP printer-attributes-tag WITH-VALUE-FROM job-sheets-supported COUNT 1
+    EXPECT ?media-default OF-TYPE no-value|keyword|name IN-GROUP printer-attributes-tag WITH-VALUE-FROM media-supported COUNT 1
+    EXPECT ?x-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT ?y-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
+}

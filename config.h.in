@@ -41,10 +41,9 @@
  *       variables at run-time...
  */
 
-#define CUPS_CACHEDIR	"/var/cache/cups"
 #define CUPS_DATADIR    "/usr/share/cups"
 #define CUPS_LOCALEDIR	"/usr/share/locale"
-#define CUPS_SERVERBIN	""
+#define CUPS_SERVERBIN	"/usr/bin"
 #define CUPS_SERVERROOT	"/etc/cups"
 #define CUPS_STATEDIR	"/var/run/cups"
 
@@ -324,10 +323,10 @@
 
 
 /*
- * Do we have ApplicationServices public headers?
+ * Do we have CoreGraphics?
  */
 
-#undef HAVE_APPLICATIONSERVICES_H
+#undef HAVE_COREGRAPHICS
 
 
 /*
@@ -335,7 +334,9 @@
  */
 
 #undef HAVE_MUPDF
+#undef HAVE_FZ_MAKE_MATRIX
 #undef HAVE_FZ_NEW_PIXMAP_5_ARG
+#undef HAVE_FZ_CMM_ENGINE_LCMS
 
 
 /*

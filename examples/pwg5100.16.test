@@ -1,0 +1,260 @@
+#The file contains Confromance tests for PWG 5100.16-2013 IPP Transaction-Based Printing Extensions besides containing print-job tests for the print-scaling, job-accounting-user-id, job-account-type job template attributes.
+
+#Get-Printer-Attributes operation
+{
+	NAME "Get-Printer-Attributes"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	STATUS successful-ok
+
+	#operations
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag	
+	EXPECT operations-supported WITH-VALUE 0x0013 DEFINE-MATCH SET_PRINTER_ATTRIBUTES_SUPPORTED #Set-Printer-Attributes
+
+	#printer description attributes
+	EXPECT ?job-account-type-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag DEFINE-MATCH JOB_ACCOUNT_TYPE_SUPPORTED
+	EXPECT ?job-account-type-default OF-TYPE keyword|name IN-GROUP printer-attributes-tag COUNT 1 IF-DEFINED JOB_ACCOUNT_TYPE_SUPPORTED
+	EXPECT printer-dns-sd-name OF-TYPE name IN-GROUP printer-attributes-tag COUNT 1
+	EXPECT printer-kind OF-TYPE keyword|name IN-GROUP printer-attributes-tag 
+	EXPECT job-authorization-uri-supported OF-TYPE boolean IN-GROUP printer-attributes-tag IF-DEFINED JOB_AUTH_URI_OPERATION_ATTR_SUPPORTED
+	
+	EXPECT job-account-id-supported OF-TYPE boolean IN-GROUP printer-attributes-tag WITH-VALUE true COUNT 1 DEFINE-MATCH JOB_ACCOUNT_ID_SUPPORTED
+    EXPECT job-account-id-default OF-TYPE name|no-value IN-GROUP printer-attributes-tag COUNT 1 IF-DEFINED JOB_ACCOUNT_ID_SUPPORTED
+    EXPECT job-accounting-user-id-supported OF-TYPE boolean IN-GROUP printer-attributes-tag WITH-VALUE true COUNT 1 IF-DEFINED JOB_ACCOUNT_ID_SUPPORTED 
+    EXPECT job-accounting-user-id-default OF-TYPE name|no-value IN-GROUP printer-attributes-tag COUNT 1 IF-DEFINED JOB_ACCOUNT_ID_SUPPORTED
+	
+	EXPECT jpeg-k-octets-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag IF-DEFINED JFIF_SUPPORTED
+	EXPECT jpeg-x-dimension-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag IF-DEFINED JFIF_SUPPORTED
+	EXPECT jpeg-y-dimension-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag IF-DEFINED JFIF_SUPPORTED
+
+	EXPECT pdf-k-octets-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag IF-DEFINED DOCUMENT_MANAGEMENT_PDF
+	EXPECT pdf-versions-supported OF-TYPE keyword IN-GROUP printer-attributes-tag IF-DEFINED DOCUMENT_MANAGEMENT_PDF WITH-VALUE "/^(adobe-1.3|adobe-1.4|adobe-1.5|adobe-1.6|iso-15930-1_2001|iso-15930-3_2002|iso-15930-4_2003|iso-15930-6_2003|iso-15930-3_2010|iso-15930-8_2010|iso-16612-2:2010|iso-19005-1_2005|iso-19005-2_2011|iso-19005-3_2012|iso-32000-1_2008|none|pwg-5102.3)$$/"
+	EXPECT printer-settable-attributes-supported WITH-VALUE "printer-kind" IF-DEFINED SET_PRINTER_ATTRIBUTES_SUPPORTED
+	EXPECT printer-settable-attributes-supported WITH-VALUE "printer-dns-sd-name" IF-DEFINED SET_PRINTER_ATTRIBUTES_SUPPORTED
+
+	#job-template attributes
+	EXPECT print-scaling-default OF-TYPE keyword IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE "/^(auto|auto-fit|fill|fit|none)$$/"
+	EXPECT print-scaling-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "/^(auto|auto-fit|fill|fit|none)$$/"
+
+	#Job template attributes for specific tests
+	EXPECT print-scaling-supported WITH-VALUE "auto" DEFINE-MATCH PRINT_SCALING_AUTO_SUPPORTED
+	EXPECT print-scaling-supported WITH-VALUE "auto-fit" DEFINE-MATCH PRINT_SCALING_AUTOFIT_SUPPORTED 
+	EXPECT print-scaling-supported WITH-VALUE "fill" DEFINE-MATCH PRINT_SCALING_FILL_SUPPORTED 
+	EXPECT print-scaling-supported WITH-VALUE "fit" DEFINE-MATCH PRINT_SCALING_FIT_SUPPORTED  	
+}
+
+#Print-Job test to check the support of job-account-user-id provided that job-account-id is supported. Both job-account-id and job-accounting-user-id are expected to be entered in the ipptool command using JOB_ACCOUNT_ID and JOB_ACCOUNTING_USER_ID
+{
+	SKIP-IF-NOT-DEFINED JOB_ACCOUNT_ID_SUPPORTED
+	SKIP-IF-NOT-DEFINED JOB_ACCOUNT_ID
+	SKIP-IF-NOT-DEFINED JOB_ACCOUNT_USER_ID
+
+	NAME "Print-Job Operation with job-accounting-user-id job template attribute provided job-account-id is supported"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR name document-name $filename
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	GROUP job-attributes-tag
+	ATTR name job-account-id $JOB_ACCOUNT_ID
+	ATTR keyword job-accounting-user-id $JOB_ACCOUNTING_USER_ID
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+#Print-Job to test the job-account-type job template attribute. To be defined as JOB_ACCOUNT_TYPE varaible in the ipptool command along with the JOB_ACCOUNT_ID
+{
+	SKIP-IF-NOT-DEFINED JOB_ACCOUNT_ID_SUPPORTED
+	SKIP-IF-NOT-DEFINED JOB_ACCOUNT_TYPE_SUPPORTED
+	SKIP-IF-NOT-DEFINED JOB_ACCOUNT_TYPE
+	SKIP-IF-NOT-DEFINED JOB_ACCOUNT_ID
+
+	NAME "Print-Job Operation with job-account-type job template attribute"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR name document-name $filename
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	GROUP job-attributes-tag
+	ATTR name job-account-id $JOB_ACCOUNT_ID
+	ATTR keyword job-account-type $JOB_ACCOUNT_TYPE
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+#Print-job tests with different values for print-scaling job-template attribute
+{
+	SKIP-IF-NOT-DEFINED PRINT_SCALING_AUTO_SUPPORTED
+	
+	NAME "Print-Job Operation with print-scaling job template attribute (auto)"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR name document-name $filename
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	GROUP job-attributes-tag
+	ATTR keyword print-scaling "auto"
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+
+{
+	SKIP-IF-NOT-DEFINED PRINT_SCALING_AUTOFIT_SUPPORTED
+
+	NAME "Print-Job Operation with print-scaling job template attribute (auto-fit)"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR name document-name $filename
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	GROUP job-attributes-tag
+	ATTR keyword print-scaling "auto-fit"
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+{
+	SKIP-IF-NOT-DEFINED PRINT_SCALING_FILL_SUPPORTED
+	
+	NAME "Print-Job Operation with print-scaling job template attribute (fill)"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR name document-name $filename
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	GROUP job-attributes-tag
+	ATTR keyword print-scaling "fill"
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}
+{
+	SKIP-IF-NOT-DEFINED PRINT_SCALING_FIT_SUPPORTED
+
+	NAME "Print-Job Operation with print-scaling job template attribute (fit)"
+	OPERATION Print-Job
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+	ATTR name document-name $filename
+	ATTR mimeMediaType document-format $filetype
+	FILE $filename
+
+	GROUP job-attributes-tag
+	ATTR keyword print-scaling "fit"
+
+	STATUS successful-ok
+	STATUS client-error-document-format-not-supported
+	STATUS server-error-job-canceled
+	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
+
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE >0
+	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
+	       WITH-VALUE 3,4,5,6,7,8,9
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT ?job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT ?number-of-intervening-jobs OF-TYPE integer
+	       IN-GROUP job-attributes-tag WITH-VALUE >-1
+}

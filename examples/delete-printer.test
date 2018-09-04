@@ -1,0 +1,14 @@
+{
+	NAME "Delete-Printer $printer-id"
+
+	OPERATION Delete-Printer
+	VERSION 2.0
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer printer-id $printer-id
+
+	STATUS successful-ok
+}

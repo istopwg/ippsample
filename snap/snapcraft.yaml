@@ -32,22 +32,10 @@ apps:
         plugs: [avahi-observe, home, network]
 
 parts:
-    mupdf:
-        plugin: make
-        make-install-var: prefix
-        make-parameters: [HAVE_X11=no, HAVE_GLFW=no, HAVE_GLUT=no]
-        source: https://mupdf.com/downloads/mupdf-1.12.0-source.tar.gz
-        prime:
-            - -bin/mu*
-            - -include/mu*
-            - -lib/libmu*
-            - -share/doc/mupdf
-            - -share/man/man1/mu*
     main:
-        after: [mupdf]
         plugin: autotools
         configflags: [--with-name-prefix=]
         source: .
 
-build-packages: [cura-engine, libavahi-client-dev, libgnutls28-dev, libjpeg-dev, libpng-dev, zlib1g-dev]
+build-packages: [cura-engine, libavahi-client-dev, libgnutls28-dev, libjpeg-dev, libmupdf-dev, libopenjp2-7-dev, libpng-dev, zlib1g-dev]
 

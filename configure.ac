@@ -26,6 +26,7 @@ sinclude(config-scripts/cups-threads.m4)
 sinclude(config-scripts/cups-ssl.m4)
 sinclude(config-scripts/cups-largefile.m4)
 sinclude(config-scripts/cups-dnssd.m4)
+sinclude(config-scripts/cups-directories.m4)
 
 dnl IPP Sample-specific options
 IPP="ipp"

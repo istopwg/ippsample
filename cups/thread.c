@@ -1,9 +1,10 @@
 /*
  * Threading primitives for CUPS.
  *
- * Copyright 2009-2017 by Apple Inc.
+ * Copyright © 2009-2018 by Apple Inc.
  *
- * Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
+ * Licensed under Apache License v2.0.  See the file "LICENSE" for more
+ * information.
  */
 
 /*

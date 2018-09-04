@@ -25,6 +25,7 @@ OBJS 	=	\
 		log.o \
 		main.o \
 		printer.o \
+		resource.o \
 		subscription.o \
 		transform.o
 

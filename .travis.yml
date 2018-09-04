@@ -13,10 +13,9 @@ matrix:
   include:
     # Linux-specific build stuff
     - os: linux
-      before_install:
-        - sudo apt-get -qq update
-        - sudo apt-get install -y avahi-daemon avahi-utils libavahi-client-dev libgnutls28-dev libjpeg-dev libnss-mdns libpng-dev zlib1g-dev
+      script:
+        - docker build -t ippsample .
 
     # macOS-specific build stuff
     - os: osx
-      osx_image: xcode9.2
+      osx_image: xcode9.4

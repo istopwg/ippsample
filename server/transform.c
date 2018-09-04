@@ -13,6 +13,7 @@
 #ifdef WIN32
 #  include <sys/timeb.h>
 #else
+#  include <signal.h>
 #  include <spawn.h>
 #endif /* WIN32 */
 
@@ -27,6 +28,30 @@ static double	time_seconds(void);
 
 
 /*
+ * 'serverStopJob()' - Stop processing/transforming a job.
+ */
+
+void
+serverStopJob(server_job_t *job)	/* I - Job to stop */
+{
+  if (job->state != IPP_JSTATE_PROCESSING)
+    return;
+
+  _cupsRWLockWrite(&job->rwlock);
+
+  job->state         = IPP_JSTATE_STOPPED;
+  job->state_reasons |= SERVER_JREASON_JOB_STOPPED;
+
+  if (job->transform_pid)
+    kill(job->transform_pid, SIGTERM);
+
+  _cupsRWUnlock(&job->rwlock);
+
+  serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job stopped.");
+}
+
+
+/*
  * 'serverTransformJob()' - Generate printer-ready document data for a Job.
  */
 
@@ -38,6 +63,7 @@ serverTransformJob(
     const char         *format,		/* I - Destination MIME media type */
     server_transform_t mode)		/* I - Transform mode */
 {
+  int		i;			/* Looping var */
   int 		pid,			/* Process ID */
                 status = 0;		/* Exit status */
   double	start,			/* Start time */
@@ -47,7 +73,8 @@ serverTransformJob(
   int		myenvc;			/* Number of environment variables */
   ipp_attribute_t *attr;		/* Job attribute */
   char		val[1280],		/* IPP_NAME=value */
-                *valptr;		/* Pointer into string */
+                *valptr,		/* Pointer into string */
+                fullcommand[1024];	/* Full command path */
 #ifndef WIN32
   posix_spawn_file_actions_t actions;	/* Spawn file actions */
   int		mystdout[2] = {-1, -1},	/* Pipe for stdout */
@@ -60,8 +87,15 @@ serverTransformJob(
                 *ptr,			/* Pointer into line */
                 *endptr;		/* End of line */
   ssize_t	bytes;			/* Bytes read */
+  size_t	total = 0;		/* Total bytes read */
 #endif /* !WIN32 */
 
+
+  if (command[0] != '/')
+  {
+    snprintf(fullcommand, sizeof(fullcommand), "%s/%s", BinDir, command);
+    command = fullcommand;
+  }
 
   serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Running command \"%s %s\".", command, job->filename);
   start = time_seconds();
@@ -102,7 +136,39 @@ serverTransformJob(
   if (format && asprintf(myenvp + myenvc, "OUTPUT_TYPE=%s", format) > 0)
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "materials-col-default", IPP_TAG_BEGIN_COLLECTION)) != NULL)
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "copies-default", IPP_TAG_INTEGER)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "copies-default", IPP_TAG_INTEGER);
+  if (attr)
+  {
+    ippAttributeString(attr, val, sizeof(val));
+
+    if (asprintf(myenvp + myenvc, "PRINTER_COPIES_DEFAULT=%s", val))
+      myenvc ++;
+  }
+
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "finishings-default", IPP_TAG_ENUM)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "finishings-default", IPP_TAG_ENUM);
+  if (attr)
+  {
+    ippAttributeString(attr, val, sizeof(val));
+
+    if (asprintf(myenvp + myenvc, "PRINTER_FINISHINGS_DEFAULT=%s", val))
+      myenvc ++;
+  }
+
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "finishings-col-default", IPP_TAG_BEGIN_COLLECTION)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "finishings-col-default", IPP_TAG_BEGIN_COLLECTION);
+  if (attr)
+  {
+    ippAttributeString(attr, val, sizeof(val));
+
+    if (asprintf(myenvp + myenvc, "PRINTER_FINISHINGS_COL_DEFAULT=%s", val))
+      myenvc ++;
+  }
+
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "materials-col-default", IPP_TAG_BEGIN_COLLECTION)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "materials-col-default", IPP_TAG_BEGIN_COLLECTION);
+  if (attr)
   {
     ippAttributeString(attr, val, sizeof(val));
 
@@ -110,31 +176,74 @@ serverTransformJob(
       myenvc ++;
   }
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "media-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_MEDIA_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "media-default", IPP_TAG_KEYWORD)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "media-default", IPP_TAG_KEYWORD);
+  if (attr && asprintf(myenvp + myenvc, "PRINTER_MEDIA_DEFAULT=%s", ippGetString(attr, 0, NULL)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "platform-temperature-default", IPP_TAG_INTEGER)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PLATFORM_TEMPERATURE_DEFAULT=%d", ippGetInteger(attr, 0)))
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "media-col-default", IPP_TAG_BEGIN_COLLECTION)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "media-col-default", IPP_TAG_BEGIN_COLLECTION);
+  if (attr)
+  {
+    ippAttributeString(attr, val, sizeof(val));
+
+    if (asprintf(myenvp + myenvc, "PRINTER_MEDIA_COL_DEFAULT=%s", val))
+      myenvc ++;
+  }
+
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "number-up-default", IPP_TAG_INTEGER)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "number-up-default", IPP_TAG_INTEGER);
+  if (attr)
+  {
+    ippAttributeString(attr, val, sizeof(val));
+
+    if (asprintf(myenvp + myenvc, "PRINTER_NUMBER_UP_DEFAULT=%s", val))
+      myenvc ++;
+  }
+
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "platform-temperature-default", IPP_TAG_INTEGER)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "platform-temperature-default", IPP_TAG_INTEGER);
+  if (attr && asprintf(myenvp + myenvc, "PRINTER_PLATFORM_TEMPERATURE_DEFAULT=%d", ippGetInteger(attr, 0)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "print-base-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PRINT_BASE_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "print-base-default", IPP_TAG_KEYWORD)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "print-base-default", IPP_TAG_KEYWORD);
+  if (attr && asprintf(myenvp + myenvc, "PRINTER_PRINT_BASE_DEFAULT=%s", ippGetString(attr, 0, NULL)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "print-quality-default", IPP_TAG_ENUM)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PRINT_QUALITY_DEFAULT=%d", ippGetInteger(attr, 0)))
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "print-quality-default", IPP_TAG_ENUM)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "print-quality-default", IPP_TAG_ENUM);
+  if (attr && asprintf(myenvp + myenvc, "PRINTER_PRINT_QUALITY_DEFAULT=%d", ippGetInteger(attr, 0)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "print-supports-default", IPP_TAG_INTEGER)) != NULL && asprintf(myenvp + myenvc, "PRINTER_PPRINT_SUPPORTS_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "print-color-mode-default", IPP_TAG_KEYWORD)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "print-color-mode-default", IPP_TAG_KEYWORD);
+  if (attr && asprintf(myenvp + myenvc, "PRINTER_PRINT_COLOR_MODE_DEFAULT=%s", ippGetString(attr, 0, NULL)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "sides-default", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PRINTER_SIDES_DEFAULT=%s", ippGetString(attr, 0, NULL)))
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "print-supports-default", IPP_TAG_INTEGER)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "print-supports-default", IPP_TAG_INTEGER);
+  if (attr && asprintf(myenvp + myenvc, "PRINTER_PRINT_SUPPORTS_DEFAULT=%s", ippGetString(attr, 0, NULL)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "pwg-raster-document-resolution-supported", IPP_TAG_RESOLUTION)) != NULL && ippAttributeString(attr, val, sizeof(val)) > 0 && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED=%s", val) > 0)
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "sides-default", IPP_TAG_KEYWORD)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "sides-default", IPP_TAG_KEYWORD);
+  if (attr && asprintf(myenvp + myenvc, "PRINTER_SIDES_DEFAULT=%s", ippGetString(attr, 0, NULL)))
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "pwg-raster-document-sheet-back", IPP_TAG_KEYWORD)) != NULL && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_SHEET_BACK=%s", ippGetString(attr, 0, NULL)) > 0)
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "pwg-raster-document-resolution-supported", IPP_TAG_RESOLUTION)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "pwg-raster-document-resolution-supported", IPP_TAG_RESOLUTION);
+  if (attr && ippAttributeString(attr, val, sizeof(val)) > 0 && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED=%s", val) > 0)
     myenvc ++;
 
-  if ((attr = ippFindAttribute(job->printer->pinfo.attrs, "pwg-raster-document-type-supported", IPP_TAG_RESOLUTION)) != NULL && ippAttributeString(attr, val, sizeof(val)) > 0 && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_TYPE_SUPPORTED=%s", val) > 0)
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "pwg-raster-document-sheet-back", IPP_TAG_KEYWORD)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "pwg-raster-document-sheet-back", IPP_TAG_KEYWORD);
+  if (attr && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_SHEET_BACK=%s", ippGetString(attr, 0, NULL)) > 0)
+    myenvc ++;
+
+  if ((attr = ippFindAttribute(job->printer->dev_attrs, "pwg-raster-document-type-supported", IPP_TAG_KEYWORD)) == NULL)
+    attr = ippFindAttribute(job->printer->pinfo.attrs, "pwg-raster-document-type-supported", IPP_TAG_KEYWORD);
+  if (attr && ippAttributeString(attr, val, sizeof(val)) > 0 && asprintf(myenvp + myenvc, "PWG_RASTER_DOCUMENT_TYPE_SUPPORTED=%s", val) > 0)
     myenvc ++;
 
   if (LogLevel == SERVER_LOGLEVEL_INFO)
@@ -176,6 +285,10 @@ serverTransformJob(
   }
   myenvp[myenvc] = NULL;
 
+  serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Transform environment:");
+  for (i = 0; i < myenvc; i ++)
+    serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "%s", myenvp[i]);
+
  /*
   * Now run the program...
   */
@@ -198,7 +311,7 @@ serverTransformJob(
 
     if (mode == SERVER_TRANSFORM_TO_FILE)
     {
-      serverCreateJobFilename(job->printer, job, format, line, sizeof(line));
+      serverCreateJobFilename(job, format, line, sizeof(line));
       mystdout[1] = open(line, O_WRONLY | O_CREAT | O_TRUNC | O_EXCL, 0666);
     }
     else
@@ -238,6 +351,8 @@ serverTransformJob(
     goto transform_failure;
   }
 
+  job->transform_pid = pid;
+
   serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Started job processing command, pid=%d", pid);
 
  /*
@@ -272,8 +387,6 @@ serverTransformJob(
 
   while ((pollret = poll(polldata, (nfds_t)pollcount, -1)) > 0)
   {
-    serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "poll() returned %d, polldata[0].revents=%d, polldata[1].revents=%d", pollret, polldata[0].revents, polldata[1].revents);
-
     if (polldata[0].revents & POLLIN)
     {
       if ((bytes = read(mystderr[0], endptr, sizeof(line) - (size_t)(endptr - line) - 1)) > 0)
@@ -315,7 +428,10 @@ serverTransformJob(
     else if (pollcount > 1 && polldata[1].revents & POLLIN)
     {
       if ((bytes = read(mystdout[0], data, sizeof(data))) > 0)
+      {
 	httpWrite2(client->http, data, (size_t)bytes);
+	total += (size_t)bytes;
+      }
     }
 
     if (polldata[0].revents & POLLHUP)
@@ -325,8 +441,8 @@ serverTransformJob(
   if (mystdout[0] >= 0)
   {
     close(mystdout[0]);
-    httpFlushWrite(client->http);
-    httpWrite2(client->http, "", 0);
+
+    serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Total transformed output is %ld bytes.", (long)total);
   }
 
   close(mystderr[0]);
@@ -349,10 +465,26 @@ serverTransformJob(
 #  else
   while (wait(&status) < 0);
 #  endif /* HAVE_WAITPID */
+
+  job->transform_pid = 0;
 #endif /* WIN32 */
 
   end = time_seconds();
   serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Total transform time is %.3f seconds.", end - start);
+
+#ifdef WIN32
+  if (status)
+    serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Transform command exited with status %d.", status);
+
+#else
+  if (status)
+  {
+    if (WIFEXITED(status))
+      serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Transform command exited with status %d.", WEXITSTATUS(status));
+    else if (WIFSIGNALED(status) && WTERMSIG(status) != SIGTERM)
+      serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Transform command crashed on signal %d.", WTERMSIG(status));
+  }
+#endif /* WIN32 */
 
   return (status);
 
@@ -526,7 +658,7 @@ process_state_message(
   * "+keyword[,keyword,...]" to add keywords.
   *
   * Keywords may or may not have a suffix (-report, -warning, -error) per
-  * RFC 2911.
+  * RFC 8011.
   */
 
   if (*message == '-')

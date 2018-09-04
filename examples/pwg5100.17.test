@@ -1,0 +1,300 @@
+#Testfile includes tests to check the support for the different printer description attributes and job description attributes of the IPP scan service. It also tests the Get-Next-Document-Data operation of the service followed by print-job tests along with the destination-uri attribute to specify a paritcular destination of the scan job.
+
+# User is expected to enter the HAVE_PUSH_SCAN, MUTIPLE_DOCUMENT_JOBS_SUPPORTED, SETTING_PRINTER_XRI_SUPPORTED, HAVE_DUPLEX_SCANNING_ACCESSORIES flags and DESTINATION_URI variable value to run the tests for the same.
+
+# Regular expressions for URI schemes:
+#
+#   HTTP_URI_SCHEME - Matches strings beginning with http:// or https://
+#   IPP_URI_SCHEME  - Matches strings beginning with ipp:// or ipps://
+
+DEFINE HTTP_URI_SCHEME "/^https?://.+$$/"
+DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
+
+# Test required printer description attribute support and required operations.
+{
+	NAME "Required Operations and Attributes for IPP Scan Service"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format application/octet-stream
+	ATTR keyword requested-attributes all
+
+	STATUS successful-ok
+
+
+	# Operations
+	EXPECT operations-supported WITH-VALUE 0x0004 # Validate-Job
+	EXPECT operations-supported WITH-VALUE 0x0005 # Create-Job
+	EXPECT operations-supported WITH-VALUE 0x0008 # Cancel-Job
+	EXPECT operations-supported WITH-VALUE 0x0009 # Get-Job-Attributes
+	EXPECT operations-supported WITH-VALUE 0x000a # Get-Jobs
+	EXPECT operations-supported WITH-VALUE 0x000b # Get-Printer-Attributes
+	EXPECT operations-supported WITH-VALUE 0x000c # Hold-Job
+	EXPECT operations-supported WITH-VALUE 0x000d # Release-Job
+	EXPECT operations-supported WITH-VALUE 0x0039 # Cancel-My-Jobs
+	EXPECT operations-supported WITH-VALUE 0x003b # Close-Job
+	EXPECT operations-supported WITH-VALUE 0x003c # Identify-Printer
+	EXPECT operations-supported WITH-VALUE 0x004A # Get-Next-Document-Data
+
+	# Printer description attributes
+	EXPECT charset-configured OF-TYPE charset IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT charset-supported OF-TYPE charset IN-GROUP printer-attributes-tag WITH-VALUE utf-8
+    EXPECT color-supported OF-TYPE boolean IN-GROUP printer-attributes-tag COUNT 1
+	EXPECT compression-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "deflate" DEFINE-MATCH HAVE_DEFLATE
+	EXPECT compression-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "gzip" DEFINE-MATCH HAVE_GZIP
+	EXPECT copies-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE 1
+ 	EXPECT copies-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag WITH-VALUE 1
+ 	EXPECT destination-accesses-supported OF-TYPE keyword IN-GROUP printer-attributes-tag IF-DEFINED HAVE_PUSH_SCAN
+ 	EXPECT document-format-default OF-TYPE mimeMediaType IN-GROUP printer-attributes-tag COUNT 1
+	EXPECT document-format-supported OF-TYPE mimeMediaType IN-GROUP printer-attributes-tag
+	EXPECT document-format-supported WITH-VALUE "image/jpeg"
+	EXPECT document-format-supported WITH-VALUE "image/pwg-raster"
+	EXPECT document-format-supported WITH-VALUE "/^(application/pdf|application/openxps)$/" DEFINE-MATCH PDF_OR_OPENXPS
+	EXPECT destination-uri-schemes-supported OF-TYPE uriScheme IN-GROUP printer-attributes-tag WITH-VALUE "tel" 
+	EXPECT generated-natural-language-supported OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag
+	EXPECT input-attributes-default OF-TYPE collection IN-GROUP printer-attributes-tag
+	EXPECT input-attributes-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT input-color-mode-supported OF-TYPE keyword IN-GROUP printer-attributes-tag 
+	EXPECT input-media-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag WITH-VALUE "auto"
+	EXPECT input-orientation-requested-supported OF-TYPE enum IN-GROUP printer-attributes-tag
+	EXPECT input-quality-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE "4" 
+	EXPECT ?input-resolution-supported OF-TYPE resolution IN-GROUP printer-attributes-tag 
+	EXPECT input-source-supported OF-TYPE keyword IN-GROUP printer-attributes-tag 
+	EXPECT ipp-features-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT ipp-versions-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE 1.1
+	EXPECT job-ids-supported OF-TYPE boolean IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE true
+	EXPECT multiple-destination-uris-supported OF-TYPE boolean IN-GROUP printer-attributes-tag 
+	EXPECT multiple-document-handling-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "/^(single-document|separate-documents-uncollated-copies|separate-documents-collated-copies|single-document-new-sheet)$$/" IF-DEFINED MUTIPLE_DOCUMENT_JOBS_SUPPORTED
+	EXPECT multiple-document-jobs-supported OF-TYPE boolean IN-GROUP printer-attributes-tag COUNT 1
+	EXPECT multiple-operation-time-out OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE >0 IF-DEFINED MUTIPLE_DOCUMENT_JOBS_SUPPORTED
+	EXPECT multiple-operation-time-out-action OF-TYPE keyword IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE "/^(abort-job|hold-job|process-job)$/" IF-DEFINED MUTIPLE_DOCUMENT_JOBS_SUPPORTED
+	EXPECT natural-language-configured OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag COUNT 1
+	EXPECT number-of-retries-default OF-TYPE integer IN-GROUP printer-attributes-tag WITH-VALUE >-1 
+	EXPECT number-of-retries-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag WITH-VALUE >-1 IF-DEFINED HAVE_PUSH_SCAN
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag
+	EXPECT overrides-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "document-number"
+	EXPECT overrides-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "pages"
+	EXPECT printer-device-id OF-TYPE text IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE "/^([-A-Za-z ]+:[^;]*;)+$/"
+	EXPECT printer-geo-location OF-TYPE uri|unknown IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE "/^geo:/"
+	EXPECT printer-get-attributes-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "document-format"
+	EXPECT printer-get-attributes-supported WITH-VALUE "destination-uri"
+	EXPECT printer-icons OF-TYPE uri IN-GROUP printer-attributes-tag
+	EXPECT printer-info OF-TYPE text IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE "/^.{0,127}$$/"
+	EXPECT printer-location OF-TYPE text IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE "/^.{0,127}$$/"
+	EXPECT printer-make-and-model OF-TYPE text IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE "/^.{0,127}$$/"
+	EXPECT printer-more-info OF-TYPE uri IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE "$HTTP_URI_SCHEME"
+	EXPECT printer-name OF-TYPE name IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE "/^.{0,127}$$/"
+	EXPECT printer-organization OF-TYPE text IN-GROUP printer-attributes-tag
+	EXPECT printer-organizational-unit OF-TYPE text IN-GROUP printer-attributes-tag
+	EXPECT retry-interval-default OF-TYPE integer IN-GROUP printer-attributes-tag WITH-VALUE >0 IF-DEFINED HAVE_PUSH_SCAN
+	EXPECT retry-interval-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag WITH-VALUE >0 IF-DEFINED HAVE_PUSH_SCAN
+	EXPECT retry-time-out-default OF-TYPE integer IN-GROUP printer-attributes-tag WITH-VALUE >0 IF-DEFINED HAVE_PUSH_SCAN
+	EXPECT retry-time-out-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag WITH-VALUE >0 IF-DEFINED HAVE_PUSH_SCAN
+	EXPECT which-jobs-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+
+	#printer status attributes..
+	EXPECT printer-alert OF-TYPE octetString IN-GROUP printer-attributes-tag
+	EXPECT printer-alert-description OF-TYPE text IN-GROUP printer-attributes-tag SAME-COUNT-AS printer-alert
+	EXPECT printer-config-change-date-time OF-TYPE dateTime IN-GROUP printer-attributes-tag COUNT 1
+	EXPECT printer-config-change-time OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE >-1
+	EXPECT printer-current-time OF-TYPE datetime IN-GROUP printer-attributes-tag 
+	EXPECT printer-is-accepting-jobs OF-TYPE boolean IN-GROUP printer-attributes-tag COUNT 1
+	EXPECT printer-state-change-time OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE >-1
+	EXPECT printer-state-change-date-time OF-TYPE dateTime IN-GROUP printer-attributes-tag COUNT 1
+	EXPECT printer-state-message OF-TYPE text IN-GROUP printer-attributes-tag
+	EXPECT printer-state-reasons OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT printer-up-time OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE >0
+	EXPECT printer-uri-supported OF-TYPE uri IN-GROUP printer-attributes-tag SAME-COUNT-AS uri-security-supported WITH-ALL-VALUES "$IPP_URI_SCHEME"
+	EXPECT printer-uuid OF-TYPE uri IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE "/^urn:uuid:[0-9A-Fa-f]{8,8}-[0-9A-Fa-f]{4,4}-[0-9A-Fa-f]{4,4}-[0-9A-Fa-f]{4,4}-[0-9A-Fa-f]{12,12}/"
+	EXPECT queued-job-count OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
+	EXPECT xri-security-supported OF-TYPE keyword IN-GROUP printer-attributes-tag IF-DEFINED SETTING_PRINTER_XRI_SUPPORTED
+	EXPECT  xri-authentication-supported OF-TYPE keyword IN-GROUP printer-attributes-tag IF-DEFINED SETTING_PRINTER_XRI_SUPPORTED
+	EXPECT xri-uri-scheme-supported OF-TYPE uriScheme IN-GROUP printer-attributes-tag IF-DEFINED SETTING_PRINTER_XRI_SUPPORTED
+
+#Additional Values and Semantics...
+	EXPECT ipp-features-supported WITH-VALUE "scan"
+
+}
+
+
+
+#Get-Printer-Attributes test to check the input-sides-supported printer description attribute
+{
+	SKIP-IF-NOT-DEFINED HAVE_DUPLEX_SCANNING_ACCESSORIES 
+
+	NAME "Required Operations and Attributes"
+	OPERATION Get-Printer-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR mimeMediaType document-format application/octet-stream
+	ATTR keyword requested-attributes all
+
+	STATUS successful-ok
+
+	EXPECT input-sides-supported OF-TYPE keyword IN-GROUP printer-attributes-tag  
+}
+
+
+
+#Creating a job to later use the get-job-attributes operation to test the required job description attributes and also the get-next-document operation
+{
+	NAME "create-job for IPP Scan Service"
+
+	OPERATION Create-Job
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+
+	STATUS successful-ok
+	STATUS successful-ok-ignored-or-substituted-attributes
+
+	EXPECT job-id
+	EXPECT job-uri
+	EXPECT compression OF-TYPE keyword IN-GROUP job-attributes-tag
+}
+#testing the Required Get-Next-Document-Data operation
+{
+	NAME "Get-Next-Document-Data Operation"
+
+	OPERATION Get-Next-Document-Data
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+	
+
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-busy
+
+	EXPECT compression OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT document-format OF-TYPE mimeMediaType IN-GROUP job-attributes-tag
+	EXPECT document-data-get-interval OF-TYPE integer IN-GROUP job-attributes-tag DEFINE-VALUE GET_INTERVAL
+}
+{
+	SKIP-IF-NOT-DEFINED GET_INTERVAL
+	DELAY $GET_INTERVAL
+
+	NAME "Get-Job-Attributes: Wait for completion"
+	OPERATION Get-Job-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job_id
+	ATTR name requesting-user-name $user
+	ATTR keyword requested-attributes job-state
+
+	STATUS successful-ok
+
+        # Repeat while we are not canceled, aborted, or completed...
+	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag WITH-VALUE <7 REPEAT-MATCH
+}
+
+
+
+
+# Test required Job Description/Status Attributes
+{
+	NAME "IPP Job Description/Status Attributes required for IPP Scan Service"
+	OPERATION Get-Job-Attributes
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job_id
+	ATTR name requesting-user-name $user
+	ATTR keyword requested-attributes all
+
+	STATUS successful-ok
+
+	# Job Status attributes
+	EXPECT date-time-at-completed OF-TYPE dateTime IN-GROUP job-attributes-tag
+	EXPECT date-time-at-creation OF-TYPE dateTime IN-GROUP job-attributes-tag
+	EXPECT date-time-at-processing OF-TYPE dateTime IN-GROUP job-attributes-tag
+	EXPECT destination-statuses OF-TYPE collection IN-GROUP job-attributes-tag SAME-COUNT-AS destination-uris	
+	EXPECT document-name-supplied OF-TYPE name IN-GROUP job-attributes-tag 
+	EXPECT input-attributes-actual OF-TYPE collection IN-GROUP job-attributes-tag 
+	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0
+	EXPECT job-impressions-completed OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT job-impressions OF-TYPE integer|no-value IN-GROUP job-attributes-tag COUNT 1
+	EXPECT job-originating-user-name OF-TYPE name IN-GROUP job-attributes-tag
+	EXPECT job-originating-user-uri OF-TYPE uri IN-GROUP job-attributes-tag
+	EXPECT job-printer-up-time OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0
+	EXPECT job-printer-uri OF-TYPE uri IN-GROUP job-attributes-tag WITH-VALUE "$uri"
+	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag
+	EXPECT job-state-message OF-TYPE text IN-GROUP job-attributes-tag
+	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag
+	EXPECT job-uuid OF-TYPE uri IN-GROUP job-attributes-tag WITH-VALUE "/^urn:uuid:/"
+	EXPECT time-at-completed OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0
+	EXPECT time-at-creation OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0
+	EXPECT time-at-processing OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0	
+}
+
+
+#scan job test using destination uri
+
+{
+	SKIP-IF-NOT-DEFINED DESTINATION_URI
+
+	NAME "create-job for testing IPP Scan Service with destination uri "
+
+	OPERATION Create-Job
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR name requesting-user-name $user
+	ATTR name job-name $filename
+
+	GROUP job-attributes-tag
+	ATTR collection destination-uris {
+		MEMBER uri destination-uri $DESTINATION_URI
+	}
+
+	STATUS successful-ok
+	STATUS successful-ok-ignored-or-substituted-attributes
+
+	EXPECT job-id DEFINE-VALUE JOBID_DESTINATION_URI
+	EXPECT job-uri
+	EXPECT compression OF-TYPE keyword IN-GROUP job-attributes-tag
+}
+{
+	SKIP-IF-NOT-DEFINED JOBID_DESTINATION_URI
+
+	NAME "Get-Next-Document-Data Operation"
+
+	OPERATION Get-Next-Document-Data
+
+	GROUP operation
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $JOBID_DESTINATION_URI
+	ATTR name requesting-user-name $user
+	
+
+	FILE $filename
+
+	STATUS successful-ok
+	STATUS server-error-busy
+
+	EXPECT compression OF-TYPE keyword IN-GROUP job-attributes-tag
+	EXPECT document-format OF-TYPE mimeMediaType IN-GROUP job-attributes-tag
+}
