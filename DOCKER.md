@@ -15,7 +15,7 @@ This repository includes a sample Dockerfile for compiling and running ippserver
    docker run -it ippsample bash
    ```
 
-You can also run one of the IPP binaries instead of the bash terminal.
+   You can also run one of the IPP binaries instead of the bash terminal.
 
 **To start the IPP server:**
 
