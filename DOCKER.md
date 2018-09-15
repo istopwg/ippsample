@@ -1,6 +1,6 @@
 # Docker Support for IPP Sample Code
 
-This repository includes a sample Dockerfile for compiling and running ippserver in a Docker container.
+This repository includes a sample Dockerfile for compiling and running `ippserver` in a Docker container.
 
 **To run IPP sample code on Docker:**
 
@@ -25,7 +25,7 @@ This repository includes a sample Dockerfile for compiling and running ippserver
    docker run -it ippsample ippserver -M byMyself -l rightHere -m coolPrinter -n myHost -p 631 -s 72 -vvvv myPrintService
    ```
 
-   OR to run the server in debug mode using gdb:
+   OR to run the server in debug mode using `gdb`:
 
    ```
    docker run -it ippsample gdb ippserver
@@ -48,7 +48,7 @@ This repository includes a sample Dockerfile for compiling and running ippserver
    docker run --rm -it -w /root/ippsample/examples ippsample ipptool [URL returned] identify-printer-display.test
    ```
 
-   (Note the `IDENTIFY from 172.17.0.4: Hello, World!` message in stdout on the ippserver container)
+   (Note the `IDENTIFY from 172.17.0.4: Hello, World!` message in stdout on the `ippserver` container)
 
 2. To run the IPP everywhere tests on the IPP Client using setup from step #1, run:
 
