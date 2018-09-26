@@ -1,57 +1,68 @@
-# Docker Support for IPP Sample Code
+Docker Support for IPP Sample Code
+==================================
 
 This repository includes a sample Dockerfile for compiling and running `ippserver` in a Docker container.
 
-**To run IPP sample code on Docker:**
 
-1. From a shell prompt in the directory (on Windows 10|2016, macOS, or Linux) containing this docker file run: 
+Building and Running on Docker
+------------------------------
 
-   ```
-   docker build -t ippsample .
-   ```
-   You now can run the container with a bash terminal and go to the `/root/ippsample` folder manually.
+From a shell prompt in the directory (on Windows 10|2016, macOS, or Linux)
+containing this docker file run:
 
-   ```
-   docker run -it ippsample bash
-   ```
+```
+docker build -t ippsample .
+```
 
-   You can also run one of the IPP binaries instead of the bash terminal.
+You now can run the container with a bash terminal and go to the `/root/ippsample` folder manually.
 
-**To start the IPP server:**
+```
+docker run -it ippsample bash
+```
 
-1. Run the IPP server with all its arguments:
+You can also run one of the IPP binaries instead of the bash terminal.
 
-   ```
-   docker run -it ippsample ippserver -M byMyself -l rightHere -m coolPrinter -n myHost -p 631 -s 72 -vvvv myPrintService
-   ```
 
-   OR to run the server in debug mode using `gdb`:
+Starting the IPP Server
+-----------------------
 
-   ```
-   docker run -it ippsample gdb ippserver
-   run  -M byMyself -l rightHere -m coolPrinter -n myHost -p 631 -s 72 -vvvv myPrintService
-   ```
+Run the IPP server with all its arguments:
 
-**Run the IPP Client:**
+```
+docker run -it ippsample ippserver -M byMyself -l rightHere -m coolPrinter -n myHost -p 631 -s 72 -vvvv myPrintService
+```
 
-1. First find all IPP printers from other Docker containers:
+*or* to run the server in debug mode using `gdb`:
 
-   ```
-   docker run --rm ippsample ippfind
-   ```
+```
+docker run -it ippsample gdb ippserver
+run -M byMyself -l rightHere -m coolPrinter -n myHost -p 631 -s 72 -vvvv myPrintService
+```
 
-   (Note the URL returned, e.g., `ipp://f8a365cfc7ec.local:631/ipp/print`)
 
-2. Now run the IPP tool in a new container in the `/root/ippsample/examples` directory with the IPP Server running, run:
+Running the IPP Client
+----------------------
 
-   ```
-   docker run --rm -it -w /root/ippsample/examples ippsample ipptool [URL returned] identify-printer-display.test
-   ```
+First find all IPP printers from other Docker containers:
 
-   (Note the `IDENTIFY from 172.17.0.4: Hello, World!` message in stdout on the `ippserver` container)
+```
+docker run --rm ippsample ippfind
+```
 
-2. To run the IPP everywhere tests on the IPP Client using setup from step #1, run:
+> Note the URL returned, e.g., `ipp://f8a365cfc7ec.local:631/ipp/print`.
 
-   ```
-   docker run --rm -it -w /root/ippsample/examples ippsample ipptool -V 2.0 -tf document-letter.pdf [URL returned] ipp-everywhere.test
-   ```
+Next run the IPP tool in a new container in the `/root/ippsample/examples` directory with the IPP Server running, run:
+
+```
+docker run --rm -it -w /root/ippsample/examples ippsample ipptool [URL returned] identify-printer-display.test
+```
+
+> Note the `IDENTIFY from 172.17.0.4: Hello, World!` message in stdout on the
+> `ippserver` container.
+
+To run the IPP everywhere tests on the IPP Client using setup from the previous
+commands, run:
+
+```
+docker run --rm -it -w /root/ippsample/examples ippsample ipptool -V 2.0 -tf document-letter.pdf [URL returned] ipp-everywhere.test
+```
