@@ -314,10 +314,21 @@ command can be used for many printers.
 <dt><b>Model </b><i>model</i>
 <dd style="margin-left: 5.0em">Specifies the model for the printer.
 </dl>
+<h3><a name="VARIABLES_IN_ATTRIBUTE_VALUES">Variables In Attribute Values</a></h3>
+<b>ippserver</b>
+defines the following additional
+<b>ipptoolfile</b>(5)
+variables that can be used in attribute values:
+<dl class="man">
+<dt>SERVERNAME
+<dd style="margin-left: 5.0em">Specifies the host name of the server, for example "server.local".
+<dt>SERVERPORT
+<dd style="margin-left: 5.0em">Specifies the port number of the server, for example "8501".
+</dl>
 <h3><a name="PRINT_SERVICE_ICON_FILES">Print Service Icon Files</a></h3>
 The icon for each 2D print service is stored in the <i>print/name.png</i>  file. Similarly, the icon for each 3D print service is stored in the <i>print3d/name.png</i> file.
 <h2 class="title"><a name="SEE_ALSO">See Also</a></h2>
-<a href="ipptoolfile.html"><b>ipptoolfile</b>(5)</a>,
+<b>ipptoolfile</b>(5),
 ISTO PWG Internet Printing Protocol Workgroup (<a href="http://www.pwg.org/ipp">http://www.pwg.org/ipp</a>)
 <h2 class="title"><a name="COPYRIGHT">Copyright</a></h2>
 Copyright &copy; 2014-2018 by the IEEE-ISTO Printer Working Group.

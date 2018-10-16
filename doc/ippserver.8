@@ -7,7 +7,7 @@
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ippserver 8 "ippsample" "2018-05-10" "Apple Inc."
+.TH ippserver 8 "ippsample" "2018-10-16" "Apple Inc."
 .SH NAME
 ippserver \- a simple ipp server
 .SH SYNOPSIS
@@ -374,6 +374,17 @@ Specifies the manufacturer name for the printer.
 .TP 5
 \fBModel \fImodel\fR
 Specifies the model for the printer.
+.SS VARIABLES IN ATTRIBUTE VALUES
+.B ippserver
+defines the following additional
+.BR ipptoolfile (5)
+variables that can be used in attribute values:
+.TP 5
+SERVERNAME
+Specifies the host name of the server, for example "server.local".
+.TP 5
+SERVERPORT
+Specifies the port number of the server, for example "8501".
 .SS PRINT SERVICE ICON FILES
 The icon for each 2D print service is stored in the \fIprint/name.png\fR  file. Similarly, the icon for each 3D print service is stored in the \fIprint3d/name.png\fR file.
 .SH SEE ALSO
