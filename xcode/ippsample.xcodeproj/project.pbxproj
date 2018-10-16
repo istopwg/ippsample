@@ -59,6 +59,9 @@
 		2794FFA220E2F157000A7214 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
 		2794FFA320E2F17F000A7214 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2794FF9920E2F068000A7214 /* CoreGraphics.framework */; };
 		2794FFA420E2F187000A7214 /* ImageIO.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2794FF9B20E2F06F000A7214 /* ImageIO.framework */; };
+		2798310E21761FB700BA8393 /* raster-error.c in Sources */ = {isa = PBXBuildFile; fileRef = 2798310D21761F3300BA8393 /* raster-error.c */; };
+		2798310F21761FB700BA8393 /* raster-stream.c in Sources */ = {isa = PBXBuildFile; fileRef = 2798310C21761F3300BA8393 /* raster-stream.c */; };
+		2798311021761FB700BA8393 /* raster-stubs.c in Sources */ = {isa = PBXBuildFile; fileRef = 2798310B21761F3200BA8393 /* raster-stubs.c */; };
 		27E2CC681C99C69400D203EC /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
 		27E2CC691C99C6A000D203EC /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EB1C0CE81900139783 /* SystemConfiguration.framework */; };
 		27EB2B8F20463E4B0088BC2C /* auth.c in Sources */ = {isa = PBXBuildFile; fileRef = 27EB2B8E20463E4B0088BC2C /* auth.c */; };
@@ -152,7 +155,6 @@
 		72B402701C0CE27900139783 /* dir.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B402371C0CE27800139783 /* dir.c */; };
 		72B402711C0CE27900139783 /* dir.h in Headers */ = {isa = PBXBuildFile; fileRef = 72B402381C0CE27800139783 /* dir.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		72B402721C0CE27900139783 /* encode.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B402391C0CE27800139783 /* encode.c */; };
-		72B402731C0CE27900139783 /* error.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B4023A1C0CE27800139783 /* error.c */; };
 		72B402741C0CE27900139783 /* file-private.h in Headers */ = {isa = PBXBuildFile; fileRef = 72B4023B1C0CE27800139783 /* file-private.h */; };
 		72B402751C0CE27900139783 /* file.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B4023C1C0CE27800139783 /* file.c */; };
 		72B402761C0CE27900139783 /* file.h in Headers */ = {isa = PBXBuildFile; fileRef = 72B4023D1C0CE27800139783 /* file.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -181,7 +183,6 @@
 		72B4028D1C0CE27900139783 /* pwg-private.h in Headers */ = {isa = PBXBuildFile; fileRef = 72B402541C0CE27800139783 /* pwg-private.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		72B4028E1C0CE27900139783 /* pwg.h in Headers */ = {isa = PBXBuildFile; fileRef = 72B402551C0CE27800139783 /* pwg.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		72B4028F1C0CE27900139783 /* raster-private.h in Headers */ = {isa = PBXBuildFile; fileRef = 72B402561C0CE27800139783 /* raster-private.h */; };
-		72B402901C0CE27900139783 /* raster.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B402571C0CE27800139783 /* raster.c */; };
 		72B402911C0CE27900139783 /* raster.h in Headers */ = {isa = PBXBuildFile; fileRef = 72B402581C0CE27800139783 /* raster.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		72B402921C0CE27900139783 /* request.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B402591C0CE27800139783 /* request.c */; };
 		72B402931C0CE27900139783 /* snprintf.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B4025A1C0CE27800139783 /* snprintf.c */; };
@@ -550,6 +551,9 @@
 		2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ipptransform3d.c; path = ../tools/ipptransform3d.c; sourceTree = "<group>"; };
 		2794FF9920E2F068000A7214 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		2794FF9B20E2F06F000A7214 /* ImageIO.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ImageIO.framework; path = System/Library/Frameworks/ImageIO.framework; sourceTree = SDKROOT; };
+		2798310B21761F3200BA8393 /* raster-stubs.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "raster-stubs.c"; path = "../cups/raster-stubs.c"; sourceTree = "<group>"; };
+		2798310C21761F3300BA8393 /* raster-stream.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "raster-stream.c"; path = "../cups/raster-stream.c"; sourceTree = "<group>"; };
+		2798310D21761F3300BA8393 /* raster-error.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "raster-error.c"; path = "../cups/raster-error.c"; sourceTree = "<group>"; };
 		279C01D61D1B0F9700F06A84 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; name = LICENSE; path = ../LICENSE; sourceTree = "<group>"; };
 		279C01D71D1B0F9700F06A84 /* PI.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = PI.md; path = ../PI.md; sourceTree = "<group>"; };
 		27EB2B8E20463E4B0088BC2C /* auth.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = auth.c; path = ../server/auth.c; sourceTree = "<group>"; };
@@ -608,7 +612,6 @@
 		72B402371C0CE27800139783 /* dir.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = dir.c; path = ../cups/dir.c; sourceTree = "<group>"; };
 		72B402381C0CE27800139783 /* dir.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dir.h; path = ../cups/dir.h; sourceTree = "<group>"; };
 		72B402391C0CE27800139783 /* encode.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = encode.c; path = ../cups/encode.c; sourceTree = "<group>"; };
-		72B4023A1C0CE27800139783 /* error.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = error.c; path = ../cups/error.c; sourceTree = "<group>"; };
 		72B4023B1C0CE27800139783 /* file-private.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "file-private.h"; path = "../cups/file-private.h"; sourceTree = "<group>"; };
 		72B4023C1C0CE27800139783 /* file.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = file.c; path = ../cups/file.c; sourceTree = "<group>"; };
 		72B4023D1C0CE27800139783 /* file.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = file.h; path = ../cups/file.h; sourceTree = "<group>"; };
@@ -637,7 +640,6 @@
 		72B402541C0CE27800139783 /* pwg-private.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "pwg-private.h"; path = "../cups/pwg-private.h"; sourceTree = "<group>"; };
 		72B402551C0CE27800139783 /* pwg.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = pwg.h; path = ../cups/pwg.h; sourceTree = "<group>"; };
 		72B402561C0CE27800139783 /* raster-private.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "raster-private.h"; path = "../cups/raster-private.h"; sourceTree = "<group>"; };
-		72B402571C0CE27800139783 /* raster.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = raster.c; path = ../cups/raster.c; sourceTree = "<group>"; };
 		72B402581C0CE27800139783 /* raster.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = raster.h; path = ../cups/raster.h; sourceTree = "<group>"; };
 		72B402591C0CE27800139783 /* request.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = request.c; path = ../cups/request.c; sourceTree = "<group>"; };
 		72B4025A1C0CE27800139783 /* snprintf.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = snprintf.c; path = ../cups/snprintf.c; sourceTree = "<group>"; };
@@ -983,7 +985,6 @@
 				72B402371C0CE27800139783 /* dir.c */,
 				72B402381C0CE27800139783 /* dir.h */,
 				72B402391C0CE27800139783 /* encode.c */,
-				72B4023A1C0CE27800139783 /* error.c */,
 				72B4023B1C0CE27800139783 /* file-private.h */,
 				72B4023C1C0CE27800139783 /* file.c */,
 				72B4023D1C0CE27800139783 /* file.h */,
@@ -1014,8 +1015,10 @@
 				72B402531C0CE27800139783 /* pwg-media.c */,
 				72B402541C0CE27800139783 /* pwg-private.h */,
 				72B402551C0CE27800139783 /* pwg.h */,
+				2798310D21761F3300BA8393 /* raster-error.c */,
 				72B402561C0CE27800139783 /* raster-private.h */,
-				72B402571C0CE27800139783 /* raster.c */,
+				2798310C21761F3300BA8393 /* raster-stream.c */,
+				2798310B21761F3200BA8393 /* raster-stubs.c */,
 				72B402581C0CE27800139783 /* raster.h */,
 				72B402591C0CE27800139783 /* request.c */,
 				72B4025A1C0CE27800139783 /* snprintf.c */,
@@ -1634,19 +1637,19 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				72B402731C0CE27900139783 /* error.c in Sources */,
 				72B4026F1C0CE27900139783 /* debug.c in Sources */,
 				72B402751C0CE27900139783 /* file.c in Sources */,
 				72B402861C0CE27900139783 /* language.c in Sources */,
-				72B402901C0CE27900139783 /* raster.c in Sources */,
 				72B4028B1C0CE27900139783 /* options.c in Sources */,
 				72B402781C0CE27900139783 /* globals.c in Sources */,
 				72B402891C0CE27900139783 /* md5.c in Sources */,
+				2798311021761FB700BA8393 /* raster-stubs.c in Sources */,
 				72B4027D1C0CE27900139783 /* http-support.c in Sources */,
 				72B4029C1C0CE27900139783 /* tls.c in Sources */,
 				72737CF91C24BA4F007CBEF6 /* dest.c in Sources */,
 				72B4027B1C0CE27900139783 /* http-addrlist.c in Sources */,
 				72B4027A1C0CE27900139783 /* http-addr.c in Sources */,
+				2798310F21761FB700BA8393 /* raster-stream.c in Sources */,
 				72B402701C0CE27900139783 /* dir.c in Sources */,
 				72B402811C0CE27900139783 /* ipp-support.c in Sources */,
 				72B402791C0CE27900139783 /* hash.c in Sources */,
@@ -1669,6 +1672,7 @@
 				72B4028C1C0CE27900139783 /* pwg-media.c in Sources */,
 				72B402981C0CE27900139783 /* thread.c in Sources */,
 				72530E352028BCF30035FF65 /* ipp-file.c in Sources */,
+				2798310E21761FB700BA8393 /* raster-error.c in Sources */,
 				72B4026B1C0CE27900139783 /* auth.c in Sources */,
 				72B4029F1C0CE27900139783 /* usersys.c in Sources */,
 				72737CF81C24BA4F007CBEF6 /* dest-options.c in Sources */,

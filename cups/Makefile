@@ -33,7 +33,6 @@ LIBOBJS	=	\
 		dest-options.o \
 		dir.o \
 		encode.o \
-		error.o \
 		file.o \
 		getputfile.o \
 		globals.o \
@@ -53,7 +52,9 @@ LIBOBJS	=	\
 		notify.o \
 		options.o \
 		pwg-media.o \
-		raster.o \
+		raster-error.o \
+		raster-stream.o \
+		raster-stubs.o \
 		request.o \
 		snprintf.o \
 		string.o \
