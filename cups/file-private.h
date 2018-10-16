@@ -28,10 +28,10 @@
 #  ifdef HAVE_LIBZ
 #    include <zlib.h>
 #  endif /* HAVE_LIBZ */
-#  ifdef WIN32
+#  ifdef _WIN32
 #    include <io.h>
 #    include <sys/locking.h>
-#  endif /* WIN32 */
+#  endif /* _WIN32 */
 
 
 /*
@@ -115,10 +115,10 @@ extern _cups_fc_result_t	_cupsFileCheck(const char *filename,
 					       _cups_fc_filetype_t filetype,
 				               int dorootchecks,
 					       _cups_fc_func_t cb,
-					       void *context);
+					       void *context) _CUPS_PRIVATE;
 extern void			_cupsFileCheckFilter(void *context,
 						     _cups_fc_result_t result,
-						     const char *message);
+						     const char *message) _CUPS_PRIVATE;
 
 #  ifdef __cplusplus
 }
