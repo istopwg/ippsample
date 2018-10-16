@@ -304,11 +304,32 @@ serverLoadAttributes(
     server_pinfo_t *pinfo)		/* I - Printer information */
 {
   _ipp_vars_t	vars;			/* IPP variables */
+  char		temp[32];		/* Temporary string */
 
+
+ /*
+  * Setup callbacks and variables for the printer configuration file...
+  *
+  * The following additional variables are supported:
+  *
+  * - SERVERNAME: The host name of the server.
+  * - SERVERPORT: The default port of the server.
+  */
 
   _ippVarsInit(&vars, (_ipp_fattr_cb_t)attr_cb, (_ipp_ferror_cb_t)error_cb, (_ipp_ftoken_cb_t)token_cb);
+  _ippVarsSet(&vars, "SERVERNAME", ServerName);
+  snprintf(temp, sizeof(temp), "%d", DefaultPort);
+  _ippVarsSet(&vars, "SERVERPORT", temp);
+
+ /*
+  * Load attributes and values for the printer...
+  */
 
   pinfo->attrs = _ippFileParse(&vars, filename, (void *)pinfo);
+
+ /*
+  * Free memory and return...
+  */
 
   _ippVarsDeinit(&vars);
 
