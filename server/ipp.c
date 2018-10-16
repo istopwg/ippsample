@@ -2200,18 +2200,6 @@ ipp_create_xxx_subscriptions(
     }
     else
     {
-      switch (ippGetOperation(client->request))
-      {
-	case IPP_OP_PRINT_JOB :
-	case IPP_OP_PRINT_URI :
-	case IPP_OP_CREATE_JOB :
-	    job = client->job;
-	    break;
-
-	default :
-	    break;
-      }
-
       if ((sub = serverCreateSubscription(client, interval, lease, username, notify_charset, notify_natural_language, notify_events, notify_attributes, notify_user_data)) != NULL)
       {
         ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-subscription-id", sub->id);

@@ -1504,7 +1504,7 @@ xform_document(
     void             *ctx)		/* I - Write context */
 {
   CFURLRef		url;		/* CFURL object for PDF filename */
-  CGPDFDocumentRef	document= NULL;	/* Input document */
+  CGPDFDocumentRef	document = NULL;/* Input document */
   CGPDFPageRef		pdf_page;	/* Page in PDF file */
   CGImageSourceRef	src;		/* Image reader */
   CGImageRef		image = NULL;	/* Image */
@@ -1649,7 +1649,12 @@ xform_document(
 
   if (xform_setup(&ras, outformat, resolutions, sheet_back, types, color, pages, num_options, options))
   {
-    CGPDFDocumentRelease(document);
+    if (document)
+      CGPDFDocumentRelease(document);
+
+    if (image)
+      CFRelease(image);
+
     return (1);
   }
 

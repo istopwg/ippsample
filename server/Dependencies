@@ -34,6 +34,10 @@ printer.o: printer.c ippserver.h ../config.h ../cups/cups.h \
   ../cups/file.h ../cups/versioning.h ../cups/ipp.h ../cups/http.h \
   ../cups/array.h ../cups/language.h ../cups/pwg.h \
   ../cups/string-private.h ../cups/thread-private.h
+resource.o: resource.c ippserver.h ../config.h ../cups/cups.h \
+  ../cups/file.h ../cups/versioning.h ../cups/ipp.h ../cups/http.h \
+  ../cups/array.h ../cups/language.h ../cups/pwg.h \
+  ../cups/string-private.h ../cups/thread-private.h
 subscription.o: subscription.c ippserver.h ../config.h ../cups/cups.h \
   ../cups/file.h ../cups/versioning.h ../cups/ipp.h ../cups/http.h \
   ../cups/array.h ../cups/language.h ../cups/pwg.h \
