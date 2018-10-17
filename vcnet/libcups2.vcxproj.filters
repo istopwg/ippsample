@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\cups\adminutil.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\cups\array.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -46,9 +43,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\cups\file.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\cups\getdevices.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\cups\getputfile.c">
@@ -93,12 +87,6 @@
     <ClCompile Include="..\cups\options.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\cups\ppd-cache.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\cups\ppd.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\cups\pwg-media.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -129,40 +117,10 @@
     <ClCompile Include="..\cups\util.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\cups\ppd-attr.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\cups\ppd-conflicts.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\cups\ppd-custom.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\cups\ppd-emit.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\cups\ppd-localize.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\cups\ppd-mark.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\cups\ppd-page.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\cups\ppd-util.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\cups\hash.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\cups\raster-error.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\cups\raster-interpret.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\cups\raster-interstub.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\cups\raster-stream.c">
@@ -185,9 +143,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\cups\adminutil.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\cups\array.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -228,12 +183,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\cups\language.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\cups\ppd-private.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\cups\ppd.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\cups\pwg-private.h">

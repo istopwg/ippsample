@@ -14,8 +14,10 @@
 
 #include "ippserver.h"
 
-#include <pwd.h>
-#include <grp.h>
+#ifndef _WIN32
+#  include <pwd.h>
+#  include <grp.h>
+#endif /* !_WIN32 */
 #ifdef HAVE_LIBPAM
 #  ifdef HAVE_PAM_PAM_APPL_H
 #    include <pam/pam_appl.h>
@@ -224,14 +226,16 @@ serverAuthorizeUser(
     gid_t           group,		/* I - Authorized group, if any */
     const char      *scope)		/* I - Access scope */
 {
+#ifndef _WIN32
   struct passwd	*pw;			/* User account information */
   int		i,			/* Looping var */
 		ngroups;		/* Number of groups for user */
-#ifdef __APPLE__
+#  ifdef __APPLE__
   int		groups[2048];		/* Group list */
-#else
+#  else
   gid_t		groups[2048];		/* Group list */
-#endif /* __APPLE__ */
+#  endif /* __APPLE__ */
+#endif /* !_WIN32 */
 
 
  /*
@@ -271,6 +275,16 @@ serverAuthorizeUser(
     return (1);
   }
 
+#ifdef _WIN32
+ /*
+  * Currently Windows does not support group tests, so everything matches...
+  */
+
+  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" is authorized because groups are currently not validated on Windows.", client->username);
+
+  return (1);
+
+#else
  /*
   * If the user does not exist, it cannot be authorized against a group...
   */
@@ -287,11 +301,11 @@ serverAuthorizeUser(
 
   ngroups = (int)(sizeof(groups) / sizeof(groups[0]));
 
-#ifdef __APPLE__
+#  ifdef __APPLE__
   if (getgrouplist(client->username, (int)pw->pw_gid, groups, &ngroups))
-#else
+#  else
   if (getgrouplist(client->username, pw->pw_gid, groups, &ngroups))
-#endif /* __APPLE__ */
+#  endif /* __APPLE__ */
   {
     serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" not authorized because the group list could not be retrieved: %s", client->username, strerror(errno));
     return (0);
@@ -345,6 +359,7 @@ serverAuthorizeUser(
     serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" not authorized because they failed the group test.", client->username);
     return (0);
   }
+#endif /* _WIN32 */
 }
 
 
@@ -361,11 +376,12 @@ serverMakeVCARD(const char *user,	/* I - User name or `NULL` for current user */
                 char       *buffer,	/* I - Buffer to hold VCARD */
                 size_t     bufsize)	/* I - Size of buffer */
 {
-  struct passwd	*pw;			/* User information */
   char		nameval[256],		/* Name value */
-		locationval[256],	/* Location value */
+	        locationval[256],	/* Location value */
 		emailval[256],		/* Email address value */
 		phoneval[256];		/* Phone number value (URI) */
+#ifndef _WIN32
+  struct passwd	*pw;			/* User information */
 
 
   if (user)
@@ -400,6 +416,7 @@ serverMakeVCARD(const char *user,	/* I - User name or `NULL` for current user */
     if (gecosval && *gecosval && !phone)
       phone = gecosval;
   }
+#endif /* !_WIN32 */
 
   if (!name || !*name)
     name = cupsUser();

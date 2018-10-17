@@ -11,8 +11,10 @@
 #include "ippserver.h"
 #include <cups/file.h>
 #include <cups/dir.h>
-#include <fnmatch.h>
-#include <grp.h>
+#ifndef _WIN32
+#  include <fnmatch.h>
+#  include <grp.h>
+#endif /* !_WIN32 */
 #include <cups/ipp-private.h>
 
 
@@ -1071,10 +1073,12 @@ create_system_attributes(void)
   char			uri[1024];	/* URI */
   int			num_values = 0;	/* Number of values */
   ipp_t			*values[32];	/* Collection values */
+#ifndef _WIN32
   int			alloc_groups,	/* Allocated groups */
 			num_groups;	/* Number of groups */
   char			**groups;	/* Group names */
   struct group		*grp;		/* Current group */
+#endif /* !_WIN32 */
   char			uuid[128];	/* system-uuid */
   static const char * const charset_supported[] =
   {					/* Values for charset-supported */
@@ -1239,6 +1243,7 @@ create_system_attributes(void)
   SystemAttributes = ippNew();
 
   /* auth-group-supported */
+#ifndef _WIN32
   alloc_groups = num_groups = 0;
   groups       = NULL;
 
@@ -1266,6 +1271,7 @@ create_system_attributes(void)
       free(groups[i]);
     free(groups);
   }
+#endif /* !_WIN32 */
 
   /* charset-configured */
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_CHARSET), "charset-configured", NULL, "utf-8");
@@ -1645,15 +1651,19 @@ finalize_system(void)
 
   if (Authentication)
   {
+#ifndef _WIN32
     if (AuthAdminGroup == SERVER_GROUP_NONE)
       AuthAdminGroup = getgid();
     if (AuthOperatorGroup == SERVER_GROUP_NONE)
       AuthOperatorGroup = getgid();
+#endif /* !_WIN32 */
 
     if (!AuthName)
       AuthName = strdup("Printing");
+#ifdef DEFAULT_PAM_SERVICE
     if (!AuthService && !AuthTestPassword)
       AuthService = strdup(DEFAULT_PAM_SERVICE);
+#endif /* DEFAULT_PAM_SERVICE */
     if (!AuthType)
       AuthType = strdup("Basic");
 
@@ -1765,7 +1775,9 @@ load_system(const char *conf)		/* I - Configuration file */
 		*value,			/* Pointer to value on line */
 		temp[1024];		/* Temporary string */
   const char	*setting;		/* Current setting */
+#ifndef _WIN32
   struct group	*group;			/* Group information */
+#endif /* !_WIN32 */
   int		i;			/* Looping var */
   static const char * const settings[] =/* List of directives */
   {
@@ -1876,6 +1888,7 @@ load_system(const char *conf)		/* I - Configuration file */
         break;
       }
     }
+#ifndef _WIN32
     else if (!_cups_strcasecmp(line, "AuthAdminGroup"))
     {
       if ((group = getgrnam(value)) == NULL)
@@ -1887,10 +1900,12 @@ load_system(const char *conf)		/* I - Configuration file */
 
       AuthAdminGroup = group->gr_gid;
     }
+#endif /* !_WIN32 */
     else if (!_cups_strcasecmp(line, "AuthName"))
     {
       AuthName = strdup(value);
     }
+#ifndef _WIN32
     else if (!_cups_strcasecmp(line, "AuthOperatorGroup"))
     {
       if ((group = getgrnam(value)) == NULL)
@@ -1902,6 +1917,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       AuthOperatorGroup = group->gr_gid;
     }
+#endif /* !_WIN32 */
     else if (!_cups_strcasecmp(line, "AuthService"))
     {
       AuthService = strdup(value);
@@ -1989,8 +2005,7 @@ load_system(const char *conf)		/* I - Configuration file */
     else if (!_cups_strcasecmp(line, "FileDirectory"))
     {
       char		*dir,		/* Directory value */
-			dirabs[PATH_MAX];
-					/* Absolute directory path */
+			dirabs[256];	/* Absolute directory path */
       struct stat	dirinfo;	/* Directory information */
 
       while (*value)
@@ -2030,8 +2045,10 @@ load_system(const char *conf)		/* I - Configuration file */
         if (!FileDirectories)
           FileDirectories = cupsArrayNew3(NULL, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
 
+#ifndef _WIN32 /* TODO: Update this for Windows */
         if (dir[0] != '/')
           dir = realpath(dir, dirabs);
+#endif /* !_WIN32 */
 
         if (!dir || access(dir, X_OK) || stat(dir, &dirinfo) || !S_ISDIR(dirinfo.st_mode))
         {
@@ -2075,8 +2092,18 @@ load_system(const char *conf)		/* I - Configuration file */
 		*ptr;			/* Pointer into host value */
       int	port;			/* Port number */
 
+#ifdef _WIN32
+      char *curvalue = value;		/* Current value */
+
+      while ((host = strtok(curvalue, " \t")) != NULL)
+#else
       while ((host = strsep(&value, " \t")) != NULL)
+#endif /* _WIN32 */
       {
+#ifdef _WIN32
+	curvalue = NULL;
+#endif /* _WIN32 */
+
 	if ((ptr = strrchr(host, ':')) != NULL && !isdigit(ptr[1] & 255))
 	{
 	  fprintf(stderr, "ippserver: Bad Listen value \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
@@ -2091,7 +2118,11 @@ load_system(const char *conf)		/* I - Configuration file */
 	}
 	else
 	{
+#ifdef _WIN32
+          port = 8631;
+#else
 	  port = 8000 + ((int)getuid() % 1000);
+#endif /* _WIN32 */
 	}
 
 	if (!serverCreateListeners(host, port))
@@ -2215,6 +2246,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     return (1);
   }
+#ifndef _WIN32
   else if (!_cups_strcasecmp(token, "AuthPrintGroup"))
   {
     struct group	*group;		/* Group information */
@@ -2255,6 +2287,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->proxy_group = group->gr_gid;
   }
+#endif /* !_WIN32 */
   else if (!_cups_strcasecmp(token, "Command"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))

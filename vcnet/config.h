@@ -38,6 +38,7 @@
 #define close		_close
 #define fileno		_fileno
 #define lseek		_lseek
+#define lstat		stat
 #define mkdir(d,p)	_mkdir(d)
 #define open		_open
 #define read	        _read
@@ -74,10 +75,17 @@ typedef unsigned long useconds_t;
 #  define F_OK		00
 #  define W_OK		02
 #  define R_OK		04
+#  define X_OK		0
+
 #  define O_RDONLY	_O_RDONLY
 #  define O_WRONLY	_O_WRONLY
 #  define O_CREAT	_O_CREAT
 #  define O_TRUNC	_O_TRUNC
+#  define O_CLOEXEC	0
+#  define O_NOFOLLOW	0
+
+#  define S_ISDIR(m)	((m) & _S_IFDIR)
+#  define S_ISREG(m)	(!((m) & _S_IFDIR))
 
 
 /*
@@ -117,9 +125,9 @@ typedef unsigned long useconds_t;
  *       variables at run-time...
  */
 
-#define CUPS_CACHEDIR "C:/CUPS/cache"
 #define CUPS_DATADIR "C:/CUPS/share"
 #define CUPS_LOCALEDIR "C:/CUPS/locale"
+#define CUPS_SERVERBIN "C:/CUPS/bin"
 #define CUPS_SERVERROOT "C:/CUPS/etc"
 #define CUPS_STATEDIR "C:/CUPS/run"
 

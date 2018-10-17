@@ -29,6 +29,8 @@ tools/ipptool
 tools/ipptransform
 tools/ipptransform3d
 vcnet/.vs
+vcnet/packages
+vcnet/x64
 xcuserdata
 *.dSYM
 *.log

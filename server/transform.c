@@ -22,6 +22,9 @@
  * Local functions...
  */
 
+#ifdef _WIN32
+static int	asprintf(char **s, const char *format, ...);
+#endif /* _WIN32 */
 static void	process_attr_message(server_job_t *job, char *message, server_transform_t mode);
 static void	process_state_message(server_job_t *job, char *message);
 static double	time_seconds(void);
@@ -42,9 +45,10 @@ serverStopJob(server_job_t *job)	/* I - Job to stop */
   job->state         = IPP_JSTATE_STOPPED;
   job->state_reasons |= SERVER_JREASON_JOB_STOPPED;
 
+#ifndef _WIN32 /* TODO: Figure out a way to kill a spawned process on Windows */
   if (job->transform_pid)
     kill(job->transform_pid, SIGTERM);
-
+#endif /* !_WIN32 */
   _cupsRWUnlock(&job->rwlock);
 
   serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job stopped.");
@@ -494,6 +498,7 @@ serverTransformJob(
 
   transform_failure:
 
+  #ifndef _WIN32
   if (mystdout[0] >= 0)
     close(mystdout[0]);
   if (mystdout[1] >= 0)
@@ -503,12 +508,42 @@ serverTransformJob(
     close(mystderr[0]);
   if (mystderr[1] >= 0)
     close(mystderr[1]);
+#endif /* !_WIN32 */
 
   while (myenvc > 0)
     free(myenvp[-- myenvc]);
 
   return (-1);
 }
+
+
+#ifdef _WIN32
+/*
+ * 'asprintf()' - Format and allocate a string.
+ */
+
+static int				/* O - Number of characters */
+asprintf(char       **s,		/* O - Allocated string or `NULL` on error */
+         const char *format,		/* I - printf-style format string */
+	 ...)				/* I - Additional arguments as needed */
+{
+  int		bytes;			/* Number of characters */
+  char		buffer[8192];		/* Temporary buffer */
+  va_list	ap;			/* Pointer to arguments */
+
+
+  va_start(ap, format);
+  bytes = vsnprintf(buffer, sizeof(buffer), format, ap);
+  va_end(ap);
+
+  if (bytes < 0)
+    *s = NULL;
+  else
+    *s = strdup(buffer);
+
+  return (bytes);
+}
+#endif /* _WIN32 */
 
 
 /*

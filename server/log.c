@@ -221,8 +221,14 @@ server_log_to_file(
   };
 
 
+#ifdef _WIN32
+  _cups_gettimeofday(&curtime, NULL);
+  time_t tv_sec = (time_t)curtime.tv_sec;
+  curdate = gmtime(&tv_sec);
+#else
   gettimeofday(&curtime, NULL);
   curdate = gmtime(&curtime.tv_sec);
+#endif /* _WIN32 */
 
   if (LogFile)
   {

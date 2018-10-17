@@ -101,7 +101,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\test\ipptool.c" />
+    <ClCompile Include="..\tools\ipptool.c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="libcups2.vcxproj">

@@ -103,7 +103,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\test\ippfind.c" />
+    <ClCompile Include="..\tools\ippfind.c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="dnssdstub.vcxproj">

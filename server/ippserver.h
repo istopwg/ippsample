@@ -40,6 +40,7 @@
 #  include <winsock2.h>
 typedef ULONG nfds_t;
 #  define poll WSAPoll
+typedef int gid_t;
 #else
 extern char **environ;
 

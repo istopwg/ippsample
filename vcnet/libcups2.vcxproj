@@ -110,7 +110,6 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\cups\adminutil.c" />
     <ClCompile Include="..\cups\array.c" />
     <ClCompile Include="..\cups\auth.c" />
     <ClCompile Include="..\cups\debug.c" />
@@ -121,7 +120,6 @@
     <ClCompile Include="..\cups\dir.c" />
     <ClCompile Include="..\cups\encode.c" />
     <ClCompile Include="..\cups\file.c" />
-    <ClCompile Include="..\cups\getdevices.c" />
     <ClCompile Include="..\cups\getputfile.c" />
     <ClCompile Include="..\cups\globals.c" />
     <ClCompile Include="..\cups\hash.c" />
@@ -158,7 +156,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\cups\adminutil.h" />
     <ClInclude Include="..\cups\array-private.h" />
     <ClInclude Include="..\cups\array.h" />
     <ClInclude Include="..\cups\cups-private.h" />

@@ -13,8 +13,6 @@ _cupsConnect
 _cupsCreateDest
 _cupsEncodeOption
 _cupsEncodingName
-_cupsFileCheck
-_cupsFileCheckFilter
 _cupsFilePeekAhead
 _cupsGet1284Values
 _cupsGetDestResource
@@ -69,6 +67,7 @@ _cupsThreadCreate
 _cupsThreadDetach
 _cupsThreadWait
 _cupsUserDefault
+_cups_gettimeofday
 _cups_safe_vsnprintf
 _cups_strcasecmp
 _cups_strcpy

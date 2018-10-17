@@ -104,13 +104,32 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ProjectReference Include="dnssdstub.vcxproj">
+      <Project>{c0899b3a-43e7-4bc3-a785-659e1fd2ea83}</Project>
+    </ProjectReference>
     <ProjectReference Include="libcups2.vcxproj">
       <Project>{cb4aa6f2-3e84-45be-b505-95cd375e8be3}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\tools\ippserver.c" />
+    <ClCompile Include="..\server\auth.c" />
+    <ClCompile Include="..\server\client.c" />
+    <ClCompile Include="..\server\conf.c" />
+    <ClCompile Include="..\server\device.c" />
+    <ClCompile Include="..\server\ipp.c" />
+    <ClCompile Include="..\server\job.c" />
+    <ClCompile Include="..\server\log.c" />
+    <ClCompile Include="..\server\main.c" />
+    <ClCompile Include="..\server\printer.c" />
+    <ClCompile Include="..\server\resource.c" />
+    <ClCompile Include="..\server\subscription.c" />
+    <ClCompile Include="..\server\transform.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\server\ippserver.h" />
+    <ClInclude Include="..\server\printer-png.h" />
+    <ClInclude Include="..\server\printer3d-png.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

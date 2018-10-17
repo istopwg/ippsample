@@ -9,7 +9,9 @@
  */
 
 #include "ippserver.h"
-#include <grp.h>
+#ifndef _WIN32
+#  include <grp.h>
+#endif /* !_WIN32 */
 #include <math.h>
 
 
@@ -1844,6 +1846,7 @@ ipp_create_printer(
   if (!valid_values(client, IPP_TAG_PRINTER, ippFindAttribute(SystemAttributes, "printer-creation-attributes-supported", IPP_TAG_KEYWORD), (int)(sizeof(values) / sizeof(values[0])), values))
     return;
 
+#ifndef _WIN32
   if ((attr = ippFindAttribute(client->request, "auth-print-group", IPP_TAG_NAME)) == NULL)
     attr = ippFindAttribute(client->request, "auth-proxy-group", IPP_TAG_NAME);
 
@@ -1852,6 +1855,7 @@ ipp_create_printer(
     serverRespondUnsupported(client, attr);
     return;
   }
+#endif /* !_WIN32 */
 
   if ((attr = ippFindAttribute(client->request, "device-command", IPP_TAG_NAME)) != NULL)
   {
@@ -1920,11 +1924,14 @@ ipp_create_printer(
   {
     const char		*aname = ippGetName(attr);
 					/* Attribute name */
+#ifndef _WIN32
     struct group	*grp;		/* Group info */
+#endif /* !_WIN32 */
 
     if (!name)
       continue;
 
+#ifndef _WIN32
     if (!strcmp(aname, "auth-print-group"))
     {
       if ((grp = getgrnam(ippGetString(attr, 0, NULL))) != NULL)
@@ -1935,7 +1942,9 @@ ipp_create_printer(
       if ((grp = getgrnam(ippGetString(attr, 0, NULL))) != NULL)
         pinfo.proxy_group = grp->gr_gid;
     }
-    else if (!strcmp(aname, "device-command"))
+    else
+#endif /* !_WIN32 */
+    if (!strcmp(aname, "device-command"))
     {
       pinfo.command = (char *)ippGetString(attr, 0, NULL);
     }
@@ -7236,6 +7245,9 @@ valid_values(
  * 'wgs84_distance()' - Approximate the distance between two geo: values.
  */
 
+#ifndef M_PI				/* Should never happen, but happens on Windows... */
+#  define M_PI		3.14159265358979323846
+#endif /* !M_PI */
 #define M_PER_DEG	111120.0	/* Meters per degree of latitude */
 
 static float				/* O - Distance in meters */
