@@ -26,6 +26,7 @@
 
 #  include <limits.h>
 #  ifdef _WIN32
+#    define _WINSOCK_DEPRECATED_NO_WARNINGS 1
 #    include <io.h>
 #    include <winsock2.h>
 #    define CUPS_SOCAST (const char *)
@@ -100,10 +101,6 @@ typedef int socklen_t;
 #      endif /* HAVE_SYS_SOCKIO_H */
 #    endif /* HAVE_GETIFADDRS */
 #  endif /* !_WIN32 */
-
-#  ifdef HAVE_LIBZ
-#    include <zlib.h>
-#  endif /* HAVE_LIBZ */
 
 
 /*
@@ -302,8 +299,8 @@ struct _http_s				/**** HTTP connection structure ****/
   _http_mode_t		mode;		/* _HTTP_MODE_CLIENT or _HTTP_MODE_SERVER */
 #  ifdef HAVE_LIBZ
   _http_coding_t	coding;		/* _HTTP_CODING_xxx */
-  z_stream		stream;		/* (De)compression stream */
-  Bytef			*sbuffer;	/* (De)compression buffer */
+  void			*stream;	/* (De)compression stream */
+  unsigned char		*sbuffer;	/* (De)compression buffer */
 #  endif /* HAVE_LIBZ */
 
   /**** New in CUPS 2.2.9 ****/
