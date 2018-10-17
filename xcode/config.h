@@ -265,13 +265,6 @@
 
 
 /*
- * Do we have getifaddrs()?
- */
-
-#define HAVE_GETIFADDRS 1
-
-
-/*
  * Do we have hstrerror()?
  */
 
