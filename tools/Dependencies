@@ -18,7 +18,7 @@ ipptool.o: ipptool.c ../cups/cups-private.h ../cups/string-private.h \
   ../cups/cups.h ../cups/file.h ../cups/ipp.h ../cups/http.h \
   ../cups/language.h ../cups/pwg.h ../cups/http-private.h \
   ../cups/language-private.h ../cups/transcode.h ../cups/pwg-private.h \
-  ../cups/thread-private.h ../cups/file-private.h
+  ../cups/thread-private.h
 ipptransform.o: ipptransform.c ../cups/cups.h ../cups/file.h \
   ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
   ../cups/language.h ../cups/pwg.h ../cups/raster.h \

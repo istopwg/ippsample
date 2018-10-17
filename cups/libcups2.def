@@ -1,5 +1,5 @@
 LIBRARY libcups2
-VERSION 2.12
+VERSION 2.14
 EXPORTS
 _cupsArrayAddStrings
 _cupsArrayNewStrings
@@ -15,6 +15,7 @@ _cupsEncodeOption
 _cupsEncodingName
 _cupsFileCheck
 _cupsFileCheckFilter
+_cupsFilePeekAhead
 _cupsGet1284Values
 _cupsGetDestResource
 _cupsGetDests
@@ -42,6 +43,15 @@ _cupsRWLockWrite
 _cupsRWUnlock
 _cupsRasterAddError
 _cupsRasterClearError
+_cupsRasterColorSpaceString
+_cupsRasterDelete
+_cupsRasterErrorString
+_cupsRasterInitPWGHeader
+_cupsRasterNew
+_cupsRasterReadHeader
+_cupsRasterReadPixels
+_cupsRasterWriteHeader
+_cupsRasterWritePixels
 _cupsSetDefaults
 _cupsSetError
 _cupsSetHTTPError
@@ -73,6 +83,7 @@ _httpDisconnect
 _httpEncodeURI
 _httpFreeCredentials
 _httpResolveURI
+_httpSetDigestAuthString
 _httpStatus
 _httpTLSInitialize
 _httpTLSPending
@@ -267,7 +278,6 @@ cupsUTF8ToUTF32
 cupsUser
 cupsUserAgent
 cupsWriteRequestData
-hex_dump
 httpAcceptConnection
 httpAddCredential
 httpAddrAny
@@ -474,22 +484,9 @@ ippValidateAttributes
 ippWrite
 ippWriteFile
 ippWriteIO
-main
-main
-main
-main
-main
-main
-main
-main
-main
-print_attributes
 pwgFormatSizeName
 pwgInitSize
 pwgMediaForLegacy
 pwgMediaForPPD
 pwgMediaForPWG
 pwgMediaForSize
-read_cb
-token_cb
-write_cb

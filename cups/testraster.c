@@ -1,8 +1,8 @@
 /*
  * Raster test program routines for CUPS.
  *
- * Copyright 2007-2018 by Apple Inc.
- * Copyright 1997-2007 by Easy Software Products.
+ * Copyright © 2007-2018 by Apple Inc.
+ * Copyright © 1997-2007 by Easy Software Products.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -34,7 +34,7 @@ int					/* O - Exit status */
 main(int  argc,				/* I - Number of command-line args */
      char *argv[])			/* I - Command-line arguments */
 {
-  int		errors = 0;		/* Number of errors */
+  int	errors = 0;			/* Number of errors */
 
 
   if (argc == 1)
@@ -46,13 +46,13 @@ main(int  argc,				/* I - Number of command-line args */
   }
   else
   {
-    int i;				/* Looping var */
+    int			i;		/* Looping var */
 
     for (i = 1; i < argc; i ++)
       errors += do_ras_file(argv[i]);
   }
 
-  return (errors != 0);
+  return (errors);
 }
 
 
