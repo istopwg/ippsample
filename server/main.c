@@ -16,7 +16,7 @@
  * Local functions...
  */
 
-static void		usage(int status) __attribute__((noreturn));
+static void		usage(int status) _CUPS_NORETURN;
 
 
 /*

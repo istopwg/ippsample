@@ -32,7 +32,7 @@
 #include <limits.h>
 #include <sys/stat.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 #  include <fcntl.h>
 #  include <io.h>
 #  include <process.h>
@@ -46,7 +46,7 @@ extern char **environ;
 #  include <sys/fcntl.h>
 #  include <sys/wait.h>
 #  include <poll.h>
-#endif /* WIN32 */
+#endif /* _WIN32 */
 
 #ifdef HAVE_DNSSD
 #  include <dns_sd.h>
@@ -685,7 +685,7 @@ VAR int			NextSubscriptionId VALUE(1);
  * Functions...
  */
 
-extern void		serverAddEventNoLock(server_printer_t *printer, server_job_t *job, server_resource_t *res, server_event_t event, const char *message, ...) __attribute__((__format__(__printf__, 5, 6)));
+extern void		serverAddEventNoLock(server_printer_t *printer, server_job_t *job, server_resource_t *res, server_event_t event, const char *message, ...) _CUPS_FORMAT(5, 6);
 extern void		serverAddPrinter(server_printer_t *printer);
 extern void		serverAddResourceFile(server_resource_t *res, const char *filename, const char *format);
 extern http_status_t	serverAuthenticateClient(server_client_t *client);
@@ -725,11 +725,11 @@ extern const char	*serverGetNotifySubscribedEvent(server_event_t event);
 extern server_preason_t	serverGetPrinterStateReasonsBits(ipp_attribute_t *attr);
 extern int		serverHoldJob(server_job_t *job, ipp_attribute_t *hold_until);
 extern int		serverLoadAttributes(const char *filename, server_pinfo_t *pinfo);
-extern void		serverLog(server_loglevel_t level, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
+extern void		serverLog(server_loglevel_t level, const char *format, ...) _CUPS_FORMAT(2, 3);
 extern void		serverLogAttributes(server_client_t *client, const char *title, ipp_t *ipp, int type);
-extern void		serverLogClient(server_loglevel_t level, server_client_t *client, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
-extern void		serverLogJob(server_loglevel_t level, server_job_t *job, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
-extern void		serverLogPrinter(server_loglevel_t level, server_printer_t *printer, const char *format, ...) __attribute__((__format__(__printf__, 3, 4)));
+extern void		serverLogClient(server_loglevel_t level, server_client_t *client, const char *format, ...) _CUPS_FORMAT(3, 4);
+extern void		serverLogJob(server_loglevel_t level, server_job_t *job, const char *format, ...) _CUPS_FORMAT(3, 4);
+extern void		serverLogPrinter(server_loglevel_t level, server_printer_t *printer, const char *format, ...) _CUPS_FORMAT(3, 4);
 extern char		*serverMakeVCARD(const char *user, const char *name, const char *location, const char *email, const char *phone, char *buffer, size_t bufsize);
 extern void		serverPausePrinter(server_printer_t *printer, int immediately);
 extern void		*serverProcessClient(server_client_t *client);
@@ -738,7 +738,7 @@ extern int		serverProcessIPP(server_client_t *client);
 extern void		*serverProcessJob(server_job_t *job);
 extern int		serverReleaseJob(server_job_t *job);
 extern int		serverRespondHTTP(server_client_t *client, http_status_t code, const char *content_coding, const char *type, size_t length);
-extern void		serverRespondIPP(server_client_t *client, ipp_status_t status, const char *message, ...) __attribute__ ((__format__ (__printf__, 3, 4)));
+extern void		serverRespondIPP(server_client_t *client, ipp_status_t status, const char *message, ...) _CUPS_FORMAT(3, 4);
 extern void		serverRespondUnsupported(server_client_t *client, ipp_attribute_t *attr);
 extern void		serverRestartPrinter(server_printer_t *printer);
 extern void		serverResumePrinter(server_printer_t *printer);

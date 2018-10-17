@@ -21,7 +21,7 @@ static void		html_escape(server_client_t *client, const char *s,
 			            size_t slen);
 static void		html_footer(server_client_t *client);
 static void		html_header(server_client_t *client, const char *title);
-static void		html_printf(server_client_t *client, const char *format, ...) __attribute__((__format__(__printf__, 2, 3)));
+static void		html_printf(server_client_t *client, const char *format, ...) _CUPS_FORMAT(2, 3);
 static int		parse_options(server_client_t *client, cups_option_t **options);
 static int		show_materials(server_client_t *client, server_printer_t *printer, const char *encoding);
 static int		show_media(server_client_t *client, server_printer_t *printer, const char *encoding);

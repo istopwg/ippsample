@@ -29,7 +29,7 @@ static int	lint_jpeg(const char *filename, int num_options, cups_option_t *optio
 static int	lint_pdf(const char *filename, int num_options, cups_option_t *options);
 static int	lint_raster(const char *filename, int num_options, cups_option_t *options);
 static int	load_env_options(cups_option_t **options);
-static void	usage(int status) __attribute__((noreturn));
+static void	usage(int status) _CUPS_NORETURN;
 
 
 /*

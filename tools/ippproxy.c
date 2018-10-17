@@ -121,7 +121,7 @@ static void	sighandler(int sig);
 static int	update_device_attrs(http_t *http, const char *printer_uri, const char *resource, const char *device_uuid, ipp_t *old_attrs, ipp_t *new_attrs);
 static void	update_document_status(proxy_info_t *info, proxy_job_t *pjob, int doc_number, ipp_dstate_t doc_state);
 static void	update_job_status(proxy_info_t *info, proxy_job_t *pjob);
-static void	usage(int status) __attribute__((noreturn));
+static void	usage(int status) _CUPS_NORETURN;
 
 
 /*

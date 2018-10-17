@@ -10,12 +10,12 @@
 
 #include "ippserver.h"
 
-#ifdef WIN32
+#ifdef _WIN32
 #  include <sys/timeb.h>
 #else
 #  include <signal.h>
 #  include <spawn.h>
-#endif /* WIN32 */
+#endif /* _WIN32 */
 
 
 /*
@@ -75,7 +75,7 @@ serverTransformJob(
   char		val[1280],		/* IPP_NAME=value */
                 *valptr,		/* Pointer into string */
                 fullcommand[1024];	/* Full command path */
-#ifndef WIN32
+#ifndef _WIN32
   posix_spawn_file_actions_t actions;	/* Spawn file actions */
   int		mystdout[2] = {-1, -1},	/* Pipe for stdout */
 		mystderr[2] = {-1, -1};	/* Pipe for stderr */
@@ -88,7 +88,7 @@ serverTransformJob(
                 *endptr;		/* End of line */
   ssize_t	bytes;			/* Bytes read */
   size_t	total = 0;		/* Total bytes read */
-#endif /* !WIN32 */
+#endif /* !_WIN32 */
 
 
   if (command[0] != '/')
@@ -293,7 +293,7 @@ serverTransformJob(
   * Now run the program...
   */
 
-#ifdef WIN32
+#ifdef _WIN32
   status = _spawnvpe(_P_WAIT, command, myargv, myenvp);
 
 #else
@@ -467,12 +467,12 @@ serverTransformJob(
 #  endif /* HAVE_WAITPID */
 
   job->transform_pid = 0;
-#endif /* WIN32 */
+#endif /* _WIN32 */
 
   end = time_seconds();
   serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Total transform time is %.3f seconds.", end - start);
 
-#ifdef WIN32
+#ifdef _WIN32
   if (status)
     serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Transform command exited with status %d.", status);
 
@@ -484,7 +484,7 @@ serverTransformJob(
     else if (WIFSIGNALED(status) && WTERMSIG(status) != SIGTERM)
       serverLogJob(SERVER_LOGLEVEL_ERROR, job, "Transform command crashed on signal %d.", WTERMSIG(status));
   }
-#endif /* WIN32 */
+#endif /* _WIN32 */
 
   return (status);
 
@@ -719,7 +719,7 @@ process_state_message(
 static double				/* O - Time in seconds */
 time_seconds(void)
 {
-#ifdef WIN32
+#ifdef _WIN32
   struct _timeb curtime;		/* Current time */
 
 
@@ -734,5 +734,5 @@ time_seconds(void)
   gettimeofday(&curtime, NULL);
 
   return ((double)curtime.tv_sec + 0.000001 * curtime.tv_usec);
-#endif /* WIN32 */
+#endif /* _WIN32 */
 }

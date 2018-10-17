@@ -1608,7 +1608,7 @@ finalize_system(void)
     char	directory[1024];	/* New directory */
     const char	*tmpdir;		/* Temporary directory */
 
-#ifdef WIN32
+#ifdef _WIN32
     if ((tmpdir = getenv("TEMP")) == NULL)
       tmpdir = "C:/TEMP";
 #elif defined(__APPLE__)
@@ -1617,7 +1617,7 @@ finalize_system(void)
 #else
     if ((tmpdir = getenv("TMPDIR")) == NULL)
       tmpdir = "/tmp";
-#endif /* WIN32 */
+#endif /* _WIN32 */
 
     snprintf(directory, sizeof(directory), "%s/ippserver.%d", tmpdir, (int)getpid());
 
@@ -1708,7 +1708,7 @@ finalize_system(void)
 
   if (!Listeners)
   {
-#ifdef WIN32
+#ifdef _WIN32
    /*
     * Windows is almost always used as a single user system, so use a default port
     * number of 8631.
@@ -1724,7 +1724,7 @@ finalize_system(void)
 
     if (!DefaultPort)
       DefaultPort = 8000 + ((int)getuid() % 1000);
-#endif /* WIN32 */
+#endif /* _WIN32 */
 
     serverLog(SERVER_LOGLEVEL_INFO, "Using default listeners for %s:%d.", ServerName, DefaultPort);
 

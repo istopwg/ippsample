@@ -924,9 +924,9 @@ filter_cb(server_filter_t   *filter,	/* I - Filter parameters */
   * Filter attributes as needed...
   */
 
-#ifndef WIN32 /* Avoid MS compiler bug */
+#ifndef _WIN32 /* Avoid MS compiler bug */
   (void)dst;
-#endif /* !WIN32 */
+#endif /* !_WIN32 */
 
   ipp_tag_t group = ippGetGroupTag(attr);
   const char *name = ippGetName(attr);
