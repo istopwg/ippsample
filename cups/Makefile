@@ -172,7 +172,7 @@ libcups2.def: $(OBJS) Makefile
 	(nm $(LIBOBJS) 2>/dev/null | grep "T _" | awk '{print $$3}'; \
 	 echo __cups_strcpy; echo __cups_strlcat; echo __cups_strlcpy) | \
 		grep -v -E \
-		    -e 'cups_debug|Apple|GSSService|SetNegotiate' \
+		    -e 'cups_debug|Apple|FileCheck|GSSService|SetNegotiate' \
 		    -e 'Block$$' | \
 		sed -e '1,$$s/^_//' | sort >>libcups2.def
 
