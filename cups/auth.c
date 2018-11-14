@@ -15,6 +15,7 @@
  */
 
 #include "cups-private.h"
+#include "debug-internal.h"
 #include <fcntl.h>
 #include <sys/stat.h>
 #if defined(_WIN32) || defined(__EMX__)
@@ -441,7 +442,7 @@ _cupsSetNegotiateAuthString(
     */
 
     int authsize = 10 +			/* "Negotiate " */
-		   (int)output_token.length * 4 / 3 + 1 + 1;
+		   (((int)output_token.length * 4 / 3 + 3) & ~3) + 1;
 		   			/* Base64 + nul */
 
     httpSetAuthString(http, NULL, NULL);
