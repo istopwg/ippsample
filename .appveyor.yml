@@ -1,0 +1,34 @@
+version: "{build}"
+image: Visual Studio 2017
+
+# Uncomment to debug via RDP
+# init:
+#   - ps: iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
+#
+# on_finish:
+#   - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
+
+install:
+  # Install a self-signed certificate
+  - ps: |
+      $selfsigncert = New-SelfSignedCertificate `
+      -Subject 'CN=IEEE INDUSTRY STANDARDS AND TECHNOLOGY ORGANIZATION' `
+      -KeyAlgorithm RSA -KeyLength 2048 -Type CodeSigningCert `
+      -CertStoreLocation Cert:\CurrentUser\My
+
+  # Install zlib dependency
+  - ps: nuget restore vcnet\ippsample.sln
+
+build_script:
+  - ps: msbuild.exe vcnet\ippsample.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v140
+
+test_script:
+  - .\vcnet\x64\Release\ippfind.exe --help
+  - .\vcnet\x64\Release\ipptool.exe --version
+  - .\vcnet\x64\Release\ippserver.exe --help
+
+artifacts:
+  - path: '**\*.exe'
+    name: Binaries
+  - path: '**\*.dll'
+    name: Libs
