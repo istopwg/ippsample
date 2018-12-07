@@ -2799,7 +2799,8 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     }
   }
 
-  type_array = _cupsArrayNewStrings(types, ',');
+  if ((type_array = cupsArrayNew3((cups_array_func_t)strcasecmp, NULL, NULL, 0, (cups_acopy_func_t)_cupsStrAlloc, (cups_afree_func_t)_cupsStrFree)) != NULL)
+    _cupsArrayAddStrings(type_array, types, ',');
 
   if (color)
   {
