@@ -73,14 +73,12 @@ serverCreateResource(
     const char *format,			/* I - MIME media type or `NULL` */
     const char *name,			/* I - Resource name */
     const char *info,			/* I - Resource info */
-    const char *type,			/* I - Resource type */
-    const char *owner)			/* I - Owner */
+    const char *type)			/* I - Resource type */
 {
   server_listener_t *lis = (server_listener_t *)cupsArrayFirst(Listeners);
 					/* First listener */
   server_resource_t	*res;		/* Resource */
-  char			uri[1024],	/* resource-data-uri value */
-			uuid[64];	/* resource-uuid value */
+  char			uuid[64];	/* resource-uuid value */
   time_t		curtime = time(NULL);
 					/* Current system time */
 
@@ -176,27 +174,6 @@ serverCreateResource(
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_TEXT, "resource-info", NULL, info);
 
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_NAME, "resource-name", NULL, name);
-
-  if (owner)
-  {
-    ipp_t	*col = ippNew();	/* owner-col value */
-    char	vcard[1024];		/* owner-vcard value */
-
-    /* Yes, this is crap - we need owner-name */
-    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "username", NULL, NULL, 0, owner);
-    snprintf(vcard, sizeof(vcard),
-	     "BEGIN:VCARD\r\n"
-	     "VERSION:4.0\r\n"
-	     "FN:%s\r\n"
-	     "END:VCARD\r\n", owner);
-    ippAddString(col, IPP_TAG_ZERO, IPP_TAG_URI, "owner-uri", NULL, uri);
-    ippAddString(col, IPP_TAG_ZERO, IPP_TAG_TEXT, "owner-vcard", NULL, vcard);
-
-    ippAddCollection(res->attrs, IPP_TAG_RESOURCE, "resource-owner-col", col);
-    ippDelete(col);
-  }
-  else
-    ippAddCollection(res->attrs, IPP_TAG_RESOURCE, "resource-owner-col", ippGetCollection(ippFindAttribute(SystemAttributes, "system-owner-col", IPP_TAG_BEGIN_COLLECTION), 0));
 
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_KEYWORD, "resource-type", NULL, type);
 

@@ -175,7 +175,6 @@
 		72B402851C0CE27900139783 /* language-private.h in Headers */ = {isa = PBXBuildFile; fileRef = 72B4024C1C0CE27800139783 /* language-private.h */; };
 		72B402861C0CE27900139783 /* language.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B4024D1C0CE27800139783 /* language.c */; };
 		72B402871C0CE27900139783 /* language.h in Headers */ = {isa = PBXBuildFile; fileRef = 72B4024E1C0CE27800139783 /* language.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		72B402881C0CE27900139783 /* md5-private.h in Headers */ = {isa = PBXBuildFile; fileRef = 72B4024F1C0CE27800139783 /* md5-private.h */; };
 		72B402891C0CE27900139783 /* md5.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B402501C0CE27800139783 /* md5.c */; };
 		72B4028A1C0CE27900139783 /* md5passwd.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B402511C0CE27800139783 /* md5passwd.c */; };
 		72B4028B1C0CE27900139783 /* options.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B402521C0CE27800139783 /* options.c */; };
@@ -225,6 +224,8 @@
 		72B403031C0CE92400139783 /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
 		72B403041C0CE92400139783 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
 		72B403071C0DE7FC00139783 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
+		72C30E3121BEF69F00BD6C2B /* debug-internal.h in Headers */ = {isa = PBXBuildFile; fileRef = 72C30E2F21BEF69F00BD6C2B /* debug-internal.h */; };
+		72C30E3221BEF69F00BD6C2B /* md5-internal.h in Headers */ = {isa = PBXBuildFile; fileRef = 72C30E3021BEF69F00BD6C2B /* md5-internal.h */; };
 		72E005F81C5C0B10006CF057 /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
 		72E005F91C5C0B10006CF057 /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
 		72E005FA1C5C0B10006CF057 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
@@ -632,7 +633,6 @@
 		72B4024C1C0CE27800139783 /* language-private.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "language-private.h"; path = "../cups/language-private.h"; sourceTree = "<group>"; };
 		72B4024D1C0CE27800139783 /* language.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = language.c; path = ../cups/language.c; sourceTree = "<group>"; };
 		72B4024E1C0CE27800139783 /* language.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = language.h; path = ../cups/language.h; sourceTree = "<group>"; };
-		72B4024F1C0CE27800139783 /* md5-private.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "md5-private.h"; path = "../cups/md5-private.h"; sourceTree = "<group>"; };
 		72B402501C0CE27800139783 /* md5.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = md5.c; path = ../cups/md5.c; sourceTree = "<group>"; };
 		72B402511C0CE27800139783 /* md5passwd.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = md5passwd.c; path = ../cups/md5passwd.c; sourceTree = "<group>"; };
 		72B402521C0CE27800139783 /* options.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = options.c; path = ../cups/options.c; sourceTree = "<group>"; };
@@ -685,6 +685,8 @@
 		72B402FC1C0CE8CE00139783 /* libresolv.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libresolv.dylib; path = usr/lib/libresolv.dylib; sourceTree = SDKROOT; };
 		72B403061C0DE7FC00139783 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		72B589F51D1C6628007117DA /* printer-png.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "printer-png.h"; path = "../server/printer-png.h"; sourceTree = "<group>"; };
+		72C30E2F21BEF69F00BD6C2B /* debug-internal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "debug-internal.h"; path = "../cups/debug-internal.h"; sourceTree = "<group>"; };
+		72C30E3021BEF69F00BD6C2B /* md5-internal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "md5-internal.h"; path = "../cups/md5-internal.h"; sourceTree = "<group>"; };
 		72E006021C5C0B10006CF057 /* ippproxy */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ippproxy; sourceTree = BUILT_PRODUCTS_DIR; };
 		72E006031C5C0B49006CF057 /* ippproxy.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ippproxy.c; path = ../tools/ippproxy.c; sourceTree = "<group>"; };
 		72E006081C5C0BA8006CF057 /* ippfind.1 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.man; name = ippfind.1; path = ../doc/ippfind.1; sourceTree = "<group>"; };
@@ -976,6 +978,7 @@
 				72B402321C0CE27800139783 /* auth.c */,
 				72B402331C0CE27800139783 /* cups-private.h */,
 				72B402341C0CE27800139783 /* cups.h */,
+				72C30E2F21BEF69F00BD6C2B /* debug-internal.h */,
 				72B402351C0CE27800139783 /* debug-private.h */,
 				72B402361C0CE27800139783 /* debug.c */,
 				72737CEF1C24BA4F007CBEF6 /* dest-job.c */,
@@ -1007,7 +1010,7 @@
 				72B4024C1C0CE27800139783 /* language-private.h */,
 				72B4024D1C0CE27800139783 /* language.c */,
 				72B4024E1C0CE27800139783 /* language.h */,
-				72B4024F1C0CE27800139783 /* md5-private.h */,
+				72C30E3021BEF69F00BD6C2B /* md5-internal.h */,
 				72B402501C0CE27800139783 /* md5.c */,
 				72B402511C0CE27800139783 /* md5passwd.c */,
 				72737CF41C24BA4F007CBEF6 /* notify.c */,
@@ -1134,6 +1137,7 @@
 				72B402831C0CE27900139783 /* ipp.h in Headers */,
 				72A0D4531E6864EB0092958D /* printer3d-png.h in Headers */,
 				72B4027F1C0CE27900139783 /* http.h in Headers */,
+				72C30E3221BEF69F00BD6C2B /* md5-internal.h in Headers */,
 				72B402711C0CE27900139783 /* dir.h in Headers */,
 				72B4026A1C0CE27900139783 /* array.h in Headers */,
 				72B402A01C0CE27900139783 /* versioning.h in Headers */,
@@ -1145,12 +1149,12 @@
 				72B402911C0CE27900139783 /* raster.h in Headers */,
 				72B402971C0CE27900139783 /* thread-private.h in Headers */,
 				72B4026C1C0CE27900139783 /* cups-private.h in Headers */,
+				72C30E3121BEF69F00BD6C2B /* debug-internal.h in Headers */,
 				72B4027C1C0CE27900139783 /* http-private.h in Headers */,
 				72B4026E1C0CE27900139783 /* debug-private.h in Headers */,
 				72B402851C0CE27900139783 /* language-private.h in Headers */,
 				72B402681C0CE27900139783 /* array-private.h in Headers */,
 				72B402941C0CE27900139783 /* string-private.h in Headers */,
-				72B402881C0CE27900139783 /* md5-private.h in Headers */,
 				72B402741C0CE27900139783 /* file-private.h in Headers */,
 				72B402801C0CE27900139783 /* ipp-private.h in Headers */,
 				72B4028F1C0CE27900139783 /* raster-private.h in Headers */,
