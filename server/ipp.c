@@ -49,14 +49,18 @@ static const char	*get_document_uri(server_client_t *client);
 static void		ipp_acknowledge_document(server_client_t *client);
 static void		ipp_acknowledge_identify_printer(server_client_t *client);
 static void		ipp_acknowledge_job(server_client_t *client);
+static void		ipp_allocate_printer_resources(server_client_t *client);
 static void		ipp_cancel_current_job(server_client_t *client);
 static void		ipp_cancel_job(server_client_t *client);
 static void		ipp_cancel_jobs(server_client_t *client);
+static void		ipp_cancel_resource(server_client_t *client);
 static void		ipp_cancel_subscription(server_client_t *client);
 static void		ipp_close_job(server_client_t *client);
 static void		ipp_create_job(server_client_t *client);
 static void		ipp_create_printer(server_client_t *client);
+static void		ipp_create_resource(server_client_t *client);
 static void		ipp_create_xxx_subscriptions(server_client_t *client);
+static void		ipp_deallocate_printer_resources(server_client_t *client);
 static void		ipp_delete_printer(server_client_t *client);
 static void		ipp_deregister_output_device(server_client_t *client);
 static void		ipp_disable_all_printers(server_client_t *client);
@@ -74,6 +78,8 @@ static void		ipp_get_output_device_attributes(server_client_t *client);
 static void		ipp_get_printer_attributes(server_client_t *client);
 static void		ipp_get_printer_supported_values(server_client_t *client);
 static void		ipp_get_printers(server_client_t *client);
+static void		ipp_get_resource_attributes(server_client_t *client);
+static void		ipp_get_resources(server_client_t *client);
 static void		ipp_get_subscription_attributes(server_client_t *client);
 static void		ipp_get_subscriptions(server_client_t *client);
 static void		ipp_get_system_attributes(server_client_t *client);
@@ -81,6 +87,7 @@ static void		ipp_get_system_supported_values(server_client_t *client);
 static void		ipp_hold_job(server_client_t *client);
 static void		ipp_hold_new_jobs(server_client_t *client);
 static void		ipp_identify_printer(server_client_t *client);
+static void		ipp_install_resource(server_client_t *client);
 static void		ipp_pause_all_printers(server_client_t *client);
 static void		ipp_pause_printer(server_client_t *client);
 static void		ipp_print_job(server_client_t *client);
@@ -93,10 +100,11 @@ static void		ipp_restart_system(server_client_t *client);
 static void		ipp_resume_all_printers(server_client_t *client);
 static void		ipp_resume_printer(server_client_t *client);
 static void		ipp_send_document(server_client_t *client);
+static void		ipp_send_resource_data(server_client_t *client);
 static void		ipp_send_uri(server_client_t *client);
-//static void		ipp_set_job_attributes(server_client_t *client);
-//static void		ipp_set_printer_attributes(server_client_t *client);
-//static void		ipp_set_subscription_attributes(server_client_t *client);
+static void		ipp_set_job_attributes(server_client_t *client);
+static void		ipp_set_printer_attributes(server_client_t *client);
+static void		ipp_set_resource_attributes(server_client_t *client);
 static void		ipp_set_system_attributes(server_client_t *client);
 static void		ipp_shutdown_all_printers(server_client_t *client);
 static void		ipp_shutdown_printer(server_client_t *client);
@@ -1201,6 +1209,19 @@ ipp_acknowledge_job(
 
 
 /*
+ * 'ipp_allocate_printer_resources()' - Allocate resources for a printer.
+ */
+
+static void
+ipp_allocate_printer_resources(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
+  return;
+}
+
+
+/*
  * 'ipp_cancel_current_job()' - Cancel the current job.
  */
 
@@ -1533,6 +1554,19 @@ ipp_cancel_jobs(
   cupsArrayDelete(to_cancel);
 
   _cupsRWUnlock(&(client->printer->rwlock));
+}
+
+
+/*
+ * 'ipp_cancel_resource()' - Cancel a resource.
+ */
+
+static void
+ipp_cancel_resource(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
+  return;
 }
 
 
@@ -2002,6 +2036,104 @@ ipp_create_printer(
 
 
 /*
+ * 'ipp_create_resource()' - Create a resource on the system.
+ */
+
+static void
+ipp_create_resource(
+    server_client_t *client)		/* I - Client */
+{
+  server_resource_t	*resource;	/* New resource */
+  cups_array_t		*ra;		/* Attributes to send in response */
+  ipp_attribute_t	*attr;		/* Request attribute */
+  const char		*type,		/* Resource type keyword */
+			*info,		/* Resource info text */
+			*name;		/* Resource name text */
+
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+ /*
+  * Validate request attributes...
+  */
+
+  if ((attr = ippFindAttribute(client->request, "resource-type", IPP_TAG_ZERO)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing required 'resource-type' attribute.");
+    return;
+  }
+  else if (ippGetGroupTag(attr) != IPP_TAG_OPERATION || ippGetValueTag(attr) != IPP_TAG_KEYWORD || ippGetCount(attr) != 1 || (type = ippGetString(attr, 0, NULL)) == NULL || (strcmp(type, "static-icc-profile") && strcmp(type, "static-image") && strcmp(type, "static-strings")))
+  {
+    serverRespondUnsupported(client, attr);
+    return;
+  }
+
+  if ((attr = ippFindAttribute(client->request, "resource-info", IPP_TAG_ZERO)) != NULL && (ippGetGroupTag(attr) != IPP_TAG_RESOURCE || ippGetValueTag(attr) != IPP_TAG_TEXT || ippGetCount(attr) != 1))
+  {
+    serverRespondUnsupported(client, attr);
+    return;
+  }
+
+  info = ippGetString(attr, 0, NULL);
+
+  if ((attr = ippFindAttribute(client->request, "resource-name", IPP_TAG_ZERO)) != NULL && (ippGetGroupTag(attr) != IPP_TAG_RESOURCE || ippGetValueTag(attr) != IPP_TAG_NAME || ippGetCount(attr) != 1))
+  {
+    serverRespondUnsupported(client, attr);
+    return;
+  }
+
+  name = ippGetString(attr, 0, NULL);
+
+ /*
+  * Create an empty resource...
+  */
+
+  resource = serverCreateResource(NULL, NULL, NULL, name, info, type);
+
+ /*
+  * Return the resource info...
+  */
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+
+  ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "resource-format-accepted", NULL, "");
+
+  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  cupsArrayAdd(ra, "resource-id");
+  cupsArrayAdd(ra, "resource-state");
+  cupsArrayAdd(ra, "resource-state-reasons");
+  cupsArrayAdd(ra, "resource-uuid");
+
+  serverCopyAttributes(client->response, resource->attrs, ra, NULL, IPP_TAG_RESOURCE, 0);
+  cupsArrayDelete(ra);
+
+ /*
+  * Add any subscriptions...
+  */
+
+  client->resource = resource;
+  ipp_create_xxx_subscriptions(client);
+}
+
+
+/*
  * 'ipp_create_xxx_subscriptions()' - Create subscriptions.
  */
 
@@ -2034,11 +2166,56 @@ ipp_create_xxx_subscriptions(
   }
 
  /*
+  * Get the target for the subscription...
+  */
+
+  if (ippGetOperation(client->request) == IPP_OP_CREATE_JOB_SUBSCRIPTIONS && !client->job)
+  {
+    int	job_id;				/* Job ID */
+
+    if ((attr = ippFindAttribute(client->request, "notify-job-id", IPP_TAG_ZERO)) == NULL)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing 'notify-job-id' attribute in Create-Job-Subscriptions request.");
+      return;
+    }
+    else if (ippGetGroupTag(attr) != IPP_TAG_OPERATION || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetCount(attr) != 1 || (job_id = ippGetInteger(attr, 0)) < 1)
+    {
+      serverRespondUnsupported(client, attr);
+      return;
+    }
+    else if ((client->job = serverFindJob(client, job_id)) == NULL)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Job #%d not found.", job_id);
+      return;
+    }
+  }
+  else if (ippGetOperation(client->request) == IPP_OP_CREATE_RESOURCE_SUBSCRIPTIONS && !client->resource)
+  {
+    int	resource_id;			/* Resource ID */
+
+    if ((attr = ippFindAttribute(client->request, "resource-id", IPP_TAG_ZERO)) == NULL)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing 'resource-id' attribute in Create-Resource-Subscriptions request.");
+      return;
+    }
+    else if (ippGetGroupTag(attr) != IPP_TAG_OPERATION || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetCount(attr) != 1 || (resource_id = ippGetInteger(attr, 0)) < 1)
+    {
+      serverRespondUnsupported(client, attr);
+      return;
+    }
+    else if ((client->resource = serverFindResourceById(resource_id)) == NULL)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Resource #%d not found.", resource_id);
+      return;
+    }
+  }
+
+ /*
   * For the Create-xxx-Subscriptions operations, queue up a successful-ok
   * response...
   */
 
-  if (ippGetOperation(client->request) == IPP_OP_CREATE_JOB_SUBSCRIPTIONS || ippGetOperation(client->request) == IPP_OP_CREATE_PRINTER_SUBSCRIPTIONS)
+  if (ippGetOperation(client->request) == IPP_OP_CREATE_JOB_SUBSCRIPTIONS || ippGetOperation(client->request) == IPP_OP_CREATE_PRINTER_SUBSCRIPTIONS || ippGetOperation(client->request) == IPP_OP_CREATE_RESOURCE_SUBSCRIPTIONS || ippGetOperation(client->request) == IPP_OP_CREATE_SYSTEM_SUBSCRIPTIONS)
     serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
  /*
@@ -2062,7 +2239,6 @@ ipp_create_xxx_subscriptions(
 
   while (attr)
   {
-    server_job_t	*job = NULL;	/* Job */
     const char		*attrname,	/* Attribute name */
 			*pullmethod = NULL;
     					/* notify-pull-method */
@@ -2182,19 +2358,6 @@ ipp_create_xxx_subscriptions(
 	else
           interval = ippGetInteger(attr, 0);
       }
-      else if (!strcmp(attrname, "notify-job-id"))
-      {
-        if (ippGetOperation(client->request) != IPP_OP_CREATE_JOB_SUBSCRIPTIONS || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetInteger(attr, 0) < 1)
-        {
-	  status = IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES;
-	  ippCopyAttribute(client->response, attr, 0);
-	}
-	else if ((job = serverFindJob(client, ippGetInteger(attr, 0))) == NULL)
-	{
-	  status = IPP_STATUS_ERROR_NOT_FOUND;
-	  ippCopyAttribute(client->response, attr, 0);
-	}
-      }
 
       attr = ippNextAttribute(client->request);
     }
@@ -2223,6 +2386,19 @@ ipp_create_xxx_subscriptions(
     ippSetStatusCode(client->response, IPP_STATUS_ERROR_IGNORED_ALL_SUBSCRIPTIONS);
   else if (ok_subs != num_subs)
     ippSetStatusCode(client->response, IPP_STATUS_OK_IGNORED_SUBSCRIPTIONS);
+}
+
+
+/*
+ * 'ipp_deallocate_printer_resources()' - Deallocate resources for a printer.
+ */
+
+static void
+ipp_deallocate_printer_resources(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
+  return;
 }
 
 
@@ -3489,6 +3665,32 @@ ipp_get_printers(
 
 
 /*
+ * 'ipp_get_resource_attributes()' - Get resource attributes.
+ */
+
+static void
+ipp_get_resource_attributes(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
+  return;
+}
+
+
+/*
+ * 'ipp_get_resources()' - Get resources.
+ */
+
+static void
+ipp_get_resources(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
+  return;
+}
+
+
+/*
  * 'ipp_get_subscription_attributes()' - Get attributes for a subscription.
  */
 
@@ -3999,6 +4201,19 @@ ipp_identify_printer(
   }
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
+}
+
+
+/*
+ * 'ipp_install_resource()' - Install a resource.
+ */
+
+static void
+ipp_install_resource(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
+  return;
 }
 
 
@@ -4889,6 +5104,19 @@ ipp_send_document(server_client_t *client)/* I - Client */
 
 
 /*
+ * 'ipp_send_resource_data()' - Receive data for a resource.
+ */
+
+static void
+ipp_send_resource_data(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
+  return;
+}
+
+
+/*
  * 'ipp_send_uri()' - Add a referenced document to a job object created with
  *                    Create-Job.
  */
@@ -5034,6 +5262,45 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
 
   copy_job_attributes(client, job, ra, NULL);
   cupsArrayDelete(ra);
+}
+
+
+/*
+ * 'ipp_set_job_attributes()' - Set job attributes.
+ */
+
+static void
+ipp_set_job_attributes(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
+  return;
+}
+
+
+/*
+ * 'ipp_set_printer_attributes()' - Set printer attributes.
+ */
+
+static void
+ipp_set_printer_attributes(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
+  return;
+}
+
+
+/*
+ * 'ipp_set_resource_attributes()' - Set resource attributes.
+ */
+
+static void
+ipp_set_resource_attributes(
+    server_client_t *client)		/* I - Client */
+{
+  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
+  return;
 }
 
 
@@ -6307,6 +6574,10 @@ serverProcessIPP(
 		ipp_get_job_attributes(client);
 		break;
 
+	    case IPP_OP_SET_JOB_ATTRIBUTES :
+		ipp_set_job_attributes(client);
+		break;
+
 	    case IPP_OP_GET_JOBS :
 		ipp_get_jobs(client);
 		break;
@@ -6317,6 +6588,10 @@ serverProcessIPP(
 
 	    case IPP_OP_GET_PRINTER_SUPPORTED_VALUES :
 		ipp_get_printer_supported_values(client);
+		break;
+
+	    case IPP_OP_SET_PRINTER_ATTRIBUTES :
+		ipp_set_printer_attributes(client);
 		break;
 
 	    case IPP_OP_CLOSE_JOB :
@@ -6453,6 +6728,14 @@ serverProcessIPP(
 		ipp_resume_printer(client);
                 break;
 
+            case IPP_OP_ALLOCATE_PRINTER_RESOURCES :
+                ipp_allocate_printer_resources(client);
+                break;
+
+            case IPP_OP_DEALLOCATE_PRINTER_RESOURCES :
+                ipp_deallocate_printer_resources(client);
+                break;
+
 	    default :
 		serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "Operation not supported.");
 		break;
@@ -6512,8 +6795,16 @@ serverProcessIPP(
 		  }
 		  break;
 
+	      case IPP_OP_CANCEL_RESOURCE :
+		  ipp_cancel_resource(client);
+		  break;
+
 	      case IPP_OP_CANCEL_SUBSCRIPTION :
 		  ipp_cancel_subscription(client);
+		  break;
+
+	      case IPP_OP_CREATE_RESOURCE :
+		  ipp_create_resource(client);
 		  break;
 
 	      case IPP_OP_CREATE_SYSTEM_SUBSCRIPTIONS :
@@ -6524,6 +6815,14 @@ serverProcessIPP(
 		  ipp_get_notifications(client);
 		  break;
 
+	      case IPP_OP_GET_RESOURCE_ATTRIBUTES :
+		  ipp_get_resource_attributes(client);
+		  break;
+
+	      case IPP_OP_GET_RESOURCES :
+		  ipp_get_resources(client);
+		  break;
+
 	      case IPP_OP_GET_SUBSCRIPTION_ATTRIBUTES :
 		  ipp_get_subscription_attributes(client);
 		  break;
@@ -6532,8 +6831,20 @@ serverProcessIPP(
 		  ipp_get_subscriptions(client);
 		  break;
 
+	      case IPP_OP_INSTALL_RESOURCE :
+		  ipp_install_resource(client);
+		  break;
+
 	      case IPP_OP_RENEW_SUBSCRIPTION :
 		  ipp_renew_subscription(client);
+		  break;
+
+	      case IPP_OP_SEND_RESOURCE_DATA :
+		  ipp_send_resource_data(client);
+		  break;
+
+	      case IPP_OP_SET_RESOURCE_ATTRIBUTES :
+		  ipp_set_resource_attributes(client);
 		  break;
 
 	      case IPP_OP_GET_SYSTEM_ATTRIBUTES :

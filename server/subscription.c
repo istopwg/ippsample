@@ -166,6 +166,7 @@ serverCreateSubscription(
   sub->mask     = notify_events ? serverGetNotifyEventsBits(notify_events) : SERVER_EVENT_DEFAULT;
   sub->printer  = client->printer;
   sub->job      = client->job;
+  sub->resource = client->resource;
   sub->interval = interval;
   sub->lease    = lease;
   sub->attrs    = ippNew();
@@ -203,6 +204,8 @@ serverCreateSubscription(
 
   if (client->job)
     ippAddInteger(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-job-id", client->job->id);
+  else if (client->resource)
+    ippAddInteger(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-resource-id", client->resource->id);
   else
     ippAddInteger(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-lease-duration", sub->lease);
 

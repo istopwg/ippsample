@@ -1,8 +1,8 @@
 /*
  * Header file for sample IPP server implementation.
  *
- * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
- * Copyright © 2010-2018 by Apple Inc.
+ * Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -591,6 +591,7 @@ typedef struct server_client_s		/**** Client data ****/
 			username[32];	/* Client authenticated username */
   server_printer_t	*printer;	/* Printer */
   server_job_t		*job;		/* Current job, if any */
+  server_resource_t	*resource;	/* Current resource, if any */
   int			fetch_compression,
 					/* Compress file? */
 			fetch_file;	/* File to fetch */

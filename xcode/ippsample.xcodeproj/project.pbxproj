@@ -1467,6 +1467,7 @@
 		72B402101C0CDFB400139783 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
+				DefaultBuildSystemTypeForWorkspace = Latest;
 				LastUpgradeCheck = 1000;
 				ORGANIZATIONNAME = "IEEE-ISTO Printer Working Group";
 				TargetAttributes = {
