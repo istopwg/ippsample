@@ -4934,6 +4934,7 @@ ipp_send_document(server_client_t *client)/* I - Client */
   if (Authentication && !serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this job.");
+    httpFlush(client->http);
     return;
   }
 
@@ -5111,8 +5112,172 @@ static void
 ipp_send_resource_data(
     server_client_t *client)		/* I - Client */
 {
-  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
-  return;
+  server_resource_t	*resource;	/* New resource */
+  cups_array_t		*ra;		/* Attributes to send in response */
+  ipp_attribute_t	*attr;		/* Request attribute */
+  int			resource_id;	/* resource-id value */
+  const char		*format;	/* resource-format value */
+  ipp_attribute_t	*signature;	/* resource-signature value */
+  int			fd;		/* File descriptor */
+  char			filename[1024],	/* Filename buffer */
+			buffer[4096];	/* Copy buffer */
+  ssize_t		bytes;		/* Bytes read */
+
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+ /*
+  * Validate request attributes...
+  */
+
+  if ((attr = ippFindAttribute(client->request, "resource-id", IPP_TAG_ZERO)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing required 'resource-id' attribute.");
+    httpFlush(client->http);
+    return;
+  }
+  else if (ippGetGroupTag(attr) != IPP_TAG_OPERATION || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetCount(attr) != 1 || (resource_id = ippGetInteger(attr, 0)) < 1)
+  {
+    serverRespondUnsupported(client, attr);
+    httpFlush(client->http);
+    return;
+  }
+  else if ((resource = serverFindResourceById(resource_id)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Resource #%d not found.", resource_id);
+    httpFlush(client->http);
+    return;
+  }
+  else if (resource->state != IPP_RSTATE_PENDING)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Resource #%d is not in the pending state.", resource_id);
+    httpFlush(client->http);
+    return;
+  }
+
+  if ((attr = ippFindAttribute(client->request, "resource-format", IPP_TAG_ZERO)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing required 'resource-format' attribute.");
+    httpFlush(client->http);
+    return;
+  }
+  else if (ippGetGroupTag(attr) != IPP_TAG_OPERATION || ippGetValueTag(attr) != IPP_TAG_MIMETYPE || ippGetCount(attr) != 1 || (format = ippGetString(attr, 0, NULL)) == NULL || (strcmp(format, "application/pdf") && strcmp(format, "application/vnd.iccprofile") && strcmp(format, "image/jpeg") && strcmp(format, "image/png") && strcmp(format, "text/strings")))
+  {
+    serverRespondUnsupported(client, attr);
+    httpFlush(client->http);
+    return;
+  }
+
+  if ((signature = ippFindAttribute(client->request, "resource-signature", IPP_TAG_ZERO)) != NULL && (ippGetGroupTag(signature) != IPP_TAG_OPERATION || ippGetValueTag(signature) != IPP_TAG_STRING))
+  {
+    serverRespondUnsupported(client, attr);
+    httpFlush(client->http);
+    return;
+  }
+
+ /*
+  * Copy the remaining message body to the resource file...
+  */
+
+  serverCreateResourceFilename(resource, format, SpoolDirectory, filename, sizeof(filename));
+
+  serverLogClient(SERVER_LOGLEVEL_INFO, client, "Creating resource file \"%s\", format \"%s\".", filename, format);
+
+
+  if ((fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0)
+  {
+    resource->state = IPP_RSTATE_ABORTED;
+
+    serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to create resource file: %s", strerror(errno));
+    return;
+  }
+
+  while ((bytes = httpRead2(client->http, buffer, sizeof(buffer))) > 0)
+  {
+    if (write(fd, buffer, (size_t)bytes) < bytes)
+    {
+      int error = errno;		/* Write error */
+
+      resource->state = IPP_RSTATE_ABORTED;
+
+      close(fd);
+      unlink(filename);
+
+      serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to write resource file: %s", strerror(error));
+      return;
+    }
+  }
+
+  if (bytes < 0)
+  {
+   /*
+    * Got an error while reading the resource data, so abort this resource.
+    */
+
+    resource->state = IPP_RSTATE_ABORTED;
+
+    close(fd);
+    unlink(filename);
+
+    serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to read resource file.");
+    return;
+  }
+
+  if (close(fd))
+  {
+    int error = errno;			/* Write error */
+
+    resource->state = IPP_RSTATE_ABORTED;
+
+    unlink(filename);
+
+    serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to write resource file: %s", strerror(error));
+    return;
+  }
+
+  serverAddResourceFile(resource, filename, format);
+
+  if (signature)
+  {
+    _cupsRWLockWrite(&(resource->rwlock));
+
+    if ((attr = ippCopyAttribute(resource->attrs, signature, 0)) != NULL)
+      ippSetGroupTag(resource->attrs, &attr, IPP_TAG_RESOURCE);
+
+    _cupsRWUnlock(&(resource->rwlock));
+  }
+
+ /*
+  * Return the resource info...
+  */
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+
+  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  cupsArrayAdd(ra, "resource-id");
+  cupsArrayAdd(ra, "resource-state");
+  cupsArrayAdd(ra, "resource-state-reasons");
+  cupsArrayAdd(ra, "resource-uuid");
+
+  serverCopyAttributes(client->response, resource->attrs, ra, NULL, IPP_TAG_RESOURCE, 0);
+  cupsArrayDelete(ra);
 }
 
 

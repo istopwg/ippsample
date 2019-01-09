@@ -41,6 +41,14 @@ serverAddResourceFile(
   res->format   = strdup(format);
   res->state    = IPP_RSTATE_AVAILABLE;
 
+  if (!res->resource)
+  {
+    char path[1024];			/* Resource path */
+
+    serverCreateResourceFilename(res, format, "/ipp/system", path, sizeof(path));
+    res->resource = strdup(path);
+  }
+
 #ifdef HAVE_SSL
   if (Encryption != HTTP_ENCRYPTION_NEVER)
     httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "https", NULL, lis->host, lis->port, res->resource);
@@ -59,6 +67,38 @@ serverAddResourceFile(
   serverAddEventNoLock(NULL, NULL, res, SERVER_EVENT_RESOURCE_STATE_CHANGED, "Resource %d now available.", res->id);
 
   _cupsRWUnlock(&res->rwlock);
+}
+
+
+/*
+ * 'serverCreateResourceFilename()' - Create a filename for a resource.
+ */
+
+void
+serverCreateResourceFilename(
+    server_resource_t *res,		/* I - Resource object */
+    const char        *format,		/* I - MIME media type */
+    const char        *prefix,		/* I - Directory prefix */
+    char              *fname,		/* I - Filename buffer */
+    size_t            fnamesize)	/* I - Size of filename buffer */
+{
+  const char	*ext;			/* Extension */
+
+
+  if (!strcmp(format, "application/pdf"))
+    ext = ".pdf";
+  else if (!strcmp(format, "application/vnd.iccprofile"))
+    ext = ".icc";
+  else if (!strcmp(format, "image/jpeg"))
+    ext = ".jpg";
+  else if (!strcmp(format, "image/png"))
+    ext = ".png";
+  else if (!strcmp(format, "text/strings"))
+    ext = ".strings";
+  else
+    ext = "";
+
+  snprintf(fname, fnamesize, "%s/%d%s", prefix, res->id, ext);
 }
 
 
@@ -138,20 +178,7 @@ serverCreateResource(
   res->state = IPP_RSTATE_PENDING;
 
   if (resource)
-  {
     res->resource = strdup(resource);
-  }
-  else
-  {
-    char	path[1024];		/* Resource path */
-    const char	*ext;			/* Extension */
-
-    if ((ext = strrchr(name, '.')) == NULL || (strcmp(ext, ".strings") && strlen(ext) != 4))
-      ext = "";
-
-    snprintf(path, sizeof(path), "/ipp/system/%d%s", res->id, ext);
-    res->resource = strdup(path);
-  }
 
   _cupsRWInit(&res->rwlock);
   _cupsRWLockWrite(&res->rwlock);
