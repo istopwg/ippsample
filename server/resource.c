@@ -173,9 +173,11 @@ serverCreateResource(
 
   _cupsRWLockWrite(&ResourcesRWLock);
 
+  res->fd    = -1;
   res->attrs = ippNew();
   res->id    = NextResourceId ++;
-  res->state = IPP_RSTATE_PENDING;
+  res->state = filename ? IPP_RSTATE_INSTALLED : IPP_RSTATE_PENDING;
+  res->type  = strdup(type);
 
   if (resource)
     res->resource = strdup(resource);
@@ -202,10 +204,16 @@ serverCreateResource(
 
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_NAME, "resource-name", NULL, name);
 
+  ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_TEXT, "resource-state-message", NULL, "");
+
+  ippAddOutOfBand(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_NOVALUE, "resource-string-version");
+
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_KEYWORD, "resource-type", NULL, type);
 
   httpAssembleUUID(lis->host, lis->port, "_system_", res->id, uuid, sizeof(uuid));
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_URI, "resource-uuid", NULL, uuid);
+
+  ippAddOutOfBand(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_NOVALUE, "resource-version");
 
   ippAddInteger(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_INTEGER, "time-at-creation", (int)(curtime - SystemStartTime));
 
@@ -260,6 +268,8 @@ serverDeleteResource(
     free(res->format);
   if (res->resource)
     free(res->resource);
+  if (res->type)
+    free(res->type);
 
   _cupsRWUnlock(&res->rwlock);
   _cupsRWDeinit(&res->rwlock);
@@ -310,6 +320,59 @@ serverFindResourceByPath(
   _cupsRWUnlock(&ResourcesRWLock);
 
   return (res);
+}
+
+
+/*
+ * 'serverSetResourceState()' - Set the state of a resource.
+ */
+
+void
+serverSetResourceState(
+    server_resource_t *resource,	/* I - Resource */
+    ipp_rstate_t      state,		/* I - New state */
+    const char        *message,		/* I - Printf-style message or `NULL` */
+    ...)				/* I - Additional arguments as needed */
+{
+  ipp_attribute_t	*attr;		/* Resource attribute */
+
+
+  _cupsRWLockWrite(&resource->rwlock);
+
+  resource->state = state;
+
+  if (state == IPP_RSTATE_INSTALLED)
+  {
+    if ((attr = ippFindAttribute(resource->attrs, "date-time-at-installed", IPP_TAG_NOVALUE)) != NULL)
+      ippSetDate(resource->attrs, &attr, 0, ippTimeToDate(time(NULL)));
+
+    if ((attr = ippFindAttribute(resource->attrs, "time-at-installed", IPP_TAG_NOVALUE)) != NULL)
+      ippSetInteger(resource->attrs, &attr, 0, (int)(time(NULL) - SystemStartTime));
+  }
+  else if (state >= IPP_RSTATE_CANCELED)
+  {
+    resource->cancel = 0;
+
+    if ((attr = ippFindAttribute(resource->attrs, "date-time-at-canceled", IPP_TAG_NOVALUE)) != NULL)
+      ippSetDate(resource->attrs, &attr, 0, ippTimeToDate(time(NULL)));
+
+    if ((attr = ippFindAttribute(resource->attrs, "time-at-canceled", IPP_TAG_NOVALUE)) != NULL)
+      ippSetInteger(resource->attrs, &attr, 0, (int)(time(NULL) - SystemStartTime));
+  }
+
+  if (message && (attr = ippFindAttribute(resource->attrs, "resource-state-message", IPP_TAG_TEXT)) != NULL)
+  {
+    va_list	ap;			/* Argument pointer */
+    char	buffer[1024];		/* Message String */
+
+    va_start(ap, message);
+    vsnprintf(buffer, sizeof(buffer), message, ap);
+    va_end(ap);
+
+    ippSetString(resource->attrs, &attr, 0, buffer);
+  }
+
+  _cupsRWUnlock(&resource->rwlock);
 }
 
 

@@ -548,8 +548,11 @@ typedef struct server_resource_s	/**** Resource data ****/
   ipp_rstate_t		state;		/* Resource state */
   char			*resource,	/* External resource path */
 			*filename,	/* Local filename */
-			*format;	/* MIME media type */
-  int			use;		/* Use count */
+			*format,	/* MIME media type */
+			*type;		/* Resource type */
+  int			use,		/* Use count */
+			fd,		/* Resource file descriptor */
+			cancel;		/* Cancel pending */
 } server_resource_t;
 
 typedef struct server_subscription_s	/**** Subscription data ****/
@@ -746,6 +749,7 @@ extern void		serverRespondUnsupported(server_client_t *client, ipp_attribute_t *
 extern void		serverRestartPrinter(server_printer_t *printer);
 extern void		serverResumePrinter(server_printer_t *printer);
 extern void		serverRun(void);
+extern void		serverSetResourceState(server_resource_t *resource, ipp_rstate_t state, const char *message, ...) _CUPS_FORMAT(3, 4);
 extern void		serverStopJob(server_job_t *job);
 extern char		*serverTimeString(time_t tv, char *buffer, size_t bufsize);
 extern int		serverTransformJob(server_client_t *client, server_job_t *job, const char *command, const char *format, server_transform_t mode);
