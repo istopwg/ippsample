@@ -24,6 +24,7 @@
 
 #ifdef HAVE_JPEG
 #  include <jpeglib.h>
+#  include <setjmp.h>
 #endif 
 
 /*
