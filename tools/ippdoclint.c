@@ -13,11 +13,14 @@
 #include <cups/raster.h>
 #include <cups/string-private.h>
 #include <netinet/in.h>
-#include <mupdf/fitz.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <jpeglib.h>
 #include <math.h>
+
+#ifdef HAVE_MUPDF
+#  include <mupdf/fitz.h>
+#endif
 
 /*
  * Local globals...
@@ -506,6 +509,7 @@ lint_jpeg(const char    *filename,	/* I - File to check */
   return (0);
 }
 
+#ifdef HAVE_MUPDF
 static void
 mupdf_exit(fz_context *context, /* MuPDF context pointer */
   fz_document *document) /* MuPDF document pointer */
@@ -578,6 +582,7 @@ unlock_mutex(void *user, /* I - Pointer to array of mutexes */
     abort();
   }
 }
+#endif
 
 /*
  * 'lint_pdf()' - Check a PDF file.
@@ -588,6 +593,7 @@ lint_pdf(const char    *filename,	/* I - File to check */
 	 int           num_options,	/* I - Number of options */
 	 cups_option_t *options)	/* I - Options */
 {
+#ifdef HAVE_MUPDF
   doclint_data_t data = {0};
 
   fz_context *context = NULL;
@@ -792,11 +798,14 @@ lint_pdf(const char    *filename,	/* I - File to check */
   data.job_media_sheets_completed_col = data.job_media_sheets_col;
 
   print_attr_messages(&data);
-
+#else
+  fprintf(stderr, "ERROR: MuPDF is needed for PDF linting\n");
+#endif
   (void)num_options;
   (void)options;
 
   return (0);
+
 }
 
 char when_enum[5][20] = /* Human-readable 'When' values, also used by AdvanceMedia, Jog */
