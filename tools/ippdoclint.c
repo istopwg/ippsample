@@ -702,7 +702,7 @@ lint_pdf(const char    *filename,	/* I - File to check */
   data.job_pages = page_count;
   data.job_impressions = (int) ceil(num_copies * data.job_pages * 1.0 / number_up);
   data.job_media_sheets = (int) ceil(data.job_impressions * 1.0 / sides);
-  if (fz_colorspace_type(context, fz_document_output_intent(context, document)) == FZ_COLORSPACE_GRAY)
+  if (fz_colorspace_is_device_gray(context, fz_document_output_intent(context, document)))
   {
     data.job_pages_col.monochrome = data.job_pages;
     data.job_media_sheets_col.monochrome = data.job_media_sheets;
