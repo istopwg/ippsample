@@ -15,12 +15,16 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <jpeglib.h>
 #include <math.h>
+#include <stdbool.h>
 
 #ifdef HAVE_MUPDF
 #  include <mupdf/fitz.h>
 #endif
+
+#ifdef HAVE_JPEG
+#  include <jpeglib.h>
+#endif 
 
 /*
  * Local globals...
@@ -313,6 +317,7 @@ highlight-color=%d highlight-color-two-sided=%d monochrome=%d monochrome-two-sid
 	fprintf(stderr, "ATTR:job-pages-completed-col={monochrome=%d full-color=%d}\n", data->job_pages_completed_col.monochrome, data->job_pages_completed_col.full_color);
 }
 
+#ifdef HAVE_JPEG
 typedef struct _jpeg_lint_error_mgr_s /* Error struct for jpeg linting */
 {
     struct jpeg_error_mgr pub;    /* "public" fields */
@@ -361,6 +366,7 @@ char pixel_density_unit[3][10] = /* Human readable pixel density values for jpeg
   "dots/inch",
   "dots/cm"
 };
+#endif
 
 /*
  * 'lint_jpeg()' - Check a JPEG file.
@@ -370,6 +376,7 @@ lint_jpeg(const char    *filename,	/* I - File to check */
           int           num_options,	/* I - Number of options */
           cups_option_t *options)	/* I - Options */
 {
+#ifdef HAVE_JPEG
   doclint_data_t data = {0};
 
   /* Set job attribute values */
@@ -502,7 +509,9 @@ lint_jpeg(const char    *filename,	/* I - File to check */
 	data.job_pages_completed_col = data.job_pages_col;
 
   print_attr_messages(&data);
-
+#else
+  fprintf(stderr, "ERROR: libjpeg is needed for JPEG linting\n");
+#endif
   (void)num_options;
   (void)options;
 
@@ -907,7 +916,7 @@ static int /* O - 0 if OK, 1 if not OK */
 parse_raster_header(cups_page_header2_t *header, /* The pointer to the header struct */
 	int raster_id, /* The identifier to differentiate between different raster formats (CUPS, PWG) */
 	int raster_version, /* Raster version */
-	boolean big_endian) /* 1 if the file is big-endian, 0 if little-endian */
+	bool big_endian) /* 1 if the file is big-endian, 0 if little-endian */
 {
   if (raster_id == PWG)
   {
@@ -1715,7 +1724,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   FILE *file = fopen(filename, "rb");
   rewind(file);
 
-  boolean big_endian = 0;
+  bool big_endian = 0;
   int raster_version;
 
   char sync_word[4];

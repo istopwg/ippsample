@@ -4949,6 +4949,54 @@ $as_echo "    PDF RIP is disabled." >&6; }
 		;;
 esac
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for jpeg_destroy_decompress in -ljpeg" >&5
+$as_echo_n "checking for jpeg_destroy_decompress in -ljpeg... " >&6; }
+if ${ac_cv_lib_jpeg_jpeg_destroy_decompress+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ljpeg  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char jpeg_destroy_decompress ();
+int
+main ()
+{
+return jpeg_destroy_decompress ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_jpeg_jpeg_destroy_decompress=yes
+else
+  ac_cv_lib_jpeg_jpeg_destroy_decompress=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_jpeg_jpeg_destroy_decompress" >&5
+$as_echo "$ac_cv_lib_jpeg_jpeg_destroy_decompress" >&6; }
+if test "x$ac_cv_lib_jpeg_jpeg_destroy_decompress" = xyes; then :
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result:     Using libjpeg for JPEG linting" >&5
+$as_echo "    Using libjpeg for JPEG linting" >&6; }
+
+	$as_echo "#define HAVE_JPEG 1" >>confdefs.h
+
+	LIBS="-ljpeg $LIBS"
+
+fi
+
+
 # 3D support
 IPPTRANSFORM3D_BIN=""
 IPPTRANSFORM3D_HTML=""
