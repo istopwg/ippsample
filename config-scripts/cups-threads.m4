@@ -1,11 +1,10 @@
 dnl
 dnl Threading stuff for CUPS.
 dnl
-dnl Copyright 2007-2011 by Apple Inc.
+dnl Copyright 2007-2017 by Apple Inc.
 dnl Copyright 1997-2005 by Easy Software Products, all rights reserved.
 dnl
-dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
-dnl information.
+dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
 dnl
 
 AC_ARG_ENABLE(threads, [  --disable-threads       disable multi-threading support])
@@ -33,7 +32,7 @@ if test "x$enable_threads" != xno; then
 
 				# Solaris requires -D_POSIX_PTHREAD_SEMANTICS to
 				# be POSIX-compliant... :(
-				if test $uname = SunOS; then
+				if test $host_os_name = sunos; then
 					PTHREAD_FLAGS="$PTHREAD_FLAGS -D_POSIX_PTHREAD_SEMANTICS"
 				fi
 				break

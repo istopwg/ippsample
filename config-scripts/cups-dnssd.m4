@@ -1,7 +1,8 @@
 dnl
 dnl DNS Service Discovery (aka Bonjour) stuff for CUPS.
 dnl
-dnl Copyright 2007-2016 by Apple Inc.
+dnl Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group
+dnl Copyright © 2007-2019 by Apple Inc.
 dnl
 dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
 dnl information.
@@ -21,7 +22,7 @@ IPPFIND_BIN=""
 IPPFIND_HTML=""
 IPPFIND_MAN=""
 
-if test "x$PKGCONFIG" != x -a x$enable_avahi != xno -a x$uname != xDarwin; then
+if test "x$PKGCONFIG" != x -a x$enable_avahi != xno -a x$host_os_name != xdarwin; then
 	AC_MSG_CHECKING(for Avahi)
 	if $PKGCONFIG --exists avahi-client; then
 		AC_MSG_RESULT(yes)
@@ -38,8 +39,8 @@ fi
 
 if test "x$DNSSD_BACKEND" = x -a x$enable_dnssd != xno; then
 	AC_CHECK_HEADER(dns_sd.h, [
-		case "$uname" in
-			Darwin*)
+		case "$host_os_name" in
+			darwin*)
 				# Darwin and macOS...
 				AC_DEFINE(HAVE_DNSSD)
 				DNSSDLIBS="-framework CoreFoundation -framework SystemConfiguration"

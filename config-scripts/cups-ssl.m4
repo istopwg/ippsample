@@ -1,11 +1,10 @@
 dnl
 dnl TLS stuff for CUPS.
 dnl
-dnl Copyright 2007-2015 by Apple Inc.
+dnl Copyright 2007-2017 by Apple Inc.
 dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
 dnl
-dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
-dnl information.
+dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
 dnl
 
 AC_ARG_ENABLE(ssl, [  --disable-ssl           disable SSL/TLS support])
@@ -20,7 +19,7 @@ CUPS_SERVERKEYCHAIN=""
 if test x$enable_ssl != xno; then
     dnl Look for CDSA...
     if test $have_ssl = 0 -a "x$enable_cdsassl" != "xno"; then
-	if test $uname = Darwin; then
+	if test $host_os_name = darwin; then
 	    AC_CHECK_HEADER(Security/SecureTransport.h, [
 	    	have_ssl=1
 		AC_DEFINE(HAVE_SSL)
@@ -44,21 +43,13 @@ if test x$enable_ssl != xno; then
 		AC_CHECK_HEADER(Security/SecBasePriv.h,
 		    AC_DEFINE(HAVE_SECBASEPRIV_H))
 		AC_CHECK_HEADER(Security/SecIdentitySearchPriv.h,
-		    AC_DEFINE(HAVE_SECIDENTITYSEARCHPRIV_H))
-
-		AC_DEFINE(HAVE_CSSMERRORSTRING)
-		AC_DEFINE(HAVE_SECKEYCHAINOPEN)])
-
-		if test $uversion -ge 150; then
-			AC_DEFINE(HAVE_SSLSETENABLEDCIPHERS)
-		fi
+		    AC_DEFINE(HAVE_SECIDENTITYSEARCHPRIV_H))])
 	fi
     fi
 
     dnl Then look for GNU TLS...
     if test $have_ssl = 0 -a "x$enable_gnutls" != "xno" -a "x$PKGCONFIG" != x; then
     	AC_PATH_TOOL(LIBGNUTLSCONFIG,libgnutls-config)
-    	AC_PATH_TOOL(LIBGCRYPTCONFIG,libgcrypt-config)
 	if $PKGCONFIG --exists gnutls; then
 	    have_ssl=1
 	    SSLLIBS=`$PKGCONFIG --libs gnutls`

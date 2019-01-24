@@ -4,8 +4,7 @@ dnl
 dnl Copyright 2007-2011 by Apple Inc.
 dnl Copyright 1997-2005 by Easy Software Products, all rights reserved.
 dnl
-dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
-dnl information.
+dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
 dnl
 
 dnl Check for largefile support...

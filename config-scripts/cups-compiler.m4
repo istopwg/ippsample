@@ -1,28 +1,29 @@
 dnl
-dnl Compiler stuff for the IPP sample code.
+dnl Compiler stuff for CUPS.
 dnl
-dnl Copyright © 2007-2018 by Apple Inc.
-dnl Copyright © 1997-2007 by Easy Software Products, all rights reserved.
+dnl Copyright 2007-2018 by Apple Inc.
+dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
 dnl
-dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
-dnl information.
+dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
 dnl
 
 dnl Clear the debugging and non-shared library options unless the user asks
 dnl for them...
 INSTALL_STRIP=""
-OPTIM=""
 AC_SUBST(INSTALL_STRIP)
+
+AC_ARG_WITH(optim, [  --with-optim            set optimization flags ],
+	OPTIM="$withval",
+	OPTIM="")
 AC_SUBST(OPTIM)
 
-AC_ARG_WITH(optim, [  --with-optim            set optimization flags ])
 AC_ARG_ENABLE(debug, [  --disable-debug          build without debugging symbols])
 AC_ARG_ENABLE(debug_guards, [  --enable-debug-guards   build with memory allocation guards])
 AC_ARG_ENABLE(debug_printfs, [  --disable-debug-printfs  disable CUPS_DEBUG_LOG support])
 AC_ARG_ENABLE(unit_tests, [  --enable-unit-tests     build and run unit tests])
 
 dnl For debugging, keep symbols, otherwise strip them...
-if test x$enable_debug != xno; then
+if test x$enable_debug != xno -a "x$OPTIM" = x; then
 	OPTIM="-g"
 else
 	INSTALL_STRIP="-s"
@@ -43,6 +44,10 @@ fi
 
 dnl Unit tests take up time during a compile...
 if test x$enable_unit_tests = xyes; then
+        if test "$build" != "$host"; then
+                AC_MSG_ERROR([Sorry, cannot build unit tests when cross-compiling.])
+        fi
+
 	UNITTESTS="unittests"
 else
 	UNITTESTS=""
@@ -60,7 +65,7 @@ else
 fi
 
 if test -z "$with_ldarchflags"; then
-	if test "$uname" = Darwin; then
+	if test "$host_os_name" = darwin; then
 		# Only create Intel programs by default
 		LDARCHFLAGS="`echo $ARCHFLAGS | sed -e '1,$s/-arch ppc64//'`"
 	else
@@ -76,6 +81,9 @@ AC_SUBST(LDARCHFLAGS)
 dnl Read-only data/program support on Linux...
 AC_ARG_ENABLE(relro, [  --enable-relro          build with the GCC relro option])
 
+dnl Clang/GCC address sanitizer...
+AC_ARG_ENABLE(sanitizer, [  --enable-sanitizer      build with AddressSanitizer])
+
 dnl Update compiler options...
 CXXLIBS="${CXXLIBS:=}"
 AC_SUBST(CXXLIBS)
@@ -86,15 +94,33 @@ AC_SUBST(PIEFLAGS)
 RELROFLAGS=""
 AC_SUBST(RELROFLAGS)
 
+WARNING_OPTIONS=""
+AC_SUBST(WARNING_OPTIONS)
+
 if test -n "$GCC"; then
 	# Add GCC-specific compiler options...
+
+        # Address sanitizer is a useful tool to use when developing/debugging
+        # code but adds about 2x overhead...
+	if test x$enable_sanitizer = xyes; then
+		# Use -fsanitize=address with debugging...
+		OPTIM="$OPTIM -g -fsanitize=address"
+	else
+		# Otherwise use the Fortify enhancements to catch any unbounded
+		# string operations...
+		CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=2"
+		CXXFLAGS="$CXXFLAGS -D_FORTIFY_SOURCE=2"
+	fi
+
+	# Default optimization options...
 	if test -z "$OPTIM"; then
-		if test "x$with_optim" = x; then
-			# Default to optimize-for-size and debug
-       			OPTIM="-Os -g"
-		else
-			OPTIM="$with_optim $OPTIM"
-		fi
+		# Default to optimize-for-size and debug
+		OPTIM="-Os -g"
+	fi
+
+	# Generate position-independent code as needed...
+	if test $PICFLAG = 1; then
+    		OPTIM="-fPIC $OPTIM"
 	fi
 
 	# The -fstack-protector option is available with some versions of
@@ -104,123 +130,96 @@ if test -n "$GCC"; then
 	OLDCFLAGS="$CFLAGS"
 	CFLAGS="$CFLAGS -fstack-protector"
 	AC_TRY_LINK(,,
-		OPTIM="$OPTIM -fstack-protector"
+		if test "x$LSB_BUILD" = xy; then
+			# Can't use stack-protector with LSB binaries...
+			OPTIM="$OPTIM -fno-stack-protector"
+		else
+			OPTIM="$OPTIM -fstack-protector"
+		fi
 		AC_MSG_RESULT(yes),
 		AC_MSG_RESULT(no))
 	CFLAGS="$OLDCFLAGS"
 
-	# The -fPIE option is available with some versions of GCC and
-	# adds randomization of addresses, which avoids another class of
-	# exploits that depend on a fixed address for common functions.
-	AC_MSG_CHECKING(whether compiler supports -fPIE)
-	OLDCFLAGS="$CFLAGS"
-	case "$uname" in
-		Darwin*)
-			CFLAGS="$CFLAGS -fPIE -Wl,-pie"
-			AC_TRY_COMPILE(,,[
-				PIEFLAGS="-fPIE -Wl,-pie"
-				AC_MSG_RESULT(yes)],
-				AC_MSG_RESULT(no))
-			;;
-
-		*)
-			CFLAGS="$CFLAGS -fPIE -pie"
-			AC_TRY_COMPILE(,,[
-				PIEFLAGS="-fPIE -pie"
-				AC_MSG_RESULT(yes)],
-				AC_MSG_RESULT(no))
-			;;
-	esac
-	CFLAGS="$OLDCFLAGS"
-
-	if test "x$with_optim" = x; then
-		# Add useful warning options for tracking down problems...
-		OPTIM="-Wall -Wno-format-y2k -Wunused $OPTIM"
-
-		AC_MSG_CHECKING(whether compiler supports -Wno-format-truncation)
+	if test "x$LSB_BUILD" != xy; then
+		# The -fPIE option is available with some versions of GCC and
+		# adds randomization of addresses, which avoids another class of
+		# exploits that depend on a fixed address for common functions.
+		#
+		# Not available to LSB binaries...
+		AC_MSG_CHECKING(whether compiler supports -fPIE)
 		OLDCFLAGS="$CFLAGS"
-		CFLAGS="$CFLAGS -Werror -Wno-format-truncation"
-		AC_TRY_COMPILE(,,
-			[OPTIM="$OPTIM -Wno-format-truncation"
-			AC_MSG_RESULT(yes)],
-			AC_MSG_RESULT(no))
-		CFLAGS="$OLDCFLAGS"
+		case "$host_os_name" in
+			darwin*)
+				CFLAGS="$CFLAGS -fPIE -Wl,-pie"
+				AC_TRY_COMPILE(,,[
+					PIEFLAGS="-fPIE -Wl,-pie"
+					AC_MSG_RESULT(yes)],
+					AC_MSG_RESULT(no))
+				;;
 
-		AC_MSG_CHECKING(whether compiler supports -Wno-unused-result)
-		OLDCFLAGS="$CFLAGS"
-		CFLAGS="$CFLAGS -Werror -Wno-unused-result"
-		AC_TRY_COMPILE(,,
-			[OPTIM="$OPTIM -Wno-unused-result"
-			AC_MSG_RESULT(yes)],
-			AC_MSG_RESULT(no))
+			*)
+				CFLAGS="$CFLAGS -fPIE -pie"
+				AC_TRY_COMPILE(,,[
+					PIEFLAGS="-fPIE -pie"
+					AC_MSG_RESULT(yes)],
+					AC_MSG_RESULT(no))
+				;;
+		esac
 		CFLAGS="$OLDCFLAGS"
-
-		AC_MSG_CHECKING(whether compiler supports -Wsign-conversion)
-		OLDCFLAGS="$CFLAGS"
-		CFLAGS="$CFLAGS -Werror -Wsign-conversion"
-		AC_TRY_COMPILE(,,
-			[OPTIM="$OPTIM -Wsign-conversion"
-			AC_MSG_RESULT(yes)],
-			AC_MSG_RESULT(no))
-		CFLAGS="$OLDCFLAGS"
-
-		AC_MSG_CHECKING(whether compiler supports -Wno-tautological-compare)
-		OLDCFLAGS="$CFLAGS"
-		CFLAGS="$CFLAGS -Werror -Wno-tautological-compare"
-		AC_TRY_COMPILE(,,
-			[OPTIM="$OPTIM -Wno-tautological-compare"
-			AC_MSG_RESULT(yes)],
-			AC_MSG_RESULT(no))
-		CFLAGS="$OLDCFLAGS"
-
-		# Error out on any warnings...
-		#OPTIM="-Werror $OPTIM"
 	fi
 
-	case "$uname" in
-		Darwin*)
-			# -D_FORTIFY_SOURCE=2 adds additional object size
-			# checking, basically wrapping all string functions
-			# with buffer-limited ones.  Not strictly needed for
-			# CUPS since we already use buffer-limited calls, but
-			# this will catch any additions that are broken.
-			CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=2"
-			;;
+	# Add useful warning options for tracking down problems...
+	WARNING_OPTIONS="-Wall -Wno-format-y2k -Wunused -Wno-unused-result -Wsign-conversion"
 
-		Linux*)
-			# The -z relro option is provided by the Linux linker command to
-			# make relocatable data read-only.
-			if test x$enable_relro = xyes; then
-				RELROFLAGS="-Wl,-z,relro,-z,now"
-			fi
+	# Test GCC version for certain warning flags since -Werror
+	# doesn't trigger...
+	gccversion=`$CC --version | head -1 | awk '{print $NF}'`
+	case "$gccversion" in
+		7.* | 8.*)
+			WARNING_OPTIONS="$WARNING_OPTIONS -Wno-format-truncation -Wno-tautological-compare"
 			;;
 	esac
+
+	# Additional warning options for development testing...
+	if test -d .git; then
+		WARNING_OPTIONS="-Werror -Wno-error=deprecated-declarations $WARNING_OPTIONS"
+	fi
 else
 	# Add vendor-specific compiler options...
-	case $uname in
-		SunOS*)
+	case $host_os_name in
+		sunos*)
 			# Solaris
 			if test -z "$OPTIM"; then
-				if test "x$with_optim" = x; then
-					OPTIM="-xO2"
-				else
-					OPTIM="$with_optim $OPTIM"
-				fi
+				OPTIM="-xO2"
+			fi
+
+			if test $PICFLAG = 1; then
+				OPTIM="-KPIC $OPTIM"
 			fi
 			;;
 		*)
-			# Running some other operating system...
-			echo "Building with default compiler optimizations; use the"
-			echo "--with-optim option to override these."
+			# Running some other operating system; inform the user
+			# they should contribute the necessary options via
+			# Github...
+			echo "Building CUPS with default compiler optimizations; contact the CUPS developers on Github"
+			echo "(https://github.com/apple/cups/issues) with the uname and compiler options needed for"
+			echo "your platform, or set the CFLAGS and LDFLAGS environment variables before running"
+			echo "configure."
 			;;
 	esac
 fi
 
 # Add general compiler options per platform...
-case $uname in
-	Linux*)
+case $host_os_name in
+	linux*)
 		# glibc 2.8 and higher breaks peer credentials unless you
 		# define _GNU_SOURCE...
 		OPTIM="$OPTIM -D_GNU_SOURCE"
+
+		# The -z relro option is provided by the Linux linker command to
+		# make relocatable data read-only.
+		if test x$enable_relro = xyes; then
+			RELROFLAGS="-Wl,-z,relro,-z,now"
+		fi
 		;;
 esac
