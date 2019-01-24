@@ -1053,7 +1053,7 @@ serverCreatePrinter(
     ippAddIntegers(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_ENUM, "print-quality-supported", (int)(sizeof(print_quality_supported) / sizeof(print_quality_supported[0])), print_quality_supported);
 
   /* printer-device-id */
-  if (!is_print3d)
+  if (!is_print3d && !cupsArrayFind(existing, (void *)"printer-device-id"))
   {
     int count = ippGetCount(format_sup);/* Number of supported formats */
 
