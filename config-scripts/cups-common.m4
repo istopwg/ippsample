@@ -1,8 +1,7 @@
 dnl
 dnl Common configuration stuff for CUPS.
 dnl
-dnl Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
-dnl Copyright © 2007-2018 by Apple Inc.
+dnl Copyright © 2007-2019 by Apple Inc.
 dnl Copyright © 1997-2007 by Easy Software Products, all rights reserved.
 dnl
 dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -92,7 +91,7 @@ AC_CHECK_FUNCS(statfs statvfs)
 
 dnl Checks for string functions.
 AC_CHECK_FUNCS(strdup strlcat strlcpy)
-if test "$uname" = "HP-UX" -a "$uversion" = "1020"; then
+if test "$host_os_name" = "hp-ux" -a "$host_os_version" = "1020"; then
 	echo Forcing snprintf emulation for HP-UX.
 else
 	AC_CHECK_FUNCS(snprintf vsnprintf)
@@ -102,8 +101,8 @@ dnl Check for random number functions...
 AC_CHECK_FUNCS(random lrand48 arc4random)
 
 dnl Checks for signal functions.
-case "$uname" in
-	Linux | GNU)
+case "$host_os_name" in
+	linux* | gnu*)
 		# Do not use sigset on Linux or GNU HURD
 		;;
 	*)
@@ -152,8 +151,8 @@ AC_SUBST(INSTALL_GZIP)
 AC_SUBST(LIBZ)
 
 dnl Flags for "ar" command...
-case $uname in
-        Darwin* | *BSD*)
+case $host_os_name in
+        darwin* | *bsd*)
                 ARFLAGS="-rcv"
                 ;;
         *)
@@ -164,7 +163,7 @@ esac
 AC_SUBST(ARFLAGS)
 
 dnl Extra platform-specific libraries...
-if test "$uname" = Darwin; then
+if test "$host_os_name" = darwin; then
 	LIBS="-framework SystemConfiguration -framework CoreFoundation -framework Security $LIBS"
 
 	dnl Check for framework headers...
@@ -184,8 +183,8 @@ AC_SUBST(IPPTRANSFORM_MAN)
 AC_ARG_WITH(pdfrip, [  --with-pdfrip=...        set PDF RIP to use (auto, coregraphics, mupdf, none)])
 
 if test "x$with_pdfrip" = x -o "x$with_pdfrip" = xauto; then
-	case $uname in
-		Darwin*)
+	case $host_os_name in
+		darwin*)
 			use_pdfrip=coregraphics
 			;;
 		*)
