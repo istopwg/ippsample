@@ -1,6 +1,6 @@
 Makedefs
 autom4te.cache
-config.h
+/config.h
 config.log
 config.status
 cups/libcups.a
