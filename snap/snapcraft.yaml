@@ -36,7 +36,7 @@ parts:
         plugin: autotools
         configflags: [--with-name-prefix=]
         source: .
-        stage-packages: [libavahi-core7]
+        stage-packages: [libavahi-client3]
 
 build-packages: [cura-engine, libavahi-client-dev, libgnutls28-dev, libjpeg-dev, libmupdf-dev, libopenjp2-7-dev, libpng-dev, zlib1g-dev]
 
