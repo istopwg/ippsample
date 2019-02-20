@@ -1,8 +1,8 @@
 /*
  * Configuration file for the IPP samples on Windows.
  *
- * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
- * Copyright © 2007-2018 by Apple Inc.
+ * Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group.
+ * Copyright © 2007-2019 by Apple Inc.
  * Copyright © 1997-2007 by Easy Software Products.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -267,22 +267,9 @@ typedef unsigned long useconds_t;
  * What Security framework headers do we have?
  */
 
-/* #undef HAVE_AUTHORIZATION_H */
-/* #undef HAVE_SECBASEPRIV_H */
 /* #undef HAVE_SECCERTIFICATE_H */
-/* #undef HAVE_SECIDENTITYSEARCHPRIV_H */
 /* #undef HAVE_SECITEM_H */
-/* #undef HAVE_SECITEMPRIV_H */
 /* #undef HAVE_SECPOLICY_H */
-/* #undef HAVE_SECPOLICYPRIV_H */
-/* #undef HAVE_SECURETRANSPORTPRIV_H */
-
-
-/*
- * Do we have the cssmErrorString function?
- */
-
-/* #undef HAVE_CSSMERRORSTRING */
 
 
 /*
@@ -290,20 +277,6 @@ typedef unsigned long useconds_t;
  */
 
 /* #undef HAVE_SECGENERATESELFSIGNEDCERTIFICATE */
-
-
-/*
- * Do we have the SecKeychainOpen function?
- */
-
-/* #undef HAVE_SECKEYCHAINOPEN */
-
-
-/*
- * Do we have (a working) SSLSetEnabledCiphers function?
- */
-
-#define HAVE_SSLSETENABLEDCIPHERS 1
 
 
 /*
@@ -391,12 +364,10 @@ typedef unsigned long useconds_t;
 
 
 /*
- * Do we have CoreFoundation public and private headers?
+ * Do we have CoreFoundation public headers?
  */
 
 /* #undef HAVE_COREFOUNDATION_H */
-/* #undef HAVE_CFPRIV_H */
-/* #undef HAVE_CFBUNDLEPRIV_H */
 
 
 /*

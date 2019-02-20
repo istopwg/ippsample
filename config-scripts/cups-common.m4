@@ -278,7 +278,7 @@ AC_SUBST(IPPTRANSFORM3D_HTML)
 AC_SUBST(IPPTRANSFORM3D_MAN)
 
 SAVEPATH="$PATH"
-PATH="$PATH:/Applications/Cura/Cura.app/Contents/Resources:/Applications/Cura.app/Contents/MacOS"
+PATH="$PATH:/Applications/Ultimaker Cura.app/Contents/MacOS:/Applications/Cura/Cura.app/Contents/Resources:/Applications/Cura.app/Contents/MacOS"
 AC_PATH_PROG(CURAENGINE,CuraEngine)
 PATH="$SAVEPATH"
 
