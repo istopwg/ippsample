@@ -36,6 +36,6 @@ parts:
         plugin: autotools
         configflags: [--with-name-prefix=]
         source: .
-        build-packages: [cura-engine, libavahi-client-dev, libgnutls28-dev, libjpeg-dev, liblcms2-dev, libmupdf-dev, libopenjp2-7-dev, libpng-dev, zlib1g-dev]
+        build-packages: [cura-engine, libavahi-client-dev, libfreetype6-dev, libgnutls28-dev, libharfbuzz-dev, libjbig2dec0-dev, libjpeg-dev, liblcms2-dev, libmupdf-dev, libopenjp2-7-dev, libpng-dev, zlib1g-dev]
         stage-packages: [libavahi-client3, libjpeg-turbo8, libopenjp2-7]
 
