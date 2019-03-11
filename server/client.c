@@ -1,8 +1,8 @@
 /*
  * Client code for sample IPP server implementation.
  *
- * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
- * Copyright © 2010-2018 by Apple Inc.
+ * Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -727,9 +727,6 @@ serverRespondHTTP(
 
     httpSetField(client->http, HTTP_FIELD_WWW_AUTHENTICATE, www_auth);
   }
-
-  if (code == HTTP_STATUS_METHOD_NOT_ALLOWED || client->operation == HTTP_STATE_OPTIONS)
-    httpSetField(client->http, HTTP_FIELD_ALLOW, "GET, HEAD, OPTIONS, POST");
 
   if (type)
   {
