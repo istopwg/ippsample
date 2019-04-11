@@ -1,7 +1,7 @@
 dnl
 dnl Compiler stuff for CUPS.
 dnl
-dnl Copyright 2007-2018 by Apple Inc.
+dnl Copyright 2007-2019 by Apple Inc.
 dnl Copyright 1997-2007 by Easy Software Products, all rights reserved.
 dnl
 dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
@@ -118,11 +118,6 @@ if test -n "$GCC"; then
 		OPTIM="-Os -g"
 	fi
 
-	# Generate position-independent code as needed...
-	if test $PICFLAG = 1; then
-    		OPTIM="-fPIC $OPTIM"
-	fi
-
 	# The -fstack-protector option is available with some versions of
 	# GCC and adds "stack canaries" which detect when the return address
 	# has been overwritten, preventing many types of exploit attacks.
@@ -191,10 +186,6 @@ else
 			# Solaris
 			if test -z "$OPTIM"; then
 				OPTIM="-xO2"
-			fi
-
-			if test $PICFLAG = 1; then
-				OPTIM="-KPIC $OPTIM"
 			fi
 			;;
 		*)

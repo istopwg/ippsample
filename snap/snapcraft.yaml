@@ -1,4 +1,3 @@
-
 name: ipp
 version: 1.0b1
 summary: IPP Sample Implementation
@@ -7,7 +6,7 @@ description: |
   Server, and other tools. It is based on the CUPS source code and is maintained
   by the PWG IPP workgroup.
 
-grade: devel # must be 'stable' to release into candidate/stable channels
+grade: stable
 confinement: strict
 icon: server/printer.png
 
@@ -32,10 +31,24 @@ apps:
         plugs: [avahi-observe, home, network]
 
 parts:
+    mupdf:
+        plugin: make
+        make-install-var: prefix
+        make-parameters: [HAVE_X11=no, HAVE_GLFW=no, HAVE_GLUT=no, USE_SYSTEM_LIBS=yes]
+        source: https://mupdf.com/downloads/archive/mupdf-1.12.0-source.tar.gz
+        prime:
+            - -bin/mu*
+            - -include/mu*
+            - -lib/libmu*
+            - -share/doc/mupdf
+            - -share/man/man1/mu*
+        build-packages: [libfreetype6-dev, libharfbuzz-dev, libjbig2dec0-dev, libjpeg-dev, liblcms2-dev, libopenjp2-7-dev, libpng-dev, zlib1g-dev]
+
     main:
+        after: [mupdf]
         plugin: autotools
         configflags: [--with-name-prefix=]
         source: .
-
-build-packages: [cura-engine, libavahi-client-dev, libgnutls28-dev, libjpeg-dev, libmupdf-dev, libopenjp2-7-dev, libpng-dev, zlib1g-dev]
+        build-packages: [cura-engine, libavahi-client-dev, libfreetype6-dev, libgnutls28-dev, libharfbuzz-dev, libjbig2dec0-dev, libjpeg-dev, liblcms2-dev, libopenjp2-7-dev, libpng-dev, zlib1g-dev]
+        stage-packages: [libavahi-client3, libjpeg-turbo8, libopenjp2-7]
 

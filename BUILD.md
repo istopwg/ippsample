@@ -26,7 +26,7 @@ Besides these tools you'll want the following libraries:
 - GNU TLS for encryption support on platforms other than iOS, macOS, or Windows
 - LIBJPEG for JPEG support
 - LIBPNG for PNG support
-- MuPDF (1.11 or later) for PDF support on Linux
+- MuPDF (1.11 or later) for PDF support on Linux and Windows
 - ZLIB for compression support
 
 On a stock Debian/Ubuntu install, the following command will install most of the
@@ -34,8 +34,8 @@ required prerequisites:
 
     sudo apt-get install build-essential autoconf avahi-daemon avahi-utils \
         cura-engine libavahi-client-dev libfreetype6-dev libgnutls28-dev \
-        libharfbuzz-dev libjbig2dec0-dev libjpeg-dev libmupdf-dev libnss-mdns \
-        libopenjp2-7-dev libpng-dev zlib1g-dev
+        libharfbuzz-dev libjbig2dec0-dev libjpeg-dev liblcms2-dev libmupdf-dev \
+        libnss-mdns libopenjp2-7-dev libpng-dev zlib1g-dev
 
 
 Configuration

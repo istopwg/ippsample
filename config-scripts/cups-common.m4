@@ -168,8 +168,6 @@ if test "$host_os_name" = darwin; then
 
 	dnl Check for framework headers...
 	AC_CHECK_HEADER(CoreFoundation/CoreFoundation.h,AC_DEFINE(HAVE_COREFOUNDATION_H))
-	AC_CHECK_HEADER(CoreFoundation/CFPriv.h,AC_DEFINE(HAVE_CFPRIV_H))
-	AC_CHECK_HEADER(CoreFoundation/CFBundlePriv.h,AC_DEFINE(HAVE_CFBUNDLEPRIV_H))
 fi
 
 dnl Transform utility...
@@ -221,13 +219,12 @@ case "$use_pdfrip" in
 		AC_SEARCH_LIBS(jpeg_destroy_decompress, mupdfthird jpeg)
 		AC_SEARCH_LIBS(jbig2_ctx_new, mupdfthird jbig2dec)
 		AC_SEARCH_LIBS(opj_create_decompress, mupdfthird openjp2)
-		AC_SEARCH_LIBS(js_getcontext, mupdfthird)
 		AC_SEARCH_LIBS(hb_buffer_create, mupdfthird harfbuzz)
 		AC_CHECK_LIB(mupdf, fz_drop_document,[
 			AC_MSG_RESULT([    Using MuPDF for PDF RIP])
 
 			AC_DEFINE(HAVE_MUPDF)
-			LIBS="-lmupdf $LIBS"
+			LIBS="-lmupdf -lmupdfthird $LIBS"
 			IPPTRANSFORM_BIN="ipptransform"
 			IPPTRANSFORM_HTML="ipptransform.html"
 			IPPTRANSFORM_MAN="ipptransform.1"
@@ -280,7 +277,7 @@ AC_SUBST(IPPTRANSFORM3D_HTML)
 AC_SUBST(IPPTRANSFORM3D_MAN)
 
 SAVEPATH="$PATH"
-PATH="$PATH:/Applications/Cura/Cura.app/Contents/Resources:/Applications/Cura.app/Contents/MacOS"
+PATH="$PATH:/Applications/Ultimaker Cura.app/Contents/MacOS:/Applications/Cura/Cura.app/Contents/Resources:/Applications/Cura.app/Contents/MacOS"
 AC_PATH_PROG(CURAENGINE,CuraEngine)
 PATH="$SAVEPATH"
 
