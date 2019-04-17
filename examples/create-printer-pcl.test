@@ -28,5 +28,5 @@
 	EXPECT printer-state OF-TYPE enum
 	EXPECT printer-state-reasons OF-TYPE keyword
 	EXPECT printer-xri-supported OF-TYPE collection
-	DISPLAY printer-xri-supported/xri-uri
+	DISPLAY printer-xri-supported
 }

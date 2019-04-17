@@ -49,7 +49,7 @@ serverAddEventNoLock(
   else
     text[0] = '\0';
 
-  serverLog(SERVER_LOGLEVEL_DEBUG, "serverAddEventNoLock(printer=%p(%s), job=%p(%d), event=0x%x, message=\"%s\")", (void *)printer, printer->name, (void *)job, job ? job->id : -1, event, text);
+  serverLog(SERVER_LOGLEVEL_DEBUG, "serverAddEventNoLock(printer=%p(%s), job=%p(%d), event=0x%x, message=\"%s\")", (void *)printer, printer ? printer->name : "(null)", (void *)job, job ? job->id : -1, event, text);
 
   _cupsRWLockRead(&SubscriptionsRWLock);
 
