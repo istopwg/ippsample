@@ -121,10 +121,4 @@
 	ATTR integer resource-id $resource-id
 
 	STATUS successful-ok
-	DISPLAY resource-state
-	EXPECT resource-state OF-TYPE enum
-	DISPLAY resource-state-reasons
-	EXPECT resource-state-reasons OF-TYPE keyword
-	DISPLAY resource-uuid
-	EXPECT resource-uuid OF-TYPE uri
 }
