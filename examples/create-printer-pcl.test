@@ -1,3 +1,11 @@
+#
+# Script to create an IPP printer pointing to a PCL device.
+#
+# Usage:
+#
+#     ipptool -t -d device-uri=socket://IP-ADDRESS SYSTEM-URI create-printer-pcl.test
+#
+
 {
 	NAME "Create-Printer for PCL $device-uri"
 
@@ -20,4 +28,5 @@
 	EXPECT printer-state OF-TYPE enum
 	EXPECT printer-state-reasons OF-TYPE keyword
 	EXPECT printer-xri-supported OF-TYPE collection
+	DISPLAY printer-xri-supported/xri-uri
 }
