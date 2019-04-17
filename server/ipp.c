@@ -2216,7 +2216,20 @@ ipp_create_resource(
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "resource-format-accepted", NULL, "");
+  if (!strcmp(type, "static-icc-profile"))
+  {
+    ippAddString(client->response, IPP_TAG_OPERATION, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "resource-format-accepted", NULL, "application/vnd.iccprofile");
+  }
+  else if (!strcmp(type, "static-image"))
+  {
+    static const char * const formats[] = { "image/jpeg", "image/png" };
+
+    ippAddStrings(client->response, IPP_TAG_OPERATION, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "resource-format-accepted", 2, NULL, formats);
+  }
+  else
+  {
+    ippAddString(client->response, IPP_TAG_OPERATION, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "resource-format-accepted", NULL, "text/strings");
+  }
 
   ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
   cupsArrayAdd(ra, "resource-id");
@@ -2224,7 +2237,7 @@ ipp_create_resource(
   cupsArrayAdd(ra, "resource-state-reasons");
   cupsArrayAdd(ra, "resource-uuid");
 
-  serverCopyAttributes(client->response, resource->attrs, ra, NULL, IPP_TAG_RESOURCE, 0);
+  copy_resource_attributes(client, resource, ra);
   cupsArrayDelete(ra);
 
  /*
@@ -5638,7 +5651,7 @@ ipp_send_resource_data(
   cupsArrayAdd(ra, "resource-state-reasons");
   cupsArrayAdd(ra, "resource-uuid");
 
-  serverCopyAttributes(client->response, resource->attrs, ra, NULL, IPP_TAG_RESOURCE, 0);
+  copy_resource_attributes(client, resource, ra);
   cupsArrayDelete(ra);
 }
 
