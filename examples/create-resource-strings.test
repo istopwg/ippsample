@@ -1,0 +1,130 @@
+#
+# Script to create a strings resource.
+#
+# Usage:
+#
+#     ipptool -t -f filename.strings SYSTEM-URI create-resource-strings.test
+#
+
+{
+	NAME "Create-Resource for $filename"
+
+	OPERATION Create-Resource
+	VERSION 2.0
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR keyword resource-type static-strings
+
+	GROUP resource-attributes-tag
+	ATTR text resource-info "Sample message catalog."
+	ATTR name resource-name $filename
+
+	STATUS successful-ok
+	DISPLAY resource-id
+	EXPECT resource-id OF-TYPE integer DEFINE-VALUE resource-id
+	EXPECT resource-id OF-TYPE integer
+	DISPLAY resource-state
+	EXPECT resource-state OF-TYPE enum
+	DISPLAY resource-state-reasons
+	EXPECT resource-state-reasons OF-TYPE keyword
+	DISPLAY resource-uuid
+	EXPECT resource-uuid OF-TYPE uri
+}
+{
+	NAME "Send-Resource-Data for $filename"
+
+	OPERATION Send-Resource-Data
+	VERSION 2.0
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $resource-id
+	ATTR mimeMediaType resource-format text/strings
+
+	FILE $filename
+
+	STATUS successful-ok
+	DISPLAY resource-state
+	EXPECT resource-state OF-TYPE enum
+	DISPLAY resource-state-reasons
+	EXPECT resource-state-reasons OF-TYPE keyword
+	DISPLAY resource-uuid
+	EXPECT resource-uuid OF-TYPE uri
+}
+{
+	NAME "Install-Resource for $filename"
+
+	OPERATION Install-Resource
+	VERSION 2.0
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $resource-id
+
+	STATUS successful-ok
+	DISPLAY resource-state
+	EXPECT resource-state OF-TYPE enum
+	DISPLAY resource-state-reasons
+	EXPECT resource-state-reasons OF-TYPE keyword
+	DISPLAY resource-uuid
+	EXPECT resource-uuid OF-TYPE uri
+}
+{
+	NAME "Get-Resource-Attributes for $filename"
+
+	OPERATION Get-Resource-Attributes
+	VERSION 2.0
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $resource-id
+
+	STATUS successful-ok
+	DISPLAY resource-format
+	EXPECT resource-format OF-TYPE mimeMediaType
+	DISPLAY resource-id
+	EXPECT resource-id OF-TYPE integer
+	DISPLAY resource-info
+	EXPECT resource-info OF-TYPE text
+	DISPLAY resource-k-octets
+	EXPECT resource-k-octets OF-TYPE integer
+	DISPLAY resource-name
+	EXPECT resource-name OF-TYPE name
+	DISPLAY resource-state
+	EXPECT resource-state OF-TYPE enum
+	DISPLAY resource-state-reasons
+	EXPECT resource-state-reasons OF-TYPE keyword
+	DISPLAY resource-type
+	EXPECT resource-type OF-TYPE keyword
+	DISPLAY resource-uuid
+	EXPECT resource-uuid OF-TYPE uri
+}
+{
+	NAME "Cancel-Resource for $filename"
+
+	OPERATION Cancel-Resource
+	VERSION 2.0
+
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $resource-id
+
+	STATUS successful-ok
+	DISPLAY resource-state
+	EXPECT resource-state OF-TYPE enum
+	DISPLAY resource-state-reasons
+	EXPECT resource-state-reasons OF-TYPE keyword
+	DISPLAY resource-uuid
+	EXPECT resource-uuid OF-TYPE uri
+}
