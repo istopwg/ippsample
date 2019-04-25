@@ -2,7 +2,7 @@
 # IPP tools makefile.
 #
 # Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group.
-# Copyright © 2007-2018 by Apple Inc.
+# Copyright © 2007-2019 by Apple Inc.
 # Copyright © 1997-2006 by Easy Software Products, all rights reserved.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more

@@ -1,8 +1,8 @@
 #
 # IPP documentation makefile.
 #
-# Copyright 2014-2017 by the IEEE-ISTO Printer Working Group.
-# Copyright 2015-2017 by Apple Inc.
+# Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group.
+# Copyright © 2015-2019 by Apple Inc.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
 # information.
@@ -17,6 +17,7 @@ TARGETS		=	\
 			mantohtml
 MAN1		=	\
 			ippdoclint.1 \
+			ippeveprinter.1 \
 			$(IPPFIND_MAN) \
 			ipptool.1 \
 			$(IPPTRANSFORM_MAN) \
@@ -29,6 +30,7 @@ MAN8		=	\
 			ippserver.8
 HTML		=	\
 			ippdoclint.html \
+			ippeveprinter.html \
 			$(IPPFIND_HTML) \
 			ippproxy.html \
 			ippserver.html \

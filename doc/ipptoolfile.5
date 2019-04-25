@@ -1,11 +1,9 @@
 .\"
 .\" ipptoolfile man page.
 .\"
-.\" Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
-.\" Copyright © 2010-2018 by Apple Inc.
+.\" Copyright 2010-2018 by Apple Inc.
 .\"
-.\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
-.\" information.
+.\" Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
 .\"
 .TH ipptoolfile 5 "CUPS" "15 June 2017" "Apple Inc."
 .SH NAME
@@ -89,7 +87,7 @@ Defines a test.
 .TP 5
 \fBDEFINE \fIvariable-name value\fR
 Defines the named variable to the given value. This is equivalent to specifying \fI\-d variable-name=value\fR on the
-.BR ipptool (1)
+.BR ipptool (8)
 command-line.
 .TP 5
 \fBDEFINE\-DEFAULT \fIvariable-name value\fR
@@ -102,28 +100,28 @@ Specifies an identifier string for the current file.
 .TP 5
 \fBIGNORE\-ERRORS no\fR
 Specifies whether, by default,
-.BR ipptool (1)
+.BR ipptool (8)
 will ignore errors and continue with subsequent tests.
 .TP 5
 \fBINCLUDE "\fIfilename\fB"\fR
 .TP 5
 \fBINCLUDE <\fIfilename\fB>\fR
 Includes another test file. The first form includes a file relative to the current test file, while the second form includes a file from the
-.BR ipptool (1)
+.BR ipptool (8)
 include directory.
 .TP 5
 \fBINCLUDE\-IF\-DEFINED \fIname \fB"\fIfilename\fB"\fR
 .TP 5
 \fBINCLUDE\-IF\-DEFINED \fIname \fB<\fIfilename\fB>\fR
 Includes another test file if the named variable is defined. The first form includes a file relative to the current test file, while the second form includes a file from the
-.BR ipptool (1)
+.BR ipptool (8)
 include directory.
 .TP 5
 \fBINCLUDE\-IF\-NOT\-DEFINED \fIname \fB"\fIfilename\fB"\fR
 .TP 5
 \fBINCLUDE\-IF\-NOT\-DEFINED \fIname \fB<\fIfilename\fB>\fR
 Includes another test file if the named variable is not defined. The first form includes a file relative to the current test file, while the second form includes a file from the
-.BR ipptool (1)
+.BR ipptool (8)
 include directory.
 .TP 5
 \fBSKIP\-IF\-DEFINED \fIvariable-name\fR
@@ -141,12 +139,12 @@ Specifies that tests will, by default, use "Transfer-Encoding: chunked" for requ
 .TP 5
 \fBTRANSFER chunked\fR
 Specifies that tests will, by default, use the HTTP/1.1 "Transfer-Encoding: chunked" header. This is the default and is equivalent to specifying \fI\-c\fR on the
-.BR ipptool (1)
+.BR ipptool (8)
 command-line. Support for chunked requests is required for conformance with all versions of IPP.
 .TP 5
 \fBTRANSFER length\fR
 Specifies that tests will, by default, use the HTTP/1.0 "Content-Length:" header. This is equivalent to specifying \fI\-l\fR on the
-.BR ipptool (1)
+.BR ipptool (8)
 command-line. Support for content length requests is required for conformance with all versions of IPP.
 .TP 5
 \fBVERSION 1.0\fR
@@ -212,7 +210,7 @@ Specifies the group tag for subsequent attributes in the request.
 .TP 5
 \fBIGNORE\-ERRORS no\fR
 Specifies whether
-.BR ipptool (1)
+.BR ipptool (8)
 will ignore errors and continue with subsequent tests.
 .TP 5
 \fBNAME "\fIliteral string\fB"\fR
@@ -231,7 +229,7 @@ Specifies the request-id value to use in the request, either an integer or the w
 .TP 5
 \fBRESOURCE \fIpath\fR
 Specifies an alternate resource path that is used for the HTTP POST request. The default is the resource from the URI provided to the
-.BR ipptool (1)
+.BR ipptool (8)
 program.
 .TP 5
 \fBSKIP\-IF\-DEFINED \fIvariable-name\fR
@@ -243,7 +241,7 @@ Specifies that the current test should be skipped when the variable is or is not
 .TP 5
 \fBSKIP\-PREVIOUS\-ERROR no\fR
 Specifies whether
-.BR ipptool (1)
+.BR ipptool (8)
 will skip the current test if the previous test resulted in an error/failure.
 .TP 5
 \fBSTATUS \fIstatus-code \fR[ \fIpredicate\fR ]
@@ -408,7 +406,7 @@ Specifies the maximum number of times to repeat. The default value is 1000.
 Specifies that the current test should be repeated when the response status-code matches or does not match the value specified by the STATUS directive.
 .SS OPERATION CODES
 Operation codes correspond to the hexadecimal numbers (0xHHHH) and names from RFC 8011 and other IPP extension specifications. Here is a complete list of names supported by
-.BR ipptool (1):
+.BR ipptool (8):
 .nf
 
     Activate\-Printer
@@ -481,7 +479,7 @@ Operation codes correspond to the hexadecimal numbers (0xHHHH) and names from RF
 .fi
 .SS STATUS CODES
 Status codes correspond to the hexadecimal numbers (0xHHHH) and names from RFC 8011 and other IPP extension specifications. Here is a complete list of the names supported by
-.BR ipptool (1):
+.BR ipptool (8):
 .nf
 
     client\-error\-account\-authorization\-failed
@@ -586,7 +584,7 @@ Here are the value tags:
 .fi
 .SS VARIABLES
 The
-.BR ipptool (1)
+.BR ipptool (8)
 program maintains a list of variables that can be used in any literal string or attribute value by specifying "\fI$variable-name\fR". Aside from variables defined using the \fI-d\fR option or \fBDEFINE\fR directive, the following pre-defined variables are available:
 .TP 5
 \fB$$\fR
@@ -597,17 +595,17 @@ Inserts the value of the named environment variable, or an empty string if the e
 .TP 5
 \fB$filename\fR
 Inserts the filename provided to
-.BR ipptool (1)
+.BR ipptool (8)
 with the \fI-f\fR option.
 .TP 5
 \fB$filetype\fR
 Inserts the MIME media type for the filename provided to
-.BR ipptool (1)
+.BR ipptool (8)
 with the \fI-f\fR option.
 .TP 5
 \fB$hostname\fR
 Inserts the hostname from the URI provided to
-.BR ipptool (1).
+.BR ipptool (8).
 .TP 5
 \fB$job\-id\fR
 Inserts the last "job\-id" attribute value returned in a test response or 0 if no "job\-id" attribute has been seen.
@@ -620,33 +618,31 @@ Inserts the last "notify\-subscription\-id" attribute value returned in a test r
 .TP 5
 \fB$port\fR
 Inserts the port number from the URI provided to
-.BR ipptool (1).
+.BR ipptool (8).
 .TP 5
 \fB$resource\fR
 Inserts the resource path from the URI provided to
-.BR ipptool (1).
+.BR ipptool (8).
 .TP 5
 \fB$scheme\fR
 Inserts the scheme from the URI provided to
-.BR ipptool (1).
+.BR ipptool (8).
 .TP 5
 \fB$uri\fR
 Inserts the URI provided to
-.BR ipptool (1).
+.BR ipptool (8).
 .TP 5
 \fB$uriuser\fR
 Inserts the username from the URI provided to
-.BR ipptool (1),
+.BR ipptool (8),
 if any.
 .TP 5
 \fB$user\fR
 Inserts the current user's login name.
 .SH SEE ALSO
 .BR ipptool (1),
-.BR ippserver (8),
 IANA IPP Registry (http://www.iana.org/assignments/ipp-registrations),
 PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp),
 RFC 8011 (http://tools.ietf.org/html/rfc8011)
 .SH COPYRIGHT
-Copyright \[co] 2014-2018 by the IEEE-ISTO Printer Working Group.
 Copyright \[co] 2007-2018 by Apple Inc.
