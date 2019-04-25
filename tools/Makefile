@@ -1,7 +1,7 @@
 #
 # IPP tools makefile.
 #
-# Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
+# Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group.
 # Copyright © 2007-2018 by Apple Inc.
 # Copyright © 1997-2006 by Easy Software Products, all rights reserved.
 #
@@ -14,6 +14,7 @@ include ../Makedefs
 
 OBJS		=	\
 			ippdoclint.o \
+			ippeveprinter.o \
 			ippfind.o \
 			ippproxy.o \
 			ipptool.o \
@@ -24,6 +25,7 @@ TARGETS         =       \
                         $(SBIN_TARGETS)
 BIN_TARGETS	=	\
 			ippdoclint \
+			ippeveprinter \
 			$(IPPFIND_BIN) \
 			ipptool \
 			$(IPPTRANSFORM_BIN) \
@@ -86,6 +88,15 @@ test:
 ippdoclint:	ippdoclint.o ../cups/libcups.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ippdoclint.o $(LIBS)
+
+
+#
+# ippeveprinter
+#
+
+ippeveprinter:	ippeveprinter.o ../cups/libcups.a
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ ippeveprinter.o $(LIBS)
 
 
 #
