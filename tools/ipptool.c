@@ -1,7 +1,7 @@
 /*
  * ipptool command for CUPS.
  *
- * Copyright © 2007-2018 by Apple Inc.
+ * Copyright © 2007-2019 by Apple Inc.
  * Copyright © 1997-2007 by Easy Software Products.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -176,7 +176,7 @@ static const char *get_string(ipp_attribute_t *attr, int element, int flags, cha
 static void	init_data(_cups_testdata_t *data);
 static char	*iso_date(const ipp_uchar_t *date);
 static void	pause_message(const char *message);
-static void	print_attr(cups_file_t *outfile, int output, ipp_attribute_t *attr, ipp_tag_t *group);
+static void	print_attr(cups_file_t *outfile, _cups_output_t output, ipp_attribute_t *attr, ipp_tag_t *group);
 static void	print_csv(_cups_testdata_t *data, ipp_t *ipp, ipp_attribute_t *attr, int num_displayed, char **displayed, size_t *widths);
 static void	print_fatal_error(_cups_testdata_t *data, const char *s, ...) _CUPS_FORMAT(2, 3);
 static void	print_ippserver_attr(_cups_testdata_t *data, ipp_attribute_t *attr, int indent);
@@ -845,7 +845,7 @@ copy_hex_string(char          *buffer,	/* I - String buffer */
     if (*dataptr < 0x20 || *dataptr >= 0x7f)
       break;
 
-  if (*dataptr)
+  if (dataptr < dataend)
   {
    /*
     * Yes, encode as hex...
@@ -1150,7 +1150,7 @@ do_test(_ipp_file_t      *f,		/* I - IPP data file */
 
     if (httpGetVersion(data->http) != HTTP_1_1)
     {
-      int version = httpGetVersion(data->http);
+      int version = (int)httpGetVersion(data->http);
 
       add_stringf(data->errors, "Bad HTTP version (%d.%d)", version / 100, version % 100);
     }
@@ -2280,7 +2280,7 @@ pause_message(const char *message)	/* I - Message */
 
 static void
 print_attr(cups_file_t     *outfile,	/* I  - Output file */
-           int             output,	/* I  - Output format */
+           _cups_output_t  output,	/* I  - Output format */
            ipp_attribute_t *attr,	/* I  - Attribute to print */
            ipp_tag_t       *group)	/* IO - Current group */
 {
@@ -4540,7 +4540,7 @@ with_value(_cups_testdata_t *data,	/* I - Test data */
     case IPP_TAG_BOOLEAN :
 	for (i = 0; i < count; i ++)
 	{
-          if ((!strcmp(value, "true")) == ippGetBoolean(attr, i))
+          if ((!strcmp(value, "true") || !strcmp(value, "1")) == ippGetBoolean(attr, i))
           {
             if (!matchbuf[0])
 	      strlcpy(matchbuf, value, matchlen);
@@ -4771,7 +4771,74 @@ with_value(_cups_testdata_t *data,	/* I - Test data */
 	break;
 
     case IPP_TAG_STRING :
+        if (flags & _CUPS_WITH_REGEX)
+	{
+	 /*
+	  * Value is an extended, case-sensitive POSIX regular expression...
+	  */
+
+	  void		*adata;		/* Pointer to octetString data */
+	  int		adatalen;	/* Length of octetString */
+	  regex_t	re;		/* Regular expression */
+
+          if ((i = regcomp(&re, value, REG_EXTENDED | REG_NOSUB)) != 0)
+	  {
+            regerror(i, &re, temp, sizeof(temp));
+
+	    print_fatal_error(data, "Unable to compile WITH-VALUE regular expression \"%s\" - %s", value, temp);
+	    return (0);
+	  }
+
+         /*
+	  * See if ALL of the values match the given regular expression.
+	  */
+
+	  for (i = 0; i < count; i ++)
+	  {
+            if ((adata = ippGetOctetString(attr, i, &adatalen)) == NULL || adatalen >= (int)sizeof(temp))
+            {
+              match = 0;
+              break;
+            }
+            memcpy(temp, adata, (size_t)adatalen);
+            temp[adatalen] = '\0';
+
+	    if (!regexec(&re, temp, 0, NULL, 0))
+	    {
+	      if (!matchbuf[0])
+		strlcpy(matchbuf, temp, matchlen);
+
+	      if (!(flags & _CUPS_WITH_ALL))
+	      {
+	        match = 1;
+	        break;
+	      }
+	    }
+	    else if (flags & _CUPS_WITH_ALL)
+	    {
+	      match = 0;
+	      break;
+	    }
+	  }
+
+	  regfree(&re);
+
+	  if (!match && errors)
+	  {
+	    for (i = 0; i < count; i ++)
+	    {
+	      adata = ippGetOctetString(attr, i, &adatalen);
+	      copy_hex_string(temp, adata, adatalen, sizeof(temp));
+	      add_stringf(data->errors, "GOT: %s=\"%s\"", name, temp);
+	    }
+	  }
+	}
+	else
         {
+         /*
+          * Value is a literal or hex-encoded string...
+          */
+
           unsigned char	withdata[1023],	/* WITH-VALUE data */
 			*adata;		/* Pointer to octetString data */
 	  int		withlen,	/* Length of WITH-VALUE data */
@@ -4836,7 +4903,7 @@ with_value(_cups_testdata_t *data,	/* I - Test data */
 	    if (withlen == adatalen && !memcmp(withdata, adata, (size_t)withlen))
 	    {
 	      if (!matchbuf[0])
-	        copy_hex_string(matchbuf, adata, adatalen, matchlen);
+                copy_hex_string(matchbuf, adata, adatalen, matchlen);
 
 	      if (!(flags & _CUPS_WITH_ALL))
 	      {

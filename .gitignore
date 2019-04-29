@@ -23,6 +23,7 @@ prime
 server/ippserver
 stage
 tools/ippdoclint
+tools/ippeveprinter
 tools/ippfind
 tools/ippproxy
 tools/ipptool
