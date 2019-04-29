@@ -16,11 +16,6 @@ $*\n\
 ' > /usr/bin/entrypoint.sh && chmod +x /usr/bin/entrypoint.sh
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
 
-# Copy source configs to
-COPY config* /root/ippsample/
-COPY Make* /root/ippsample/
-RUN cd /root/ippsample; ./configure
-
-# Copy rest of the sources to use build cache as far as possible
+# Copy source files to image
 COPY . /root/ippsample/
-RUN cd /root/ippsample; make; make test; make install
+RUN cd /root/ippsample; ./configure; make; make test; make install

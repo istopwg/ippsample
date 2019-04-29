@@ -1,31 +1,35 @@
 Docker Support for IPP Sample Code
 ==================================
-
 This repository includes a sample Dockerfile for compiling and running `ippserver` in a Docker container.
 
 
 Building and Running on Docker
 ------------------------------
-
 From a shell prompt in the directory (on Windows 10|2016, macOS, or Linux)
 containing this docker file run:
-
 ```
 docker build -t ippsample .
 ```
-
 You now can run the container with a bash terminal and go to the `/root/ippsample` folder manually.
-
 ```
 docker run -it ippsample bash
 ```
-
 You can also run one of the IPP binaries instead of the bash terminal.
 
+Fixing The Builds / Debugging Docker Problems
+------------------------------------------------
+If building from the Dockerfile is failing, you can debug it by running it in a shell. But you won't be able to use the tag since the build failed. So to run a shell in its container, you first need to look up the image number, like so:
+```
+docker ps -a
+```
+Copy the latest image number from the list, then do a "docker run" specifying that image, and specify the container should be run with a shell like bash:
+```
+docker run -it IMAGENUMBER bash
+```
+Now you can "cd" into the folder and re-run the commands interactively, inspect the contents of the image, etc.
 
 Starting the IPP Server
 -----------------------
-
 Run the IPP server with all its arguments:
 
 ```
