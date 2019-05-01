@@ -16,7 +16,7 @@ cups/testipp
 cups/testoptions
 cups/testraster
 data
-doc/mantohtml
+man/mantohtml
 examples/pwg-raster-samples*
 parts
 prime
