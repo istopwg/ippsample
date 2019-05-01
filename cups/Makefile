@@ -134,6 +134,10 @@ install:	all
 	for file in $(HEADERS); do \
 		$(INSTALL_DATA) $$file $(BUILDROOT)$(includedir)/cups; \
 	done
+	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(datadir)/cups
+	for file in cupspm.epub cupspm.html cupspm.png; do \
+		$(INSTALL_DATA) $$file $(BUILDROOT)$(datadir)/cups; \
+	done
 
 
 #
@@ -218,20 +222,16 @@ APISOURCES =	$(LIBOBJS:.o=.c) $(HEADERS)
 
 apihelp:
 	echo Generating CUPS API help files...
-	mxmldoc --title "CUPS API Programming Guide" \
-		--author "Michael R Sweet" \
-		--copyright "Copyright 2007-2018 by Apple Inc." \
-		--docversion $(IPPSAMPLE_VERSION) \
-		--intro api.intro \
-		api.xml $(APISOURCES) >../doc/api.html
-	mxmldoc --title "CUPS API Programming Guide" \
-		--author "Michael R Sweet" \
-		--copyright "Copyright 2007-2018 by Apple Inc." \
-		--docversion $(IPPSAMPLE_VERSION) \
-		--intro api.intro \
-		--epub ../doc/api.epub \
-		api.xml
-	$(RM) api.xml
+	$(RM) cupspm.xml
+	codedoc --section "Programming" --body cupspm.md \
+		cupspm.xml \
+		auth.c cups.h dest*.c encode.c http.h http*.c ipp.h ipp*.c \
+		options.c tls-darwin.c usersys.c util.c \
+		--coverimage cupspm.png \
+		--epub cupspm.epub
+	codedoc --section "Programming" --body cupspm.md \
+		cupspm.xml > cupspm.html
+	$(RM) cupspm.xml
 
 
 #
