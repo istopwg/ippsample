@@ -43,10 +43,8 @@
 #define open		_open
 #define read	        _read
 #define rmdir		_rmdir
-#define snprintf 	_snprintf
 #define strdup		_strdup
 #define unlink		_unlink
-#define vsnprintf 	_vsnprintf
 #define write		_write
 
 
@@ -212,8 +210,9 @@ typedef unsigned long useconds_t;
  * Do we have the (v)snprintf() functions?
  */
 
-#define HAVE_SNPRINTF 1
-#define HAVE_VSNPRINTF 1
+/* Windows snprintf/vsnprintf are non-conforming */
+/* #def HAVE_SNPRINTF */
+/* #undef HAVE_VSNPRINTF */
 
 
 /*
