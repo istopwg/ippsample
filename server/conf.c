@@ -166,8 +166,9 @@ serverCreateSystem(
 	  if ((printer = serverCreatePrinter(resource, dent->filename, &pinfo, 0)) == NULL)
             continue;
 
-          printer->state        = IPP_PSTATE_IDLE;
-          printer->is_accepting = 1;
+          printer->state         = IPP_PSTATE_IDLE;
+          printer->state_reasons = SERVER_PREASON_NONE;
+          printer->is_accepting  = 1;
 
           serverAddPrinter(printer);
 	}
@@ -216,10 +217,11 @@ serverCreateSystem(
 	  if ((printer = serverCreatePrinter(resource, dent->filename, &pinfo, 0)) == NULL)
           continue;
 
-	  if (!Printers)
-	    Printers = cupsArrayNew((cups_array_func_t)compare_printers, NULL);
+          printer->state         = IPP_PSTATE_IDLE;
+          printer->state_reasons = SERVER_PREASON_NONE;
+          printer->is_accepting  = 1;
 
-	  cupsArrayAdd(Printers, printer);
+          serverAddPrinter(printer);
 	}
       }
       else if (!strstr(dent->filename, ".png"))
@@ -1097,7 +1099,9 @@ create_system_attributes(void)
   int			alloc_groups,	/* Allocated groups */
 			num_groups;	/* Number of groups */
   char			**groups;	/* Group names */
+#  if 0 /* Need to change this to a configured list */
   struct group		*grp;		/* Current group */
+#  endif /* 0 */
 #endif /* !_WIN32 */
   char			uuid[128];	/* system-uuid */
   static const char * const charset_supported[] =
@@ -1267,6 +1271,7 @@ create_system_attributes(void)
   alloc_groups = num_groups = 0;
   groups       = NULL;
 
+#  if 0 /* We need to do something different - enumerating groups is SLOW */
   setgrent();
   while ((grp = getgrent()) != NULL)
   {
@@ -1282,6 +1287,7 @@ create_system_attributes(void)
     groups[num_groups ++] = strdup(grp->gr_name);
   }
   endgrent();
+#endif /* 0 */
 
   if (num_groups > 0)
   {
