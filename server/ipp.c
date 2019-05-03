@@ -5812,8 +5812,44 @@ static void
 ipp_set_job_attributes(
     server_client_t *client)		/* I - Client */
 {
-  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
-  return;
+  server_job_t		*job;		/* Job information */
+  ipp_attribute_t	*attr;		/* Current attribute */
+
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
+ /*
+  * Get the job...
+  */
+
+  if ((job = serverFindJob(client, 0)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Job does not exist.");
+    return;
+  }
+
+  if (Authentication && !serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this job.");
+    return;
+  }
+
+  if (job->state >= IPP_JSTATE_PROCESSING)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Job is not in a pending/pending-held state.");
+    return;
+  }
+
+  /* TODO: Implement set of attributes */
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
 
 

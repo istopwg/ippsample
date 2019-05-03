@@ -348,6 +348,8 @@ serverCreatePrinter(
     "ipp-attribute-fidelity",
     "job-account-id",
     "job-accounting-user-id",
+    "job-hold-until",
+    "job-hold-until-time",
     "job-name",
     "job-password",
     "job-priority",
@@ -359,11 +361,17 @@ serverCreatePrinter(
     "page-ranges",
     "print-color-mode",
     "print-quality",
+    "print-render-intent",
+    "print-scaling",
     "sides"
   };
   static const char * const job_creation3d[] =
   {					/* job-creation-attributes-supported values for 3D printers */
     "ipp-attribute-fidelity",
+    "job-account-id",
+    "job-accounting-user-id",
+    "job-hold-until",
+    "job-hold-until-time",
     "job-name",
     "job-priority",
     "materials-col",
@@ -383,6 +391,13 @@ serverCreatePrinter(
     "second-shift",
     "third-shift",
     "weekend"
+  };
+  static const char * const job_settable_attributes_supported[] =
+  {					/* job-settable-attributes-supported */
+    "job-hold-until",
+    "job-hold-until-time",
+    "job-name",
+    "job-priority"
   };
   static const int media_col_sizes[][2] =
   {					/* Default media-col sizes */
@@ -438,6 +453,19 @@ serverCreatePrinter(
     IPP_QUALITY_DRAFT,
     IPP_QUALITY_NORMAL,
     IPP_QUALITY_HIGH
+  };
+  static const char * const printer_settable_attributes_supported[] =
+  {					/* printer-settable-attributes-supported */
+    "printer-dns-sd-name",
+    "printer-geo-location",
+    "printer-icc-profiles",
+    "printer-info",
+    "printer-location",
+    "printer-mandatory-job-attributes",
+    "printer-name",
+    "printer-organization",
+    "printer-organizational-unit"
+/*    "printer-owner-vcard",*/ /* TODO: ???? */
   };
   static const char * const printer_supply[] =
   {					/* printer-supply values */
@@ -835,6 +863,9 @@ serverCreatePrinter(
   if (!cupsArrayFind(existing, (void *)"job-priority-supported"))
     ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "job-priority-supported", 100);
 
+  /* job-settable-attributes-supported */
+  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-settable-attributes-supported", (int)(sizeof(job_settable_attributes_supported) / sizeof(job_settable_attributes_supported[0])), NULL, job_settable_attributes_supported);
+
   if (!is_print3d)
   {
     /* media-bottom-margin-supported */
@@ -1166,6 +1197,9 @@ serverCreatePrinter(
     if (!cupsArrayFind(existing, (void *)"printer-resolutions-supported"))
       ippAddResolution(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-resolution-supported", IPP_RES_PER_INCH, 600, 600);
   }
+
+  /* printer-settable-attributes-supported */
+  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-settable-attributes-supported", (int)(sizeof(printer_settable_attributes_supported) / sizeof(printer_settable_attributes_supported[0])), NULL, printer_settable_attributes_supported);
 
   /* printer-strings-languages-supported */
   if (!cupsArrayFind(existing, (void *)"printer-strings-languages-supported") && printer->pinfo.strings)
