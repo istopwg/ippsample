@@ -38,7 +38,8 @@ IANA Registration Template
 --------------------------
 
 ```
-https://github.com/istopwg/ippsample/
+https://github.com/istopwg/ippsample/blob/master/server/EXTENSIONS.md
+
 
 Printer Description attributes:                         Reference
 ------------------------------                          ---------
