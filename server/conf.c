@@ -1179,32 +1179,6 @@ create_system_attributes(void)
     IPP_OP_SHUTDOWN_ALL_PRINTERS,
     IPP_OP_STARTUP_ALL_PRINTERS
   };
-  static const char * const device_command_supported[] =
-  {					/* Values for device-command-supported */
-    /* TODO: Scan BinDir for commands? Or make this configurable? */
-    "ippdoclint",
-    "ipptransform",
-    "ipptransform3d"
-  };
-  static const char * const device_format_supported[] =
-  {					/* Values for device-format-supported */
-    "application/pdf",
-    "application/postscript",
-    "application/vnd.hp-pcl",
-    "application/vnd.pwg-safe-gcode",
-    "image/pwg-raster",
-    "image/urf",
-    "model/3mf",
-    "model/3mf+slice",
-    "text/plain"
-  };
-  static const char * const device_uri_schemes_supported[] =
-  {					/* Values for device-uri-schemes-supported */
-    "ipp",
-    "ipps",
-    "socket",
-    "usbserial"
-  };
   static const char * const printer_creation_attributes_supported[] =
   {					/* Values for printer-creation-attributes-supported */
     "auth-print-group",
@@ -1248,6 +1222,32 @@ create_system_attributes(void)
     "static-image",
     "static-strings"
   };
+  static const char * const smi2699_device_command_supported[] =
+  {					/* Values for smi2699-device-command-supported */
+    /* TODO: Scan BinDir for commands? Or make this configurable? */
+    "ippdoclint",
+    "ipptransform",
+    "ipptransform3d"
+  };
+  static const char * const smi2699_device_format_supported[] =
+  {					/* Values for smi2699-device-format-supported */
+    "application/pdf",
+    "application/postscript",
+    "application/vnd.hp-pcl",
+    "application/vnd.pwg-safe-gcode",
+    "image/pwg-raster",
+    "image/urf",
+    "model/3mf",
+    "model/3mf+slice",
+    "text/plain"
+  };
+  static const char * const smi2699_device_uri_schemes_supported[] =
+  {					/* Values for smi2699-device-uri-schemes-supported */
+    "ipp",
+    "ipps",
+    "socket",
+    "usbserial"
+  };
   static const char * const system_mandatory_printer_attributes[] =
   {					/* Values for system-mandatory-printer-attributes */
     "printer-name"
@@ -1266,53 +1266,11 @@ create_system_attributes(void)
 
   SystemAttributes = ippNew();
 
-  /* auth-group-supported */
-#ifndef _WIN32
-  alloc_groups = num_groups = 0;
-  groups       = NULL;
-
-#  if 0 /* We need to do something different - enumerating groups is SLOW */
-  setgrent();
-  while ((grp = getgrent()) != NULL)
-  {
-    if (grp->gr_name[0] == '_')
-      continue;				/* Skip system groups */
-
-    if (num_groups >= alloc_groups)
-    {
-      alloc_groups += 10;
-      groups       = (char **)realloc(groups, (size_t)alloc_groups * sizeof(char *));
-    }
-
-    groups[num_groups ++] = strdup(grp->gr_name);
-  }
-  endgrent();
-#endif /* 0 */
-
-  if (num_groups > 0)
-  {
-    ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_NAME, "auth-group-supported", num_groups, NULL, (const char **)groups);
-
-    for (i = 0; i < num_groups; i ++)
-      free(groups[i]);
-    free(groups);
-  }
-#endif /* !_WIN32 */
-
   /* charset-configured */
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_CHARSET), "charset-configured", NULL, "utf-8");
 
   /* charset-supported */
   ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_CHARSET), "charset-supported", (int)(sizeof(charset_supported) / sizeof(charset_supported[0])), NULL, charset_supported);
-
-  /* device-command-supported */
-  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_NAME), "device-command-supported", (int)(sizeof(device_command_supported) / sizeof(device_command_supported[0])), NULL, device_command_supported);
-
-  /* device-format-supported */
-  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "device-format-supported", (int)(sizeof(device_format_supported) / sizeof(device_format_supported[0])), NULL, device_format_supported);
-
-  /* device-uri-schemes-supported */
-  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "device-uri-schemes-supported", (int)(sizeof(device_uri_schemes_supported) / sizeof(device_uri_schemes_supported[0])), NULL, device_uri_schemes_supported);
 
   /* document-format-supported */
   ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "document-format-supported", (int)(sizeof(document_format_supported) / sizeof(document_format_supported[0])), NULL, document_format_supported);
@@ -1367,6 +1325,48 @@ create_system_attributes(void)
 
   /* resource-type-supported */
   ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "resource-type-supported", (int)(sizeof(resource_type_supported) / sizeof(resource_type_supported[0])), NULL, resource_type_supported);
+
+  /* smi2699-auth-group-supported */
+#ifndef _WIN32
+  alloc_groups = num_groups = 0;
+  groups       = NULL;
+
+#  if 0 /* We need to do something different - enumerating groups is SLOW */
+  setgrent();
+  while ((grp = getgrent()) != NULL)
+  {
+    if (grp->gr_name[0] == '_')
+      continue;				/* Skip system groups */
+
+    if (num_groups >= alloc_groups)
+    {
+      alloc_groups += 10;
+      groups       = (char **)realloc(groups, (size_t)alloc_groups * sizeof(char *));
+    }
+
+    groups[num_groups ++] = strdup(grp->gr_name);
+  }
+  endgrent();
+#  endif /* 0 */
+
+  if (num_groups > 0)
+  {
+    ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_NAME, "smi2699-auth-group-supported", num_groups, NULL, (const char **)groups);
+
+    for (i = 0; i < num_groups; i ++)
+      free(groups[i]);
+    free(groups);
+  }
+#endif /* !_WIN32 */
+
+  /* smi2699-device-command-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_NAME), "smi2699-device-command-supported", (int)(sizeof(smi2699_device_command_supported) / sizeof(smi2699_device_command_supported[0])), NULL, smi2699_device_command_supported);
+
+  /* smi2699-device-format-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "smi2699-device-format-supported", (int)(sizeof(smi2699_device_format_supported) / sizeof(smi2699_device_format_supported[0])), NULL, smi2699_device_format_supported);
+
+  /* smi2699-device-uri-schemes-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "smi2699-device-uri-schemes-supported", (int)(sizeof(smi2699_device_uri_schemes_supported) / sizeof(smi2699_device_uri_schemes_supported[0])), NULL, smi2699_device_uri_schemes_supported);
 
   /* system-device-id, TODO: maybe remove this, it has no purpose */
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-device-id", NULL, "MANU:None;MODEL:None;");

@@ -1896,13 +1896,7 @@ ipp_create_printer(
   cups_array_t		*ra;		/* Response attributes */
   static server_value_t	values[] =	/* Values we allow */
   {
-    { "auth-print-group", IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
-    { "auth-proxy-group", IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
     { "color-supported", IPP_TAG_BOOLEAN, IPP_TAG_ZERO, 0 },
-    { "device-command", IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
-    { "device-format", IPP_TAG_MIMETYPE, IPP_TAG_ZERO, 0 },
-    { "device-name", IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
-    { "device-uri", IPP_TAG_URI, IPP_TAG_ZERO, 0 },
     { "document-format-default", IPP_TAG_MIMETYPE, IPP_TAG_ZERO, 0 },
     { "document-format-supported", IPP_TAG_MIMETYPE, IPP_TAG_ZERO, 1 },
     { "multiple-document-jobs-supported", IPP_TAG_BOOLEAN, IPP_TAG_ZERO, 0 },
@@ -1919,6 +1913,12 @@ ipp_create_printer(
     { "pwg-raster-document-resolution-supported", IPP_TAG_RESOLUTION, IPP_TAG_ZERO, 1 },
     { "pwg-raster-document-sheet-back", IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
     { "pwg-raster-document-type-supported", IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
+    { "smi2699-auth-print-group", IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
+    { "smi2699-auth-proxy-group", IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
+    { "smi2699-device-command", IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
+    { "smi2699-device-format", IPP_TAG_MIMETYPE, IPP_TAG_ZERO, 0 },
+    { "smi2699-device-name", IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
+    { "smi2699-device-uri", IPP_TAG_URI, IPP_TAG_ZERO, 0 },
     { "urf-supported", IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 }
   };
 
@@ -1984,8 +1984,8 @@ ipp_create_printer(
     return;
 
 #ifndef _WIN32
-  if ((attr = ippFindAttribute(client->request, "auth-print-group", IPP_TAG_NAME)) == NULL)
-    attr = ippFindAttribute(client->request, "auth-proxy-group", IPP_TAG_NAME);
+  if ((attr = ippFindAttribute(client->request, "smi2699-auth-print-group", IPP_TAG_NAME)) == NULL)
+    attr = ippFindAttribute(client->request, "smi2699-auth-proxy-group", IPP_TAG_NAME);
 
   if (attr && (group = ippGetString(attr, 0, NULL)) != NULL && !getgrnam(group))
   {
@@ -1994,10 +1994,10 @@ ipp_create_printer(
   }
 #endif /* !_WIN32 */
 
-  if ((attr = ippFindAttribute(client->request, "device-command", IPP_TAG_NAME)) != NULL)
+  if ((attr = ippFindAttribute(client->request, "smi2699-device-command", IPP_TAG_NAME)) != NULL)
   {
     _cupsRWLockRead(&SystemRWLock);
-    supported = ippFindAttribute(SystemAttributes, "device-command-supported", IPP_TAG_NAME);
+    supported = ippFindAttribute(SystemAttributes, "smi2699-device-command-supported", IPP_TAG_NAME);
     _cupsRWUnlock(&SystemRWLock);
 
     if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
@@ -2007,10 +2007,10 @@ ipp_create_printer(
     }
   }
 
-  if ((attr = ippFindAttribute(client->request, "device-format", IPP_TAG_MIMETYPE)) != NULL)
+  if ((attr = ippFindAttribute(client->request, "smi2699-device-format", IPP_TAG_MIMETYPE)) != NULL)
   {
     _cupsRWLockRead(&SystemRWLock);
-    supported = ippFindAttribute(SystemAttributes, "device-format-supported", IPP_TAG_MIMETYPE);
+    supported = ippFindAttribute(SystemAttributes, "smi2699-device-format-supported", IPP_TAG_MIMETYPE);
     _cupsRWUnlock(&SystemRWLock);
 
     if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
@@ -2020,7 +2020,7 @@ ipp_create_printer(
     }
   }
 
-  if ((attr = ippFindAttribute(client->request, "device-uri", IPP_TAG_URI)) != NULL)
+  if ((attr = ippFindAttribute(client->request, "smi2699-device-uri", IPP_TAG_URI)) != NULL)
   {
     http_uri_status_t uri_status;	/* Decoding status */
     char	scheme[32],		/* URI scheme */
@@ -2030,7 +2030,7 @@ ipp_create_printer(
     int		port;			/* URI port */
 
     _cupsRWLockRead(&SystemRWLock);
-    supported = ippFindAttribute(SystemAttributes, "device-uri-schemes-supported", IPP_TAG_URISCHEME);
+    supported = ippFindAttribute(SystemAttributes, "smi2699-device-uri-schemes-supported", IPP_TAG_URISCHEME);
     _cupsRWUnlock(&SystemRWLock);
 
     if ((uri_status = httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(attr, 0, NULL), scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, path, sizeof(path))) < HTTP_URI_STATUS_OK)
@@ -2069,27 +2069,27 @@ ipp_create_printer(
       continue;
 
 #ifndef _WIN32
-    if (!strcmp(aname, "auth-print-group"))
+    if (!strcmp(aname, "smi2699-auth-print-group"))
     {
       if ((grp = getgrnam(ippGetString(attr, 0, NULL))) != NULL)
         pinfo.print_group = grp->gr_gid;
     }
-    else if (!strcmp(aname, "auth-proxy-group"))
+    else if (!strcmp(aname, "smi2699-auth-proxy-group"))
     {
       if ((grp = getgrnam(ippGetString(attr, 0, NULL))) != NULL)
         pinfo.proxy_group = grp->gr_gid;
     }
     else
 #endif /* !_WIN32 */
-    if (!strcmp(aname, "device-command"))
+    if (!strcmp(aname, "smi2699-device-command"))
     {
       pinfo.command = (char *)ippGetString(attr, 0, NULL);
     }
-    else if (!strcmp(aname, "device-format"))
+    else if (!strcmp(aname, "smi2699-device-format"))
     {
       pinfo.output_format = (char *)ippGetString(attr, 0, NULL);
     }
-    else if (!strcmp(aname, "device-uri"))
+    else if (!strcmp(aname, "smi2699-device-uri"))
     {
       pinfo.device_uri = (char *)ippGetString(attr, 0, NULL);
     }
