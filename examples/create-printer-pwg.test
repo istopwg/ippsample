@@ -12,9 +12,9 @@
 
 	GROUP printer-attributes-tag
 	ATTR name printer-name "PWG Raster"
-	ATTR name device-command ipptransform
-	ATTR mimeMediaType device-format image/pwg-raster
-	ATTR uri device-uri $device-uri
+	ATTR name smi2699-device-command ipptransform
+	ATTR mimeMediaType smi2699-device-format image/pwg-raster
+	ATTR uri smi2699-device-uri $device-uri
 	ATTR resolution pwg-raster-document-resolution-supported 300dpi,600dpi
 	ATTR keyword pwg-raster-document-type-supported sgray_8,srgb_8,adobe-rgb_8,sgray_16,srgb_16,adobe-rgb_16,rgb_8,rgb_16
 

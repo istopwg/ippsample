@@ -1603,7 +1603,7 @@ error_cb(_ipp_file_t    *f,		/* I - IPP file data */
 static int				/* O - 1 on success, 0 on failure */
 finalize_system(void)
 {
-  char	local[1024];			/* Local hostname */
+  char		local[1024];		/* Local hostname */
 
 
  /*
@@ -1611,7 +1611,37 @@ finalize_system(void)
   */
 
   if (!BinDir)
-    BinDir = strdup(CUPS_SERVERBIN);
+  {
+    const char	*env;			/* Environment variable */
+    char	temp[1024];		/* Temporary string */
+
+    if ((env = getenv("CUPS_SERVERBIN")) != NULL)
+    {
+     /*
+      * Look for the commands in the indicated directory...
+      */
+
+      snprintf(temp, sizeof(temp), "%s/command", env);
+      BinDir = strdup(temp);
+    }
+    else if ((env = getenv("SNAP")) != NULL)
+    {
+     /*
+      * Look for the commands in the snap directory...
+      */
+
+      snprintf(temp, sizeof(temp), "%s/lib/cups/command", env);
+      BinDir = strdup(temp);
+    }
+    else
+    {
+     /*
+      * Use the compiled-in defaults...
+      */
+
+      BinDir = strdup(CUPS_SERVERBIN "/command");
+    }
+  }
 
  /*
   * Default hostname...

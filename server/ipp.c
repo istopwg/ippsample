@@ -2095,7 +2095,6 @@ ipp_create_printer(
     }
   }
 
-  /* TODO: Make sure printer is created stopped and not accepting jobs */
   if ((client->printer = serverCreatePrinter(resource, name, &pinfo, 1)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to create printer.");

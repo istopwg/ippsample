@@ -20,9 +20,9 @@
 
 	GROUP printer-attributes-tag
 	ATTR name printer-name PCL
-	ATTR name device-command ipptransform
-	ATTR mimeMediaType device-format application/vnd.hp-pcl
-	ATTR uri device-uri $device-uri
+	ATTR name smi2699-device-command ipptransform
+	ATTR mimeMediaType smi2699-device-format application/vnd.hp-pcl
+	ATTR uri smi2699-device-uri $device-uri
 
 	STATUS successful-ok
 	EXPECT printer-state OF-TYPE enum

@@ -22,14 +22,16 @@ OBJS		=	\
 			ipptransform3d.o
 TARGETS         =       \
                         $(BIN_TARGETS) \
+                        $(COMMAND_TARGETS) \
                         $(SBIN_TARGETS)
-BIN_TARGETS	=	\
+COMMAND_TARGETS	=	\
 			ippdoclint \
-			ippeveprinter \
-			$(IPPFIND_BIN) \
-			ipptool \
 			$(IPPTRANSFORM_BIN) \
 			$(IPPTRANSFORM3D_BIN)
+BIN_TARGETS	=	\
+			ippeveprinter \
+			$(IPPFIND_BIN) \
+			ipptool
 SBIN_TARGETS	=	\
 			ippproxy
 
@@ -66,6 +68,10 @@ install:	all
 	for file in $(BIN_TARGETS); do \
 		destfile=`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`; \
 		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir)/$$destfile; \
+	done
+	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(libexecdir)/cups/command
+	for file in $(COMMAND_TARGETS); do \
+		$(INSTALL_BIN) $$file $(BUILDROOT)$(libexecdir)/cups/command; \
 	done
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(sbindir)
 	for file in $(SBIN_TARGETS); do \
