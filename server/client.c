@@ -531,7 +531,7 @@ serverProcessHTTP(
               {
                 serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Icon file is \"%s\".", printer->pinfo.icon);
 
-                if (!stat(printer->pinfo.icon, &fileinfo) && (fd = open(printer->pinfo.icon, O_RDONLY)) >= 0)
+                if (!stat(printer->pinfo.icon, &fileinfo) && (fd = open(printer->pinfo.icon, O_RDONLY | O_BINARY)) >= 0)
                 {
                   if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", (size_t)fileinfo.st_size))
                   {
@@ -602,7 +602,7 @@ serverProcessHTTP(
 
                 serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Strings file is \"%s\".", match->filename);
 
-                if (!stat(match->filename, &fileinfo) && (fd = open(match->filename, O_RDONLY)) >= 0)
+                if (!stat(match->filename, &fileinfo) && (fd = open(match->filename, O_RDONLY | O_BINARY)) >= 0)
                 {
                   if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "text/strings", (size_t)fileinfo.st_size))
                   {

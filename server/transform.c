@@ -316,10 +316,10 @@ serverTransformJob(
     if (mode == SERVER_TRANSFORM_TO_FILE)
     {
       serverCreateJobFilename(job, format, line, sizeof(line));
-      mystdout[1] = open(line, O_WRONLY | O_CREAT | O_TRUNC | O_EXCL, 0666);
+      mystdout[1] = open(line, O_WRONLY | O_CREAT | O_TRUNC | O_EXCL | O_BINARY, 0666);
     }
     else
-      mystdout[1] = open("/dev/null", O_WRONLY);
+      mystdout[1] = open("/dev/null", O_WRONLY | O_BINARY);
 
     if (mystdout[1] < 0)
     {
@@ -335,14 +335,14 @@ serverTransformJob(
   }
 
   posix_spawn_file_actions_init(&actions);
-  posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0);
+  posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY | O_BINARY, 0);
   if (mystdout[1] < 0)
-    posix_spawn_file_actions_addopen(&actions, 1, "/dev/null", O_WRONLY, 0);
+    posix_spawn_file_actions_addopen(&actions, 1, "/dev/null", O_WRONLY | O_BINARY, 0);
   else
     posix_spawn_file_actions_adddup2(&actions, mystdout[1], 1);
 
   if (mystderr[1] < 0)
-    posix_spawn_file_actions_addopen(&actions, 2, "/dev/null", O_WRONLY, 0);
+    posix_spawn_file_actions_addopen(&actions, 2, "/dev/null", O_WRONLY | O_BINARY, 0);
   else
     posix_spawn_file_actions_adddup2(&actions, mystderr[1], 2);
 

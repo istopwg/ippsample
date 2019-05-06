@@ -81,6 +81,10 @@ extern char **environ;
 #  define _cupsRWDeinit(rw)
 #endif /* HAVE_PTHREAD_H */
 
+#  ifndef O_BINARY			/* Windows "binary file" nonsense */
+#    define O_BINARY 0
+#  endif /* !O_BINARY */
+
 #ifdef _MAIN_C_
 #  define VAR
 #  define VALUE(...) =__VA_ARGS__

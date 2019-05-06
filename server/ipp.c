@@ -321,7 +321,7 @@ copy_document_uri(
   {
     int infile;			/* Input file for local file URIs */
 
-    if ((infile = open(resource, O_RDONLY | O_NOFOLLOW)) < 0)
+    if ((infile = open(resource, O_RDONLY | O_NOFOLLOW | O_BINARY)) < 0)
     {
       job->state = IPP_JSTATE_ABORTED;
 
@@ -353,7 +353,7 @@ copy_document_uri(
 
     serverCreateJobFilename(job, job->format, filename, sizeof(filename));
 
-    if ((job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0)
+    if ((job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0600)) < 0)
     {
       close(infile);
 
@@ -508,7 +508,7 @@ copy_document_uri(
 
     serverCreateJobFilename(job, content_type, filename, sizeof(filename));
 
-    if ((job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0)
+    if ((job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0600)) < 0)
     {
       job->state = IPP_JSTATE_ABORTED;
 
@@ -2981,7 +2981,7 @@ ipp_fetch_document(
   ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, format);
   ippAddString(client->response, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression", NULL, compression ? "gzip" : "none");
 
-  client->fetch_file = open(filename, O_RDONLY);
+  client->fetch_file = open(filename, O_RDONLY | O_BINARY);
 }
 
 
@@ -4734,7 +4734,7 @@ ipp_print_job(server_client_t *client)	/* I - Client */
 
   serverLogJob(SERVER_LOGLEVEL_INFO, job, "Creating job file \"%s\", format \"%s\".", filename, job->format);
 
-  if ((job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0)
+  if ((job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0600)) < 0)
   {
     job->state = IPP_JSTATE_ABORTED;
 
@@ -5372,7 +5372,7 @@ ipp_send_document(server_client_t *client)/* I - Client */
 
   serverLogJob(SERVER_LOGLEVEL_INFO, job, "Creating job file \"%s\", format \"%s\".", filename, job->format);
 
-  job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0600);
 
   _cupsRWUnlock(&(client->printer->rwlock));
 
@@ -5570,7 +5570,7 @@ ipp_send_resource_data(
 
   serverLogClient(SERVER_LOGLEVEL_INFO, client, "Creating resource file \"%s\", format \"%s\".", filename, format);
 
-  if ((resource->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0)
+  if ((resource->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0600)) < 0)
   {
     int error = errno;			/* Open error */
 
@@ -5813,7 +5813,7 @@ ipp_set_job_attributes(
     server_client_t *client)		/* I - Client */
 {
   server_job_t		*job;		/* Job information */
-  ipp_attribute_t	*attr;		/* Current attribute */
+//  ipp_attribute_t	*attr;		/* Current attribute */
 
 
   if (Authentication && !client->username[0])
