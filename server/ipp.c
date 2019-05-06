@@ -3598,7 +3598,8 @@ ipp_get_printer_supported_values(
     server_client_t *client)		/* I - Client */
 {
   cups_array_t		*ra;		/* Requested attributes */
-  ipp_attribute_t	*settable;	/* Settable attributes */
+  ipp_attribute_t	*settable,	/* Settable attributes */
+			*supported;	/* Supported attributes */
   int			i,		/* Looping var */
 			count;		/* Number of settable attributes */
 
@@ -3625,7 +3626,12 @@ ipp_get_printer_supported_values(
 					/* Settable attribute name */
 
     if (!ra || cupsArrayFind(ra, (void *)name))
-      ippAddOutOfBand(client->response, IPP_TAG_PRINTER, IPP_TAG_ADMINDEFINE, name);
+    {
+      if ((supported = ippFindAttribute(client->printer->pinfo.attrs, name, IPP_TAG_ZERO)) != NULL)
+        ippCopyAttribute(client->response, supported, 0);
+      else
+        ippAddOutOfBand(client->response, IPP_TAG_PRINTER, IPP_TAG_ADMINDEFINE, name);
+    }
   }
 
   cupsArrayDelete(ra);

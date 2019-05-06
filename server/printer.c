@@ -103,6 +103,10 @@ serverCreatePrinter(
 			*formats[100],	/* document-format-supported values */
 			*ptr;		/* Pointer into string */
   const char		*prefix;	/* Prefix string */
+  int			num_sup_attrs;	/* Number of supported attributes */
+  const char		*sup_attrs[200];/* Supported attributes */
+  char			xxx_supported[256];
+					/* Name of -supported attribute */
   ipp_attribute_t	*format_sup = NULL,
 					/* document-format-supported */
 			*xri_sup,	/* printer-xri-supported */
@@ -317,68 +321,120 @@ serverCreatePrinter(
   };
   static const char * const doc_creation[] =
   {					/* document-creation-attributes-supported values */
+    "chamber-humidity",
+    "chamber-temperature",
     "copies",
-    "document-name",
-    "media",
-    "media-col",
-    "orientation-requested",
-    "output-bin",
-    "page-ranges",
-    "print-color-mode",
-    "print-quality",
-    "sides"
-  };
-  static const char * const doc_creation3d[] =
-  {					/* document-creation-attributes-supported values for 3D printers */
-    "copies",
-    "document-name",
-    "materials-col",
-    "platform-temperature",
-    "print-accuracy",
-    "print-base",
-    "print-quality",
-    "print-supports"
-  };
-  static const char * const job_creation[] =
-  {					/* job-creation-attributes-supported values */
-    "copies",
+    "document-access",
+    "document-charset",
+    "document-format",
+    "document-message",
+    "document-natural-language",
+    "document-password",
     "finishings",
     "finishings-col",
-    "ipp-attribute-fidelity",
-    "job-account-id",
-    "job-accounting-user-id",
-    "job-hold-until",
-    "job-hold-until-time",
-    "job-name",
-    "job-password",
-    "job-priority",
+    "materials-col",
     "media",
     "media-col",
     "multiple-document-handling",
+    "multiple-object-handling",
+    "number-up",
     "orientation-requested",
     "output-bin",
+    "output-device",
+    "overrides",
+    "page-delivery",
     "page-ranges",
-    "print-color-mode",
-    "print-quality",
-    "print-render-intent",
-    "print-scaling",
-    "sides"
-  };
-  static const char * const job_creation3d[] =
-  {					/* job-creation-attributes-supported values for 3D printers */
-    "ipp-attribute-fidelity",
-    "job-account-id",
-    "job-accounting-user-id",
-    "job-hold-until",
-    "job-hold-until-time",
-    "job-name",
-    "job-priority",
-    "materials-col",
     "platform-temperature",
+    "presentation-direction-number-up",
     "print-accuracy",
     "print-base",
+    "print-color-mode",
+    "print-content-optimize",
+    "print-objects",
     "print-quality",
-    "print-supports"
+    "print-rendering-intent",
+    "print-scaling",
+    "print-supports",
+    "printer-resolution",
+    "proof-print",
+    "separator-sheets",
+    "sides",
+    "x-image-position",
+    "x-image-shift",
+    "x-side1-image-shift",
+    "x-side2-image-shift",
+    "y-image-position",
+    "y-image-shift",
+    "y-side1-image-shift",
+    "y-side2-image-shift"
+  };
+  static const char * const job_creation[] =
+  {					/* job-creation-attributes-supported values */
+    "chamber-humidity",
+    "chamber-temperature",
+    "copies",
+    "document-password",
+    "finishings",
+    "finishings-col",
+    "job-account-id",
+    "job-account-type",
+    "job-accouunting-sheets",
+    "job-accounting-user-id",
+    "job-authorization-uri",
+    "job-delay-output-until",
+    "job-delay-output-until-time",
+    "job-error-action",
+    "job-error-sheet",
+    "job-hold-until",
+    "job-hold-until-time",
+    "job-mandatory-attributes",
+    "job-message-to-operator",
+    "job-pages-per-set",
+    "job-password",
+    "job-password-encryption",
+    "job-phone-number",
+    "job-recipient-name",
+    "job-resource-ids",
+    "job-retain-until",
+    "job-retain-until-time",
+    "job-sheet-message",
+    "job-sheets",
+    "job-sheets-col",
+    "materials-col",
+    "media",
+    "media-col",
+    "multiple-document-handling",
+    "multiple-object-handling",
+    "number-up",
+    "orientation-requested",
+    "output-bin",
+    "output-device",
+    "overrides",
+    "page-delivery",
+    "page-ranges",
+    "platform-temperature",
+    "presentation-direction-number-up",
+    "print-accuracy",
+    "print-base",
+    "print-color-mode",
+    "print-content-optimize",
+    "print-objects",
+    "print-quality",
+    "print-rendering-intent",
+    "print-scaling",
+    "print-supports",
+    "printer-resolution",
+    "proof-print",
+    "separator-sheets",
+    "sides",
+    "x-image-position",
+    "x-image-shift",
+    "x-side1-image-shift",
+    "x-side2-image-shift",
+    "y-image-position",
+    "y-image-shift",
+    "y-side1-image-shift",
+    "y-side2-image-shift"
   };
   static const char * const job_hold_until_supported[] =
   {					/* job-hold-until-supported values */
@@ -391,8 +447,15 @@ serverCreatePrinter(
     "third-shift",
     "weekend"
   };
+  static const char * const doc_settable_attributes_supported[] =
+  {					/* document-settable-attributes-supported */
+    "document-metadata",
+    "document-name"
+  };
   static const char * const job_settable_attributes_supported[] =
   {					/* job-settable-attributes-supported */
+    "document-metadata",
+    "document-name",
     "job-hold-until",
     "job-hold-until-time",
     "job-name",
@@ -756,10 +819,28 @@ serverCreatePrinter(
   /* document-creation-attributes-supported */
   if (!cupsArrayFind(existing, (void *)"document-creation-attributes-supported"))
   {
-    if (is_print3d)
-      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-creation-attributes-supported", sizeof(doc_creation3d) / sizeof(doc_creation3d[0]), NULL, doc_creation3d);
-    else
-      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-creation-attributes-supported", sizeof(doc_creation) / sizeof(doc_creation[0]), NULL, doc_creation);
+   /*
+    * Get the list of attributes that can be used when creating a document...
+    */
+
+    num_sup_attrs = 0;
+    sup_attrs[num_sup_attrs ++] = "document-access";
+    sup_attrs[num_sup_attrs ++] = "document-charset";
+    sup_attrs[num_sup_attrs ++] = "document-format";
+    sup_attrs[num_sup_attrs ++] = "document-message";
+    sup_attrs[num_sup_attrs ++] = "document-metadata";
+    sup_attrs[num_sup_attrs ++] = "document-name";
+    sup_attrs[num_sup_attrs ++] = "document-natural-language";
+    sup_attrs[num_sup_attrs ++] = "ipp-attribute-fidelity";
+
+    for (i = 0; i < (int)(sizeof(doc_creation) / sizeof(doc_creation[0])) && num_sup_attrs < (int)(sizeof(sup_attrs) / sizeof(sup_attrs[0])); i ++)
+    {
+      snprintf(xxx_supported, sizeof(xxx_supported), "%s-supported", doc_creation[i]);
+      if (ippFindAttribute(printer->pinfo.attrs, xxx_supported, IPP_TAG_ZERO))
+	sup_attrs[num_sup_attrs ++] = doc_creation[i];
+    }
+
+    ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-creation-attributes-supported", num_sup_attrs, NULL, sup_attrs);
   }
 
   /* document-format-default */
@@ -773,6 +854,9 @@ serverCreatePrinter(
   /* document-password-supported */
   if (!cupsArrayFind(existing, (void *)"document-password-supported"))
     ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "document-password-supported", 127);
+
+  /* document-settable-attributes-supported */
+  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-settable-attributes-supported", (int)(sizeof(doc_settable_attributes_supported) / sizeof(doc_settable_attributes_supported[0])), NULL, doc_settable_attributes_supported);
 
   /* finishings-default */
   if (!is_print3d && !cupsArrayFind(existing, (void *)"finishings-default"))
@@ -828,10 +912,30 @@ serverCreatePrinter(
   /* job-creation-attributes-supported */
   if (!cupsArrayFind(existing, (void *)"job-creation-attributes-supported"))
   {
-    if (is_print3d)
-      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-creation-attributes-supported", sizeof(job_creation3d) / sizeof(job_creation3d[0]), NULL, job_creation3d);
-    else
-      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-creation-attributes-supported", sizeof(job_creation) / sizeof(job_creation[0]), NULL, job_creation);
+   /*
+    * Get the list of attributes that can be used when creating a job...
+    */
+
+    num_sup_attrs = 0;
+    sup_attrs[num_sup_attrs ++] = "document-access";
+    sup_attrs[num_sup_attrs ++] = "document-charset";
+    sup_attrs[num_sup_attrs ++] = "document-format";
+    sup_attrs[num_sup_attrs ++] = "document-message";
+    sup_attrs[num_sup_attrs ++] = "document-metadata";
+    sup_attrs[num_sup_attrs ++] = "document-name";
+    sup_attrs[num_sup_attrs ++] = "document-natural-language";
+    sup_attrs[num_sup_attrs ++] = "ipp-attribute-fidelity";
+    sup_attrs[num_sup_attrs ++] = "job-name";
+    sup_attrs[num_sup_attrs ++] = "job-priority";
+
+    for (i = 0; i < (int)(sizeof(job_creation) / sizeof(job_creation[0])) && num_sup_attrs < (int)(sizeof(sup_attrs) / sizeof(sup_attrs[0])); i ++)
+    {
+      snprintf(xxx_supported, sizeof(xxx_supported), "%s-supported", job_creation[i]);
+      if (ippFindAttribute(printer->pinfo.attrs, xxx_supported, IPP_TAG_ZERO))
+	sup_attrs[num_sup_attrs ++] = job_creation[i];
+    }
+
+    ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-creation-attributes-supported", num_sup_attrs, NULL, sup_attrs);
   }
 
   /* job-hold-until-supported */
@@ -1199,7 +1303,21 @@ serverCreatePrinter(
   }
 
   /* printer-settable-attributes-supported */
-  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-settable-attributes-supported", (int)(sizeof(printer_settable_attributes_supported) / sizeof(printer_settable_attributes_supported[0])), NULL, printer_settable_attributes_supported);
+  attr = ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "printer-settable-attributes-supported", (int)(sizeof(printer_settable_attributes_supported) / sizeof(printer_settable_attributes_supported[0])), NULL, printer_settable_attributes_supported);
+
+  for (i = 0; i < (int)(sizeof(job_creation) / sizeof(job_creation[0])); i ++)
+  {
+    snprintf(xxx_supported, sizeof(xxx_supported), "%s-default", job_creation[i]);
+    if (ippFindAttribute(printer->pinfo.attrs, xxx_supported, IPP_TAG_ZERO))
+      ippSetString(printer->pinfo.attrs, &attr, ippGetCount(attr), xxx_supported);
+
+    if (!strcmp(job_creation[i], "job-account-id") || !strcmp(job_creation[i], "job-accounting-user-id") || !strcmp(job_creation[i], "job-delay-output-until") || !strcmp(job_creation[i], "job-delay-output-until-time") || !strcmp(job_creation[i], "job-hold-until") || !strcmp(job_creation[i], "job-hold-until-time") || !strcmp(job_creation[i], "job-retain-until") || !strcmp(job_creation[i], "job-retain-until-time"))
+      continue;
+
+    snprintf(xxx_supported, sizeof(xxx_supported), "%s-supported", job_creation[i]);
+    if (ippFindAttribute(printer->pinfo.attrs, xxx_supported, IPP_TAG_ZERO))
+      ippSetString(printer->pinfo.attrs, &attr, ippGetCount(attr), xxx_supported);
+  }
 
   /* printer-strings-languages-supported */
   if (!cupsArrayFind(existing, (void *)"printer-strings-languages-supported") && printer->pinfo.strings)
