@@ -5813,7 +5813,12 @@ ipp_set_job_attributes(
     server_client_t *client)		/* I - Client */
 {
   server_job_t		*job;		/* Job information */
-//  ipp_attribute_t	*attr;		/* Current attribute */
+  const char		*name;		/* Name of attribute */
+  ipp_attribute_t	*attr,		/* Current attribute */
+			*settable,	/* Settable values */
+			*supported;	/* Supported values */
+  ipp_tag_t		value_tag;	/* Value type */
+  int			bad_attr = 0;	/* Bad attribute? */
 
 
   if (Authentication && !client->username[0])
@@ -5848,7 +5853,125 @@ ipp_set_job_attributes(
     return;
   }
 
-  /* TODO: Implement set of attributes */
+ /*
+  * Scan attributes to see if there are any that are not settable...
+  */
+
+  settable = ippFindAttribute(job->printer->pinfo.attrs, "job-settable-attributes-supported", IPP_TAG_KEYWORD);
+
+  for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
+  {
+    name = ippGetName(attr);
+
+    if (ippGetGroupTag(attr) != IPP_TAG_JOB || !name)
+      continue;
+
+    if (!ippContainsString(settable, name) || ippGetCount(attr) != 1)
+    {
+     /*
+      * Report this as an unsupported attribute...
+      */
+
+      serverRespondUnsupported(client, attr);
+      bad_attr = 1;
+    }
+
+    value_tag = ippGetValueTag(attr);
+
+    if (!strcmp(name, "job-hold-until"))
+    {
+      supported = ippFindAttribute(job->printer->pinfo.attrs, "job-hold-until-supported", IPP_TAG_KEYWORD);
+
+      if (value_tag != IPP_TAG_KEYWORD || !ippContainsString(supported, ippGetString(attr, 0, NULL)))
+      {
+	serverRespondUnsupported(client, attr);
+	bad_attr = 1;
+      }
+    }
+    else if (!strcmp(name, "job-hold-until-time"))
+    {
+      if (value_tag != IPP_TAG_DATE)
+      {
+	serverRespondUnsupported(client, attr);
+	bad_attr = 1;
+      }
+    }
+    else if (!strcmp(name, "job-name"))
+    {
+      if ((value_tag != IPP_TAG_NAME && value_tag != IPP_TAG_NAMELANG) || !ippValidateAttribute(attr))
+      {
+	serverRespondUnsupported(client, attr);
+	bad_attr = 1;
+      }
+    }
+    else if (!strcmp(name, "job-priority"))
+    {
+      int priority = ippGetInteger(attr, 0);
+					/* New priority value */
+
+      if (value_tag != IPP_TAG_INTEGER || priority < 1 || priority > 100)
+      {
+	serverRespondUnsupported(client, attr);
+	bad_attr = 1;
+      }
+    }
+  }
+
+  if (bad_attr)
+    return;
+
+ /*
+  * Set the values...
+  */
+
+  for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
+  {
+    name = ippGetName(attr);
+
+    if (ippGetGroupTag(attr) != IPP_TAG_JOB || !name)
+      continue;
+
+    if (!strcmp(name, "job-hold-until"))
+    {
+      const char *value = ippGetString(attr, 0, NULL);
+					/* job-hold-until value */
+
+      if (!strcmp(value, "no-hold"))
+        serverReleaseJob(job);
+      else
+        serverHoldJob(job, attr);
+    }
+    else if (!strcmp(name, "job-hold-until-time"))
+    {
+      serverHoldJob(job, attr);
+    }
+    else if (!strcmp(name, "job-name"))
+    {
+      ipp_attribute_t	*job_name;		/* job-name attribute */
+
+      _cupsRWLockWrite(&job->rwlock);
+
+      if ((job_name = ippFindAttribute(job->attrs, "job-name", IPP_TAG_NAME)) != NULL)
+        ippDeleteAttribute(job->attrs, job_name);
+
+      ippCopyAttribute(job->attrs, attr, 0);
+
+      _cupsRWUnlock(&job->rwlock);
+    }
+    else if (!strcmp(name, "job-priority"))
+    {
+      _cupsRWLockWrite(&job->printer->rwlock);
+
+      cupsArrayRemove(job->printer->active_jobs, job);
+
+      job->priority = ippGetInteger(attr, 0);
+
+      cupsArrayAdd(job->printer->active_jobs, job);
+
+      _cupsRWUnlock(&job->printer->rwlock);
+    }
+  }
+
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
 
