@@ -117,6 +117,7 @@ static void		ipp_update_job_status(server_client_t *client);
 static void		ipp_update_output_device_attributes(server_client_t *client);
 static void		ipp_validate_document(server_client_t *client);
 static void		ipp_validate_job(server_client_t *client);
+static void		respond_unsettable(server_client_t *client, ipp_attribute_t *attr);
 static int		valid_doc_attributes(server_client_t *client);
 static int		valid_filename(const char *filename);
 static int		valid_job_attributes(server_client_t *client);
@@ -3596,8 +3597,10 @@ static void
 ipp_get_printer_supported_values(
     server_client_t *client)		/* I - Client */
 {
-  cups_array_t	*ra = ippCreateRequestedArray(client->request);
-					/* Requested attributes */
+  cups_array_t		*ra;		/* Requested attributes */
+  ipp_attribute_t	*settable;	/* Settable attributes */
+  int			i,		/* Looping var */
+			count;		/* Number of settable attributes */
 
 
   if (Authentication && !client->username[0])
@@ -3612,7 +3615,18 @@ ipp_get_printer_supported_values(
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  serverCopyAttributes(client->response, client->printer->pinfo.attrs, ra, NULL, IPP_TAG_PRINTER, 1);
+  settable = ippFindAttribute(client->printer->pinfo.attrs, "printer-settable-attributes-supported", IPP_TAG_KEYWORD);
+  count    = ippGetCount(settable);
+  ra       = ippCreateRequestedArray(client->request);
+
+  for (i = 0; i < count; i ++)
+  {
+    const char *name = ippGetString(settable, i, NULL);
+					/* Settable attribute name */
+
+    if (!ra || cupsArrayFind(ra, (void *)name))
+      ippAddOutOfBand(client->response, IPP_TAG_PRINTER, IPP_TAG_ADMINDEFINE, name);
+  }
 
   cupsArrayDelete(ra);
 }
@@ -5874,7 +5888,16 @@ ipp_set_job_attributes(
     if (ippGetGroupTag(attr) != IPP_TAG_JOB || !name)
       continue;
 
-    if (!ippContainsString(settable, name) || ippGetCount(attr) != 1 || !ippValidateAttribute(attr))
+    if (!ippContainsString(settable, name))
+    {
+     /*
+      * Report this as a non-settable attribute...
+      */
+
+      respond_unsettable(client, attr);
+      bad_attr = 1;
+    }
+    else if (ippGetCount(attr) != 1 || !ippValidateAttribute(attr))
     {
      /*
       * Report this as an unsupported attribute...
@@ -6038,7 +6061,12 @@ ipp_set_printer_attributes(
     if (ippGetGroupTag(attr) != IPP_TAG_PRINTER || !name)
       continue;
 
-    if (!ippContainsString(settable, name) || !ippValidateAttribute(attr))
+    if (!ippContainsString(settable, name))
+    {
+      respond_unsettable(client, attr);
+      bad_attr = 1;
+    }
+    else if (!ippValidateAttribute(attr))
     {
      /*
       * Report this as an unsupported attribute...
@@ -7938,6 +7966,26 @@ serverRespondUnsupported(
 
   temp = ippCopyAttribute(client->response, attr, 0);
   ippSetGroupTag(client->response, &temp, IPP_TAG_UNSUPPORTED_GROUP);
+}
+
+
+/*
+ * 'respond_unsettable()' - Respond with an unsettable attribute.
+ */
+
+static void
+respond_unsettable(
+    server_client_t *client,		/* I - Client */
+    ipp_attribute_t *attr)		/* I - Unsettable attribute */
+{
+  const char	*name = ippGetName(attr);
+					/* Attribute name */
+
+
+  if (ippGetStatusCode(client->response) != IPP_STATUS_OK)
+    serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_NOT_SETTABLE, "Unsettable %s attribute.", name);
+
+  ippAddOutOfBand(client->response, IPP_TAG_UNSUPPORTED_GROUP, IPP_TAG_NOTSETTABLE, name);
 }
 
 
