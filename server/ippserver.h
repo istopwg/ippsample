@@ -472,15 +472,19 @@ typedef struct server_printer_s		/**** Printer data ****/
   int			id;		/* Printer ID */
   server_type_t		type;		/* Type of printer/service */
   _cups_rwlock_t	rwlock;		/* Printer lock */
-  server_srv_t		ipp_ref,	/* Bonjour IPP service */
-#ifdef HAVE_SSL
-			ipps_ref,	/* Bonjour IPPS service */
-#endif /* HAVE_SSL */
-			http_ref,	/* Bonjour HTTP(S) service */
-			printer_ref;	/* Bonjour LPD service */
-  server_loc_t		geo_ref;	/* Bonjour geo-location */
+#ifdef HAVE_AVAHI
+  server_srv_t		dnssd_ref;	/* DNS-SD registrations */
+#elif defined(HAVE_DNSSD)
+  server_srv_t		ipp_ref,	/* DNS-SD IPP service */
+#  ifdef HAVE_SSL
+			ipps_ref,	/* DNS-SD IPPS service */
+#  endif /* HAVE_SSL */
+			http_ref,	/* DNS-SD HTTP(S) service */
+			printer_ref;	/* DNS-SD LPD service */
+#endif /* HAVE_AVAHI */
+  server_loc_t		geo_ref;	/* DNS-SD geo-location */
   char			*default_uri,	/* Default/first URI */
-			*dnssd_name,	/* printer-dnssd-name */
+			*dns_sd_name,	/* printer-dns-sd-name */
 			*name,		/* printer-name */
 			*resource;	/* Resource path */
   size_t		resourcelen;	/* Length of resource path */
@@ -746,6 +750,7 @@ extern void		*serverProcessClient(server_client_t *client);
 extern int		serverProcessHTTP(server_client_t *client);
 extern int		serverProcessIPP(server_client_t *client);
 extern void		*serverProcessJob(server_job_t *job);
+extern int		serverRegisterPrinter(server_printer_t *printer);
 extern int		serverReleaseJob(server_job_t *job);
 extern int		serverRespondHTTP(server_client_t *client, http_status_t code, const char *content_coding, const char *type, size_t length);
 extern void		serverRespondIPP(server_client_t *client, ipp_status_t status, const char *message, ...) _CUPS_FORMAT(3, 4);
@@ -757,5 +762,6 @@ extern void		serverSetResourceState(server_resource_t *resource, ipp_rstate_t st
 extern void		serverStopJob(server_job_t *job);
 extern char		*serverTimeString(time_t tv, char *buffer, size_t bufsize);
 extern int		serverTransformJob(server_client_t *client, server_job_t *job, const char *command, const char *format, server_transform_t mode);
+extern void		serverUnregisterPrinter(server_printer_t *printer);
 extern void		serverUpdateDeviceAttributesNoLock(server_printer_t *printer);
 extern void		serverUpdateDeviceStateNoLock(server_printer_t *printer);

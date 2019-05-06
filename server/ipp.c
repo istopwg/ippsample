@@ -703,6 +703,14 @@ copy_printer_attributes(
   if (!ra || cupsArrayFind(ra, "printer-current-time"))
     ippAddDate(client->response, IPP_TAG_PRINTER, "printer-current-time", ippTimeToDate(time(NULL)));
 
+  if (!ra || cupsArrayFind(ra, "printer-dns-sd-name"))
+  {
+    if (printer->dns_sd_name)
+      ippAddString(client->response, IPP_TAG_PRINTER, IPP_TAG_NAME, "printer-dns-sd-name", NULL, printer->dns_sd_name);
+    else
+      ippAddOutOfBand(client->response, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "printer-dns-sd-name");
+  }
+
   copy_printer_state(client->response, printer, ra);
 
   if (printer->pinfo.strings && (!ra || cupsArrayFind(ra, "printer-strings-uri")))
@@ -5866,7 +5874,7 @@ ipp_set_job_attributes(
     if (ippGetGroupTag(attr) != IPP_TAG_JOB || !name)
       continue;
 
-    if (!ippContainsString(settable, name) || ippGetCount(attr) != 1)
+    if (!ippContainsString(settable, name) || ippGetCount(attr) != 1 || !ippValidateAttribute(attr))
     {
      /*
       * Report this as an unsupported attribute...
@@ -5898,7 +5906,7 @@ ipp_set_job_attributes(
     }
     else if (!strcmp(name, "job-name"))
     {
-      if ((value_tag != IPP_TAG_NAME && value_tag != IPP_TAG_NAMELANG) || !ippValidateAttribute(attr))
+      if (value_tag != IPP_TAG_NAME && value_tag != IPP_TAG_NAMELANG)
       {
 	serverRespondUnsupported(client, attr);
 	bad_attr = 1;
@@ -5984,8 +5992,247 @@ static void
 ipp_set_printer_attributes(
     server_client_t *client)		/* I - Client */
 {
-  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
-  return;
+  server_printer_t	*printer;	/* Printer */
+  const char		*name;		/* Name of attribute */
+  int			count;		/* Number of values */
+  ipp_attribute_t	*attr,		/* Current attribute */
+			*settable;	/* Settable values */
+  ipp_tag_t		value_tag;	/* Value type */
+  const char		*value;		/* Attribute value */
+  int			bad_attr = 0;	/* Bad attribute? */
+
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+ /*
+  * Scan attributes to see if there are any that are not settable...
+  */
+
+  printer = client->printer;
+
+  _cupsRWLockWrite(&printer->rwlock);
+
+  settable = ippFindAttribute(printer->pinfo.attrs, "printer-settable-attributes-supported", IPP_TAG_KEYWORD);
+
+  for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
+  {
+    name = ippGetName(attr);
+
+    if (ippGetGroupTag(attr) != IPP_TAG_PRINTER || !name)
+      continue;
+
+    if (!ippContainsString(settable, name) || !ippValidateAttribute(attr))
+    {
+     /*
+      * Report this as an unsupported attribute...
+      */
+
+      serverRespondUnsupported(client, attr);
+      bad_attr = 1;
+    }
+
+    value_tag = ippGetValueTag(attr);
+    count     = ippGetCount(attr);
+    value     = ippGetString(attr, 0, NULL);
+
+    if (!strcmp(name, "printer-dns-sd-name"))
+    {
+      if ((value_tag != IPP_TAG_NAME && value_tag != IPP_TAG_NAMELANG && value_tag != IPP_TAG_NOVALUE) || count != 1)
+      {
+	serverRespondUnsupported(client, attr);
+	bad_attr = 1;
+      }
+    }
+    else if (!strcmp(name, "printer-geo-location"))
+    {
+      if ((value_tag != IPP_TAG_URI && value_tag != IPP_TAG_NOVALUE) || (value_tag == IPP_TAG_URI && (count != 1 || !value || strncmp(value, "geo:", 4))))
+      {
+	serverRespondUnsupported(client, attr);
+	bad_attr = 1;
+      }
+    }
+    else if (!strcmp(name, "printer-icc-profiles"))
+    {
+      int		i,		/* Looping var */
+			bad_col = 0;	/* Bad collection value? */
+      ipp_t		*col;		/* Collection value */
+      ipp_attribute_t	*colattr;	/* Collection attribute */
+      const char	*colname;	/* Collection attribute name */
+      ipp_tag_t		coltag;		/* Collection attribute value type */
+
+      if (value_tag == IPP_TAG_BEGIN_COLLECTION)
+      {
+        for (i = 0; i < count && !bad_col; i ++)
+        {
+          int	saw_name = 0,		/* Saw profile-name? */
+		saw_uri = 0;		/* Saw profile-uri? */
+
+          col = ippGetCollection(attr, i);
+
+          for (colattr = ippFirstAttribute(col); colattr; colattr = ippNextAttribute(col))
+          {
+            colname = ippGetName(colattr);
+            coltag  = ippGetValueTag(colattr);
+
+            if (!colname || !ippValidateAttribute(colattr))
+            {
+              bad_col = 1;
+	    }
+	    else if (!strcmp(colname, "profile-name"))
+            {
+              if ((coltag != IPP_TAG_NAME && coltag != IPP_TAG_NAMELANG) || ippGetCount(colattr) != 1)
+                bad_col = 1;
+	      else
+	        saw_name = 1;
+	    }
+	    else if (!strcmp(colname, "profile-uri"))
+	    {
+              if (coltag != IPP_TAG_URI || ippGetCount(colattr) != 1)
+                bad_col = 1;
+	      else
+	        saw_uri = 1;
+	    }
+          }
+
+          if (!saw_name || !saw_uri)
+            bad_col = 1;
+	}
+
+	if (bad_col)
+	{
+	  serverRespondUnsupported(client, attr);
+	  bad_attr = 1;
+	}
+      }
+      else
+      {
+	serverRespondUnsupported(client, attr);
+	bad_attr = 1;
+      }
+    }
+    else if (!strcmp(name, "printer-info") || !strcmp(name, "printer-location"))
+    {
+      if ((value_tag != IPP_TAG_TEXT && value_tag != IPP_TAG_TEXTLANG) || count != 1)
+      {
+	serverRespondUnsupported(client, attr);
+	bad_attr = 1;
+      }
+    }
+    else if (!strcmp(name, "printer-mandatory-job-attributes"))
+    {
+      if (value_tag != IPP_TAG_KEYWORD)
+      {
+	serverRespondUnsupported(client, attr);
+	bad_attr = 1;
+      }
+    }
+    else if (!strcmp(name, "printer-name"))
+    {
+      if ((value_tag != IPP_TAG_NAME && value_tag != IPP_TAG_NAMELANG) || count != 1)
+      {
+	serverRespondUnsupported(client, attr);
+	bad_attr = 1;
+      }
+    }
+    else if (!strcmp(name, "printer-organization") || !strcmp(name, "printer-organizational-unit"))
+    {
+      if ((value_tag != IPP_TAG_TEXT && value_tag != IPP_TAG_TEXTLANG) || count != 1)
+      {
+	serverRespondUnsupported(client, attr);
+	bad_attr = 1;
+      }
+    }
+  }
+
+  if (bad_attr)
+  {
+    _cupsRWUnlock(&printer->rwlock);
+    return;
+  }
+
+ /*
+  * Set the values...
+  */
+
+  for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
+  {
+    ipp_attribute_t	*old_attr;	/* Old attribute */
+
+    name = ippGetName(attr);
+
+    if (ippGetGroupTag(attr) != IPP_TAG_PRINTER || !name)
+      continue;
+
+    value    = ippGetString(attr, 0, NULL);
+    old_attr = ippFindAttribute(printer->pinfo.attrs, name, IPP_TAG_ZERO);
+
+    if (!strcmp(name, "printer-dns-sd-name"))
+    {
+      serverUnregisterPrinter(printer);
+
+      if (printer->dns_sd_name)
+      {
+        free(printer->dns_sd_name);
+        printer->dns_sd_name = NULL;
+      }
+
+      if (value)
+        printer->dns_sd_name = strdup(value);
+
+      serverRegisterPrinter(printer);
+    }
+    else if (!strcmp(name, "printer-geo-location"))
+    {
+      serverUnregisterPrinter(printer);
+
+      if (old_attr)
+        ippDeleteAttribute(printer->pinfo.attrs, old_attr);
+
+      ippCopyAttribute(printer->pinfo.attrs, attr, 0);
+
+      serverRegisterPrinter(printer);
+    }
+    else if (!strcmp(name, "printer-name"))
+    {
+      if (printer->name)
+        free(printer->name);
+
+      printer->name = strdup(value);
+
+      if (old_attr)
+        ippDeleteAttribute(printer->pinfo.attrs, old_attr);
+
+      ippCopyAttribute(printer->pinfo.attrs, attr, 0);
+    }
+    else
+    {
+      if (old_attr)
+        ippDeleteAttribute(printer->pinfo.attrs, old_attr);
+
+      ippCopyAttribute(printer->pinfo.attrs, attr, 0);
+    }
+  }
+
+  _cupsRWUnlock(&printer->rwlock);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
 
 

@@ -1292,10 +1292,10 @@ show_materials(
   if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
     return (0);
 
-  html_header(client, printer->dnssd_name);
+  html_header(client, printer->dns_sd_name);
 
   html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a></p>\n", printer->resource);
-  html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Materials</h1>\n", printer->resource, printer->dnssd_name);
+  html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Materials</h1>\n", printer->resource, printer->dns_sd_name);
 
   if ((materials_db = ippFindAttribute(printer->pinfo.attrs, "materials-col-database", IPP_TAG_BEGIN_COLLECTION)) == NULL)
   {
@@ -1462,7 +1462,7 @@ show_media(server_client_t  *client,	/* I - Client connection */
   html_header(client, printer->name);
 
   html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource);
-  html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Media</h1>\n", printer->resource, printer->dnssd_name);
+  html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Media</h1>\n", printer->resource, printer->dns_sd_name);
 
   if ((media_col_ready = ippFindAttribute(printer->pinfo.attrs, "media-col-ready", IPP_TAG_BEGIN_COLLECTION)) == NULL)
   {
@@ -1744,12 +1744,12 @@ show_status(server_client_t  *client,	/* I - Client connection */
 
   if (printer)
   {
-    html_header(client, printer->dnssd_name);
+    html_header(client, printer->dns_sd_name);
     if (!strncmp(printer->resource, "/ipp/print3d", 12))
       html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s/materials\">Show Materials</a>\n", printer->resource);
     else
       html_printf(client, "<p class=\"buttons\"><p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s/media\">Show Media</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource);
-    html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Jobs</h1>\n", printer->resource, printer->dnssd_name);
+    html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Jobs</h1>\n", printer->resource, printer->dns_sd_name);
     html_printf(client, "<p>%s, %d job(s).", printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
     for (i = 0, reason = 1; i < (int)(sizeof(reasons) / sizeof(reasons[0])); i ++, reason <<= 1)
       if (printer->state_reasons & reason)
@@ -1800,7 +1800,7 @@ show_status(server_client_t  *client,	/* I - Client connection */
     for (i = 0, printer = (server_printer_t *)cupsArrayFirst(Printers); printer; i ++, printer = (server_printer_t *)cupsArrayNext(Printers))
     {
       html_printf(client, "<div class=\"%s\">\n", (i & 1) ? "odd" : "even");
-      html_printf(client, "  <h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s</h1>\n", printer->resource, printer->dnssd_name);
+      html_printf(client, "  <h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s</h1>\n", printer->resource, printer->dns_sd_name);
       html_printf(client, "  <p>%s, %d job(s).", printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
       for (j = 0, reason = 1; j < (int)(sizeof(reasons) / sizeof(reasons[0])); j ++, reason <<= 1)
         if (printer->state_reasons & reason)
@@ -1869,7 +1869,7 @@ show_supplies(
   html_header(client, printer->name);
 
   html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/media\">Show Media</a></p>\n", printer->resource, printer->resource);
-  html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Media</h1>\n", printer->resource, printer->dnssd_name);
+  html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Media</h1>\n", printer->resource, printer->dns_sd_name);
 
   if ((supply = ippFindAttribute(printer->pinfo.attrs, "printer-supply", IPP_TAG_STRING)) == NULL)
   {
