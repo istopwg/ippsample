@@ -382,6 +382,9 @@ serverMakeVCARD(const char *user,	/* I - User name or `NULL` for current user */
 		phoneval[256];		/* Phone number value (URI) */
 #ifndef _WIN32
   struct passwd	*pw;			/* User information */
+  char		gecos[2048],		/* Copy of GECOS information */
+		*gecosval,		/* Current GECOS value */
+		*gecosptr;		/* Pointer into GECOS information */
 
 
   if (user)
@@ -396,10 +399,6 @@ serverMakeVCARD(const char *user,	/* I - User name or `NULL` for current user */
     *
     *     NAME,LOCATION,PHONE
     */
-
-    char	gecos[2048],		/* Copy of GECOS information */
-		*gecosval,		/* Current GECOS value */
-		*gecosptr;		/* Pointer into GECOS information */
 
     strlcpy(gecos, pw->pw_gecos, sizeof(gecos));
     gecosptr = gecos;

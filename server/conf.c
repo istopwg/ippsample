@@ -1,7 +1,7 @@
 /*
  * Configuration file support for sample IPP server implementation.
  *
- * Copyright © 2015-2018 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2015-2019 by the IEEE-ISTO Printer Working Group
  * Copyright © 2015-2018 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -13,6 +13,7 @@
 #include <cups/dir.h>
 #ifndef _WIN32
 #  include <fnmatch.h>
+#  include <pwd.h>
 #  include <grp.h>
 #endif /* !_WIN32 */
 #include <cups/ipp-private.h>
@@ -1099,9 +1100,7 @@ create_system_attributes(void)
   int			alloc_groups,	/* Allocated groups */
 			num_groups;	/* Number of groups */
   char			**groups;	/* Group names */
-#  if 0 /* Need to change this to a configured list */
   struct group		*grp;		/* Current group */
-#  endif /* 0 */
 #endif /* !_WIN32 */
   char			uuid[128];	/* system-uuid */
   static const char * const charset_supported[] =
@@ -1328,26 +1327,96 @@ create_system_attributes(void)
 
   /* smi2699-auth-group-supported */
 #ifndef _WIN32
-  alloc_groups = num_groups = 0;
-  groups       = NULL;
+  alloc_groups = 10;
+  num_groups   = 0;
+  groups       = calloc(10, sizeof(char *));
 
-#  if 0 /* We need to do something different - enumerating groups is SLOW */
-  setgrent();
-  while ((grp = getgrent()) != NULL)
+  if ((setting = cupsGetOption("AuthGroups", SystemNumSettings, SystemSettings)) != NULL)
   {
-    if (grp->gr_name[0] == '_')
-      continue;				/* Skip system groups */
+    char	*tempgroups = strdup(setting),
+					/* Temporary string to hold group names */
+		*tempptr = tempgroups,	/* Pointer into group names */
+		*tempgroup;		/* Current group name */
 
-    if (num_groups >= alloc_groups)
+    while ((tempgroup = strsep(&tempptr, " \t")) != NULL)
     {
-      alloc_groups += 10;
-      groups       = (char **)realloc(groups, (size_t)alloc_groups * sizeof(char *));
+      if (num_groups >= alloc_groups)
+      {
+	alloc_groups += 10;
+	groups       = (char **)realloc(groups, (size_t)alloc_groups * sizeof(char *));
+      }
+
+      groups[num_groups ++] = strdup(tempgroup);
     }
 
-    groups[num_groups ++] = strdup(grp->gr_name);
+    free(tempgroups);
   }
-  endgrent();
-#  endif /* 0 */
+  else if (getuid())
+  {
+   /*
+    * Default is the current user's groups.
+    */
+
+    struct passwd	*pw;		/* User account information */
+    int			ngids;		/* Number of groups for user */
+#  ifdef __APPLE__
+    int			gids[2048];	/* Group list */
+#  else
+    gid_t		gids[2048];	/* Group list */
+#  endif /* __APPLE__ */
+
+    if ((pw = getpwuid(getuid())) != NULL)
+    {
+      ngids = (int)(sizeof(gids) / sizeof(gids[0]));
+
+#  ifdef __APPLE__
+      if (!getgrouplist(pw->pw_name, (int)pw->pw_gid, gids, &ngids))
+#  else
+      if (!getgrouplist(pw->pw_name, pw->pw_gid, gids, &ngids))
+#  endif /* __APPLE__ */
+      {
+        for (i = 0; i < ngids; i ++)
+        {
+          if ((grp = getgrgid((gid_t)gids[i])) != NULL)
+          {
+	    if (grp->gr_name[0] == '_' && strncmp(grp->gr_name, "_lp", 3))
+	      continue;				/* Skip system groups */
+
+	    if (num_groups >= alloc_groups)
+	    {
+	      alloc_groups += 10;
+	      groups       = (char **)realloc(groups, (size_t)alloc_groups * sizeof(char *));
+	    }
+
+	    groups[num_groups ++] = strdup(grp->gr_name);
+          }
+        }
+      }
+    }
+  }
+
+  if (num_groups == 0)
+  {
+   /*
+    * If all else fails, use default list of groups...
+    */
+
+    static const char * const defgroups[] =
+    {
+      "adm",
+      "admin",
+      "daemon",
+      "operator",
+      "staff",
+      "wheel"
+    };
+
+    for (i = 0; i < (int)(sizeof(defgroups) / sizeof(defgroups[0])); i ++)
+    {
+      if (getgrnam(defgroups[i]))
+        groups[num_groups ++] = strdup(defgroups[i]);
+    }
+  }
 
   if (num_groups > 0)
   {
@@ -1839,6 +1908,7 @@ load_system(const char *conf)		/* I - Configuration file */
   {
     "Authentication",
     "AuthAdminGroup",
+    "AuthGroups",
     "AuthName",
     "AuthOperatorGroup",
     "AuthService",
