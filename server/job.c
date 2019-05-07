@@ -196,8 +196,9 @@ serverCopyJobStateReasons(
  *                  request.
  */
 
-server_job_t *			/* O - Job */
-serverCreateJob(server_client_t *client)	/* I - Client */
+server_job_t *				/* O - Job */
+serverCreateJob(
+    server_client_t *client)		/* I - Client */
 {
   server_job_t		*job;		/* Job */
   ipp_attribute_t	*attr;		/* Job attribute */
