@@ -178,7 +178,7 @@ AC_SUBST(IPPTRANSFORM_BIN)
 AC_SUBST(IPPTRANSFORM_HTML)
 AC_SUBST(IPPTRANSFORM_MAN)
 
-AC_ARG_WITH(pdfrip, [  --with-pdfrip=...        set PDF RIP to use (auto, coregraphics, mupdf, none)])
+AC_ARG_WITH(pdfrip, [  --with-pdfrip=...       set PDF RIP to use (auto, coregraphics, mupdf, none)])
 
 if test "x$with_pdfrip" = x -o "x$with_pdfrip" = xauto; then
 	case $host_os_name in

@@ -17,9 +17,9 @@ AC_ARG_WITH(optim, [  --with-optim            set optimization flags ],
 	OPTIM="")
 AC_SUBST(OPTIM)
 
-AC_ARG_ENABLE(debug, [  --disable-debug          build without debugging symbols])
+AC_ARG_ENABLE(debug, [  --disable-debug         build without debugging symbols])
 AC_ARG_ENABLE(debug_guards, [  --enable-debug-guards   build with memory allocation guards])
-AC_ARG_ENABLE(debug_printfs, [  --disable-debug-printfs  disable CUPS_DEBUG_LOG support])
+AC_ARG_ENABLE(debug_printfs, [  --disable-debug-printfs disable CUPS_DEBUG_LOG support])
 AC_ARG_ENABLE(unit_tests, [  --enable-unit-tests     build and run unit tests])
 
 dnl For debugging, keep symbols, otherwise strip them...
