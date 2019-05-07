@@ -24,8 +24,12 @@ typedef struct server_value_s		/**** Value Validation ****/
   const char	*name;			/* Attribute name */
   ipp_tag_t	value_tag,		/* Value tag */
 		alt_tag;		/* Alternate value tag, if any */
-  int		multiple;		/* Allow multiple values? */
+  int		flags;			/* Validation option flags */
 } server_value_t;
+
+#define VALUE_NORMAL	0		/* Normal syntax (1 value) */
+#define VALUE_1SETOF	1		/* 1setOf syntax */
+#define VALUE_CREATEOP	2		/* Operation attribute for Create-Xxx */
 
 
 /*
@@ -129,215 +133,285 @@ static float		wgs84_distance(const char *a, const char *b);
  * Local globals...
  */
 
-static server_value_t	printer_values[] =	/* Value tags for settable attributes */
+static server_value_t	job_values[] =		/* Value tags for job create/set attributes */
 {
-  { "chamber-humidity-default",			IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "chamber-humidity-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, 0 },
-  { "chamber-temperature-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "chamber-temperature-su[pported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
-  { "coating-sides-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "coating-type-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
-  { "color-supported",				IPP_TAG_BOOLEAN, IPP_TAG_ZERO, 0 },
-  { "copies-default",				IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "copies-supported",				IPP_TAG_RANGE, IPP_TAG_ZERO, 0 },
-  { "cover-back-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
-  { "cover-back-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "cover-front-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
-  { "cover-front-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "covering-name-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
-  { "document-creation-attributes-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "document-format-default",	 		IPP_TAG_MIMETYPE, IPP_TAG_ZERO, 0 },
-  { "document-format-supported",		IPP_TAG_MIMETYPE, IPP_TAG_ZERO, 1 },
-  { "finishing-template-supported",		IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
-  { "finishings-default",			IPP_TAG_ENUM, IPP_TAG_ZERO, 1 },
-  { "finishings-ready",				IPP_TAG_ENUM, IPP_TAG_ZERO, 1 },
-  { "finishings-supported",			IPP_TAG_ENUM, IPP_TAG_ZERO, 1 },
-  { "finishings-col-database",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
-  { "finishings-col-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
-  { "finishings-col-ready",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
-  { "finishings-col-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "folding-direction-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "folding-offset-supported",			IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
-  { "folding-reference-edge-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "imposition-template-default",		IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
-  { "imposition-template-supported",		IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
-  { "insert-sheet-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
-  { "inseet-sheet-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "job-account-id-default",			IPP_TAG_NAME, IPP_TAG_NOVALUE, 0 },
-  { "job-account-id-supported",			IPP_TAG_BOOLEAN, IPP_TAG_ZERO, 0 },
-  { "job-account-type-default",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
-  { "job-account-type-supported",		IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
-  { "job-accounting-sheets-default",		IPP_TAG_BEGIN_COLLECTION, IPP_TAG_NOVALUE, 0 },
-  { "job-accounting-sheets-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "job-accounting-user-id-default",		IPP_TAG_NAME, IPP_TAG_NOVALUE, 0 },
-  { "job-accounting-user-id-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, 0 },
-  { "job-authorization-uri-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, 0 },
-  { "job-constraints-supported",		IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
-  { "job-creation-attributes-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "job-delay-output-until-default",		IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
-  { "job-error-action-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "job-error-action-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "job-error-sheet-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_NOVALUE, 0 },
-  { "job-error-sheet-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "job-hold-until-default",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
-  { "job-message-to-operator-default",		IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
-  { "job-pages-per-set-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, 0 },
-  { "job-password-encryption-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "job-password-length-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, 0 },
-  { "job-password-repertoire-configured",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "job-password-repertoire-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "job-password-supported",			IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "job-phone-number-default",			IPP_TAG_URI, IPP_TAG_NOVALUE, 0 },
-  { "job-phone-number-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, 0 },
-  { "job-presets-supported",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
-  { "job-priority-default",			IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "job-recipient-name-default",		IPP_TAG_NAME, IPP_TAG_NOVALUE, 0 },
-  { "job-recipient-name-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, 0 },
-  { "job-resolvers-supported",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
-  { "job-retain-until-default",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
-  { "job-sheet-message-default",		IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
-  { "job-sheet-message-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, 0 },
-  { "job-sheets-col-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
-  { "job-sheets-col-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "job-sheets-default",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
-  { "job-sheets-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
-  { "job-triggers-supported",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
-  { "laminating-sides-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "laminating-type-supported",		IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
-  { "material-amount-units-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "material-diameter-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
-  { "material-nozzle-diameter-supported",	IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
-  { "material-purpose-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "material-rate-supported",			IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
-  { "material-rate-units-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "material-shell-thickness-supported",	IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
-  { "material-temperature-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
-  { "material-type-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "materials-col-database",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
-  { "materials-col-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
-  { "materials-col-ready",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
-  { "materials-col-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "max-materials-col-supported",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "max-stitching-locations-supported",	IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "media-bottom-margin-supported",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 1 },
-  { "media-col-database",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
-  { "media-col-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
-  { "media-col-ready",				IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
-  { "media-color-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
-  { "media-default",				IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
-  { "media-key-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
-  { "media-ready",				IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
-  { "media-supported",				IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
-  { "media-left-margin-supported",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 1 },
-  { "media-right-margin-supported",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 1 },
-  { "media-size-supported",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
-  { "media-source-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
-  { "media-top-margin-supported",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 1 },
-  { "media-type-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
-  { "multiple-document-handling-default",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "multiple-document-jobs-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, 0 },
-  { "multiple-object-handling-default",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "multiple-operation-time-out-action",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "natural-language-configured",		IPP_TAG_LANGUAGE, IPP_TAG_ZERO, 0 },
-  { "notify-events-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "number-up-default",			IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "number-up-supported",			IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
-  { "orientation-requested-default",		IPP_TAG_ENUM, IPP_TAG_NOVALUE, 0 },
-  { "orientation-requested-supported",		IPP_TAG_ENUM, IPP_TAG_ZERO, 1 },
-  { "output-bin-default",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
-  { "output-bin-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
-  { "overrides-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "page-delivery-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "page-delivery-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "page-ranges-supported",			IPP_TAG_BOOLEAN, IPP_TAG_ZERO, 0 },
-  { "pages-per-minute",				IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "pages-per-minute-color",			IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "pdl-override-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "platform-shape",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "platform-temperature-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "platform-temperature-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
-  { "presentation-direction-number-up-default",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "presentation-direction-number-up-supported", IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "print-accuracy-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
-  { "print-accuracy-supported",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
-  { "print-base-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "print-base-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "print-color-mode-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "print-color-mode-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "print-content-optimize-default",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "print-content-optimize-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "print-objects-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
-  { "print-quality-default",			IPP_TAG_ENUM, IPP_TAG_ZERO, 0 },
-  { "print-rendering-intent-default",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "print-rendering-intent-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "print-scaling-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "print-scaling-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "print-supports-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "print-supports-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "printer-charge-info",			IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
-  { "printer-charge-info-uri",			IPP_TAG_URI, IPP_TAG_ZERO, 0 },
-  { "printer-contact-col",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_UNKNOWN, 0 },
-  { "printer-device-id",			IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
-  { "printer-dns-sd-name",			IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
-  { "printer-geo-location",			IPP_TAG_URI, IPP_TAG_ZERO, 0 },
-  { "printer-icc-profiles",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
-  { "printer-info",				IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
-  { "printer-kind",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "printer-location",				IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
-  { "printer-make-and-model",			IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
-  { "printer-mandatory-job-attributes",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "printer-name",				IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
-  { "printer-organization",			IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
-  { "printer-organizational-unit",		IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
-  { "printer-resolution-default",		IPP_TAG_RESOLUTION, IPP_TAG_ZERO, 0 },
-  { "printer-resolution-supported",		IPP_TAG_RESOLUTION, IPP_TAG_ZERO, 1 },
-  { "printer-volume-supported",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
-  { "proof-print-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_NOVALUE, 0 },
-  { "proof-print-suppported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "punching-hole-diameter-configured",	IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "punching-locations-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
-  { "punching-offset-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
-  { "punching-reference-edge-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "pwg-raster-document-resolution-supported", IPP_TAG_RESOLUTION, IPP_TAG_ZERO, 1 },
-  { "pwg-raster-document-sheet-back",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "pwg-raster-document-type-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "pwg-safe-gcode-supported",			IPP_TAG_TEXT, IPP_TAG_ZERO, 1 },
-  { "separator-sheets-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
-  { "separator-sheets-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "sides-default",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "sides-supported",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "smi2699-auth-print-group",			IPP_TAG_NAME, IPP_TAG_NOVALUE, 0 },
-  { "smi2699-auth-proxy-group",			IPP_TAG_NAME, IPP_TAG_NOVALUE, 0 },
-  { "smi2699-device-command",			IPP_TAG_NAME, IPP_TAG_NOVALUE, 0 },
-  { "smi2699-device-format",			IPP_TAG_MIMETYPE, IPP_TAG_ZERO, 0 },
-  { "smi2699-device-name",			IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
-  { "smi2699-device-uri",			IPP_TAG_URI, IPP_TAG_NOVALUE, 0 },
-  { "stitching-angle-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
-  { "stitching-locations-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
-  { "stitching-method-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "stitching-offset-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
-  { "stitching-reference-edge-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "trimming-offset-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
-  { "trimming-reference-edge-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "trimming-type-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "trimming-when-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "urf-supported",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "x-image-position-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "x-image-position-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "x-image-shift-default",			IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "x-image-shift-supported",			IPP_TAG_RANGE, IPP_TAG_ZERO, 0 },
-  { "x-side1-image-shift-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "x-side1-image-shift-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, 0 },
-  { "x-side2-image-shift-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "x-side2-image-shift-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, 0 },
-  { "y-image-position-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
-  { "y-image-position-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
-  { "y-image-shift-default",			IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "y-image-shift-supported",			IPP_TAG_RANGE, IPP_TAG_ZERO, 0 },
-  { "y-side1-image-shift-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "y-side1-image-shift-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, 0 },
-  { "y-side2-image-shift-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
-  { "y-side2-image-shift-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, 0 }
+  { "chamber-humidity",				IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "chamber-temperature",			IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "copies",					IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "cover-back",				IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "cover-front",				IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "document-message",				IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_CREATEOP },
+  { "document-metadata",			IPP_TAG_STRING, IPP_TAG_ZERO, VALUE_1SETOF | VALUE_CREATEOP },
+  { "document-name",				IPP_TAG_NAME, IPP_TAG_ZERO, VALUE_NORMAL | VALUE_CREATEOP },
+  { "finishings",				IPP_TAG_ENUM, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "finishings-col",				IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "imposition-template",			IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL },
+  { "insert-sheet",				IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "job-account-id",				IPP_TAG_NAME, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "job-account-type",				IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL },
+  { "job-accounting-sheets",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "job-accounting-user-id",			IPP_TAG_NAME, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "job-delay-output-until",			IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL },
+  { "job-delay-output-until-time",		IPP_TAG_DATE, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-error-action",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-error-sheet",				IPP_TAG_BEGIN_COLLECTION, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "job-hold-until",				IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL | VALUE_CREATEOP },
+  { "job-hold-until-time",			IPP_TAG_DATE, IPP_TAG_ZERO, VALUE_NORMAL | VALUE_CREATEOP },
+  { "job-message-to-operator",			IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-name",					IPP_TAG_NAME, IPP_TAG_ZERO, VALUE_NORMAL | VALUE_CREATEOP },
+  { "job-pages-per-set-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-phone-number",				IPP_TAG_URI, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "job-priority",				IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-recipient-name",			IPP_TAG_NAME, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "job-retain-until",				IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL },
+  { "job-retain-until-time",			IPP_TAG_DATE, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-sheet-message",			IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-sheets-col",				IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-sheets",				IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL },
+  { "materials-col",				IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "media-col",				IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "media",					IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL },
+  { "multiple-document-handling",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "multiple-object-handling",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "number-up",				IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "orientation-requested",			IPP_TAG_ENUM, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "output-bin",				IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL },
+  { "overrides",				IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "page-delivery",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "page-ranges",				IPP_TAG_RANGE, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "platform-temperature",			IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "presentation-direction-number-up",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-accuracy",				IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-base",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-color-mode",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-content-optimize",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-objects",				IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-quality",				IPP_TAG_ENUM, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-rendering-intent",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-scaling",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-supports",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "printer-resolution",			IPP_TAG_RESOLUTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "proof-print",				IPP_TAG_BEGIN_COLLECTION, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "separator-sheets",				IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "sides",					IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "x-image-position",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "x-image-shift",				IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "x-side1-image-shift",			IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "x-side2-image-shift",			IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "y-image-position",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "y-image-shift",				IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "y-side1-image-shift",			IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "y-side2-image-shift",			IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL }
+};
+static server_value_t	printer_values[] =	/* Value tags for printer create/set attributes */
+{
+  { "chamber-humidity-default",			IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "chamber-humidity-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "chamber-temperature-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "chamber-temperature-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
+  { "coating-sides-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "coating-type-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_1SETOF },
+  { "color-supported",				IPP_TAG_BOOLEAN, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "copies-default",				IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "copies-supported",				IPP_TAG_RANGE, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "cover-back-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "cover-back-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "cover-front-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "cover-front-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "covering-name-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_1SETOF },
+  { "document-creation-attributes-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "document-format-default",	 		IPP_TAG_MIMETYPE, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "document-format-supported",		IPP_TAG_MIMETYPE, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "finishing-template-supported",		IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_1SETOF },
+  { "finishings-default",			IPP_TAG_ENUM, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "finishings-ready",				IPP_TAG_ENUM, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "finishings-supported",			IPP_TAG_ENUM, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "finishings-col-database",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "finishings-col-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "finishings-col-ready",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "finishings-col-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "folding-direction-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "folding-offset-supported",			IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
+  { "folding-reference-edge-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "imposition-template-default",		IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL },
+  { "imposition-template-supported",		IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_1SETOF },
+  { "insert-sheet-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "inseet-sheet-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "job-account-id-default",			IPP_TAG_NAME, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "job-account-id-supported",			IPP_TAG_BOOLEAN, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-account-type-default",			IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL },
+  { "job-account-type-supported",		IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_1SETOF },
+  { "job-accounting-sheets-default",		IPP_TAG_BEGIN_COLLECTION, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "job-accounting-sheets-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "job-accounting-user-id-default",		IPP_TAG_NAME, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "job-accounting-user-id-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-authorization-uri-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-constraints-supported",		IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "job-creation-attributes-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "job-delay-output-until-default",		IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL },
+  { "job-error-action-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-error-action-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "job-error-sheet-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "job-error-sheet-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "job-hold-until-default",			IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL },
+  { "job-message-to-operator-default",		IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-pages-per-set-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-password-encryption-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "job-password-length-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-password-repertoire-configured",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-password-repertoire-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "job-password-supported",			IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-phone-number-default",			IPP_TAG_URI, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "job-phone-number-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-presets-supported",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "job-priority-default",			IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-recipient-name-default",		IPP_TAG_NAME, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "job-recipient-name-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-resolvers-supported",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "job-retain-until-default",			IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL },
+  { "job-sheet-message-default",		IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-sheet-message-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-sheets-col-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "job-sheets-col-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "job-sheets-default",			IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL },
+  { "job-sheets-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_1SETOF },
+  { "job-triggers-supported",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "laminating-sides-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "laminating-type-supported",		IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_1SETOF },
+  { "material-amount-units-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "material-diameter-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
+  { "material-nozzle-diameter-supported",	IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
+  { "material-purpose-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "material-rate-supported",			IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
+  { "material-rate-units-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "material-shell-thickness-supported",	IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
+  { "material-temperature-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
+  { "material-type-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "materials-col-database",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "materials-col-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "materials-col-ready",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "materials-col-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "max-materials-col-supported",		IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "max-stitching-locations-supported",	IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "media-bottom-margin-supported",		IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "media-col-database",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "media-col-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "media-col-ready",				IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "media-color-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_1SETOF },
+  { "media-default",				IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL },
+  { "media-key-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_1SETOF },
+  { "media-ready",				IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_1SETOF },
+  { "media-supported",				IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_1SETOF },
+  { "media-left-margin-supported",		IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "media-right-margin-supported",		IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "media-size-supported",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "media-source-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_1SETOF },
+  { "media-top-margin-supported",		IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "media-type-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_1SETOF },
+  { "multiple-document-handling-default",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "multiple-document-jobs-supported",		IPP_TAG_BOOLEAN, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "multiple-object-handling-default",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "multiple-operation-time-out-action",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "natural-language-configured",		IPP_TAG_LANGUAGE, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "notify-events-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "number-up-default",			IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "number-up-supported",			IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
+  { "orientation-requested-default",		IPP_TAG_ENUM, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "orientation-requested-supported",		IPP_TAG_ENUM, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "output-bin-default",			IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_NORMAL },
+  { "output-bin-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_1SETOF },
+  { "overrides-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "page-delivery-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "page-delivery-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "page-ranges-supported",			IPP_TAG_BOOLEAN, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "pages-per-minute",				IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "pages-per-minute-color",			IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "pdl-override-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "platform-shape",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "platform-temperature-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "platform-temperature-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
+  { "presentation-direction-number-up-default",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "presentation-direction-number-up-supported", IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "print-accuracy-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-accuracy-supported",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-base-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-base-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "print-color-mode-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-color-mode-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "print-content-optimize-default",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-content-optimize-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "print-objects-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-quality-default",			IPP_TAG_ENUM, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-rendering-intent-default",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-rendering-intent-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "print-scaling-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-scaling-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "print-supports-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "print-supports-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "printer-charge-info",			IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "printer-charge-info-uri",			IPP_TAG_URI, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "printer-contact-col",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_UNKNOWN, VALUE_NORMAL },
+  { "printer-device-id",			IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "printer-dns-sd-name",			IPP_TAG_NAME, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "printer-geo-location",			IPP_TAG_URI, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "printer-icc-profiles",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "printer-info",				IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "printer-kind",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "printer-location",				IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "printer-make-and-model",			IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "printer-mandatory-job-attributes",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "printer-name",				IPP_TAG_NAME, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "printer-organization",			IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "printer-organizational-unit",		IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "printer-resolution-default",		IPP_TAG_RESOLUTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "printer-resolution-supported",		IPP_TAG_RESOLUTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "printer-volume-supported",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "proof-print-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "proof-print-suppported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "punching-hole-diameter-configured",	IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "punching-locations-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
+  { "punching-offset-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
+  { "punching-reference-edge-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "pwg-raster-document-resolution-supported", IPP_TAG_RESOLUTION, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "pwg-raster-document-sheet-back",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "pwg-raster-document-type-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "pwg-safe-gcode-supported",			IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "separator-sheets-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "separator-sheets-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "sides-default",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "sides-supported",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "smi2699-auth-print-group",			IPP_TAG_NAME, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "smi2699-auth-proxy-group",			IPP_TAG_NAME, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "smi2699-device-command",			IPP_TAG_NAME, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "smi2699-device-format",			IPP_TAG_MIMETYPE, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "smi2699-device-name",			IPP_TAG_NAME, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "smi2699-device-uri",			IPP_TAG_URI, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "stitching-angle-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
+  { "stitching-locations-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
+  { "stitching-method-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "stitching-offset-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
+  { "stitching-reference-edge-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "trimming-offset-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
+  { "trimming-reference-edge-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "trimming-type-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "trimming-when-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "urf-supported",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "x-image-position-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "x-image-position-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "x-image-shift-default",			IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "x-image-shift-supported",			IPP_TAG_RANGE, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "x-side1-image-shift-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "x-side1-image-shift-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "x-side2-image-shift-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "x-side2-image-shift-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "y-image-position-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "y-image-position-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "y-image-shift-default",			IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "y-image-shift-supported",			IPP_TAG_RANGE, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "y-side1-image-shift-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "y-side1-image-shift-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "y-side2-image-shift-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
+  { "y-side2-image-shift-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, VALUE_NORMAL }
 };
 
 
@@ -6063,18 +6137,7 @@ ipp_set_job_attributes(
 {
   server_job_t		*job;		/* Job information */
   const char		*name;		/* Name of attribute */
-  ipp_attribute_t	*attr,		/* Current attribute */
-			*settable,	/* Settable values */
-			*supported;	/* Supported values */
-  static server_value_t	values[] =	/* Value tags for settable attributes */
-  {
-    { "document-metadata",	IPP_TAG_STRING, IPP_TAG_ZERO, 1 },
-    { "document-name",		IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
-    { "job-hold-until",		IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
-    { "job-hold-until-time",	IPP_TAG_DATE, IPP_TAG_ZERO, 0 },
-    { "job-name",		IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
-    { "job-priority",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 }
-  };
+  ipp_attribute_t	*attr;		/* Current attribute */
 
 
   if (Authentication && !client->username[0])
@@ -6113,42 +6176,8 @@ ipp_set_job_attributes(
   * Scan attributes to see if there are any that are not settable...
   */
 
-  _cupsRWLockRead(&job->printer->rwlock);
-
-  settable = ippFindAttribute(job->printer->pinfo.attrs, "job-settable-attributes-supported", IPP_TAG_KEYWORD);
-
-  if (!valid_values(client, IPP_TAG_JOB, settable, (int)(sizeof(values) / sizeof(values[0])), values))
-  {
-    _cupsRWUnlock(&job->printer->rwlock);
+  if (!valid_job_attributes(client))
     return;
-  }
-
-  if ((attr = ippFindAttribute(client->request, "job-hold-until", IPP_TAG_ZERO)) != NULL)
-  {
-    supported = ippFindAttribute(job->printer->pinfo.attrs, "job-hold-until-supported", IPP_TAG_KEYWORD);
-
-    if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
-    {
-      serverRespondUnsupported(client, attr);
-      _cupsRWUnlock(&job->printer->rwlock);
-      return;
-    }
-  }
-
-  if ((attr = ippFindAttribute(client->request, "job-priority", IPP_TAG_INTEGER)) != NULL)
-  {
-    int priority = ippGetInteger(attr, 0);
-					/* New priority value */
-
-    if (priority < 1 || priority > 100)
-    {
-      serverRespondUnsupported(client, attr);
-      _cupsRWUnlock(&job->printer->rwlock);
-      return;
-    }
-  }
-
-  _cupsRWUnlock(&job->printer->rwlock);
 
  /*
   * Set the values...
@@ -8308,7 +8337,25 @@ valid_job_attributes(
 			valid = 1;	/* Valid attributes? */
   ipp_attribute_t	*attr,		/* Current attribute */
 			*supported;	/* xxx-supported attribute */
+  ipp_op_t		op = ippGetOperation(client->request);
+					/* Current operation */
 
+
+ /*
+  * Check attributes in request...
+  */
+
+  _cupsRWLockRead(&client->printer->rwlock);
+
+  supported = ippFindAttribute(client->printer->pinfo.attrs, "job-creation-attributes-suppored", IPP_TAG_KEYWORD);
+
+  if (!valid_values(client, IPP_TAG_JOB, supported, (int)(sizeof(job_values) / sizeof(job_values[0])), job_values))
+  {
+    _cupsRWUnlock(&client->printer->rwlock);
+    return (0);
+  }
+
+  _cupsRWUnlock(&client->printer->rwlock);
 
  /*
   * Check operation attributes...
@@ -8341,11 +8388,9 @@ valid_job_attributes(
 
   if ((attr = ippFindAttribute(client->request, "job-hold-until", IPP_TAG_ZERO)) != NULL)
   {
-    if (ippGetCount(attr) != 1 ||
-        (ippGetValueTag(attr) != IPP_TAG_NAME &&
-	 ippGetValueTag(attr) != IPP_TAG_NAMELANG &&
-	 ippGetValueTag(attr) != IPP_TAG_KEYWORD) ||
-	strcmp(ippGetString(attr, 0, NULL), "no-hold"))
+    supported = ippFindAttribute(client->printer->pinfo.attrs, "job-hold-until-supported", IPP_TAG_ZERO);
+
+    if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
     {
       serverRespondUnsupported(client, attr);
       valid = 0;
@@ -8373,7 +8418,7 @@ valid_job_attributes(
 
     ippSetGroupTag(client->request, &attr, IPP_TAG_JOB);
   }
-  else
+  else if (op == IPP_OP_CREATE_JOB || op == IPP_OP_PRINT_JOB || op == IPP_OP_PRINT_URI)
     ippAddString(client->request, IPP_TAG_JOB, IPP_TAG_NAME, "job-name", NULL, "Untitled");
 
   if ((attr = ippFindAttribute(client->request, "job-priority", IPP_TAG_ZERO)) != NULL)
@@ -8388,11 +8433,9 @@ valid_job_attributes(
 
   if ((attr = ippFindAttribute(client->request, "job-sheets", IPP_TAG_ZERO)) != NULL)
   {
-    if (ippGetCount(attr) != 1 ||
-        (ippGetValueTag(attr) != IPP_TAG_NAME &&
-	 ippGetValueTag(attr) != IPP_TAG_NAMELANG &&
-	 ippGetValueTag(attr) != IPP_TAG_KEYWORD) ||
-	strcmp(ippGetString(attr, 0, NULL), "none"))
+    supported = ippFindAttribute(client->printer->pinfo.attrs, "job-sheets-supported", IPP_TAG_ZERO);
+
+    if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
     {
       serverRespondUnsupported(client, attr);
       valid = 0;
@@ -8401,24 +8444,13 @@ valid_job_attributes(
 
   if ((attr = ippFindAttribute(client->request, "media", IPP_TAG_ZERO)) != NULL)
   {
-    if (ippGetCount(attr) != 1 ||
-        (ippGetValueTag(attr) != IPP_TAG_NAME &&
-	 ippGetValueTag(attr) != IPP_TAG_NAMELANG &&
-	 ippGetValueTag(attr) != IPP_TAG_KEYWORD))
+    if ((supported = ippFindAttribute(client->printer->dev_attrs, "media-supported", IPP_TAG_KEYWORD)) == NULL)
+      supported = ippFindAttribute(client->printer->pinfo.attrs, "media-supported", IPP_TAG_KEYWORD);
+
+    if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
     {
       serverRespondUnsupported(client, attr);
       valid = 0;
-    }
-    else
-    {
-      if ((supported = ippFindAttribute(client->printer->dev_attrs, "media-supported", IPP_TAG_KEYWORD)) == NULL)
-        supported = ippFindAttribute(client->printer->pinfo.attrs, "media-supported", IPP_TAG_KEYWORD);
-
-      if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
-      {
-	serverRespondUnsupported(client, attr);
-	valid = 0;
-      }
     }
   }
 
@@ -8431,13 +8463,6 @@ valid_job_attributes(
 			*y_dim;		/* y-dimension */
     int			x_value,	/* y-dimension value */
 			y_value;	/* x-dimension value */
-
-    if (ippGetCount(attr) != 1 ||
-        ippGetValueTag(attr) != IPP_TAG_BEGIN_COLLECTION)
-    {
-      serverRespondUnsupported(client, attr);
-      valid = 0;
-    }
 
     col = ippGetCollection(attr, 0);
 
@@ -8511,11 +8536,9 @@ valid_job_attributes(
 
   if ((attr = ippFindAttribute(client->request, "multiple-document-handling", IPP_TAG_ZERO)) != NULL)
   {
-    if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_KEYWORD ||
-        (strcmp(ippGetString(attr, 0, NULL),
-		"separate-documents-uncollated-copies") &&
-	 strcmp(ippGetString(attr, 0, NULL),
-		"separate-documents-collated-copies")))
+    supported = ippFindAttribute(client->printer->pinfo.attrs, "multiple-document-handling-supported", IPP_TAG_KEYWORD);
+
+    if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
     {
       serverRespondUnsupported(client, attr);
       valid = 0;
@@ -8524,18 +8547,9 @@ valid_job_attributes(
 
   if ((attr = ippFindAttribute(client->request, "orientation-requested", IPP_TAG_ZERO)) != NULL)
   {
-    if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_ENUM ||
-        ippGetInteger(attr, 0) < IPP_ORIENT_PORTRAIT ||
-        ippGetInteger(attr, 0) > IPP_ORIENT_REVERSE_PORTRAIT)
-    {
-      serverRespondUnsupported(client, attr);
-      valid = 0;
-    }
-  }
+    supported = ippFindAttribute(client->printer->pinfo.attrs, "orientation-supported", IPP_TAG_ENUM);
 
-  if ((attr = ippFindAttribute(client->request, "page-ranges", IPP_TAG_ZERO)) != NULL)
-  {
-    if (ippGetValueTag(attr) != IPP_TAG_RANGE)
+    if (!ippContainsInteger(supported, ippGetInteger(attr, 0)))
     {
       serverRespondUnsupported(client, attr);
       valid = 0;
@@ -8544,9 +8558,7 @@ valid_job_attributes(
 
   if ((attr = ippFindAttribute(client->request, "print-quality", IPP_TAG_ZERO)) != NULL)
   {
-    if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_ENUM ||
-        ippGetInteger(attr, 0) < IPP_QUALITY_DRAFT ||
-        ippGetInteger(attr, 0) > IPP_QUALITY_HIGH)
+    if (ippGetInteger(attr, 0) < IPP_QUALITY_DRAFT || ippGetInteger(attr, 0) > IPP_QUALITY_HIGH)
     {
       serverRespondUnsupported(client, attr);
       valid = 0;
@@ -8558,8 +8570,7 @@ valid_job_attributes(
     if ((supported = ippFindAttribute(client->printer->dev_attrs, "printer-resolution-supported", IPP_TAG_RESOLUTION)) == NULL)
       supported = ippFindAttribute(client->printer->pinfo.attrs, "printer-resolution-supported", IPP_TAG_RESOLUTION);
 
-    if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_RESOLUTION ||
-        !supported)
+    if (!supported)
     {
       serverRespondUnsupported(client, attr);
       valid = 0;
@@ -8597,12 +8608,7 @@ valid_job_attributes(
     if ((supported = ippFindAttribute(client->printer->dev_attrs, "sides-supported", IPP_TAG_KEYWORD)) == NULL)
       supported = ippFindAttribute(client->printer->pinfo.attrs, "sides-supported", IPP_TAG_KEYWORD);
 
-    if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_KEYWORD)
-    {
-      serverRespondUnsupported(client, attr);
-      valid = 0;
-    }
-    else if (!ippContainsString(supported, sides) && strcmp(sides, "one-sided"))
+    if (!ippContainsString(supported, sides) && strcmp(sides, "one-sided"))
     {
       if (!ippContainsString(supported, sides))
       {
@@ -8632,10 +8638,12 @@ valid_values(
   ipp_tag_t		value_tag;	/* Value tag for attribute */
   ipp_op_t		op = ippGetOperation(client->request);
 					/* Operation code */
-  int			set_op;		/* Is this a set operation? */
+  int			create_op,	/* Is this a create operation? */
+			set_op;		/* Is this a set operation? */
 
 
-  set_op = (op == IPP_OP_SET_DOCUMENT_ATTRIBUTES || op == IPP_OP_SET_JOB_ATTRIBUTES || op == IPP_OP_SET_PRINTER_ATTRIBUTES || op == IPP_OP_SET_RESOURCE_ATTRIBUTES || op == IPP_OP_SET_SYSTEM_ATTRIBUTES);
+  create_op = (op == IPP_OP_CREATE_JOB || op == IPP_OP_CREATE_PRINTER || op == IPP_OP_CREATE_RESOURCE || op == IPP_OP_PRINT_JOB || op == IPP_OP_PRINT_URI);
+  set_op    = (op == IPP_OP_SET_DOCUMENT_ATTRIBUTES || op == IPP_OP_SET_JOB_ATTRIBUTES || op == IPP_OP_SET_PRINTER_ATTRIBUTES || op == IPP_OP_SET_RESOURCE_ATTRIBUTES || op == IPP_OP_SET_SYSTEM_ATTRIBUTES);
 
   if (supported)
   {
@@ -8661,7 +8669,7 @@ valid_values(
   {
     if ((attr = ippFindAttribute(client->request, values->name, IPP_TAG_ZERO)) != NULL)
     {
-      if (ippGetGroupTag(attr) != group_tag)
+      if (ippGetGroupTag(attr) != group_tag && (!(values->flags & VALUE_CREATEOP) || !create_op || ippGetGroupTag(attr) != IPP_TAG_OPERATION))
       {
         serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "'%s' attribute in the wrong group.", values->name);
         serverRespondUnsupported(client, attr);
@@ -8676,7 +8684,7 @@ valid_values(
         return (0);
       }
 
-      if (ippGetCount(attr) > 1 && !values->multiple)
+      if (ippGetCount(attr) > 1 && !(values->flags & VALUE_1SETOF))
       {
         serverRespondUnsupported(client, attr);
         return (0);
