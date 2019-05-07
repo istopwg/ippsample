@@ -332,6 +332,8 @@ serverCreatePrinter(
     "document-password",
     "finishings",
     "finishings-col",
+    "imposition-template",
+    "insert-sheet",
     "materials-col",
     "media",
     "media-col",
@@ -373,9 +375,13 @@ serverCreatePrinter(
     "chamber-humidity",
     "chamber-temperature",
     "copies",
+    "cover-back",
+    "cover-front",
     "document-password",
     "finishings",
     "finishings-col",
+    "imposition-template",
+    "insert-sheet",
     "job-account-id",
     "job-account-type",
     "job-accounting-sheets",
@@ -470,6 +476,9 @@ serverCreatePrinter(
   static const char * const media_col_supported[] =
   {					/* media-col-supported values */
     "media-bottom-margin",
+    "media-color",
+    "media-info",
+    "media-key",
     "media-left-margin",
     "media-right-margin",
     "media-size",
@@ -518,16 +527,22 @@ serverCreatePrinter(
   };
   static const char * const printer_settable_attributes_supported[] =
   {					/* printer-settable-attributes-supported */
+    "job-constraints-supported",
+    "job-presets-suppored",
+    "job-resolvers-supported",
+    "job-triggers-supported",
+    "printer-contact-col",
     "printer-dns-sd-name",
+    "printer-device-id",
     "printer-geo-location",
     "printer-icc-profiles",
     "printer-info",
     "printer-location",
+    "printer-make-and-model",
     "printer-mandatory-job-attributes",
     "printer-name",
     "printer-organization",
     "printer-organizational-unit"
-/*    "printer-owner-vcard",*/ /* TODO: ???? */
   };
   static const char * const printer_supply[] =
   {					/* printer-supply values */
