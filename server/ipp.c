@@ -4061,9 +4061,14 @@ ipp_get_subscription_attributes(
     return;
   }
 
-  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  if (Authentication && client->printer && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
+    return;
+  }
+  else if (Authentication && !client->printer && !serverAuthorizeUser(client, NULL, SERVER_GROUP_NONE, SERVER_SCOPE_DEFAULT))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this system.");
     return;
   }
 
@@ -4109,9 +4114,14 @@ ipp_get_subscriptions(
     return;
   }
 
-  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  if (Authentication && client->printer && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
+    return;
+  }
+  else if (Authentication && !client->printer && !serverAuthorizeUser(client, NULL, SERVER_GROUP_NONE, SERVER_SCOPE_DEFAULT))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this system.");
     return;
   }
 
@@ -7349,15 +7359,19 @@ serverProcessIPP(
     * Return an error, since we only support IPP 1.x and 2.x.
     */
 
-    serverRespondIPP(client, IPP_STATUS_ERROR_VERSION_NOT_SUPPORTED,
-                "Bad request version number %d.%d.", major, minor);
+    serverRespondIPP(client, IPP_STATUS_ERROR_VERSION_NOT_SUPPORTED, "Bad request version number %d.%d.", major, minor);
+    goto send_response;
   }
   else if (ippGetRequestId(client->request) <= 0)
-    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Bad request-id %d.",
-                ippGetRequestId(client->request));
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Bad request-id %d.", ippGetRequestId(client->request));
+    goto send_response;
+  }
   else if (!ippFirstAttribute(client->request))
-    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST,
-                "No attributes in request.");
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "No attributes in request.");
+    goto send_response;
+  }
   else
   {
    /*
@@ -7365,10 +7379,7 @@ serverProcessIPP(
     * don't repeat groups...
     */
 
-    for (attr = ippFirstAttribute(client->request),
-             group = ippGetGroupTag(attr);
-	 attr;
-	 attr = ippNextAttribute(client->request))
+    for (attr = ippFirstAttribute(client->request), group = ippGetGroupTag(attr); attr; attr = ippNextAttribute(client->request))
     {
       if (ippGetGroupTag(attr) < group && ippGetGroupTag(attr) != IPP_TAG_ZERO)
       {
@@ -7376,543 +7387,542 @@ serverProcessIPP(
 	* Out of order; return an error...
 	*/
 
-	serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST,
-		    "Attribute groups are out of order (%x < %x).",
-		    ippGetGroupTag(attr), group);
-	break;
+	serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Attribute groups are out of order (%x < %x).", ippGetGroupTag(attr), group);
+	goto send_response;
       }
       else
 	group = ippGetGroupTag(attr);
     }
 
-    if (!attr)
+   /*
+    * Then make sure that the first three attributes are:
+    *
+    *     attributes-charset
+    *     attributes-natural-language
+    *     printer-uri/job-uri
+    */
+
+    attr = ippFirstAttribute(client->request);
+    name = ippGetName(attr);
+    if (attr && name && !strcmp(name, "attributes-charset") && ippGetGroupTag(attr) == IPP_TAG_OPERATION && ippGetValueTag(attr) == IPP_TAG_CHARSET)
+      charset = attr;
+    else
+      charset = NULL;
+
+    attr = ippNextAttribute(client->request);
+    name = ippGetName(attr);
+
+    if (attr && name && !strcmp(name, "attributes-natural-language") && ippGetGroupTag(attr) == IPP_TAG_OPERATION && ippGetValueTag(attr) == IPP_TAG_LANGUAGE)
+      language = attr;
+    else
+      language = NULL;
+
+    attr = ippNextAttribute(client->request);
+    name = ippGetName(attr);
+
+    if (attr && name && (!strcmp(name, "system-uri") || !strcmp(name, "printer-uri") || !strcmp(name, "job-uri")) && ippGetGroupTag(attr) == IPP_TAG_OPERATION && ippGetValueTag(attr) == IPP_TAG_URI)
+      uri = attr;
+    else
+      uri = NULL;
+
+    if (!uri && RelaxedConformance)
     {
      /*
-      * Then make sure that the first three attributes are:
-      *
-      *     attributes-charset
-      *     attributes-natural-language
-      *     printer-uri/job-uri
+      * The target URI isn't where it is supposed to be.  See if it is
+      * elsewhere in the request...
       */
 
-      attr = ippFirstAttribute(client->request);
-      name = ippGetName(attr);
-      if (attr && name && !strcmp(name, "attributes-charset") &&
-          ippGetGroupTag(attr) == IPP_TAG_OPERATION &&
-	  ippGetValueTag(attr) == IPP_TAG_CHARSET)
-	charset = attr;
-      else
-	charset = NULL;
-
-      attr = ippNextAttribute(client->request);
-      name = ippGetName(attr);
-
-      if (attr && name && !strcmp(name, "attributes-natural-language") &&
-          ippGetGroupTag(attr) == IPP_TAG_OPERATION &&
-	  ippGetValueTag(attr) == IPP_TAG_LANGUAGE)
-	language = attr;
-      else
-	language = NULL;
-
-      attr = ippNextAttribute(client->request);
-      name = ippGetName(attr);
-
-      if (attr && name && (!strcmp(name, "system-uri") || !strcmp(name, "printer-uri") || !strcmp(name, "job-uri")) &&
-          ippGetGroupTag(attr) == IPP_TAG_OPERATION &&
-	  ippGetValueTag(attr) == IPP_TAG_URI)
+      if ((attr = ippFindAttribute(client->request, "system-uri", IPP_TAG_URI)) != NULL && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
 	uri = attr;
-      else
-	uri = NULL;
+      else if ((attr = ippFindAttribute(client->request, "printer-uri", IPP_TAG_URI)) != NULL && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
+	uri = attr;
+      else if ((attr = ippFindAttribute(client->request, "job-uri", IPP_TAG_URI)) != NULL && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
+	uri = attr;
 
-      if (!uri && RelaxedConformance)
+      if (uri)
+	serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Target URI not the third attribute in the request (section 4.1.5 of RFC 8011).");
+    }
+
+    if (charset && strcasecmp(ippGetString(charset, 0, NULL), "us-ascii") && strcasecmp(ippGetString(charset, 0, NULL), "utf-8"))
+    {
+     /*
+      * Bad character set...
+      */
+
+      serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Unsupported character set \"%s\".", ippGetString(charset, 0, NULL));
+      goto send_response;
+    }
+    else if (!charset || !language || !uri)
+    {
+     /*
+      * Return an error, since attributes-charset,
+      * attributes-natural-language, and printer-uri/job-uri are required
+      * for all operations.
+      */
+
+      serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing required attributes in request.");
+      goto send_response;
+    }
+    else
+    {
+      char	scheme[32],		/* URI scheme */
+		userpass[32],		/* Username/password in URI */
+		host[256],		/* Host name in URI */
+		resource[256],		/* Resource path in URI */
+		*resptr;		/* Pointer into resource path */
+      int	port;			/* Port number in URI */
+
+      name            = ippGetName(uri);
+      client->printer = NULL;
+
+      if (httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(uri, 0, NULL), scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, resource, sizeof(resource)) < HTTP_URI_STATUS_OK)
       {
-       /*
-        * The target URI isn't where it is supposed to be.  See if it is
-        * elsewhere in the request...
-        */
-
-	if ((attr = ippFindAttribute(client->request, "system-uri", IPP_TAG_URI)) != NULL && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
-	  uri = attr;
-	else if ((attr = ippFindAttribute(client->request, "printer-uri", IPP_TAG_URI)) != NULL && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
-	  uri = attr;
-	else if ((attr = ippFindAttribute(client->request, "job-uri", IPP_TAG_URI)) != NULL && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
-	  uri = attr;
-
-        if (uri)
-	  serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Target URI not the third attribute in the request (section 4.1.5 of RFC 8011).");
+	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Bad \"%s\" value '%s'.", name, ippGetString(uri, 0, NULL));
+	goto send_response;
       }
-
-      if (charset &&
-          strcasecmp(ippGetString(charset, 0, NULL), "us-ascii") &&
-          strcasecmp(ippGetString(charset, 0, NULL), "utf-8"))
+      else if (!strcmp(name, "job-uri"))
       {
        /*
-        * Bad character set...
+	* Validate job-uri...
 	*/
 
-	serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST,
-	            "Unsupported character set \"%s\".",
-	            ippGetString(charset, 0, NULL));
-      }
-      else if (!charset || !language || !uri)
-      {
-       /*
-	* Return an error, since attributes-charset,
-	* attributes-natural-language, and printer-uri/job-uri are required
-	* for all operations.
-	*/
-
-	serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST,
-	            "Missing required attributes in request.");
-      }
-      else
-      {
-        char		scheme[32],	/* URI scheme */
-			userpass[32],	/* Username/password in URI */
-			host[256],	/* Host name in URI */
-			resource[256],	/* Resource path in URI */
-                        *resptr;	/* Pointer into resource path */
-	int		port;		/* Port number in URI */
-
-        name            = ippGetName(uri);
-        client->printer = NULL;
-
-        if (httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(uri, 0, NULL),
-                            scheme, sizeof(scheme),
-                            userpass, sizeof(userpass),
-                            host, sizeof(host), &port,
-                            resource, sizeof(resource)) < HTTP_URI_STATUS_OK)
-        {
-	  serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES,
-	              "Bad \"%s\" value '%s'.", name, ippGetString(uri, 0, NULL));
-        }
-        else if (!strcmp(name, "job-uri"))
-        {
-         /*
-          * Validate job-uri...
-          */
-
-          if (strncmp(resource, "/ipp/print/", 11))
-          {
-            serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "\"%s\" '%s' not found.", name, ippGetString(uri, 0, NULL));
-          }
-          else
-          {
-           /*
-            * Strip job-id from resource...
-            */
-
-            if ((resptr = strchr(resource + 11, '/')) != NULL)
-              *resptr = '\0';
-	    else
-	      resource[10] = '\0';
-
-            if ((client->printer = serverFindPrinter(resource)) == NULL)
-            {
-              serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "\"%s\" '%s' not found.", name, ippGetString(uri, 0, NULL));
-            }
-          }
-        }
-        else if ((client->printer = serverFindPrinter(resource)) == NULL)
-        {
-          if (strcmp(resource, "/ipp/system"))
-	    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "\"%s\" '%s' not found.", name, ippGetString(uri, 0, NULL));
-        }
-
-	if (client->printer && client->printer->is_shutdown && ippGetOperation(client->request) != IPP_OP_STARTUP_PRINTER)
+	if (strncmp(resource, "/ipp/print/", 11))
 	{
-	  serverRespondIPP(client, IPP_STATUS_ERROR_SERVICE_UNAVAILABLE, "\"%s\" is shutdown.", client->printer->name);
+	  serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "\"%s\" '%s' not found.", name, ippGetString(uri, 0, NULL));
+	  goto send_response;
 	}
-	else if (client->printer)
+	else
 	{
 	 /*
-	  * Try processing the Printer operation...
+	  * Strip job-id from resource...
 	  */
 
+	  if ((resptr = strchr(resource + 11, '/')) != NULL)
+	    *resptr = '\0';
+	  else
+	    resource[10] = '\0';
+
+	  if ((client->printer = serverFindPrinter(resource)) == NULL)
+	  {
+	    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "\"%s\" '%s' not found.", name, ippGetString(uri, 0, NULL));
+	    goto send_response;
+	  }
+	}
+      }
+      else if ((client->printer = serverFindPrinter(resource)) == NULL)
+      {
+	if (strcmp(resource, "/ipp/system"))
+	{
+	  serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "\"%s\" '%s' not found.", name, ippGetString(uri, 0, NULL));
+	  goto send_response;
+	}
+      }
+
+      if (client->printer && client->printer->is_shutdown && ippGetOperation(client->request) != IPP_OP_STARTUP_PRINTER)
+      {
+	serverRespondIPP(client, IPP_STATUS_ERROR_SERVICE_UNAVAILABLE, "\"%s\" is shutdown.", client->printer->name);
+	goto send_response;
+      }
+      else if (client->printer)
+      {
+       /*
+	* Try processing the Printer operation...
+	*/
+
+	switch ((int)ippGetOperation(client->request))
+	{
+	  case IPP_OP_PRINT_JOB :
+	      ipp_print_job(client);
+	      break;
+
+	  case IPP_OP_PRINT_URI :
+	      ipp_print_uri(client);
+	      break;
+
+	  case IPP_OP_VALIDATE_JOB :
+	      ipp_validate_job(client);
+	      break;
+
+	  case IPP_OP_CREATE_JOB :
+	      ipp_create_job(client);
+	      break;
+
+	  case IPP_OP_SEND_DOCUMENT :
+	      ipp_send_document(client);
+	      break;
+
+	  case IPP_OP_SEND_URI :
+	      ipp_send_uri(client);
+	      break;
+
+	  case IPP_OP_CANCEL_JOB :
+	      ipp_cancel_job(client);
+	      break;
+
+	  case IPP_OP_CANCEL_CURRENT_JOB :
+	      ipp_cancel_current_job(client);
+	      break;
+
+	  case IPP_OP_CANCEL_JOBS :
+	      ipp_cancel_jobs(client);
+	      break;
+
+	  case IPP_OP_CANCEL_MY_JOBS :
+	      ipp_cancel_jobs(client);
+	      break;
+
+	  case IPP_OP_GET_JOB_ATTRIBUTES :
+	      ipp_get_job_attributes(client);
+	      break;
+
+	  case IPP_OP_SET_JOB_ATTRIBUTES :
+	      ipp_set_job_attributes(client);
+	      break;
+
+	  case IPP_OP_GET_JOBS :
+	      ipp_get_jobs(client);
+	      break;
+
+	  case IPP_OP_GET_PRINTER_ATTRIBUTES :
+	      ipp_get_printer_attributes(client);
+	      break;
+
+	  case IPP_OP_GET_PRINTER_SUPPORTED_VALUES :
+	      ipp_get_printer_supported_values(client);
+	      break;
+
+	  case IPP_OP_SET_PRINTER_ATTRIBUTES :
+	      ipp_set_printer_attributes(client);
+	      break;
+
+	  case IPP_OP_CLOSE_JOB :
+	      ipp_close_job(client);
+	      break;
+
+	  case IPP_OP_HOLD_JOB :
+	      ipp_hold_job(client);
+	      break;
+
+	  case IPP_OP_HOLD_NEW_JOBS :
+	      ipp_hold_new_jobs(client);
+	      break;
+
+	  case IPP_OP_RELEASE_JOB :
+	      ipp_release_job(client);
+	      break;
+
+	  case IPP_OP_RELEASE_HELD_NEW_JOBS :
+	      ipp_release_held_new_jobs(client);
+	      break;
+
+	  case IPP_OP_IDENTIFY_PRINTER :
+	      ipp_identify_printer(client);
+	      break;
+
+	  case IPP_OP_CANCEL_SUBSCRIPTION :
+	      ipp_cancel_subscription(client);
+	      break;
+
+	  case IPP_OP_CREATE_JOB_SUBSCRIPTIONS :
+	  case IPP_OP_CREATE_PRINTER_SUBSCRIPTIONS :
+	      ipp_create_xxx_subscriptions(client);
+	      break;
+
+	  case IPP_OP_GET_NOTIFICATIONS :
+	      ipp_get_notifications(client);
+	      break;
+
+	  case IPP_OP_GET_SUBSCRIPTION_ATTRIBUTES :
+	      ipp_get_subscription_attributes(client);
+	      break;
+
+	  case IPP_OP_GET_SUBSCRIPTIONS :
+	      ipp_get_subscriptions(client);
+	      break;
+
+	  case IPP_OP_RENEW_SUBSCRIPTION :
+	      ipp_renew_subscription(client);
+	      break;
+
+	  case IPP_OP_GET_DOCUMENT_ATTRIBUTES :
+	      ipp_get_document_attributes(client);
+	      break;
+
+	  case IPP_OP_GET_DOCUMENTS :
+	      ipp_get_documents(client);
+	      break;
+
+	  case IPP_OP_VALIDATE_DOCUMENT :
+	      ipp_validate_document(client);
+	      break;
+
+	  case IPP_OP_ACKNOWLEDGE_DOCUMENT :
+	      ipp_acknowledge_document(client);
+	      break;
+
+	  case IPP_OP_ACKNOWLEDGE_IDENTIFY_PRINTER :
+	      ipp_acknowledge_identify_printer(client);
+	      break;
+
+	  case IPP_OP_ACKNOWLEDGE_JOB :
+	      ipp_acknowledge_job(client);
+	      break;
+
+	  case IPP_OP_FETCH_DOCUMENT :
+	      ipp_fetch_document(client);
+	      break;
+
+	  case IPP_OP_FETCH_JOB :
+	      ipp_fetch_job(client);
+	      break;
+
+	  case IPP_OP_GET_OUTPUT_DEVICE_ATTRIBUTES :
+	      ipp_get_output_device_attributes(client);
+	      break;
+
+	  case IPP_OP_UPDATE_ACTIVE_JOBS :
+	      ipp_update_active_jobs(client);
+	      break;
+
+	  case IPP_OP_UPDATE_DOCUMENT_STATUS :
+	      ipp_update_document_status(client);
+	      break;
+
+	  case IPP_OP_UPDATE_JOB_STATUS :
+	      ipp_update_job_status(client);
+	      break;
+
+	  case IPP_OP_UPDATE_OUTPUT_DEVICE_ATTRIBUTES :
+	      ipp_update_output_device_attributes(client);
+	      break;
+
+	  case IPP_OP_DEREGISTER_OUTPUT_DEVICE :
+	      ipp_deregister_output_device(client);
+	      break;
+
+	  case IPP_OP_SHUTDOWN_PRINTER :
+	      ipp_shutdown_printer(client);
+	      break;
+
+	  case IPP_OP_STARTUP_PRINTER :
+	      ipp_startup_printer(client);
+	      break;
+
+	  case IPP_OP_RESTART_PRINTER :
+	      ipp_restart_printer(client);
+	      break;
+
+	  case IPP_OP_DISABLE_PRINTER :
+	      ipp_disable_printer(client);
+	      break;
+
+	  case IPP_OP_ENABLE_PRINTER :
+	      ipp_enable_printer(client);
+	      break;
+
+	  case IPP_OP_PAUSE_PRINTER :
+	  case IPP_OP_PAUSE_PRINTER_AFTER_CURRENT_JOB :
+	      ipp_pause_printer(client);
+	      break;
+
+	  case IPP_OP_RESUME_PRINTER :
+	      ipp_resume_printer(client);
+	      break;
+
+	  case IPP_OP_ALLOCATE_PRINTER_RESOURCES :
+	      ipp_allocate_printer_resources(client);
+	      break;
+
+	  case IPP_OP_DEALLOCATE_PRINTER_RESOURCES :
+	      ipp_deallocate_printer_resources(client);
+	      break;
+
+	  default :
+	      serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "Operation not supported.");
+	      break;
+	}
+      }
+      else if (!strcmp(resource, "/ipp/system"))
+      {
+       /*
+	* Try processing the System operation...
+	*/
+
+	if ((attr = ippFindAttribute(client->request, "printer-id", IPP_TAG_INTEGER)) != NULL)
+	{
+	  int			printer_id = ippGetInteger(attr, 0);
+					/* printer-id value */
+	  server_printer_t	*printer;
+					/* Current printer */
+
+
+	  if (ippGetCount(attr) != 1 || ippGetGroupTag(attr) != IPP_TAG_OPERATION || printer_id <= 0)
+	  {
+	    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Bad printer-id attribute.");
+	    serverRespondUnsupported(client, attr);
+	    goto send_response;
+	  }
+
+	  _cupsRWLockRead(&PrintersRWLock);
+	  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+	  {
+	    if (printer->id == printer_id)
+	    {
+	      client->printer = printer;
+	      break;
+	    }
+	  }
+	  _cupsRWUnlock(&PrintersRWLock);
+
+	  if (!client->printer)
+	  {
+	    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Unknown printer-id.");
+	    serverRespondUnsupported(client, attr);
+	    goto send_response;
+	  }
+	}
+
+	if (ippGetStatusCode(client->response) == IPP_STATUS_OK)
+	{
 	  switch ((int)ippGetOperation(client->request))
 	  {
-	    case IPP_OP_PRINT_JOB :
-		ipp_print_job(client);
-		break;
-
-	    case IPP_OP_PRINT_URI :
-		ipp_print_uri(client);
-		break;
-
-	    case IPP_OP_VALIDATE_JOB :
-		ipp_validate_job(client);
-		break;
-
-	    case IPP_OP_CREATE_JOB :
-		ipp_create_job(client);
-		break;
-
-	    case IPP_OP_SEND_DOCUMENT :
-		ipp_send_document(client);
-		break;
-
-	    case IPP_OP_SEND_URI :
-		ipp_send_uri(client);
-		break;
-
-	    case IPP_OP_CANCEL_JOB :
-		ipp_cancel_job(client);
-		break;
-
-	    case IPP_OP_CANCEL_CURRENT_JOB :
-		ipp_cancel_current_job(client);
-		break;
-
-	    case IPP_OP_CANCEL_JOBS :
-		ipp_cancel_jobs(client);
-		break;
-
-	    case IPP_OP_CANCEL_MY_JOBS :
-		ipp_cancel_jobs(client);
-		break;
-
-	    case IPP_OP_GET_JOB_ATTRIBUTES :
-		ipp_get_job_attributes(client);
-		break;
-
-	    case IPP_OP_SET_JOB_ATTRIBUTES :
-		ipp_set_job_attributes(client);
-		break;
-
-	    case IPP_OP_GET_JOBS :
-		ipp_get_jobs(client);
-		break;
-
 	    case IPP_OP_GET_PRINTER_ATTRIBUTES :
-		ipp_get_printer_attributes(client);
+		if (DefaultPrinter)
+		{
+		  client->printer = DefaultPrinter;
+		  ipp_get_printer_attributes(client);
+		}
+		else
+		{
+		  serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "No default printer.");
+		}
 		break;
 
-	    case IPP_OP_GET_PRINTER_SUPPORTED_VALUES :
-		ipp_get_printer_supported_values(client);
-		break;
-
-	    case IPP_OP_SET_PRINTER_ATTRIBUTES :
-		ipp_set_printer_attributes(client);
-		break;
-
-	    case IPP_OP_CLOSE_JOB :
-	        ipp_close_job(client);
-		break;
-
-	    case IPP_OP_HOLD_JOB :
-	        ipp_hold_job(client);
-	        break;
-
-	    case IPP_OP_HOLD_NEW_JOBS :
-	        ipp_hold_new_jobs(client);
-	        break;
-
-	    case IPP_OP_RELEASE_JOB :
-	        ipp_release_job(client);
-	        break;
-
-	    case IPP_OP_RELEASE_HELD_NEW_JOBS :
-	        ipp_release_held_new_jobs(client);
-	        break;
-
-	    case IPP_OP_IDENTIFY_PRINTER :
-	        ipp_identify_printer(client);
+	    case IPP_OP_CANCEL_RESOURCE :
+		ipp_cancel_resource(client);
 		break;
 
 	    case IPP_OP_CANCEL_SUBSCRIPTION :
-	        ipp_cancel_subscription(client);
+		ipp_cancel_subscription(client);
 		break;
 
-            case IPP_OP_CREATE_JOB_SUBSCRIPTIONS :
-	    case IPP_OP_CREATE_PRINTER_SUBSCRIPTIONS :
-	        ipp_create_xxx_subscriptions(client);
+	    case IPP_OP_CREATE_RESOURCE :
+		ipp_create_resource(client);
+		break;
+
+	    case IPP_OP_CREATE_SYSTEM_SUBSCRIPTIONS :
+		ipp_create_xxx_subscriptions(client);
 		break;
 
 	    case IPP_OP_GET_NOTIFICATIONS :
-	        ipp_get_notifications(client);
+		ipp_get_notifications(client);
+		break;
+
+	    case IPP_OP_GET_RESOURCE_ATTRIBUTES :
+		ipp_get_resource_attributes(client);
+		break;
+
+	    case IPP_OP_GET_RESOURCES :
+		ipp_get_resources(client);
 		break;
 
 	    case IPP_OP_GET_SUBSCRIPTION_ATTRIBUTES :
-	        ipp_get_subscription_attributes(client);
+		ipp_get_subscription_attributes(client);
 		break;
 
 	    case IPP_OP_GET_SUBSCRIPTIONS :
-	        ipp_get_subscriptions(client);
+		ipp_get_subscriptions(client);
+		break;
+
+	    case IPP_OP_INSTALL_RESOURCE :
+		ipp_install_resource(client);
 		break;
 
 	    case IPP_OP_RENEW_SUBSCRIPTION :
-	        ipp_renew_subscription(client);
+		ipp_renew_subscription(client);
 		break;
 
-	    case IPP_OP_GET_DOCUMENT_ATTRIBUTES :
-		ipp_get_document_attributes(client);
+	    case IPP_OP_SEND_RESOURCE_DATA :
+		ipp_send_resource_data(client);
 		break;
 
-	    case IPP_OP_GET_DOCUMENTS :
-		ipp_get_documents(client);
+	    case IPP_OP_SET_RESOURCE_ATTRIBUTES :
+		ipp_set_resource_attributes(client);
 		break;
 
-	    case IPP_OP_VALIDATE_DOCUMENT :
-		ipp_validate_document(client);
+	    case IPP_OP_GET_SYSTEM_ATTRIBUTES :
+		ipp_get_system_attributes(client);
 		break;
 
-            case IPP_OP_ACKNOWLEDGE_DOCUMENT :
-	        ipp_acknowledge_document(client);
+	    case IPP_OP_GET_SYSTEM_SUPPORTED_VALUES :
+		ipp_get_system_supported_values(client);
 		break;
 
-            case IPP_OP_ACKNOWLEDGE_IDENTIFY_PRINTER :
-	        ipp_acknowledge_identify_printer(client);
+	    case IPP_OP_SET_SYSTEM_ATTRIBUTES :
+		ipp_set_system_attributes(client);
 		break;
 
-            case IPP_OP_ACKNOWLEDGE_JOB :
-	        ipp_acknowledge_job(client);
+	    case IPP_OP_CREATE_PRINTER :
+		ipp_create_printer(client);
 		break;
 
-            case IPP_OP_FETCH_DOCUMENT :
-	        ipp_fetch_document(client);
+	    case IPP_OP_GET_PRINTERS :
+		ipp_get_printers(client);
 		break;
 
-            case IPP_OP_FETCH_JOB :
-	        ipp_fetch_job(client);
+	    case IPP_OP_DELETE_PRINTER :
+		if (client->printer)
+		  ipp_delete_printer(client);
+		else
+		  serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing printer-id.");
 		break;
 
-            case IPP_OP_GET_OUTPUT_DEVICE_ATTRIBUTES :
-	        ipp_get_output_device_attributes(client);
+	    case IPP_OP_DISABLE_ALL_PRINTERS :
+		ipp_disable_all_printers(client);
 		break;
 
-            case IPP_OP_UPDATE_ACTIVE_JOBS :
-	        ipp_update_active_jobs(client);
+	    case IPP_OP_ENABLE_ALL_PRINTERS :
+		ipp_enable_all_printers(client);
 		break;
 
-            case IPP_OP_UPDATE_DOCUMENT_STATUS :
-	        ipp_update_document_status(client);
+	    case IPP_OP_PAUSE_ALL_PRINTERS :
+	    case IPP_OP_PAUSE_ALL_PRINTERS_AFTER_CURRENT_JOB :
+		ipp_pause_all_printers(client);
 		break;
 
-            case IPP_OP_UPDATE_JOB_STATUS :
-	        ipp_update_job_status(client);
+	    case IPP_OP_RESUME_ALL_PRINTERS :
+		ipp_resume_all_printers(client);
 		break;
 
-            case IPP_OP_UPDATE_OUTPUT_DEVICE_ATTRIBUTES :
-	        ipp_update_output_device_attributes(client);
+	    case IPP_OP_SHUTDOWN_ALL_PRINTERS :
+		ipp_shutdown_all_printers(client);
 		break;
 
-            case IPP_OP_DEREGISTER_OUTPUT_DEVICE :
-	        ipp_deregister_output_device(client);
+	    case IPP_OP_SHUTDOWN_ONE_PRINTER :
+	        if (client->printer)
+		  ipp_shutdown_printer(client);
+		else
+		  serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing printer-id.");
 		break;
 
-            case IPP_OP_SHUTDOWN_PRINTER :
-		ipp_shutdown_printer(client);
-                break;
+	    case IPP_OP_RESTART_SYSTEM :
+		ipp_restart_system(client);
+		break;
 
-            case IPP_OP_STARTUP_PRINTER :
-		ipp_startup_printer(client);
-                break;
+	    case IPP_OP_STARTUP_ALL_PRINTERS :
+		ipp_startup_all_printers(client);
+		break;
 
-            case IPP_OP_RESTART_PRINTER :
-		ipp_restart_printer(client);
-                break;
-
-            case IPP_OP_DISABLE_PRINTER :
-		ipp_disable_printer(client);
-                break;
-
-            case IPP_OP_ENABLE_PRINTER :
-		ipp_enable_printer(client);
-                break;
-
-            case IPP_OP_PAUSE_PRINTER :
-            case IPP_OP_PAUSE_PRINTER_AFTER_CURRENT_JOB :
-		ipp_pause_printer(client);
-                break;
-
-            case IPP_OP_RESUME_PRINTER :
-		ipp_resume_printer(client);
-                break;
-
-            case IPP_OP_ALLOCATE_PRINTER_RESOURCES :
-                ipp_allocate_printer_resources(client);
-                break;
-
-            case IPP_OP_DEALLOCATE_PRINTER_RESOURCES :
-                ipp_deallocate_printer_resources(client);
-                break;
+	    case IPP_OP_STARTUP_ONE_PRINTER :
+	        if (client->printer)
+		  ipp_startup_printer(client);
+		else
+		  serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing printer-id.");
+		break;
 
 	    default :
 		serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "Operation not supported.");
 		break;
-	  }
-	}
-	else if (!strcmp(resource, "/ipp/system"))
-	{
-	 /*
-	  * Try processing the System operation...
-	  */
-
-          if ((attr = ippFindAttribute(client->request, "printer-id", IPP_TAG_INTEGER)) != NULL)
-          {
-            int			printer_id = ippGetInteger(attr, 0);
-					/* printer-id value */
-            server_printer_t	*printer;
-					/* Current printer */
-
-
-            if (ippGetCount(attr) != 1 || ippGetGroupTag(attr) != IPP_TAG_OPERATION || printer_id <= 0)
-            {
-              serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Bad printer-id attribute.");
-              serverRespondUnsupported(client, attr);
-	    }
-
-            _cupsRWLockRead(&PrintersRWLock);
-            for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
-	    {
-              if (printer->id == printer_id)
-              {
-                client->printer = printer;
-                break;
-	      }
-	    }
-            _cupsRWUnlock(&PrintersRWLock);
-
-            if (!client->printer)
-            {
-	      serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Unknown printer-id.");
-              serverRespondUnsupported(client, attr);
-	    }
-	  }
-
-          if (ippGetStatusCode(client->response) == IPP_STATUS_OK)
-          {
-	    switch ((int)ippGetOperation(client->request))
-	    {
-	      case IPP_OP_GET_PRINTER_ATTRIBUTES :
-		  if (DefaultPrinter)
-		  {
-		    client->printer = DefaultPrinter;
-		    ipp_get_printer_attributes(client);
-		  }
-		  else
-		  {
-		    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "No default printer.");
-		  }
-		  break;
-
-	      case IPP_OP_CANCEL_RESOURCE :
-		  ipp_cancel_resource(client);
-		  break;
-
-	      case IPP_OP_CANCEL_SUBSCRIPTION :
-		  ipp_cancel_subscription(client);
-		  break;
-
-	      case IPP_OP_CREATE_RESOURCE :
-		  ipp_create_resource(client);
-		  break;
-
-	      case IPP_OP_CREATE_SYSTEM_SUBSCRIPTIONS :
-		  ipp_create_xxx_subscriptions(client);
-		  break;
-
-	      case IPP_OP_GET_NOTIFICATIONS :
-		  ipp_get_notifications(client);
-		  break;
-
-	      case IPP_OP_GET_RESOURCE_ATTRIBUTES :
-		  ipp_get_resource_attributes(client);
-		  break;
-
-	      case IPP_OP_GET_RESOURCES :
-		  ipp_get_resources(client);
-		  break;
-
-	      case IPP_OP_GET_SUBSCRIPTION_ATTRIBUTES :
-		  ipp_get_subscription_attributes(client);
-		  break;
-
-	      case IPP_OP_GET_SUBSCRIPTIONS :
-		  ipp_get_subscriptions(client);
-		  break;
-
-	      case IPP_OP_INSTALL_RESOURCE :
-		  ipp_install_resource(client);
-		  break;
-
-	      case IPP_OP_RENEW_SUBSCRIPTION :
-		  ipp_renew_subscription(client);
-		  break;
-
-	      case IPP_OP_SEND_RESOURCE_DATA :
-		  ipp_send_resource_data(client);
-		  break;
-
-	      case IPP_OP_SET_RESOURCE_ATTRIBUTES :
-		  ipp_set_resource_attributes(client);
-		  break;
-
-	      case IPP_OP_GET_SYSTEM_ATTRIBUTES :
-		  ipp_get_system_attributes(client);
-		  break;
-
-	      case IPP_OP_GET_SYSTEM_SUPPORTED_VALUES :
-		  ipp_get_system_supported_values(client);
-		  break;
-
-	      case IPP_OP_SET_SYSTEM_ATTRIBUTES :
-		  ipp_set_system_attributes(client);
-		  break;
-
-	      case IPP_OP_CREATE_PRINTER :
-		  ipp_create_printer(client);
-		  break;
-
-	      case IPP_OP_GET_PRINTERS :
-		  ipp_get_printers(client);
-		  break;
-
-	      case IPP_OP_DELETE_PRINTER :
-		  ipp_delete_printer(client);
-		  break;
-
-	      case IPP_OP_DISABLE_ALL_PRINTERS :
-		  ipp_disable_all_printers(client);
-		  break;
-
-	      case IPP_OP_ENABLE_ALL_PRINTERS :
-		  ipp_enable_all_printers(client);
-		  break;
-
-	      case IPP_OP_PAUSE_ALL_PRINTERS :
-	      case IPP_OP_PAUSE_ALL_PRINTERS_AFTER_CURRENT_JOB :
-		  ipp_pause_all_printers(client);
-		  break;
-
-	      case IPP_OP_RESUME_ALL_PRINTERS :
-		  ipp_resume_all_printers(client);
-		  break;
-
-	      case IPP_OP_SHUTDOWN_ALL_PRINTERS :
-		  ipp_shutdown_all_printers(client);
-		  break;
-
-	      case IPP_OP_SHUTDOWN_ONE_PRINTER :
-		  ipp_shutdown_printer(client);
-		  break;
-
-	      case IPP_OP_RESTART_SYSTEM :
-		  ipp_restart_system(client);
-		  break;
-
-	      case IPP_OP_STARTUP_ALL_PRINTERS :
-		  ipp_startup_all_printers(client);
-		  break;
-
-	      case IPP_OP_STARTUP_ONE_PRINTER :
-		  ipp_startup_printer(client);
-		  break;
-
-	      default :
-		  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "Operation not supported.");
-		  break;
-	    }
 	  }
 	}
       }
@@ -7922,6 +7932,8 @@ serverProcessIPP(
  /*
   * Send the HTTP header and return...
   */
+
+  send_response:
 
   if (httpGetState(client->http) != HTTP_STATE_WAITING)
   {
