@@ -5877,8 +5877,15 @@ ipp_set_job_attributes(
   ipp_attribute_t	*attr,		/* Current attribute */
 			*settable,	/* Settable values */
 			*supported;	/* Supported values */
-  ipp_tag_t		value_tag;	/* Value type */
-  int			bad_attr = 0;	/* Bad attribute? */
+  static server_value_t	values[] =	/* Value tags for settable attributes */
+  {
+    { "document-metadata",	IPP_TAG_STRING, IPP_TAG_ZERO, 1 },
+    { "document-name",		IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
+    { "job-hold-until",		IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
+    { "job-hold-until-time",	IPP_TAG_DATE, IPP_TAG_ZERO, 0 },
+    { "job-name",		IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
+    { "job-priority",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 }
+  };
 
 
   if (Authentication && !client->username[0])
@@ -5917,77 +5924,42 @@ ipp_set_job_attributes(
   * Scan attributes to see if there are any that are not settable...
   */
 
+  _cupsRWLockRead(&job->printer->rwlock);
+
   settable = ippFindAttribute(job->printer->pinfo.attrs, "job-settable-attributes-supported", IPP_TAG_KEYWORD);
 
-  for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
+  if (!valid_values(client, IPP_TAG_JOB, settable, (int)(sizeof(values) / sizeof(values[0])), values))
   {
-    name = ippGetName(attr);
+    _cupsRWUnlock(&job->printer->rwlock);
+    return;
+  }
 
-    if (ippGetGroupTag(attr) != IPP_TAG_JOB || !name)
-      continue;
+  if ((attr = ippFindAttribute(client->request, "job-hold-until", IPP_TAG_ZERO)) != NULL)
+  {
+    supported = ippFindAttribute(job->printer->pinfo.attrs, "job-hold-until-supported", IPP_TAG_KEYWORD);
 
-    if (!ippContainsString(settable, name))
+    if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
     {
-     /*
-      * Report this as a non-settable attribute...
-      */
-
-      respond_unsettable(client, attr);
-      bad_attr = 1;
-    }
-    else if (ippGetCount(attr) != 1 || !ippValidateAttribute(attr))
-    {
-     /*
-      * Report this as an unsupported attribute...
-      */
-
       serverRespondUnsupported(client, attr);
-      bad_attr = 1;
-    }
-
-    value_tag = ippGetValueTag(attr);
-
-    if (!strcmp(name, "job-hold-until"))
-    {
-      supported = ippFindAttribute(job->printer->pinfo.attrs, "job-hold-until-supported", IPP_TAG_KEYWORD);
-
-      if (value_tag != IPP_TAG_KEYWORD || !ippContainsString(supported, ippGetString(attr, 0, NULL)))
-      {
-	serverRespondUnsupported(client, attr);
-	bad_attr = 1;
-      }
-    }
-    else if (!strcmp(name, "job-hold-until-time"))
-    {
-      if (value_tag != IPP_TAG_DATE)
-      {
-	serverRespondUnsupported(client, attr);
-	bad_attr = 1;
-      }
-    }
-    else if (!strcmp(name, "job-name"))
-    {
-      if (value_tag != IPP_TAG_NAME && value_tag != IPP_TAG_NAMELANG)
-      {
-	serverRespondUnsupported(client, attr);
-	bad_attr = 1;
-      }
-    }
-    else if (!strcmp(name, "job-priority"))
-    {
-      int priority = ippGetInteger(attr, 0);
-					/* New priority value */
-
-      if (value_tag != IPP_TAG_INTEGER || priority < 1 || priority > 100)
-      {
-	serverRespondUnsupported(client, attr);
-	bad_attr = 1;
-      }
+      _cupsRWUnlock(&job->printer->rwlock);
+      return;
     }
   }
 
-  if (bad_attr)
-    return;
+  if ((attr = ippFindAttribute(client->request, "job-priority", IPP_TAG_INTEGER)) != NULL)
+  {
+    int priority = ippGetInteger(attr, 0);
+					/* New priority value */
+
+    if (priority < 1 || priority > 100)
+    {
+      serverRespondUnsupported(client, attr);
+      _cupsRWUnlock(&job->printer->rwlock);
+      return;
+    }
+  }
+
+  _cupsRWUnlock(&job->printer->rwlock);
 
  /*
   * Set the values...
@@ -6016,7 +5988,7 @@ ipp_set_job_attributes(
     }
     else if (!strcmp(name, "job-name"))
     {
-      ipp_attribute_t	*job_name;		/* job-name attribute */
+      ipp_attribute_t	*job_name;	/* job-name attribute */
 
       _cupsRWLockWrite(&job->rwlock);
 
@@ -6039,6 +6011,19 @@ ipp_set_job_attributes(
 
       _cupsRWUnlock(&job->printer->rwlock);
     }
+    else
+    {
+      ipp_attribute_t	*old_attr;	/* Old attribute value */
+
+      _cupsRWLockWrite(&job->rwlock);
+
+      if ((old_attr = ippFindAttribute(job->attrs, name, IPP_TAG_ZERO)) != NULL)
+        ippDeleteAttribute(job->attrs, old_attr);
+
+      ippCopyAttribute(job->attrs, attr, 0);
+
+      _cupsRWUnlock(&job->rwlock);
+    }
   }
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
@@ -6058,9 +6043,109 @@ ipp_set_printer_attributes(
   int			count;		/* Number of values */
   ipp_attribute_t	*attr,		/* Current attribute */
 			*settable;	/* Settable values */
-  ipp_tag_t		value_tag;	/* Value type */
   const char		*value;		/* Attribute value */
-  int			bad_attr = 0;	/* Bad attribute? */
+  static server_value_t	values[] =	/* Value tags for settable attributes */
+  {
+    { "chamber-humidity-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
+    { "chamber-temperature-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
+    { "copies-default",				IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
+    { "finishings-default",			IPP_TAG_ENUM, IPP_TAG_ZERO, 1 },
+    { "finishings-ready",			IPP_TAG_ENUM, IPP_TAG_ZERO, 1 },
+    { "finishings-supported",			IPP_TAG_ENUM, IPP_TAG_ZERO, 1 },
+    { "finishings-col-database",		IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
+    { "finishings-col-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
+    { "finishings-col-ready",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
+    { "job-account-id-default",			IPP_TAG_NAME, IPP_TAG_NOVALUE, 0 },
+    { "job-account-type-default",		IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
+    { "job-account-type-supported",		IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
+    { "job-accounting-sheets-default",		IPP_TAG_BEGIN_COLLECTION, IPP_TAG_NOVALUE, 0 },
+    { "job-accounting-user-id-default",		IPP_TAG_NAME, IPP_TAG_NOVALUE, 0 },
+    { "job-delay-output-until-default",		IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
+    { "job-error-action-default",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "job-error-sheet-default",		IPP_TAG_BEGIN_COLLECTION, IPP_TAG_NOVALUE, 0 },
+    { "job-hold-until-default",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
+    { "job-message-to-operator-default",	IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
+    { "job-phone-number-default",		IPP_TAG_URI, IPP_TAG_NOVALUE, 0 },
+    { "job-recipient-name-default",		IPP_TAG_NAME, IPP_TAG_NOVALUE, 0 },
+    { "job-retain-until-default",		IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
+    { "job-sheet-message-default",		IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
+    { "job-sheets-default",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
+    { "job-sheets-col-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
+    { "materials-col-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
+    { "media-bottom-margin-supported",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 1 },
+    { "media-default",				IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
+    { "media-ready",				IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
+    { "media-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
+    { "media-col-database",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
+    { "media-col-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
+    { "media-col-ready",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
+    { "media-left-margin-supported",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 1 },
+    { "media-right-margin-supported",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 1 },
+    { "media-size-supported",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 1 },
+    { "media-source-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
+    { "media-top-margin-supported",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 1 },
+    { "media-type-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
+    { "multiple-document-handling-default",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "multiple-object-handling-default",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "notify-events-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
+    { "number-up-default",			IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
+    { "orientation-requested-default",		IPP_TAG_ENUM, IPP_TAG_NOVALUE, 0 },
+    { "orientation-requested-supported",	IPP_TAG_ENUM, IPP_TAG_ZERO, 1 },
+    { "output-bin-default",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 0 },
+    { "output-bin-supported",			IPP_TAG_KEYWORD, IPP_TAG_NAME, 1 },
+    { "page-delivery-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "platform-shape",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "platform-temperature-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
+    { "platform-temperature-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, 1 },
+    { "presentation-direction-number-up-default", IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "print-accuracy-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
+    { "print-accuracy-supported",		IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
+    { "print-base-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "print-base-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
+    { "print-color-mode-default",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "print-color-mode-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
+    { "print-content-optimize-default",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "print-content-optimize-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
+    { "print-objects-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
+    { "print-quality-default",			IPP_TAG_ENUM, IPP_TAG_ZERO, 0 },
+    { "print-rendering-intent-default",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "print-rendering-intent-supported",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
+    { "print-scaling-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "print-scaling-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
+    { "print-supports-default",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "print-supports-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
+    { "printer-dns-sd-name",			IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
+    { "printer-geo-location",			IPP_TAG_URI, IPP_TAG_ZERO, 0 },
+    { "printer-icc-profiles",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
+    { "printer-info",				IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
+    { "printer-location",			IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
+    { "printer-mandatory-job-attributes",	IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "printer-name",				IPP_TAG_NAME, IPP_TAG_ZERO, 0 },
+    { "printer-organization",			IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
+    { "printer-organizational-unit",		IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
+    { "printer-resolution-default",		IPP_TAG_RESOLUTION, IPP_TAG_ZERO, 0 },
+    { "printer-resolution-supported",		IPP_TAG_RESOLUTION, IPP_TAG_ZERO, 1 },
+    { "proof-print-default",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_NOVALUE, 0 },
+    { "separator-sheets-default",		IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, 0 },
+    { "sides-default",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "sides-supported",			IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
+    { "x-image-position-default",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "x-image-position-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
+    { "x-image-shift-default",			IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
+    { "x-image-shift-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, 0 },
+    { "x-side1-image-shift-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
+    { "x-side1-image-shift-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, 0 },
+    { "x-side2-image-shift-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
+    { "x-side2-image-shift-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, 0 },
+    { "y-image-position-default",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 0 },
+    { "y-image-position-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, 1 },
+    { "y-image-shift-default",			IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
+    { "y-image-shift-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, 0 },
+    { "y-side1-image-shift-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
+    { "y-side1-image-shift-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, 0 },
+    { "y-side2-image-shift-default",		IPP_TAG_INTEGER, IPP_TAG_ZERO, 0 },
+    { "y-side2-image-shift-supported",		IPP_TAG_RANGE, IPP_TAG_ZERO, 0 }
+  };
 
 
   if (Authentication)
@@ -6092,145 +6177,70 @@ ipp_set_printer_attributes(
 
   settable = ippFindAttribute(printer->pinfo.attrs, "printer-settable-attributes-supported", IPP_TAG_KEYWORD);
 
-  for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
-  {
-    name = ippGetName(attr);
-
-    if (ippGetGroupTag(attr) != IPP_TAG_PRINTER || !name)
-      continue;
-
-    if (!ippContainsString(settable, name))
-    {
-      respond_unsettable(client, attr);
-      bad_attr = 1;
-    }
-    else if (!ippValidateAttribute(attr))
-    {
-     /*
-      * Report this as an unsupported attribute...
-      */
-
-      serverRespondUnsupported(client, attr);
-      bad_attr = 1;
-    }
-
-    value_tag = ippGetValueTag(attr);
-    count     = ippGetCount(attr);
-    value     = ippGetString(attr, 0, NULL);
-
-    if (!strcmp(name, "printer-dns-sd-name"))
-    {
-      if ((value_tag != IPP_TAG_NAME && value_tag != IPP_TAG_NAMELANG && value_tag != IPP_TAG_NOVALUE) || count != 1)
-      {
-	serverRespondUnsupported(client, attr);
-	bad_attr = 1;
-      }
-    }
-    else if (!strcmp(name, "printer-geo-location"))
-    {
-      if ((value_tag != IPP_TAG_URI && value_tag != IPP_TAG_NOVALUE) || (value_tag == IPP_TAG_URI && (count != 1 || !value || strncmp(value, "geo:", 4))))
-      {
-	serverRespondUnsupported(client, attr);
-	bad_attr = 1;
-      }
-    }
-    else if (!strcmp(name, "printer-icc-profiles"))
-    {
-      int		i,		/* Looping var */
-			bad_col = 0;	/* Bad collection value? */
-      ipp_t		*col;		/* Collection value */
-      ipp_attribute_t	*colattr;	/* Collection attribute */
-      const char	*colname;	/* Collection attribute name */
-      ipp_tag_t		coltag;		/* Collection attribute value type */
-
-      if (value_tag == IPP_TAG_BEGIN_COLLECTION)
-      {
-        for (i = 0; i < count && !bad_col; i ++)
-        {
-          int	saw_name = 0,		/* Saw profile-name? */
-		saw_uri = 0;		/* Saw profile-uri? */
-
-          col = ippGetCollection(attr, i);
-
-          for (colattr = ippFirstAttribute(col); colattr; colattr = ippNextAttribute(col))
-          {
-            colname = ippGetName(colattr);
-            coltag  = ippGetValueTag(colattr);
-
-            if (!colname || !ippValidateAttribute(colattr))
-            {
-              bad_col = 1;
-	    }
-	    else if (!strcmp(colname, "profile-name"))
-            {
-              if ((coltag != IPP_TAG_NAME && coltag != IPP_TAG_NAMELANG) || ippGetCount(colattr) != 1)
-                bad_col = 1;
-	      else
-	        saw_name = 1;
-	    }
-	    else if (!strcmp(colname, "profile-uri"))
-	    {
-              if (coltag != IPP_TAG_URI || ippGetCount(colattr) != 1)
-                bad_col = 1;
-	      else
-	        saw_uri = 1;
-	    }
-          }
-
-          if (!saw_name || !saw_uri)
-            bad_col = 1;
-	}
-
-	if (bad_col)
-	{
-	  serverRespondUnsupported(client, attr);
-	  bad_attr = 1;
-	}
-      }
-      else
-      {
-	serverRespondUnsupported(client, attr);
-	bad_attr = 1;
-      }
-    }
-    else if (!strcmp(name, "printer-info") || !strcmp(name, "printer-location"))
-    {
-      if ((value_tag != IPP_TAG_TEXT && value_tag != IPP_TAG_TEXTLANG) || count != 1)
-      {
-	serverRespondUnsupported(client, attr);
-	bad_attr = 1;
-      }
-    }
-    else if (!strcmp(name, "printer-mandatory-job-attributes"))
-    {
-      if (value_tag != IPP_TAG_KEYWORD)
-      {
-	serverRespondUnsupported(client, attr);
-	bad_attr = 1;
-      }
-    }
-    else if (!strcmp(name, "printer-name"))
-    {
-      if ((value_tag != IPP_TAG_NAME && value_tag != IPP_TAG_NAMELANG) || count != 1)
-      {
-	serverRespondUnsupported(client, attr);
-	bad_attr = 1;
-      }
-    }
-    else if (!strcmp(name, "printer-organization") || !strcmp(name, "printer-organizational-unit"))
-    {
-      if ((value_tag != IPP_TAG_TEXT && value_tag != IPP_TAG_TEXTLANG) || count != 1)
-      {
-	serverRespondUnsupported(client, attr);
-	bad_attr = 1;
-      }
-    }
-  }
-
-  if (bad_attr)
+  if (!valid_values(client, IPP_TAG_PRINTER, settable, (int)(sizeof(values) / sizeof(values[0])), values))
   {
     _cupsRWUnlock(&printer->rwlock);
     return;
+  }
+
+  if ((attr = ippFindAttribute(client->request, "printer-geo-location", IPP_TAG_URI)) != NULL && ((value = ippGetString(attr, 0, NULL)) == NULL || strncmp(value, "geo:", 4)))
+  {
+    serverRespondUnsupported(client, attr);
+    _cupsRWUnlock(&printer->rwlock);
+    return;
+  }
+
+  if ((attr = ippFindAttribute(client->request, "printer-icc-profiles", IPP_TAG_BEGIN_COLLECTION)) != NULL)
+  {
+    int			i,		/* Looping var */
+			bad_col = 0;	/* Bad collection value? */
+    ipp_t		*col;		/* Collection value */
+    ipp_attribute_t	*colattr;	/* Collection attribute */
+    const char		*colname;	/* Collection attribute name */
+    ipp_tag_t		coltag;		/* Collection attribute value type */
+
+    for (i = 0, count = ippGetCount(attr); i < count && !bad_col; i ++)
+    {
+      int	saw_name = 0,		/* Saw profile-name? */
+		saw_uri = 0;		/* Saw profile-uri? */
+
+      col = ippGetCollection(attr, i);
+
+      for (colattr = ippFirstAttribute(col); colattr; colattr = ippNextAttribute(col))
+      {
+	colname = ippGetName(colattr);
+	coltag  = ippGetValueTag(colattr);
+
+	if (!colname || !ippValidateAttribute(colattr))
+	{
+	  bad_col = 1;
+	}
+	else if (!strcmp(colname, "profile-name"))
+	{
+	  if ((coltag != IPP_TAG_NAME && coltag != IPP_TAG_NAMELANG) || ippGetCount(colattr) != 1)
+	    bad_col = 1;
+	  else
+	    saw_name = 1;
+	}
+	else if (!strcmp(colname, "profile-uri"))
+	{
+	  if (coltag != IPP_TAG_URI || ippGetCount(colattr) != 1)
+	    bad_col = 1;
+	  else
+	    saw_uri = 1;
+	}
+      }
+
+      if (!saw_name || !saw_uri)
+	bad_col = 1;
+    }
+
+    if (bad_col)
+    {
+      serverRespondUnsupported(client, attr);
+      _cupsRWUnlock(&printer->rwlock);
+      return;
+    }
   }
 
  /*
@@ -8533,7 +8543,12 @@ valid_values(
 {
   ipp_attribute_t	*attr;		/* Current attribute */
   ipp_tag_t		value_tag;	/* Value tag for attribute */
+  ipp_op_t		op = ippGetOperation(client->request);
+					/* Operation code */
+  int			set_op;		/* Is this a set operation? */
 
+
+  set_op = (op == IPP_OP_SET_DOCUMENT_ATTRIBUTES || op == IPP_OP_SET_JOB_ATTRIBUTES || op == IPP_OP_SET_PRINTER_ATTRIBUTES || op == IPP_OP_SET_RESOURCE_ATTRIBUTES || op == IPP_OP_SET_SYSTEM_ATTRIBUTES);
 
   if (supported)
   {
@@ -8546,7 +8561,10 @@ valid_values(
 
       if (!ippContainsString(supported, name))
       {
-        serverRespondUnsupported(client, attr);
+        if (set_op)
+	  respond_unsettable(client, attr);
+	else
+	  serverRespondUnsupported(client, attr);
         return (0);
       }
     }

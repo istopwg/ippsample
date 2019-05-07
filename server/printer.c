@@ -378,7 +378,7 @@ serverCreatePrinter(
     "finishings-col",
     "job-account-id",
     "job-account-type",
-    "job-accouunting-sheets",
+    "job-accounting-sheets",
     "job-accounting-user-id",
     "job-authorization-uri",
     "job-delay-output-until",
@@ -1315,6 +1315,14 @@ serverCreatePrinter(
       continue;
 
     snprintf(xxx_supported, sizeof(xxx_supported), "%s-supported", job_creation[i]);
+    if (ippFindAttribute(printer->pinfo.attrs, xxx_supported, IPP_TAG_ZERO))
+      ippSetString(printer->pinfo.attrs, &attr, ippGetCount(attr), xxx_supported);
+
+    snprintf(xxx_supported, sizeof(xxx_supported), "%s-ready", job_creation[i]);
+    if (ippFindAttribute(printer->pinfo.attrs, xxx_supported, IPP_TAG_ZERO))
+      ippSetString(printer->pinfo.attrs, &attr, ippGetCount(attr), xxx_supported);
+
+    snprintf(xxx_supported, sizeof(xxx_supported), "%s-database", job_creation[i]);
     if (ippFindAttribute(printer->pinfo.attrs, xxx_supported, IPP_TAG_ZERO))
       ippSetString(printer->pinfo.attrs, &attr, ippGetCount(attr), xxx_supported);
   }
