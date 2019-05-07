@@ -2190,10 +2190,24 @@ ipp_create_resource(
     serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing required 'resource-type' attribute.");
     return;
   }
-  else if (ippGetGroupTag(attr) != IPP_TAG_OPERATION || ippGetValueTag(attr) != IPP_TAG_KEYWORD || ippGetCount(attr) != 1 || (type = ippGetString(attr, 0, NULL)) == NULL || (strcmp(type, "static-icc-profile") && strcmp(type, "static-image") && strcmp(type, "static-strings")))
+  else if (ippGetGroupTag(attr) != IPP_TAG_OPERATION || ippGetValueTag(attr) != IPP_TAG_KEYWORD || ippGetCount(attr) != 1 || (type = ippGetString(attr, 0, NULL)) == NULL)
   {
     serverRespondUnsupported(client, attr);
     return;
+  }
+  else
+  {
+    ipp_attribute_t	*supported;	/* Supported values */
+
+    _cupsRWLockRead(&SystemRWLock);
+    supported = ippFindAttribute(SystemAttributes, "resource-type-supported", IPP_TAG_KEYWORD);
+    _cupsRWUnlock(&SystemRWLock);
+
+    if (!ippContainsString(supported, type))
+    {
+      serverRespondUnsupported(client, attr);
+      return;
+    }
   }
 
   if ((attr = ippFindAttribute(client->request, "resource-info", IPP_TAG_ZERO)) != NULL && (ippGetGroupTag(attr) != IPP_TAG_RESOURCE || ippGetValueTag(attr) != IPP_TAG_TEXT || ippGetCount(attr) != 1))
@@ -2234,9 +2248,17 @@ ipp_create_resource(
 
     ippAddStrings(client->response, IPP_TAG_OPERATION, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "resource-format-accepted", 2, NULL, formats);
   }
-  else
+  else if (!strcmp(type, "static-strings"))
   {
     ippAddString(client->response, IPP_TAG_OPERATION, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "resource-format-accepted", NULL, "text/strings");
+  }
+  else
+  {
+   /*
+    * template-document/job/printer
+    */
+
+    ippAddString(client->response, IPP_TAG_OPERATION, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "resource-format-accepted", NULL, "application/ipp");
   }
 
   ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
@@ -5576,7 +5598,7 @@ ipp_send_resource_data(
     httpFlush(client->http);
     return;
   }
-  else if (ippGetGroupTag(attr) != IPP_TAG_OPERATION || ippGetValueTag(attr) != IPP_TAG_MIMETYPE || ippGetCount(attr) != 1 || (format = ippGetString(attr, 0, NULL)) == NULL || (strcmp(format, "application/pdf") && strcmp(format, "application/vnd.iccprofile") && strcmp(format, "image/jpeg") && strcmp(format, "image/png") && strcmp(format, "text/strings")))
+  else if (ippGetGroupTag(attr) != IPP_TAG_OPERATION || ippGetValueTag(attr) != IPP_TAG_MIMETYPE || ippGetCount(attr) != 1 || (format = ippGetString(attr, 0, NULL)) == NULL || (strcmp(format, "application/ipp") && strcmp(format, "application/pdf") && strcmp(format, "application/vnd.iccprofile") && strcmp(format, "image/jpeg") && strcmp(format, "image/png") && strcmp(format, "text/strings")))
   {
     serverRespondUnsupported(client, attr);
     httpFlush(client->http);

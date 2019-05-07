@@ -1207,6 +1207,7 @@ create_system_attributes(void)
   };
   static const char * const resource_format_supported[] =
   {					/* Values for resource-format-supported */
+    "application/ipp",
     "application/vnd.iccprofile",
     "image/png",
     "text/strings"
@@ -1219,7 +1220,10 @@ create_system_attributes(void)
   {					/* Values for resource-type-supported */
     "static-icc-profile",
     "static-image",
-    "static-strings"
+    "static-strings",
+    "template-document",
+    "template-job",
+    "template-printer"
   };
   static const char * const smi2699_device_command_supported[] =
   {					/* Values for smi2699-device-command-supported */
@@ -1354,7 +1358,7 @@ create_system_attributes(void)
   else if (getuid())
   {
    /*
-    * Default is the current user's groups.
+    * Default is the current user's groups (if not root).
     */
 
     struct passwd	*pw;		/* User account information */

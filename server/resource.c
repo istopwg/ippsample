@@ -85,7 +85,9 @@ serverCreateResourceFilename(
   const char	*ext;			/* Extension */
 
 
-  if (!strcmp(format, "application/pdf"))
+  if (!strcmp(format, "application/ipp"))
+    ext = ".ipp";
+  else if (!strcmp(format, "application/pdf"))
     ext = ".pdf";
   else if (!strcmp(format, "application/vnd.iccprofile"))
     ext = ".icc";
