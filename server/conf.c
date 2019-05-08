@@ -69,6 +69,32 @@ serverAddPrinter(
 
 
 /*
+ * 'serverAddStringsFile()' - Add a strings file to a printer.
+ */
+
+void
+serverAddStringsFile(
+    server_printer_t *printer,		/* I - Printer */
+    const char       *language,		/* I - Language */
+    const char       *filename)		/* I - Strings file */
+{
+  server_lang_t	lang;			/* New localization */
+
+  lang.lang     = (char *)language;
+  lang.filename = (char *)filename;
+
+  _cupsRWLockWrite(&printer->rwlock);
+
+  if (!printer->pinfo.strings)
+    printer->pinfo.strings = cupsArrayNew3((cups_array_func_t)compare_lang, NULL, NULL, 0, (cups_acopy_func_t)copy_lang, (cups_afree_func_t)free_lang);
+
+  cupsArrayAdd(printer->pinfo.strings, &lang);
+
+  _cupsRWUnlock(&printer->rwlock);
+}
+
+
+/*
  * 'serverCleanAllJobs()' - Clean old jobs for all printers...
  */
 

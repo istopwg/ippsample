@@ -2264,12 +2264,15 @@ ipp_create_printer(
     server_client_t *client)		/* I - Client connection */
 {
   ipp_attribute_t	*attr,		/* Request attribute */
+			*resource_ids,	/* resources-ids attribute */
 			*supported;	/* Supported attribute */
+  int			resource_id;	/* Resource ID value */
+  server_resource_t	*resource;	/* Resource */
   const char		*service_type,	/* printer-service-type value */
 			*name,		/* printer-name value */
 			*group;		/* auth-xxx-group value */
-  char			resource[256],	/* Resource path */
-			*resptr;	/* Pointer into path */
+  char			path[256],	/* Resource path */
+			*pathptr;	/* Pointer into path */
   server_pinfo_t	pinfo;		/* Printer information */
   cups_array_t		*ra;		/* Response attributes */
 
@@ -2297,6 +2300,61 @@ ipp_create_printer(
   * Validate request attributes...
   */
 
+  if ((resource_ids = ippFindAttribute(client->request, "resource-ids", IPP_TAG_INTEGER)) != NULL)
+  {
+    int			i,		/* Looping var */
+			count;		/* Number of values */
+
+    if (ippGetGroupTag(resource_ids) != IPP_TAG_OPERATION)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "The 'resource-ids' attribute is not in the operation group.");
+      serverRespondUnsupported(client, resource_ids);
+      return;
+    }
+    else if ((count = ippGetCount(resource_ids)) > SERVER_RESOURCES_MAX)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Too many resources (%d) specified.", count);
+      serverRespondUnsupported(client, resource_ids);
+      return;
+    }
+
+    for (i = 0; i < count; i ++)
+    {
+      resource_id = ippGetInteger(resource_ids, i);
+
+      if ((resource = serverFindResourceById(resource_id)) == NULL)
+      {
+	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d not found.", resource_id);
+	serverRespondUnsupported(client, resource_ids);
+	return;
+      }
+      else if (resource->state != IPP_RSTATE_INSTALLED)
+      {
+	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d is not installed (%s).", resource_id, ippEnumString("resource-state", (int)resource->state));
+	serverRespondUnsupported(client, resource_ids);
+	return;
+      }
+      else if (!strcmp(resource->type, "template-printer"))
+      {
+	_cupsRWLockRead(&SystemRWLock);
+	supported = ippFindAttribute(SystemAttributes, "printer-creation-attributes-supported", IPP_TAG_KEYWORD);
+	_cupsRWUnlock(&SystemRWLock);
+
+        if (!apply_template_attributes(client->request, IPP_TAG_PRINTER, resource, supported, sizeof(printer_values) / sizeof(printer_values[0]), printer_values))
+        {
+          serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to apply template-printer resource #%d: %s", resource_id, cupsLastErrorString());
+	  return;
+        }
+      }
+      else if (!strncmp(resource->type, "template-", 9))
+      {
+	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d is the wrong type (%s).", resource_id, resource->type);
+	serverRespondUnsupported(client, resource_ids);
+	return;
+      }
+    }
+  }
+
   if ((attr = ippFindAttribute(client->request, "printer-service-type", IPP_TAG_ZERO)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing required 'printer-service-type' attribute.");
@@ -2319,12 +2377,12 @@ ipp_create_printer(
     return;
   }
 
-  snprintf(resource, sizeof(resource), "/ipp/%s/%s", service_type, name);
-  for (resptr = resource + 6 + strlen(service_type); *resptr; resptr ++)
-    if (*resptr <= ' ' || *resptr == '#' || *resptr == '/')
-      *resptr = '_';
+  snprintf(path, sizeof(path), "/ipp/%s/%s", service_type, name);
+  for (pathptr = path + 6 + strlen(service_type); *pathptr; pathptr ++)
+    if (*pathptr <= ' ' || *pathptr == '#' || *pathptr == '/')
+      *pathptr = '_';
 
-  if (serverFindPrinter(resource))
+  if (serverFindPrinter(path))
   {
     /* TODO: add client-error-printer-already-exists status code */
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "A printer named '%s' already exists.", name);
@@ -2374,24 +2432,24 @@ ipp_create_printer(
   if ((attr = ippFindAttribute(client->request, "smi2699-device-uri", IPP_TAG_URI)) != NULL)
   {
     http_uri_status_t uri_status;	/* Decoding status */
-    char	scheme[32],		/* URI scheme */
-		userpass[256],		/* URI username:password */
-		host[256],		/* URI host name */
-		path[256];		/* URI resource path */
-    int		port;			/* URI port */
+    char	dscheme[32],		/* URI scheme */
+		duserpass[256],		/* URI username:password */
+		dhost[256],		/* URI host name */
+		dpath[256];		/* URI resource path */
+    int		dport;			/* URI port */
 
     _cupsRWLockRead(&SystemRWLock);
     supported = ippFindAttribute(SystemAttributes, "smi2699-device-uri-schemes-supported", IPP_TAG_URISCHEME);
     _cupsRWUnlock(&SystemRWLock);
 
-    if ((uri_status = httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(attr, 0, NULL), scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, path, sizeof(path))) < HTTP_URI_STATUS_OK)
+    if ((uri_status = httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(attr, 0, NULL), dscheme, sizeof(dscheme), duserpass, sizeof(duserpass), dhost, sizeof(dhost), &dport, dpath, sizeof(dpath))) < HTTP_URI_STATUS_OK)
     {
-      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Bad device-uri: %s", httpURIStatusString(uri_status));
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Bad smi2699-device-uri: %s", httpURIStatusString(uri_status));
       serverRespondUnsupported(client, attr);
     }
-    else if (!ippContainsString(supported, scheme))
+    else if (!ippContainsString(supported, dscheme))
     {
-      serverRespondIPP(client, IPP_STATUS_ERROR_URI_SCHEME, "Unsupported device-uri scheme '%s'.", scheme);
+      serverRespondIPP(client, IPP_STATUS_ERROR_URI_SCHEME, "Unsupported smi2699-device-uri scheme '%s'.", dscheme);
       serverRespondUnsupported(client, attr);
       return;
     }
@@ -2407,46 +2465,6 @@ ipp_create_printer(
   pinfo.proxy_group = SERVER_GROUP_NONE;
 
   serverCopyAttributes(pinfo.attrs, client->request, NULL, NULL, IPP_TAG_PRINTER, 0);
-
-  if ((attr = ippFindAttribute(client->request, "resource-ids", IPP_TAG_INTEGER)) != NULL && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
-  {
-    int			i,		/* Looping var */
-			count,		/* Number of values */
-			resource_id;	/* Resource ID value */
-    server_resource_t	*template;	/* Template resource */
-
-    _cupsRWLockRead(&SystemRWLock);
-    supported = ippFindAttribute(SystemAttributes, "printer-creation-attributes-supported", IPP_TAG_KEYWORD);
-    _cupsRWUnlock(&SystemRWLock);
-
-    count = ippGetCount(attr);
-    for (i = 0; i < count; i ++)
-    {
-      resource_id = ippGetInteger(attr, i);
-
-      if ((template = serverFindResourceById(resource_id)) == NULL)
-      {
-	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d not found.", resource_id);
-	serverRespondUnsupported(client, attr);
-	return;
-      }
-
-      if (!strcmp(template->type, "template-printer"))
-      {
-        if (!apply_template_attributes(pinfo.attrs, IPP_TAG_PRINTER, template, supported, sizeof(printer_values) / sizeof(printer_values[0]), printer_values))
-        {
-          serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to apply template resource #%d: %s", resource_id, cupsLastErrorString());
-	  return;
-        }
-      }
-      else if (!strncmp(template->type, "template-", 9))
-      {
-	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d is the wrong type (%s).", resource_id, template->type);
-	serverRespondUnsupported(client, attr);
-	return;
-      }
-    }
-  }
 
   for (attr = ippFirstAttribute(pinfo.attrs); attr; attr = ippNextAttribute(pinfo.attrs))
   {
@@ -2486,10 +2504,25 @@ ipp_create_printer(
     }
   }
 
-  if ((client->printer = serverCreatePrinter(resource, name, &pinfo, 1)) == NULL)
+  if ((client->printer = serverCreatePrinter(path, name, &pinfo, 1)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to create printer.");
     return;
+  }
+
+  if (resource_ids)
+  {
+    int			i,		/* Looping var */
+			count;		/* Number of values */
+
+    count = ippGetCount(resource_ids);
+    for (i = 0; i < count; i ++)
+    {
+      resource_id = ippGetInteger(resource_ids, i);
+      resource    = serverFindResourceById(resource_id);
+
+      serverAllocatePrinterResource(client->printer, resource);
+    }
   }
 
   serverAddPrinter(client->printer);

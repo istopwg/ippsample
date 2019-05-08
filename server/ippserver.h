@@ -701,6 +701,8 @@ VAR int			NextSubscriptionId VALUE(1);
 extern void		serverAddEventNoLock(server_printer_t *printer, server_job_t *job, server_resource_t *res, server_event_t event, const char *message, ...) _CUPS_FORMAT(5, 6);
 extern void		serverAddPrinter(server_printer_t *printer);
 extern void		serverAddResourceFile(server_resource_t *res, const char *filename, const char *format);
+extern void		serverAddStringsFile(server_printer_t *printer, const char *language, const char *filename);
+extern void		serverAllocatePrinterResource(server_printer_t *printer, server_resource_t *resource);
 extern http_status_t	serverAuthenticateClient(server_client_t *client);
 extern int		serverAuthorizeUser(server_client_t *client, const char *owner, gid_t group, const char *scope);
 extern void		serverCheckJobs(server_printer_t *printer);
@@ -719,6 +721,7 @@ extern server_resource_t *serverCreateResource(const char *resource, const char 
 extern void		serverCreateResourceFilename(server_resource_t *res, const char *format, const char *prefix, char *fname, size_t fnamesize);
 extern server_subscription_t *serverCreateSubscription(server_client_t *client, int interval, int lease, const char *username, ipp_attribute_t *notify_charset, ipp_attribute_t *notify_natural_language, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
 extern int		serverCreateSystem(const char *directory);
+extern void		serverDeallocatePrinterResource(server_printer_t *printer, server_resource_t *resource);
 extern void		serverDeleteClient(server_client_t *client);
 extern void		serverDeleteDevice(server_device_t *device);
 extern void		serverDeleteJob(server_job_t *job);

@@ -32,6 +32,75 @@ static void		register_geo(server_printer_t *printer);
 
 
 /*
+ * 'serverAllocatePrinterResource()' - Allocate a resource for a printer.
+ */
+
+void
+serverAllocatePrinterResource(
+    server_printer_t  *printer,		/* I - Printer */
+    server_resource_t *resource)	/* I - Resource to allocate */
+{
+  int	i;				/* Looping var */
+
+
+ /*
+  * See if we need to add the resource...
+  */
+
+  if (printer->num_resources >= SERVER_RESOURCES_MAX)
+    return;
+
+  for (i = 0; i < printer->num_resources; i ++)
+  {
+    if (printer->resources[i] == resource->id)
+      return;
+  }
+
+ /*
+  * Add the resource to the list...
+  */
+
+  _cupsRWLockWrite(&resource->rwlock);
+
+  resource->use ++;
+
+  printer->resources[printer->num_resources ++] = resource->id;
+
+ /*
+  * And then update any printer attributes/values based on the type of
+  * resource...
+  */
+
+  if (!strcmp(resource->type, "static-image") && !strcmp(resource->format, "image/png"))
+  {
+   /*
+    * Printer icon...
+    */
+
+    if (printer->pinfo.icon)
+      free(printer->pinfo.icon);
+
+    printer->pinfo.icon = strdup(resource->filename);
+  }
+  else if (!strcmp(resource->type, "static-strings"))
+  {
+   /*
+    * Localization file...
+    */
+
+    server_lang_t	lang;		/* Language information */
+
+    lang.filename = resource->filename;
+
+    if ((lang.lang = (char *)ippGetString(ippFindAttribute(resource->attrs, "resource-natural-language", IPP_TAG_LANGUAGE), 0, NULL)) != NULL)
+      cupsArrayAdd(printer->pinfo.strings, &lang);
+  }
+
+  _cupsRWUnlock(&resource->rwlock);
+}
+
+
+/*
  * 'serverCopyPrinterStateReasons()' - Copy printer-state-reasons values.
  */
 
@@ -1522,16 +1591,103 @@ serverCreatePrinter(
 
 
 /*
+ * 'serverDeallocatePrinterResource()' - Deallocate a resource for a printer.
+ */
+
+void
+serverDeallocatePrinterResource(
+    server_printer_t  *printer,		/* I - Printer */
+    server_resource_t *resource)	/* I - Resource to allocate */
+{
+  int	i;				/* Looping var */
+
+
+ /*
+  * See if we need to remove the resource...
+  */
+
+  for (i = 0; i < printer->num_resources; i ++)
+  {
+    if (printer->resources[i] == resource->id)
+      break;
+  }
+
+  if (i >= printer->num_resources)
+    return;
+
+ /*
+  * Remove the resource from the list...
+  */
+
+  printer->num_resources --;
+  if (i < printer->num_resources)
+    memmove(printer->resources + i, printer->resources + i + 1, (size_t)(printer->num_resources - i) * sizeof(int));
+
+  _cupsRWLockWrite(&resource->rwlock);
+
+  resource->use --;
+
+ /*
+  * And then update any printer attributes/values based on the type of
+  * resource...
+  */
+
+  if (!strcmp(resource->type, "static-image") && !strcmp(resource->format, "image/png"))
+  {
+   /*
+    * Printer icon...
+    */
+
+    if (printer->pinfo.icon)
+    {
+      free(printer->pinfo.icon);
+      printer->pinfo.icon = NULL;
+    }
+  }
+  else if (!strcmp(resource->type, "static-strings"))
+  {
+   /*
+    * Localization file...
+    */
+
+    server_lang_t	key,		/* Language key */
+			*match;		/* Matching language record */
+
+    if ((key.lang = (char *)ippGetString(ippFindAttribute(resource->attrs, "resource-natural-language", IPP_TAG_LANGUAGE), 0, NULL)) != NULL && (match = cupsArrayFind(printer->pinfo.strings, &key)) != NULL)
+      cupsArrayRemove(printer->pinfo.strings, match);
+  }
+
+  _cupsRWUnlock(&resource->rwlock);
+}
+
+
+/*
  * 'serverDeletePrinter()' - Unregister, close listen sockets, and free all
  *                           memory used by a printer object.
  */
 
 void
-serverDeletePrinter(server_printer_t *printer)	/* I - Printer */
+serverDeletePrinter(
+    server_printer_t *printer)		/* I - Printer */
 {
+  int	i;				/* Looping var */
+
+
   _cupsRWLockWrite(&printer->rwlock);
 
   serverUnregisterPrinter(printer);
+
+  for (i = 0; i < printer->num_resources; i ++)
+  {
+    server_resource_t *resource = serverFindResourceById(printer->resources[i]);
+
+    if (resource)
+    {
+      _cupsRWLockWrite(&resource->rwlock);
+      resource->use --;
+      _cupsRWUnlock(&resource->rwlock);
+    }
+  }
 
   if (printer->default_uri)
     free(printer->default_uri);
