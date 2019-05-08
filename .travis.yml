@@ -19,3 +19,10 @@ matrix:
     # macOS-specific build stuff
     - os: osx
       osx_image: xcode9.4
+
+
+notifications:
+  email:
+    recipients:
+      - istopwg-ippsample-dev@pwg.org
+      
