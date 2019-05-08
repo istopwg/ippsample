@@ -8664,8 +8664,11 @@ valid_job_attributes(
   int			i,		/* Looping var */
 			count,		/* Number of values */
 			valid = 1;	/* Valid attributes? */
-  ipp_attribute_t	*attr,		/* Current attribute */
-			*supported;	/* xxx-supported attribute */
+  ipp_attribute_t	*attr,		/* Request attribute */
+			*resource_ids,	/* resources-ids attribute */
+			*supported;	/* Supported attribute */
+  int			resource_id;	/* Resource ID value */
+  server_resource_t	*resource;	/* Resource */
   ipp_op_t		op = ippGetOperation(client->request);
 					/* Current operation */
 
@@ -8677,6 +8680,60 @@ valid_job_attributes(
   _cupsRWLockRead(&client->printer->rwlock);
 
   supported = ippFindAttribute(client->printer->pinfo.attrs, "job-creation-attributes-suppored", IPP_TAG_KEYWORD);
+
+  if ((resource_ids = ippFindAttribute(client->request, "resource-ids", IPP_TAG_INTEGER)) != NULL)
+  {
+    if (ippGetGroupTag(resource_ids) != IPP_TAG_OPERATION)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "The 'resource-ids' attribute is not in the operation group.");
+      serverRespondUnsupported(client, resource_ids);
+      _cupsRWUnlock(&client->printer->rwlock);
+      return (0);
+    }
+    else if ((count = ippGetCount(resource_ids)) > SERVER_RESOURCES_MAX)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Too many resources (%d) specified.", count);
+      serverRespondUnsupported(client, resource_ids);
+      _cupsRWUnlock(&client->printer->rwlock);
+      return (0);
+    }
+
+    for (i = 0; i < count; i ++)
+    {
+      resource_id = ippGetInteger(resource_ids, i);
+
+      if ((resource = serverFindResourceById(resource_id)) == NULL)
+      {
+	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d not found.", resource_id);
+	serverRespondUnsupported(client, resource_ids);
+	_cupsRWUnlock(&client->printer->rwlock);
+	return (0);
+      }
+      else if (resource->state != IPP_RSTATE_INSTALLED)
+      {
+	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d is not installed (%s).", resource_id, ippEnumString("resource-state", (int)resource->state));
+	serverRespondUnsupported(client, resource_ids);
+	_cupsRWUnlock(&client->printer->rwlock);
+	return (0);
+      }
+      else if (!strcmp(resource->type, "template-job"))
+      {
+        if (!apply_template_attributes(client->request, IPP_TAG_JOB, resource, supported, sizeof(job_values) / sizeof(job_values[0]), job_values))
+        {
+          serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to apply template-job resource #%d: %s", resource_id, cupsLastErrorString());
+	  _cupsRWUnlock(&client->printer->rwlock);
+	  return (0);
+        }
+      }
+      else
+      {
+	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d is the wrong type (%s).", resource_id, resource->type);
+	serverRespondUnsupported(client, resource_ids);
+	_cupsRWUnlock(&client->printer->rwlock);
+	return (0);
+      }
+    }
+  }
 
   if (!valid_values(client, IPP_TAG_JOB, supported, sizeof(job_values) / sizeof(job_values[0]), job_values))
   {
