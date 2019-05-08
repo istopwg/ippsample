@@ -36,6 +36,7 @@ typedef struct server_value_s		/**** Value Validation ****/
  * Local functions...
  */
 
+static int		apply_template_attributes(ipp_t *to, ipp_tag_t to_group_tag, server_resource_t *resource, ipp_attribute_t *supported, size_t num_values, server_value_t *values);
 static inline int	check_attribute(const char *name, cups_array_t *ra, cups_array_t *pa)
 {
   return ((!pa || !cupsArrayFind(pa, (void *)name)) && (!ra || cupsArrayFind(ra, (void *)name)));
@@ -125,7 +126,7 @@ static void		respond_unsettable(server_client_t *client, ipp_attribute_t *attr);
 static int		valid_doc_attributes(server_client_t *client);
 static int		valid_filename(const char *filename);
 static int		valid_job_attributes(server_client_t *client);
-static int		valid_values(server_client_t *client, ipp_tag_t group_tag, ipp_attribute_t *supported, int num_values, server_value_t *values);
+static int		valid_values(server_client_t *client, ipp_tag_t group_tag, ipp_attribute_t *supported, size_t num_values, server_value_t *values);
 static float		wgs84_distance(const char *a, const char *b);
 
 
@@ -436,6 +437,84 @@ serverCopyAttributes(
   filter.group_tag = group_tag;
 
   ippCopyAttributes(to, from, quickcopy, (ipp_copycb_t)filter_cb, &filter);
+}
+
+
+/*
+ * 'apply_template_attributes()' - Apply attributes from a template resource.
+ */
+
+static int				/* O - 1 on success, 0 on failure */
+apply_template_attributes(
+    ipp_t             *to,		/* I - Destination attributes */
+    ipp_tag_t         to_group_tag,	/* I - Destination group */
+    server_resource_t *template,	/* I - Template resource */
+    ipp_attribute_t   *supported,	/* I - "xxx-supported" attribute, if any */
+    size_t            num_values,	/* I - Number of value definitions */
+    server_value_t    *values)		/* I - Value definitions */
+{
+  int			fd;		/* Resource file descriptor */
+  ipp_t			*from;		/* Resource attributes */
+  ipp_attribute_t	*fromattr,	/* Source attribute */
+			*toattr;	/* Destination attribute */
+  const char		*name;		/* Source attribute name */
+  ipp_tag_t		value_tag;	/* Source value tag */
+  size_t		i;		/* Looping var */
+  server_value_t	*value;		/* Current value definition */
+
+
+ /*
+  * Load the resource attributes...
+  */
+
+  if ((fd = open(template->filename, O_RDONLY | O_BINARY)) < 0)
+  {
+    serverLog(SERVER_LOGLEVEL_ERROR, "Unable to open resource %d file \"%s\": %s", template->id, template->filename, strerror(errno));
+    return (0);
+  }
+
+  from = ippNew();
+
+  if (ippReadFile(fd, from) != IPP_STATE_DATA)
+  {
+    serverLog(SERVER_LOGLEVEL_ERROR, "Unable to read resource %d file \"%s\": %s", template->id, template->filename, cupsLastErrorString());
+    close(fd);
+    ippDelete(from);
+    return (0);
+  }
+
+  close(fd);
+
+ /*
+  * Loop through the attributes, validate, and copy as needed...
+  */
+
+  for (fromattr = ippFirstAttribute(from); fromattr; fromattr = ippNextAttribute(from))
+  {
+    name      = ippGetName(fromattr);
+    value_tag = ippGetValueTag(fromattr);
+
+    if (!name || (supported && !ippContainsString(supported, name)) || ippFindAttribute(to, name, IPP_TAG_ZERO))
+      continue;
+
+    for (i = num_values, value = values; i > 0; i --, value ++)
+    {
+      if (!strcmp(name, value->name) && (value_tag == value->value_tag || value_tag == value->alt_tag) && (ippGetCount(fromattr) == 1 || (value->flags & VALUE_1SETOF)))
+      {
+	toattr = ippCopyAttribute(to, fromattr, 0);
+	ippSetGroupTag(to, &toattr, to_group_tag);
+        break;
+      }
+    }
+  }
+
+ /*
+  * Clean up...
+  */
+
+  ippDelete(from);
+
+  return (1);
 }
 
 
@@ -2252,7 +2331,7 @@ ipp_create_printer(
     return;
   }
 
-  if (!valid_values(client, IPP_TAG_PRINTER, ippFindAttribute(SystemAttributes, "printer-creation-attributes-supported", IPP_TAG_KEYWORD), (int)(sizeof(printer_values) / sizeof(printer_values[0])), printer_values))
+  if (!valid_values(client, IPP_TAG_PRINTER, ippFindAttribute(SystemAttributes, "printer-creation-attributes-supported", IPP_TAG_KEYWORD), sizeof(printer_values) / sizeof(printer_values[0]), printer_values))
     return;
 
 #ifndef _WIN32
@@ -2329,7 +2408,47 @@ ipp_create_printer(
 
   serverCopyAttributes(pinfo.attrs, client->request, NULL, NULL, IPP_TAG_PRINTER, 0);
 
-  for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
+  if ((attr = ippFindAttribute(client->request, "resource-ids", IPP_TAG_INTEGER)) != NULL && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
+  {
+    int			i,		/* Looping var */
+			count,		/* Number of values */
+			resource_id;	/* Resource ID value */
+    server_resource_t	*template;	/* Template resource */
+
+    _cupsRWLockRead(&SystemRWLock);
+    supported = ippFindAttribute(SystemAttributes, "printer-creation-attributes-supported", IPP_TAG_KEYWORD);
+    _cupsRWUnlock(&SystemRWLock);
+
+    count = ippGetCount(attr);
+    for (i = 0; i < count; i ++)
+    {
+      resource_id = ippGetInteger(attr, i);
+
+      if ((template = serverFindResourceById(resource_id)) == NULL)
+      {
+	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d not found.", resource_id);
+	serverRespondUnsupported(client, attr);
+	return;
+      }
+
+      if (!strcmp(template->type, "template-printer"))
+      {
+        if (!apply_template_attributes(pinfo.attrs, IPP_TAG_PRINTER, template, supported, sizeof(printer_values) / sizeof(printer_values[0]), printer_values))
+        {
+          serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to apply template resource #%d: %s", resource_id, cupsLastErrorString());
+	  return;
+        }
+      }
+      else if (!strncmp(template->type, "template-", 9))
+      {
+	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d is the wrong type (%s).", resource_id, template->type);
+	serverRespondUnsupported(client, attr);
+	return;
+      }
+    }
+  }
+
+  for (attr = ippFirstAttribute(pinfo.attrs); attr; attr = ippNextAttribute(pinfo.attrs))
   {
     const char		*aname = ippGetName(attr);
 					/* Attribute name */
@@ -6293,7 +6412,7 @@ ipp_set_printer_attributes(
 
   settable = ippFindAttribute(printer->pinfo.attrs, "printer-settable-attributes-supported", IPP_TAG_KEYWORD);
 
-  if (!valid_values(client, IPP_TAG_PRINTER, settable, (int)(sizeof(printer_values) / sizeof(printer_values[0])), printer_values))
+  if (!valid_values(client, IPP_TAG_PRINTER, settable, sizeof(printer_values) / sizeof(printer_values[0]), printer_values))
   {
     _cupsRWUnlock(&printer->rwlock);
     return;
@@ -6491,7 +6610,7 @@ ipp_set_system_attributes(
 
   settable = ippFindAttribute(SystemAttributes, "system-settable-attributes-supported", IPP_TAG_KEYWORD);
 
-  if (!valid_values(client, IPP_TAG_SYSTEM, settable, (int)(sizeof(values) / sizeof(values[0])), values))
+  if (!valid_values(client, IPP_TAG_SYSTEM, settable, sizeof(values) / sizeof(values[0]), values))
     goto unlock_system;
 
   if ((attr = ippFindAttribute(client->request, "system-owner-col", IPP_TAG_BEGIN_COLLECTION)) != NULL)
@@ -8349,7 +8468,7 @@ valid_job_attributes(
 
   supported = ippFindAttribute(client->printer->pinfo.attrs, "job-creation-attributes-suppored", IPP_TAG_KEYWORD);
 
-  if (!valid_values(client, IPP_TAG_JOB, supported, (int)(sizeof(job_values) / sizeof(job_values[0])), job_values))
+  if (!valid_values(client, IPP_TAG_JOB, supported, sizeof(job_values) / sizeof(job_values[0]), job_values))
   {
     _cupsRWUnlock(&client->printer->rwlock);
     return (0);
@@ -8631,7 +8750,7 @@ valid_values(
     server_client_t *client,		/* I - Client connection */
     ipp_tag_t       group_tag,		/* I - Group to check */
     ipp_attribute_t *supported,		/* I - List of supported attributes */
-    int             num_values,		/* I - Number of values to check */
+    size_t          num_values,		/* I - Number of values to check */
     server_value_t  *values)		/* I - Values to check */
 {
   ipp_attribute_t	*attr;		/* Current attribute */
@@ -8747,12 +8866,13 @@ wgs84_distance(const char *a,		/* I - First geo: value */
   * angular distance between the two coordinates on a sphere (vs. the WGS-84
   * ellipsoid) and then multiplying by an approximate number of meters between
   * each degree of latitude and longitude.  The error bars on this calculation
-  * are reasonable for local comparisons and completely unreasonable for
-  * distant comparisons.  You have been warned! :)
+  * are reasonable for local comparisons (<1m error over 1 degree of latitude
+  * change) and completely unreasonable for distant comparisons.  You have been
+  * warned! :)
   */
 
   d_lat = M_PER_DEG * (a_lat - b_lat);
-  d_lon = M_PER_DEG * cos((a_lat + b_lat) * M_PI / 4.0) * (a_lon - b_lon);
+  d_lon = M_PER_DEG * cos((a_lat + b_lat) * M_PI / 360.0) * (a_lon - b_lon);
   d_alt = a_alt - b_alt;
 
   return ((float)sqrt(d_lat * d_lat + d_lon * d_lon + d_alt * d_alt));
