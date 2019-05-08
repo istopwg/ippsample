@@ -1627,8 +1627,100 @@ static void
 ipp_allocate_printer_resources(
     server_client_t *client)		/* I - Client */
 {
-  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
-  return;
+  server_printer_t	*printer = client->printer;
+					/* Printer */
+  ipp_attribute_t	*resource_ids;	/* resource-ids attribute */
+  int			i,		/* Looping var */
+			count,		/* Number of values */
+			resource_id;	/* Current resource ID */
+  server_resource_t	*resource;	/* Current resource */
+
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+ /*
+  * Validate request attributes...
+  */
+
+  if ((resource_ids = ippFindAttribute(client->request, "resource-ids", IPP_TAG_ZERO)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing 'resource-ids' attribute.");
+    return;
+  }
+  else if (ippGetGroupTag(resource_ids) != IPP_TAG_OPERATION)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "The 'resource-ids' attribute is in the wrong group.");
+    return;
+  }
+  else if (ippGetValueTag(resource_ids) != IPP_TAG_INTEGER)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "The 'resource-ids' attribute is the wrong type.");
+    serverRespondUnsupported(client, resource_ids);
+    return;
+  }
+
+  _cupsRWLockWrite(&printer->rwlock);
+
+  for (i = 0, count = ippGetCount(resource_ids); i < count; i ++)
+  {
+    resource_id = ippGetInteger(resource_ids, i);
+    resource    = serverFindResourceById(resource_id);
+
+    if (!resource)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d does not exist.", resource_id);
+      serverRespondUnsupported(client, resource_ids);
+      _cupsRWUnlock(&printer->rwlock);
+      return;
+    }
+    else if (resource->state != IPP_RSTATE_INSTALLED)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d is not installed.", resource_id);
+      serverRespondUnsupported(client, resource_ids);
+      _cupsRWUnlock(&printer->rwlock);
+      return;
+    }
+    else if (strncmp(resource->type, "static-", 7))
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d of type '%s' cannot be allocated.", resource_id, resource->type);
+      serverRespondUnsupported(client, resource_ids);
+      _cupsRWUnlock(&printer->rwlock);
+      return;
+    }
+  }
+
+ /*
+  * Allocate resources...
+  */
+
+  for (i = 0, count = ippGetCount(resource_ids); i < count; i ++)
+  {
+    resource_id = ippGetInteger(resource_ids, i);
+    resource    = serverFindResourceById(resource_id);
+
+    serverAllocatePrinterResource(printer, resource);
+  }
+
+  _cupsRWUnlock(&printer->rwlock);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
 
 
@@ -2958,8 +3050,92 @@ static void
 ipp_deallocate_printer_resources(
     server_client_t *client)		/* I - Client */
 {
-  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
-  return;
+  server_printer_t	*printer = client->printer;
+					/* Printer */
+  ipp_attribute_t	*resource_ids;	/* resource-ids attribute */
+  int			i, j,		/* Looping vars */
+			count,		/* Number of values */
+			resource_id;	/* Current resource ID */
+  server_resource_t	*resource;	/* Current resource */
+
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+ /*
+  * Validate request attributes...
+  */
+
+  if ((resource_ids = ippFindAttribute(client->request, "resource-ids", IPP_TAG_ZERO)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing 'resource-ids' attribute.");
+    return;
+  }
+  else if (ippGetGroupTag(resource_ids) != IPP_TAG_OPERATION)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "The 'resource-ids' attribute is in the wrong group.");
+    return;
+  }
+  else if (ippGetValueTag(resource_ids) != IPP_TAG_INTEGER)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "The 'resource-ids' attribute is the wrong type.");
+    serverRespondUnsupported(client, resource_ids);
+    return;
+  }
+
+  _cupsRWLockWrite(&printer->rwlock);
+
+  for (i = 0, count = ippGetCount(resource_ids); i < count; i ++)
+  {
+    resource_id = ippGetInteger(resource_ids, i);
+    resource    = serverFindResourceById(resource_id);
+
+    for (j = 0; j < printer->num_resources; j ++)
+    {
+      if (printer->resources[j] == resource_id)
+	break;
+    }
+
+    if (!resource || j >= printer->num_resources)
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d is not allocated to the printer.", resource_id);
+      serverRespondUnsupported(client, resource_ids);
+      _cupsRWUnlock(&printer->rwlock);
+      return;
+    }
+  }
+
+ /*
+  * Deallocate resources...
+  */
+
+  for (i = 0, count = ippGetCount(resource_ids); i < count; i ++)
+  {
+    resource_id = ippGetInteger(resource_ids, i);
+    resource    = serverFindResourceById(resource_id);
+
+    serverDeallocatePrinterResource(printer, resource);
+  }
+
+  _cupsRWUnlock(&printer->rwlock);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
 
 
