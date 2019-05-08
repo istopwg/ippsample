@@ -2355,6 +2355,8 @@ static void
 ipp_create_printer(
     server_client_t *client)		/* I - Client connection */
 {
+  int			i,		/* Looping var */
+			count;		/* Number of values */
   ipp_attribute_t	*attr,		/* Request attribute */
 			*resource_ids,	/* resources-ids attribute */
 			*supported;	/* Supported attribute */
@@ -2394,9 +2396,6 @@ ipp_create_printer(
 
   if ((resource_ids = ippFindAttribute(client->request, "resource-ids", IPP_TAG_INTEGER)) != NULL)
   {
-    int			i,		/* Looping var */
-			count;		/* Number of values */
-
     if (ippGetGroupTag(resource_ids) != IPP_TAG_OPERATION)
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "The 'resource-ids' attribute is not in the operation group.");
@@ -2604,8 +2603,9 @@ ipp_create_printer(
 
   if (resource_ids)
   {
-    int			i,		/* Looping var */
-			count;		/* Number of values */
+   /*
+    * Allocate non-template resources to the printer...
+    */
 
     count = ippGetCount(resource_ids);
     for (i = 0; i < count; i ++)
@@ -2613,7 +2613,8 @@ ipp_create_printer(
       resource_id = ippGetInteger(resource_ids, i);
       resource    = serverFindResourceById(resource_id);
 
-      serverAllocatePrinterResource(client->printer, resource);
+      if (strcmp(resource->type, "template-printer"))
+        serverAllocatePrinterResource(client->printer, resource);
     }
   }
 
