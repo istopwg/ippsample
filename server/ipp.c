@@ -2364,10 +2364,11 @@ ipp_create_printer(
   int			resource_id;	/* Resource ID value */
   server_resource_t	*resource;	/* Resource */
   const char		*service_type,	/* printer-service-type value */
-			*name,		/* printer-name value */
+			*printer_name,	/* printer-name value */
 			*group;		/* auth-xxx-group value */
-  char			path[256],	/* Resource path */
-			*pathptr;	/* Pointer into path */
+  char			name[128],	/* Sanitized printer name */
+			*nameptr,	/* Pointer into name */
+			path[256];	/* Resource path */
   server_pinfo_t	pinfo;		/* Printer information */
   cups_array_t		*ra;		/* Response attributes */
 
@@ -2463,20 +2464,21 @@ ipp_create_printer(
     serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing required 'printer-name' attribute.");
     return;
   }
-  else if (ippGetGroupTag(attr) != IPP_TAG_PRINTER || (ippGetValueTag(attr) != IPP_TAG_NAME && ippGetValueTag(attr) != IPP_TAG_NAMELANG) || ippGetCount(attr) != 1 || (name = ippGetString(attr, 0, NULL)) == NULL)
+  else if (ippGetGroupTag(attr) != IPP_TAG_PRINTER || (ippGetValueTag(attr) != IPP_TAG_NAME && ippGetValueTag(attr) != IPP_TAG_NAMELANG) || ippGetCount(attr) != 1 || (printer_name = ippGetString(attr, 0, NULL)) == NULL)
   {
     serverRespondUnsupported(client, attr);
     return;
   }
 
+  strlcpy(name, printer_name, sizeof(name));
+  for (nameptr = name; *nameptr; nameptr ++)
+    if ((*nameptr & 255) <= ' ' || *nameptr == '#' || *nameptr == '/' || *nameptr == 0x7f)
+      *nameptr = '_';
+
   snprintf(path, sizeof(path), "/ipp/%s/%s", service_type, name);
-  for (pathptr = path + 6 + strlen(service_type); *pathptr; pathptr ++)
-    if (*pathptr <= ' ' || *pathptr == '#' || *pathptr == '/')
-      *pathptr = '_';
 
   if (serverFindPrinter(path))
   {
-    /* TODO: add client-error-printer-already-exists status code */
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "A printer named '%s' already exists.", name);
     return;
   }
@@ -2566,7 +2568,7 @@ ipp_create_printer(
     struct group	*grp;		/* Group info */
 #endif /* !_WIN32 */
 
-    if (!name)
+    if (!aname)
       continue;
 
 #ifndef _WIN32
@@ -2596,7 +2598,7 @@ ipp_create_printer(
     }
   }
 
-  if ((client->printer = serverCreatePrinter(path, name, &pinfo, 1)) == NULL)
+  if ((client->printer = serverCreatePrinter(path, name, printer_name, &pinfo, 1)) == NULL)
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to create printer.");
     return;
@@ -5681,7 +5683,7 @@ ipp_register_output_device(
     pinfo.proxy_group = AuthProxyGroup;
 
     snprintf(path, sizeof(path), "/ipp/print/%s", uuid + 9);
-    printer = client->printer = serverCreatePrinter(path, uuid + 9, &pinfo, 0);
+    printer = client->printer = serverCreatePrinter(path, uuid + 9, uuid + 9, &pinfo, 0);
 
     serverCreateDevice(client);
 
@@ -5941,6 +5943,9 @@ ipp_restart_system(
       return;
     }
   }
+
+  /* TODO: Actually do a full restart of the system... */
+  serverSaveSystem();
 
   _cupsRWLockRead(&SystemRWLock);
 

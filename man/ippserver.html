@@ -277,6 +277,10 @@ The value 0 specifies there is no limit.
 <dd style="margin-left: 5.0em">Specifies the telephone number of the owner or administrator of the server.
 <dt><b>SpoolDir </b><i>path</i>
 <dd style="margin-left: 5.0em">Specifies the location of print job spool files.
+The default is a per-process temporary directory.
+<dt><b>StateDir </b><i>path</i>
+<dd style="margin-left: 5.0em">Specifies the location of persistent printer state files.
+The default is the empty string so no state is persisted.
 <dt><b>SubscriptionPrivacyAttributes </b><i>{all|default|none|list of attributes and groups}</i>
 <dd style="margin-left: 5.0em">Specifies which subscription object attribute values are considered private.
 "All" will hide all attributes except "notify-job-id", "notify-printer-uri", "notify-subscription-id", and "notify-subscription-uuid".
@@ -320,6 +324,10 @@ command can be used for many printers.
 <dd style="margin-left: 5.0em">Specifies the manufacturer name for the printer.
 <dt><b>Model </b><i>model</i>
 <dd style="margin-left: 5.0em">Specifies the model for the printer.
+<dt><b>OutputFormat </b><i>type/subtype</i>
+<dd style="margin-left: 5.0em">Specifies the output MIME media type for the printer.
+<dt><b>Strings </b><i>language filename.strings</i>
+<dd style="margin-left: 5.0em">Specifies a localization ("strings") file for the specified language.
 </dl>
 <h3><a name="VARIABLES_IN_ATTRIBUTE_VALUES">Variables In Attribute Values</a></h3>
 <b>ippserver</b>

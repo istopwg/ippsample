@@ -260,7 +260,7 @@ main(int  argc,				/* I - Number of command-line args */
     if (!serverCreateSystem(NULL))
       return (1);
 
-    if ((printer = serverCreatePrinter("/ipp/print", name, &pinfo, 1)) == NULL)
+    if ((printer = serverCreatePrinter("/ipp/print", name, name, &pinfo, 1)) == NULL)
       return (1);
 
     printer->state        = IPP_PSTATE_IDLE;
@@ -289,8 +289,8 @@ usage(int status)			/* O - Exit status */
   if (!status)
   {
     puts(CUPS_SVERSION);
-    puts("Copyright (c) 2014-2018 by the IEEE-ISTO Printer Working Group.");
-    puts("Copyright (c) 2010-2018 by Apple Inc.");
+    puts("Copyright (c) 2014-2019 by the IEEE-ISTO Printer Working Group.");
+    puts("Copyright (c) 2010-2019 by Apple Inc.");
     puts("");
   }
 

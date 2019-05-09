@@ -7,7 +7,7 @@
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ippserver 8 "ippsample" "2019-05-08" "Apple Inc."
+.TH ippserver 8 "ippsample" "2019-05-09" "Apple Inc."
 .SH NAME
 ippserver \- a sample ipp server implementation
 .SH SYNOPSIS
@@ -332,6 +332,11 @@ Specifies the telephone number of the owner or administrator of the server.
 .TP 5
 \fBSpoolDir \fIpath\fR
 Specifies the location of print job spool files.
+The default is a per-process temporary directory.
+.TP 5
+\fBStateDir \fIpath\fR
+Specifies the location of persistent printer state files.
+The default is the empty string so no state is persisted.
 .TP 5
 \fBSubscriptionPrivacyAttributes \fI{all|default|none|list of attributes and groups}\fR
 Specifies which subscription object attribute values are considered private.
@@ -383,6 +388,12 @@ Specifies the manufacturer name for the printer.
 .TP 5
 \fBModel \fImodel\fR
 Specifies the model for the printer.
+.TP 5
+\fBOutputFormat \fItype/subtype\fR
+Specifies the output MIME media type for the printer.
+.TP 5
+\fBStrings \fIlanguage filename.strings\fR
+Specifies a localization ("strings") file for the specified language.
 .SS VARIABLES IN ATTRIBUTE VALUES
 .B ippserver
 defines the following additional

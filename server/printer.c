@@ -145,6 +145,7 @@ server_printer_t *			/* O - Printer */
 serverCreatePrinter(
     const char     *resource,		/* I - Resource path for URIs */
     const char     *name,		/* I - printer-name */
+    const char     *info,		/* I - printer-info */
     server_pinfo_t *pinfo,		/* I - Printer information */
     int            dupe_pinfo)		/* I - Duplicate printer info strings? */
 {
@@ -713,7 +714,6 @@ serverCreatePrinter(
   }
 
   printer->type           = is_print3d ? SERVER_TYPE_PRINT3D : SERVER_TYPE_PRINT;
-//  printer->subtypes       = subtypes ;
   printer->resource       = strdup(resource);
   printer->resourcelen    = strlen(resource);
   printer->name           = strdup(name);
@@ -1322,7 +1322,8 @@ serverCreatePrinter(
   ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-icons", NULL, icons);
 
   /* printer-info */
-  ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-info", NULL, name);
+  if (!cupsArrayFind(existing, (void *)"printer-info"))
+    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-info", NULL, info);
 
   if (!is_print3d)
   {

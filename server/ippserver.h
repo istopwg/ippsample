@@ -465,6 +465,9 @@ typedef struct server_pinfo_s		/**** Printer information ****/
 		ppm_color;		/* Pages per minute for color */
   ipp_t		*attrs;			/* Printer attributes */
   cups_array_t	*strings;		/* Strings files */
+  char		initial_accepting;	/* Initial printer-is-accepting-jobs */
+  ipp_pstate_t	initial_state;		/* Initial printer-state */
+  server_preason_t initial_reasons;	/* Initial printer-state-reasons */
 } server_pinfo_t;
 
 typedef struct server_printer_s		/**** Printer data ****/
@@ -674,6 +677,7 @@ VAR _cups_rwlock_t	PrintersRWLock	VALUE(_CUPS_RWLOCK_INITIALIZER);
 VAR int			RelaxedConformance VALUE(0);
 VAR char		*ServerName	VALUE(NULL);
 VAR char		*SpoolDirectory	VALUE(NULL);
+VAR char		*StateDirectory	VALUE(NULL);
 
 #ifdef HAVE_DNSSD
 VAR DNSServiceRef	DNSSDMaster	VALUE(NULL);
@@ -717,7 +721,7 @@ extern server_device_t	*serverCreateDevice(server_client_t *client);
 extern server_job_t	*serverCreateJob(server_client_t *client);
 extern void		serverCreateJobFilename(server_job_t *job, const char *format, char *fname, size_t fnamesize);
 extern int		serverCreateListeners(const char *host, int port);
-extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, server_pinfo_t *pinfo, int dupe_pinfo);
+extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, const char *info, server_pinfo_t *pinfo, int dupe_pinfo);
 extern server_resource_t *serverCreateResource(const char *resource, const char *filename, const char *format, const char *name, const char *info, const char *type);
 extern void		serverCreateResourceFilename(server_resource_t *res, const char *format, const char *prefix, char *fname, size_t fnamesize);
 extern server_subscription_t *serverCreateSubscription(server_client_t *client, int interval, int lease, const char *username, ipp_attribute_t *notify_charset, ipp_attribute_t *notify_natural_language, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
@@ -762,6 +766,7 @@ extern void		serverRespondUnsupported(server_client_t *client, ipp_attribute_t *
 extern void		serverRestartPrinter(server_printer_t *printer);
 extern void		serverResumePrinter(server_printer_t *printer);
 extern void		serverRun(void);
+extern void		serverSaveSystem(void);
 extern void		serverSetResourceState(server_resource_t *resource, ipp_rstate_t state, const char *message, ...) _CUPS_FORMAT(3, 4);
 extern void		serverStopJob(server_job_t *job);
 extern char		*serverTimeString(time_t tv, char *buffer, size_t bufsize);

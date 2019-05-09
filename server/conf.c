@@ -46,6 +46,7 @@ static int		error_cb(_ipp_file_t *f, server_pinfo_t *pinfo, const char *error);
 static int		finalize_system(void);
 static void		free_lang(server_lang_t *a);
 static int		load_system(const char *conf);
+static void		save_printer(server_printer_t *printer, const char *directory);
 static int		token_cb(_ipp_file_t *f, _ipp_vars_t *vars, server_pinfo_t *pinfo, const char *token);
 
 
@@ -126,7 +127,8 @@ serverCreateSystem(
 {
   cups_dir_t	*dir;			/* Directory pointer */
   cups_dentry_t	*dent;			/* Directory entry */
-  char		filename[1024],		/* Configuration file/directory */
+  char		confdir[1024],		/* Configuration directory */
+  		filename[1024],		/* Configuration file */
                 iconname[1024],		/* Icon file */
 		resource[1024],		/* Resource path */
                 *ptr;			/* Pointer into filename */
@@ -160,14 +162,30 @@ serverCreateSystem(
   * Then see if there are any print queues...
   */
 
-  snprintf(filename, sizeof(filename), "%s/print", directory);
-  if ((dir = cupsDirOpen(filename)) != NULL)
+  if (StateDirectory)
+  {
+   /*
+    * See if we have saved printer state information...
+    */
+
+    snprintf(confdir, sizeof(confdir), "%s/print", StateDirectory);
+
+    if (access(confdir, 0))
+      snprintf(confdir, sizeof(confdir), "%s/print", directory);
+  }
+  else
+    snprintf(confdir, sizeof(confdir), "%s/print", directory);
+
+  if ((dir = cupsDirOpen(confdir)) != NULL)
   {
     serverLog(SERVER_LOGLEVEL_INFO, "Loading printers from \"%s\".", filename);
 
     while ((dent = cupsDirRead(dir)) != NULL)
     {
-      if ((ptr = dent->filename + strlen(dent->filename) - 5) >= dent->filename && !strcmp(ptr, ".conf"))
+      if ((ptr = strrchr(dent->filename, '.')) == NULL)
+        ptr = "";
+
+      if (!strcmp(ptr, ".conf"))
       {
        /*
         * Load the conf file, with any associated icon image.
@@ -175,32 +193,44 @@ serverCreateSystem(
 
         serverLog(SERVER_LOGLEVEL_INFO, "Loading printer from \"%s\".", dent->filename);
 
-        snprintf(filename, sizeof(filename), "%s/print/%s", directory, dent->filename);
+        snprintf(filename, sizeof(filename), "%s/%s", confdir, dent->filename);
         *ptr = '\0';
 
         memset(&pinfo, 0, sizeof(pinfo));
-        pinfo.print_group = SERVER_GROUP_NONE;
-	pinfo.proxy_group = SERVER_GROUP_NONE;
 
-        snprintf(iconname, sizeof(iconname), "%s/print/%s.png", directory, dent->filename);
+        pinfo.print_group       = SERVER_GROUP_NONE;
+	pinfo.proxy_group       = SERVER_GROUP_NONE;
+	pinfo.initial_accepting = 1;
+	pinfo.initial_state     = IPP_PSTATE_IDLE;
+	pinfo.initial_reasons   = SERVER_PREASON_NONE;
+
+        snprintf(iconname, sizeof(iconname), "%s/%s.png", confdir, dent->filename);
         if (!access(iconname, R_OK))
+        {
           pinfo.icon = strdup(iconname);
+	}
+	else if (StateDirectory)
+	{
+	  snprintf(iconname, sizeof(iconname), "%s/print/%s.png", directory, dent->filename);
+	  if (!access(iconname, R_OK))
+	    pinfo.icon = strdup(iconname);
+	}
 
         if (serverLoadAttributes(filename, &pinfo))
 	{
           snprintf(resource, sizeof(resource), "/ipp/print/%s", dent->filename);
 
-	  if ((printer = serverCreatePrinter(resource, dent->filename, &pinfo, 0)) == NULL)
+	  if ((printer = serverCreatePrinter(resource, dent->filename, dent->filename, &pinfo, 0)) == NULL)
             continue;
 
-          printer->state         = IPP_PSTATE_IDLE;
-          printer->state_reasons = SERVER_PREASON_NONE;
-          printer->is_accepting  = 1;
+          printer->state         = pinfo.initial_state;
+          printer->state_reasons = pinfo.initial_reasons;
+          printer->is_accepting  = pinfo.initial_accepting;
 
           serverAddPrinter(printer);
 	}
       }
-      else if (!strstr(dent->filename, ".png"))
+      else if (strcmp(ptr, ".png") && strcmp(ptr, ".strings"))
         serverLog(SERVER_LOGLEVEL_INFO, "Skipping \"%s\".", dent->filename);
     }
 
@@ -211,14 +241,30 @@ serverCreateSystem(
   * Finally, see if there are any 3D print queues...
   */
 
-  snprintf(filename, sizeof(filename), "%s/print3d", directory);
-  if ((dir = cupsDirOpen(filename)) != NULL)
+  if (StateDirectory)
+  {
+   /*
+    * See if we have saved printer state information...
+    */
+
+    snprintf(confdir, sizeof(confdir), "%s/print3d", StateDirectory);
+
+    if (access(confdir, 0))
+      snprintf(confdir, sizeof(confdir), "%s/print3d", directory);
+  }
+  else
+    snprintf(confdir, sizeof(confdir), "%s/print3d", directory);
+
+  if ((dir = cupsDirOpen(confdir)) != NULL)
   {
     serverLog(SERVER_LOGLEVEL_INFO, "Loading 3D printers from \"%s\".", filename);
 
     while ((dent = cupsDirRead(dir)) != NULL)
     {
-      if ((ptr = dent->filename + strlen(dent->filename) - 5) >= dent->filename && !strcmp(ptr, ".conf"))
+      if ((ptr = strrchr(dent->filename, '.')) == NULL)
+        ptr = "";
+
+      if (!strcmp(ptr, ".conf"))
       {
        /*
         * Load the conf file, with any associated icon image.
@@ -226,32 +272,44 @@ serverCreateSystem(
 
         serverLog(SERVER_LOGLEVEL_INFO, "Loading 3D printer from \"%s\".", dent->filename);
 
-        snprintf(filename, sizeof(filename), "%s/print3d/%s", directory, dent->filename);
+        snprintf(filename, sizeof(filename), "%s/%s", confdir, dent->filename);
         *ptr = '\0';
 
         memset(&pinfo, 0, sizeof(pinfo));
-        pinfo.print_group = SERVER_GROUP_NONE;
-	pinfo.proxy_group = SERVER_GROUP_NONE;
 
-        snprintf(iconname, sizeof(iconname), "%s/print3d/%s.png", directory, dent->filename);
+        pinfo.print_group       = SERVER_GROUP_NONE;
+	pinfo.proxy_group       = SERVER_GROUP_NONE;
+	pinfo.initial_accepting = 1;
+	pinfo.initial_state     = IPP_PSTATE_IDLE;
+	pinfo.initial_reasons   = SERVER_PREASON_NONE;
+
+        snprintf(iconname, sizeof(iconname), "%s/%s.png", confdir, dent->filename);
         if (!access(iconname, R_OK))
+        {
           pinfo.icon = strdup(iconname);
+	}
+	else if (StateDirectory)
+	{
+	  snprintf(iconname, sizeof(iconname), "%s/print3d/%s.png", directory, dent->filename);
+	  if (!access(iconname, R_OK))
+	    pinfo.icon = strdup(iconname);
+	}
 
         if (serverLoadAttributes(filename, &pinfo))
 	{
           snprintf(resource, sizeof(resource), "/ipp/print3d/%s", dent->filename);
 
-	  if ((printer = serverCreatePrinter(resource, dent->filename, &pinfo, 0)) == NULL)
+	  if ((printer = serverCreatePrinter(resource, dent->filename, dent->filename, &pinfo, 0)) == NULL)
           continue;
 
-          printer->state         = IPP_PSTATE_IDLE;
-          printer->state_reasons = SERVER_PREASON_NONE;
-          printer->is_accepting  = 1;
+          printer->state         = pinfo.initial_state;
+          printer->state_reasons = pinfo.initial_reasons;
+          printer->is_accepting  = pinfo.initial_accepting;
 
           serverAddPrinter(printer);
 	}
       }
-      else if (!strstr(dent->filename, ".png"))
+      else if (strcmp(ptr, ".png") && strcmp(ptr, ".strings"))
         serverLog(SERVER_LOGLEVEL_INFO, "Skipping \"%s\".", dent->filename);
     }
 
@@ -365,6 +423,41 @@ serverLoadAttributes(
   _ippVarsDeinit(&vars);
 
   return (pinfo->attrs != NULL);
+}
+
+
+/*
+ * 'serverSaveSystem()' - Save the state of the system.
+ */
+
+void
+serverSaveSystem(void)
+{
+  server_printer_t	*printer;	/* Current printer */
+  char			filename[1024];	/* Output file/directory */
+
+
+  if (!StateDirectory)
+    return;
+
+  serverLog(SERVER_LOGLEVEL_INFO, "Saving system state to \"%s\".", StateDirectory);
+
+  _cupsRWLockRead(&PrintersRWLock);
+
+  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  {
+    if (!strncmp(printer->resource, "/ipp/print/", 11))
+      snprintf(filename, sizeof(filename), "%s/print", StateDirectory);
+    else
+      snprintf(filename, sizeof(filename), "%s/print3d", StateDirectory);
+
+    if (access(filename, 0))
+      mkdir(filename, 0777);
+
+    save_printer(printer, filename);
+  }
+
+  _cupsRWUnlock(&PrintersRWLock);
 }
 
 
@@ -1018,7 +1111,6 @@ attr_cb(_ipp_file_t    *f,		/* I - IPP file */
     "printer-get-attributes-supported",
     "printer-icons",
     "printer-id",
-    "printer-info",
     "printer-is-accepting-jobs",
     "printer-message-date-time",
     "printer-message-from-operator",
@@ -2155,6 +2247,7 @@ load_system(const char *conf)		/* I - Configuration file */
     "OwnerName",
     "OwnerPhone",
     "SpoolDir",
+    "StateDir",
     "SubscriptionPrivacyAttributes",
     "SubscriptionPrivacyScope",
     "UUID"
@@ -2543,6 +2636,17 @@ load_system(const char *conf)		/* I - Configuration file */
 
       SpoolDirectory = strdup(value);
     }
+    else if (!_cups_strcasecmp(line, "StateDir"))
+    {
+      if (access(value, R_OK))
+      {
+        fprintf(stderr, "ippserver: Unable to access StateDirectory \"%s\": %s\n", value, strerror(errno));
+        status = 0;
+        break;
+      }
+
+      StateDirectory = strdup(value);
+    }
     else if (!_cups_strcasecmp(line, "SubscriptionPrivacyAttributes"))
     {
       if (SubscriptionPrivacyAttributes)
@@ -2570,6 +2674,224 @@ load_system(const char *conf)		/* I - Configuration file */
   cupsFileClose(fp);
 
   return (status);
+}
+
+
+/*
+ * 'iso_date()' - Return an ISO 8601 date/time string for the given IPP dateTime
+ *                value.
+ */
+
+static char *				/* O - ISO 8601 date/time string */
+iso_date(const ipp_uchar_t *date)	/* I - IPP (RFC 1903) date/time value */
+{
+  time_t	utctime;		/* UTC time since 1970 */
+  struct tm	*utcdate;		/* UTC date/time */
+  static char	buffer[255];		/* String buffer */
+
+
+  utctime = ippDateToTime(date);
+  utcdate = gmtime(&utctime);
+
+  snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02dZ",
+	   utcdate->tm_year + 1900, utcdate->tm_mon + 1, utcdate->tm_mday,
+	   utcdate->tm_hour, utcdate->tm_min, utcdate->tm_sec);
+
+  return (buffer);
+}
+
+
+/*
+ * 'print_escaped_string()' - Print an escaped string value.
+ */
+
+static void
+print_escaped_string(
+    cups_file_t *fp,			/* I - File to write to */
+    const char  *s,			/* I - String to print */
+    size_t      len)			/* I - Length of string */
+{
+  cupsFilePutChar(fp, '\"');
+  while (len > 0)
+  {
+    if (*s == '\"')
+      cupsFilePutChar(fp, '\\');
+    cupsFilePutChar(fp, *s);
+
+    s ++;
+    len --;
+  }
+  cupsFilePutChar(fp, '\"');
+}
+
+
+/*
+ * 'print_ipp_attr()' - Print an IPP attribute definition.
+ */
+
+static void
+print_ipp_attr(
+    cups_file_t     *fp,		/* I - File to write to */
+    ipp_attribute_t *attr,		/* I - Attribute to print */
+    int             indent)		/* I - Indentation level */
+{
+  int			i,		/* Looping var */
+			count = ippGetCount(attr);
+					/* Number of values */
+  ipp_attribute_t	*colattr;	/* Collection attribute */
+
+
+  if (indent == 0)
+    cupsFilePrintf(fp, "ATTR %s %s", ippTagString(ippGetValueTag(attr)), ippGetName(attr));
+  else
+    cupsFilePrintf(fp, "%*sMEMBER %s %s", indent, "", ippTagString(ippGetValueTag(attr)), ippGetName(attr));
+
+  switch (ippGetValueTag(attr))
+  {
+    case IPP_TAG_INTEGER :
+    case IPP_TAG_ENUM :
+	for (i = 0; i < count; i ++)
+	  cupsFilePrintf(fp, "%s%d", i ? "," : " ", ippGetInteger(attr, i));
+	break;
+
+    case IPP_TAG_BOOLEAN :
+	cupsFilePuts(fp, ippGetBoolean(attr, 0) ? " true" : " false");
+
+	for (i = 1; i < count; i ++)
+	  cupsFilePuts(fp, ippGetBoolean(attr, 1) ? ",true" : ",false");
+	break;
+
+    case IPP_TAG_RANGE :
+	for (i = 0; i < count; i ++)
+	{
+	  int upper, lower = ippGetRange(attr, i, &upper);
+
+	  cupsFilePrintf(fp, "%s%d-%d", i ? "," : " ", lower, upper);
+	}
+	break;
+
+    case IPP_TAG_RESOLUTION :
+	for (i = 0; i < count; i ++)
+	{
+	  ipp_res_t units;
+	  int yres, xres = ippGetResolution(attr, i, &yres, &units);
+
+	  cupsFilePrintf(fp, "%s%dx%d%s", i ? "," : " ", xres, yres, units == IPP_RES_PER_INCH ? "dpi" : "dpcm");
+	}
+	break;
+
+    case IPP_TAG_DATE :
+	for (i = 0; i < count; i ++)
+	  cupsFilePrintf(fp, "%s%s", i ? "," : " ", iso_date(ippGetDate(attr, i)));
+	break;
+
+    case IPP_TAG_STRING :
+	for (i = 0; i < count; i ++)
+	{
+	  int len;
+	  const char *s = (const char *)ippGetOctetString(attr, i, &len);
+
+	  cupsFilePuts(fp, i ? "," : " ");
+	  print_escaped_string(fp, s, (size_t)len);
+	}
+	break;
+
+    case IPP_TAG_TEXT :
+    case IPP_TAG_TEXTLANG :
+    case IPP_TAG_NAME :
+    case IPP_TAG_NAMELANG :
+    case IPP_TAG_KEYWORD :
+    case IPP_TAG_URI :
+    case IPP_TAG_URISCHEME :
+    case IPP_TAG_CHARSET :
+    case IPP_TAG_LANGUAGE :
+    case IPP_TAG_MIMETYPE :
+	for (i = 0; i < count; i ++)
+	{
+	  const char *s = ippGetString(attr, i, NULL);
+
+	  cupsFilePuts(fp, i ? "," : " ");
+	  print_escaped_string(fp, s, strlen(s));
+	}
+	break;
+
+    case IPP_TAG_BEGIN_COLLECTION :
+	for (i = 0; i < count; i ++)
+	{
+	  ipp_t *col = ippGetCollection(attr, i);
+
+	  cupsFilePuts(fp, i ? ",{\n" : " {\n");
+	  for (colattr = ippFirstAttribute(col); colattr; colattr = ippNextAttribute(col))
+	    print_ipp_attr(fp, colattr, indent + 4);
+	  cupsFilePrintf(fp, "%*s}", indent, "");
+	}
+	break;
+
+    default :
+        /* Out-of-band value */
+	break;
+  }
+
+  cupsFilePuts(fp, "\n");
+}
+
+
+/*
+ * 'save_printer()' - Save printer configuration information to disk.
+ */
+
+static void
+save_printer(
+    server_printer_t *printer,		/* I - Printer */
+    const char       *directory)	/* I - Directory for conf files */
+{
+  char		filename[1024];		/* Filename */
+  cups_file_t	*fp;			/* File pointer */
+  ipp_attribute_t *attr;		/* Current attribute */
+  const char	*aname;			/* Attribute name */
+  struct group	*grp;			/* Group information */
+  server_lang_t	*lang;			/* Current language */
+
+
+  _cupsRWLockRead(&printer->rwlock);
+
+  snprintf(filename, sizeof(filename), "%s/%s.conf", directory, printer->name);
+  if ((fp = cupsFileOpen(filename, "w")) != NULL)
+  {
+    cupsFilePrintf(fp, "# Written by ippserver on %s\n", httpGetDateString(time(NULL)));
+
+    if (printer->pinfo.print_group != SERVER_GROUP_NONE && (grp = getgrgid(printer->pinfo.print_group)) != NULL)
+      cupsFilePutConf(fp, "AuthPrintGroup", grp->gr_name);
+
+    if (printer->pinfo.proxy_group != SERVER_GROUP_NONE && (grp = getgrgid(printer->pinfo.proxy_group)) != NULL)
+      cupsFilePutConf(fp, "AuthProxyGroup", grp->gr_name);
+
+    if (printer->pinfo.command)
+      cupsFilePutConf(fp, "Command", printer->pinfo.command);
+
+    if (printer->pinfo.device_uri)
+      cupsFilePutConf(fp, "DeviceURI", printer->pinfo.device_uri);
+
+    cupsFilePrintf(fp, "InitialState %d %d %u", printer->is_accepting, (int)printer->state, printer->state_reasons);
+
+    if (printer->pinfo.output_format)
+      cupsFilePutConf(fp, "OutputFormat", printer->pinfo.output_format);
+
+    for (lang = (server_lang_t *)cupsArrayFirst(printer->pinfo.strings); lang; lang = (server_lang_t *)cupsArrayNext(printer->pinfo.strings))
+      cupsFilePrintf(fp, "Strings %s %s\n", lang->lang, lang->filename);
+
+    for (attr = ippFirstAttribute(printer->pinfo.attrs); attr; attr = ippNextAttribute(printer->pinfo.attrs))
+    {
+      if (ippGetGroupTag(attr) != IPP_TAG_PRINTER || (aname = ippGetName(attr)) == NULL || !attr_cb(NULL, NULL, aname))
+        continue;
+
+      print_ipp_attr(fp, attr, 0);
+    }
+
+    cupsFileClose(fp);
+  }
+
+  _cupsRWUnlock(&printer->rwlock);
 }
 
 
@@ -2664,6 +2986,32 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
     _ippVarsExpand(vars, value, temp, sizeof(value));
 
     pinfo->device_uri = strdup(value);
+  }
+  else if (!_cups_strcasecmp(token, "InitialState"))
+  {
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing InitialState value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    pinfo->initial_accepting = (char)atoi(temp);
+
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing InitialState value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    pinfo->initial_state = (ipp_pstate_t)atoi(temp);
+
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing InitialState value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    pinfo->initial_reasons = (server_preason_t)strtol(temp, NULL, 10);
   }
   else if (!_cups_strcasecmp(token, "OutputFormat"))
   {
