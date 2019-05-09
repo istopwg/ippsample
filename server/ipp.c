@@ -5677,6 +5677,7 @@ ipp_register_output_device(
     server_pinfo_t	pinfo;		/* Printer information */
 
     memset(&pinfo, 0, sizeof(pinfo));
+    pinfo.attrs       = ippNew();
     pinfo.proxy_group = AuthProxyGroup;
 
     snprintf(path, sizeof(path), "/ipp/print/%s", uuid + 9);
@@ -5699,8 +5700,8 @@ ipp_register_output_device(
   cupsArrayAdd(ra, "system-state");
   cupsArrayAdd(ra, "system-state-reasons");
 
-  serverCopyAttributes(client->response, client->printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
-  copy_printer_state(client->response, client->printer, ra);
+  serverCopyAttributes(client->response, printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
+  copy_printer_state(client->response, printer, ra);
 
   _cupsRWUnlock(&client->printer->rwlock);
 }
