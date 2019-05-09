@@ -622,7 +622,8 @@ typedef struct server_listener_s	/**** Listener data ****/
 
 VAR int			Authentication	VALUE(0);
 VAR gid_t		AuthAdminGroup	VALUE((gid_t)-1),
-			AuthOperatorGroup VALUE((gid_t)-1);
+			AuthOperatorGroup VALUE((gid_t)-1),
+			AuthProxyGroup	VALUE((gid_t)-1);
 VAR char		*AuthName	VALUE(NULL),
 			*AuthService	VALUE(NULL),
 			*AuthType	VALUE(NULL),

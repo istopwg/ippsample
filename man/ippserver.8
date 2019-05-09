@@ -1,15 +1,15 @@
 .\"
 .\" ippserver man page.
 .\"
-.\" Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
-.\" Copyright © 2014-2018 by Apple Inc.
+.\" Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group.
+.\" Copyright © 2014-2019 by Apple Inc.
 .\"
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ippserver 8 "ippsample" "2018-10-16" "Apple Inc."
+.TH ippserver 8 "ippsample" "2019-05-08" "Apple Inc."
 .SH NAME
-ippserver \- a simple ipp server
+ippserver \- a sample ipp server implementation
 .SH SYNOPSIS
 .B ippserver
 [
@@ -74,7 +74,7 @@ ippserver \- a simple ipp server
 .I "service name"
 .SH DESCRIPTION
 .B ippserver
-is a simple Internet Printing Protocol (IPP) server conforming to the IPP Everywhere and IPP Shared Infrastructure Extensions (INFRA) specifications. It can be used as a standalone print server and/or a very basic infrastructure server between standard IPP clients and IPP proxies conforming to the INFRA specification.
+is a sample Internet Printing Protocol (IPP) server conforming to the IPP Everywhere, IPP Shared Infrastructure Extensions (INFRA), and IPP System Service specifications. It can be used as a standalone print server and/or a very basic infrastructure server between standard IPP clients and IPP proxies conforming to the INFRA specification.
 .SH OPTIONS
 The following options are recognized by
 .B ippserver:
@@ -187,6 +187,11 @@ The default is "No".
 Specifies the group of print administrators.
 The default administrator group is "wheel".
 .TP 5
+\fBAuthGroups \fIgroup [... group]\fR
+Specifies a list of groups that can be configured via IPP.
+If not specified, the default for non-root users is the list of groups the user belongs to.
+Otherwise, the default is the list of valid groups from "adm", "admin", "daemon", "operator", "staff", and/or "wheel".
+.TP 5
 \fBAuthName \fIrealm\fR
 Specifies the authentication realm name.
 The default realm name is "Printing".
@@ -194,6 +199,10 @@ The default realm name is "Printing".
 \fBAuthOperatorGroup \fIgroup\fR
 Specifies the group of print operators.
 The default operator group is the primary group for the user running the server.
+.TP 5
+\fBAuthProxyGroup \fIgroup\fR
+Specifies the group of print proxies.
+The default proxy group is the primary group for the user running the server.
 .TP 5
 \fBAuthService \fIname\fR
 Specifies the PAM service name.
@@ -391,5 +400,5 @@ The icon for each 2D print service is stored in the \fIprint/name.png\fR  file. 
 .BR ipptoolfile (5),
 ISTO PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp)
 .SH COPYRIGHT
-Copyright \[co] 2014-2018 by the IEEE-ISTO Printer Working Group.
-Copyright \[co] 2007-2018 by Apple Inc.
+Copyright \[co] 2014-2019 by the IEEE-ISTO Printer Working Group.
+Copyright \[co] 2007-2019 by Apple Inc.

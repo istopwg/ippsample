@@ -98,6 +98,7 @@ static void		ipp_pause_all_printers(server_client_t *client);
 static void		ipp_pause_printer(server_client_t *client);
 static void		ipp_print_job(server_client_t *client);
 static void		ipp_print_uri(server_client_t *client);
+static void		ipp_register_output_device(server_client_t *client);
 static void		ipp_release_held_new_jobs(server_client_t *client);
 static void		ipp_release_job(server_client_t *client);
 static void		ipp_renew_subscription(server_client_t *client);
@@ -5592,6 +5593,120 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
 
 
 /*
+ * 'ipp_register_output_device()' - Register an output device for proxying.
+ */
+
+static void
+ipp_register_output_device(
+    server_client_t *client)		/* I - Client */
+{
+  ipp_attribute_t	*attr;		/* Attribute in request */
+  const char		*uuid;		/* "output-device-uuid" value */
+  server_printer_t	*printer;	/* Current printer */
+  server_device_t	key,		/* Search key */
+			*device;	/* Matching device */
+  cups_array_t		*ra;		/* Response attributes */
+
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the proxy group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthProxyGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+ /*
+  * Validate request attributes...
+  */
+
+  if ((attr = ippFindAttribute(client->request, "output-device-uuid", IPP_TAG_ZERO)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing required 'output-device-uuid' attribute.");
+    return;
+  }
+  else if (ippGetGroupTag(attr) != IPP_TAG_OPERATION)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "The 'output-device-uuid' attribute is in the wrong group.");
+    return;
+  }
+  else if (ippGetValueTag(attr) != IPP_TAG_URI || ippGetCount(attr) != 1 || (uuid = ippGetString(attr, 0, NULL)) == NULL || strncmp(uuid, "urn:uuid:", 9))
+  {
+    serverRespondUnsupported(client, attr);
+    return;
+  }
+
+ /*
+  * Look for a matching printer...
+  */
+
+  _cupsRWLockRead(&PrintersRWLock);
+
+  key.uuid = (char *)uuid;
+
+  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  {
+    _cupsRWLockRead(&printer->rwlock);
+    device = (server_device_t *)cupsArrayFind(printer->devices, &key);
+    _cupsRWUnlock(&printer->rwlock);
+
+    if (device)
+      break;
+  }
+
+  _cupsRWUnlock(&PrintersRWLock);
+
+  if (!printer)
+  {
+   /*
+    * No matching printer, so create one...
+    */
+
+    char		path[256];	/* Resource path */
+    server_pinfo_t	pinfo;		/* Printer information */
+
+    memset(&pinfo, 0, sizeof(pinfo));
+    pinfo.proxy_group = AuthProxyGroup;
+
+    snprintf(path, sizeof(path), "/ipp/print/%s", uuid + 9);
+    printer = client->printer = serverCreatePrinter(path, uuid + 9, &pinfo, 0);
+
+    serverCreateDevice(client);
+
+    serverAddPrinter(printer);
+  }
+
+  _cupsRWLockRead(&client->printer->rwlock);
+
+  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  cupsArrayAdd(ra, "printer-id");
+  cupsArrayAdd(ra, "printer-is-accepting-jobs");
+  cupsArrayAdd(ra, "printer-state");
+  cupsArrayAdd(ra, "printer-state-reasons");
+  cupsArrayAdd(ra, "printer-uuid");
+  cupsArrayAdd(ra, "printer-xri-supported");
+  cupsArrayAdd(ra, "system-state");
+  cupsArrayAdd(ra, "system-state-reasons");
+
+  serverCopyAttributes(client->response, client->printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
+  copy_printer_state(client->response, client->printer, ra);
+
+  _cupsRWUnlock(&client->printer->rwlock);
+}
+
+
+/*
  * 'ipp_release_held_new_jobs()' - Release any new jobs that were held.
  */
 
@@ -8343,6 +8458,10 @@ serverProcessIPP(
 	    case IPP_OP_PAUSE_ALL_PRINTERS :
 	    case IPP_OP_PAUSE_ALL_PRINTERS_AFTER_CURRENT_JOB :
 		ipp_pause_all_printers(client);
+		break;
+
+	    case IPP_OP_REGISTER_OUTPUT_DEVICE :
+		ipp_register_output_device(client);
 		break;
 
 	    case IPP_OP_RESUME_ALL_PRINTERS :

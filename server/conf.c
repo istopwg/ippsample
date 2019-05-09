@@ -1994,6 +1994,8 @@ finalize_system(void)
       AuthAdminGroup = getgid();
     if (AuthOperatorGroup == SERVER_GROUP_NONE)
       AuthOperatorGroup = getgid();
+    if (AuthProxyGroup == SERVER_GROUP_NONE)
+      AuthProxyGroup = getgid();
 #endif /* !_WIN32 */
 
     if (!AuthName)
@@ -2124,6 +2126,7 @@ load_system(const char *conf)		/* I - Configuration file */
     "AuthGroups",
     "AuthName",
     "AuthOperatorGroup",
+    "AuthProxyGroup",
     "AuthService",
     "AuthTestPassword",
     "AuthType",
@@ -2255,6 +2258,17 @@ load_system(const char *conf)		/* I - Configuration file */
       }
 
       AuthOperatorGroup = group->gr_gid;
+    }
+    else if (!_cups_strcasecmp(line, "AuthProxyGroup"))
+    {
+      if ((group = getgrnam(value)) == NULL)
+      {
+        fprintf(stderr, "ippserver: Unable to find AuthProxyGroup \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
+        status = 0;
+        break;
+      }
+
+      AuthProxyGroup = group->gr_gid;
     }
 #endif /* !_WIN32 */
     else if (!_cups_strcasecmp(line, "AuthService"))
