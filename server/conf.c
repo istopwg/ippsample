@@ -2849,7 +2849,9 @@ save_printer(
   cups_file_t	*fp;			/* File pointer */
   ipp_attribute_t *attr;		/* Current attribute */
   const char	*aname;			/* Attribute name */
+#ifndef _WIN32
   struct group	*grp;			/* Group information */
+#endif /* !_WIN32 */
   server_lang_t	*lang;			/* Current language */
 
 
@@ -2860,11 +2862,13 @@ save_printer(
   {
     cupsFilePrintf(fp, "# Written by ippserver on %s\n", httpGetDateString(time(NULL)));
 
+#ifndef _WIN32
     if (printer->pinfo.print_group != SERVER_GROUP_NONE && (grp = getgrgid(printer->pinfo.print_group)) != NULL)
       cupsFilePutConf(fp, "AuthPrintGroup", grp->gr_name);
 
     if (printer->pinfo.proxy_group != SERVER_GROUP_NONE && (grp = getgrgid(printer->pinfo.proxy_group)) != NULL)
       cupsFilePutConf(fp, "AuthProxyGroup", grp->gr_name);
+#endif /* !_WIN32 */
 
     if (printer->pinfo.command)
       cupsFilePutConf(fp, "Command", printer->pinfo.command);
