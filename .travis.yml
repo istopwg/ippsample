@@ -25,4 +25,5 @@ notifications:
   email:
     recipients:
       - istopwg-ippsample-dev@pwg.org
-      
+    on_success: always # default: change
+    on_failure: always # default: always      
