@@ -465,6 +465,8 @@ typedef struct server_pinfo_s		/**** Printer information ****/
 		ppm_color;		/* Pages per minute for color */
   ipp_t		*attrs;			/* Printer attributes */
   cups_array_t	*strings;		/* Strings files */
+  int		max_devices;		/* Maximum number of devices */
+  cups_array_t	*devices;		/* Associated devices */
   char		initial_accepting;	/* Initial printer-is-accepting-jobs */
   ipp_pstate_t	initial_state;		/* Initial printer-state */
   server_preason_t initial_reasons;	/* Initial printer-state-reasons */
@@ -492,7 +494,6 @@ typedef struct server_printer_s		/**** Printer data ****/
 			*resource;	/* Resource path */
   size_t		resourcelen;	/* Length of resource path */
   server_pinfo_t	pinfo;		/* Printer information */
-  cups_array_t		*devices;	/* Associated devices */
   ipp_t			*dev_attrs;	/* Current device attributes */
   time_t		start_time;	/* Startup time */
   time_t		config_time;	/* printer-config-change-time */
@@ -718,6 +719,7 @@ extern void		serverCopyJobStateReasons(ipp_t *ipp, ipp_tag_t group_tag, server_j
 extern void		serverCopyPrinterStateReasons(ipp_t *ipp, ipp_tag_t group_tag, server_printer_t *printer);
 extern server_client_t	*serverCreateClient(int sock);
 extern server_device_t	*serverCreateDevice(server_client_t *client);
+extern server_device_t	*serverCreateDevicePinfo(server_pinfo_t *pinfo, const char *uuid);
 extern server_job_t	*serverCreateJob(server_client_t *client);
 extern void		serverCreateJobFilename(server_job_t *job, const char *format, char *fname, size_t fnamesize);
 extern int		serverCreateListeners(const char *host, int port);

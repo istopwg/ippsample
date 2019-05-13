@@ -1479,6 +1479,7 @@ create_system_attributes(void)
     "smi2699-device-format",
     "smi2699-device-name",
     "smi2699-device-uri",
+    "smi2699-max-output-device",
     "stitching-angle-supported",
     "stitching-locations-supported",
     "stitching-method-supported",
@@ -2853,6 +2854,7 @@ save_printer(
   struct group	*grp;			/* Group information */
 #endif /* !_WIN32 */
   server_lang_t	*lang;			/* Current language */
+  server_device_t *device;		/* Current device */
 
 
   _cupsRWLockRead(&printer->rwlock);
@@ -2883,6 +2885,11 @@ save_printer(
 
     for (lang = (server_lang_t *)cupsArrayFirst(printer->pinfo.strings); lang; lang = (server_lang_t *)cupsArrayNext(printer->pinfo.strings))
       cupsFilePrintf(fp, "Strings %s %s\n", lang->lang, lang->filename);
+
+    if (printer->pinfo.max_devices)
+      cupsFilePrintf(fp, "MaxOutputDevices %d\n", printer->pinfo.max_devices);
+    for (device = (server_device_t *)cupsArrayFirst(printer->pinfo.devices); device; device = (server_device_t *)cupsArrayNext(printer->pinfo.devices))
+      cupsFilePutConf(fp, "OutputDevice", device->uuid);
 
     for (attr = ippFirstAttribute(printer->pinfo.attrs); attr; attr = ippNextAttribute(printer->pinfo.attrs))
     {
@@ -3016,6 +3023,26 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
     }
 
     pinfo->initial_reasons = (server_preason_t)strtol(temp, NULL, 10);
+  }
+  else if (!_cups_strcasecmp(token, "MaxOutputDevices"))
+  {
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing MaxOutputDevices value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    pinfo->max_devices = atoi(temp);
+  }
+  else if (!_cups_strcasecmp(token, "OutputDevice"))
+  {
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing OutputDevice UUID value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    serverCreateDevicePinfo(pinfo, temp);
   }
   else if (!_cups_strcasecmp(token, "OutputFormat"))
   {

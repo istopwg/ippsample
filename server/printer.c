@@ -1,8 +1,8 @@
 /*
  * Printer object code for sample IPP server implementation.
  *
- * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
- * Copyright © 2010-2018 by Apple Inc.
+ * Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -17,7 +17,6 @@
 
 static int		compare_active_jobs(server_job_t *a, server_job_t *b);
 static int		compare_completed_jobs(server_job_t *a, server_job_t *b);
-static int		compare_devices(server_device_t *a, server_device_t *b);
 static int		compare_jobs(server_job_t *a, server_job_t *b);
 static ipp_t		*create_media_col(const char *media, const char *source, const char *type, int width, int length, int margins);
 static ipp_t		*create_media_size(int width, int length);
@@ -739,6 +738,7 @@ serverCreatePrinter(
     printer->pinfo.command          = pinfo->command ? strdup(pinfo->command) : NULL;
     printer->pinfo.device_uri       = pinfo->device_uri ? strdup(pinfo->device_uri) : NULL;
     printer->pinfo.output_format    = pinfo->output_format ? strdup(pinfo->output_format) : NULL;
+    printer->pinfo.devices          = cupsArrayDup(pinfo->devices);
   }
 
   uris = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
@@ -755,8 +755,6 @@ serverCreatePrinter(
   uriptrs = calloc((size_t)num_uris, sizeof(char *));
   for (i = 0, uriptr = cupsArrayFirst(uris); uriptr; i ++, uriptr = cupsArrayNext(uris))
     uriptrs[i] = uriptr;
-
-  printer->devices = cupsArrayNew((cups_array_func_t)compare_devices, NULL);
 
   if (printer->pinfo.ppm == 0)
   {
@@ -1671,8 +1669,8 @@ void
 serverDeletePrinter(
     server_printer_t *printer)		/* I - Printer */
 {
-  int	i;				/* Looping var */
-
+  int			i;		/* Looping var */
+  server_device_t	*device;	/* Current device */
 
   _cupsRWLockWrite(&printer->rwlock);
 
@@ -1706,6 +1704,12 @@ serverDeletePrinter(
     free(printer->pinfo.device_uri);
 
   cupsArrayDelete(printer->pinfo.strings);
+
+  for (device = (server_device_t *)cupsArrayFirst(printer->pinfo.devices); device; device = (server_device_t *)cupsArrayNext(printer->pinfo.devices))
+  {
+    cupsArrayRemove(printer->pinfo.devices, device);
+    serverDeleteDevice(device);
+  }
 
   ippDelete(printer->pinfo.attrs);
   ippDelete(printer->dev_attrs);
@@ -2406,18 +2410,6 @@ compare_completed_jobs(server_job_t *a,	/* I - First job */
     diff = b->id - a->id;
 
   return (diff);
-}
-
-
-/*
- * 'compare_devices()' - Compare two devices...
- */
-
-static int				/* O - Result of comparison */
-compare_devices(server_device_t *a,	/* I - First device */
-                server_device_t *b)	/* I - Second device */
-{
-  return (strcmp(a->uuid, b->uuid));
 }
 
 

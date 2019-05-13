@@ -388,6 +388,7 @@ static server_value_t	printer_values[] =	/* Value tags for printer create/set at
   { "smi2699-device-format",			IPP_TAG_MIMETYPE, IPP_TAG_ZERO, VALUE_NORMAL },
   { "smi2699-device-name",			IPP_TAG_NAME, IPP_TAG_ZERO, VALUE_NORMAL },
   { "smi2699-device-uri",			IPP_TAG_URI, IPP_TAG_NOVALUE, VALUE_NORMAL },
+  { "smi2699-max-output-device",		IPP_TAG_INTEGER, IPP_TAG_ZERO, VALUE_NORMAL },
   { "stitching-angle-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
   { "stitching-locations-supported",		IPP_TAG_INTEGER, IPP_TAG_RANGE, VALUE_1SETOF },
   { "stitching-method-supported",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
@@ -2596,6 +2597,10 @@ ipp_create_printer(
     {
       pinfo.device_uri = (char *)ippGetString(attr, 0, NULL);
     }
+    else if (!strcmp(aname, "smi2699-max-output-device"))
+    {
+      pinfo.max_devices = ippGetInteger(attr, 0);
+    }
   }
 
   if ((client->printer = serverCreatePrinter(path, name, printer_name, &pinfo, 1)) == NULL)
@@ -3286,7 +3291,7 @@ ipp_deregister_output_device(
 
   _cupsRWLockWrite(&client->printer->rwlock);
 
-  cupsArrayRemove(client->printer->devices, device);
+  cupsArrayRemove(client->printer->pinfo.devices, device);
 
   serverUpdateDeviceAttributesNoLock(client->printer);
   serverUpdateDeviceStateNoLock(client->printer);
@@ -5604,7 +5609,8 @@ ipp_register_output_device(
 {
   ipp_attribute_t	*attr;		/* Attribute in request */
   const char		*uuid;		/* "output-device-uuid" value */
-  server_printer_t	*printer;	/* Current printer */
+  server_printer_t	*printer,	/* Current printer */
+			*avail = NULL;	/* Available printer */
   server_device_t	key,		/* Search key */
 			*device;	/* Matching device */
   cups_array_t		*ra;		/* Response attributes */
@@ -5659,8 +5665,15 @@ ipp_register_output_device(
 
   for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
   {
+    if (printer->pinfo.proxy_group == SERVER_GROUP_NONE || printer->pinfo.max_devices == 0)
+      continue;
+
     _cupsRWLockRead(&printer->rwlock);
-    device = (server_device_t *)cupsArrayFind(printer->devices, &key);
+    device = (server_device_t *)cupsArrayFind(printer->pinfo.devices, &key);
+
+    if (!avail && !device && cupsArrayCount(printer->pinfo.devices) < printer->pinfo.max_devices)
+      avail = printer;
+
     _cupsRWUnlock(&printer->rwlock);
 
     if (device)
@@ -5671,24 +5684,36 @@ ipp_register_output_device(
 
   if (!printer)
   {
-   /*
-    * No matching printer, so create one...
-    */
+    if (avail)
+    {
+     /*
+      * Use available printer...
+      */
 
-    char		path[256];	/* Resource path */
-    server_pinfo_t	pinfo;		/* Printer information */
+      printer = client->printer = avail;
+    }
+    else
+    {
+     /*
+      * No matching printer, so create one...
+      */
 
-    memset(&pinfo, 0, sizeof(pinfo));
-    pinfo.attrs       = ippNew();
-    pinfo.proxy_group = AuthProxyGroup;
+      char		path[256];	/* Resource path */
+      server_pinfo_t	pinfo;		/* Printer information */
 
-    snprintf(path, sizeof(path), "/ipp/print/%s", uuid + 9);
-    printer = client->printer = serverCreatePrinter(path, uuid + 9, uuid + 9, &pinfo, 0);
+      memset(&pinfo, 0, sizeof(pinfo));
+      pinfo.attrs       = ippNew();
+      pinfo.proxy_group = AuthProxyGroup;
+      pinfo.max_devices = 1;
 
-    serverCreateDevice(client);
+      snprintf(path, sizeof(path), "/ipp/print/%s", uuid + 9);
+      printer = client->printer = serverCreatePrinter(path, uuid + 9, uuid + 9, &pinfo, 0);
 
-    serverAddPrinter(printer);
+      serverAddPrinter(printer);
+    }
   }
+
+  serverCreateDevice(client);
 
   _cupsRWLockRead(&client->printer->rwlock);
 
