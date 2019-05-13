@@ -7,7 +7,7 @@
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ippserver 8 "ippsample" "2019-05-09" "Apple Inc."
+.TH ippserver 8 "ippsample" "2019-05-13" "Apple Inc."
 .SH NAME
 ippserver \- a sample ipp server implementation
 .SH SYNOPSIS
@@ -67,7 +67,12 @@ ippserver \- a sample ipp server implementation
 ] [
 -B \-\-help
 ] [
+.B \-\-no\-web\-forms
+] [
 -B \-\-relaxed
+] [
+-B \-\-state
+.I directory
 ] [
 -B \-\-version
 ]
@@ -131,6 +136,9 @@ The default is the name returned by the
 .BR hostname (1)
 command.
 .TP 5
+-B \-\-no\-web\-forms
+Disables the GET-based web forms that allow web requests to change material, media, and supply levels.
+.TP 5
 \fB\-p \fIport\fR
 Specifies the port number to listen on.
 The default is a user-specific number from 8000 to 8999.
@@ -144,6 +152,11 @@ Runs the server in relaxed conformance mode, which allows certain harmless IPP c
 .TP 5
 \fB\-s \fIspeed[,color-speed]\fR
 Specifies the printer speed in pages-per-minute.
+.TP
+\fB\-\-state \fIdirectory\fR
+Specifies a persistent state directory to use.
+The directory is created if it does not exist.
+The default is to not save state information between runs.
 .TP 5
 .B \-v[vvv]
 Be (very) verbose when logging activity to the standard output.
@@ -394,6 +407,12 @@ Specifies the output MIME media type for the printer.
 .TP 5
 \fBStrings \fIlanguage filename.strings\fR
 Specifies a localization ("strings") file for the specified language.
+.TP 5
+\fBWebForms Yes\fR
+.TP 5
+\fBWebForms No\fR
+Enables or disables GET-based web forms which are used to manipulate the material, media, and supply levels.
+The default is "Yes" to enable GET-based forms.
 .SS VARIABLES IN ATTRIBUTE VALUES
 .B ippserver
 defines the following additional

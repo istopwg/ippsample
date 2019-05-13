@@ -459,9 +459,10 @@ typedef struct server_pinfo_s		/**** Printer information ****/
 		*output_format;		/* Output format */
   gid_t		print_group,		/* Print group, if any */
 		proxy_group;		/* Proxy group, if any */
-  int		duplex,			/* Duplex mode */
+  char		duplex,			/* Duplex mode */
 		pin,			/* PIN printing mode? */
-		ppm,			/* Pages per minute for mono */
+		web_forms;		/* Enable web interface forms? */
+  int		ppm,			/* Pages per minute for mono */
 		ppm_color;		/* Pages per minute for color */
   ipp_t		*attrs;			/* Printer attributes */
   cups_array_t	*strings;		/* Strings files */

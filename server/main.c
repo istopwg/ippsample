@@ -42,6 +42,7 @@ main(int  argc,				/* I - Number of command-line args */
   memset(&pinfo, 0, sizeof(pinfo));
   pinfo.print_group = SERVER_GROUP_NONE;
   pinfo.proxy_group = SERVER_GROUP_NONE;
+  pinfo.web_forms   = 1;
 
   for (i = 1; i < argc; i ++)
   {
@@ -49,9 +50,27 @@ main(int  argc,				/* I - Number of command-line args */
     {
       usage(0);
     }
+    else if (!strcmp(argv[i], "--no-web-forms"))
+    {
+      pinfo.web_forms = 0;
+    }
     else if (!strcmp(argv[i], "--relaxed"))
     {
       RelaxedConformance = 1;
+    }
+    else if (!strcmp(argv[i], "--state"))
+    {
+      i ++;
+      if (i >= argc)
+        usage(1);
+
+      if (!access(argv[i], R_OK) && !mkdir(argv[i], 0700))
+      {
+        fprintf(stderr, "ippserver: Unable to access state directory \"%s\": %s\n", argv[i], strerror(errno));
+        usage(1);
+      }
+
+      StateDirectory = strdup(argv[i]);
     }
     else if (!strcmp(argv[i], "--version"))
     {
@@ -268,6 +287,9 @@ main(int  argc,				/* I - Number of command-line args */
 
     serverAddPrinter(printer);
   }
+
+  if (StateDirectory)
+    serverSaveSystem();
 
  /*
   * Enter the server main loop...

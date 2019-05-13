@@ -203,6 +203,7 @@ serverCreateSystem(
 	pinfo.initial_accepting = 1;
 	pinfo.initial_state     = IPP_PSTATE_IDLE;
 	pinfo.initial_reasons   = SERVER_PREASON_NONE;
+        pinfo.web_forms         = 1;
 
         snprintf(iconname, sizeof(iconname), "%s/%s.png", confdir, dent->filename);
         if (!access(iconname, R_OK))
@@ -282,6 +283,7 @@ serverCreateSystem(
 	pinfo.initial_accepting = 1;
 	pinfo.initial_state     = IPP_PSTATE_IDLE;
 	pinfo.initial_reasons   = SERVER_PREASON_NONE;
+        pinfo.web_forms         = 1;
 
         snprintf(iconname, sizeof(iconname), "%s/%s.png", confdir, dent->filename);
         if (!access(iconname, R_OK))
@@ -2639,7 +2641,7 @@ load_system(const char *conf)		/* I - Configuration file */
     }
     else if (!_cups_strcasecmp(line, "StateDir"))
     {
-      if (access(value, R_OK))
+      if (access(value, R_OK) && mkdir(value, 0700))
       {
         fprintf(stderr, "ippserver: Unable to access StateDirectory \"%s\": %s\n", value, strerror(errno));
         status = 0;
@@ -2891,6 +2893,8 @@ save_printer(
     for (device = (server_device_t *)cupsArrayFirst(printer->pinfo.devices); device; device = (server_device_t *)cupsArrayNext(printer->pinfo.devices))
       cupsFilePutConf(fp, "OutputDevice", device->uuid);
 
+    cupsFilePutConf(fp, "WebForms", printer->pinfo.web_forms ? "Yes" : "No");
+
     for (attr = ippFirstAttribute(printer->pinfo.attrs); attr; attr = ippNextAttribute(printer->pinfo.attrs))
     {
       if (ippGetGroupTag(attr) != IPP_TAG_PRINTER || (aname = ippGetName(attr)) == NULL || !attr_cb(NULL, NULL, aname))
@@ -3024,6 +3028,18 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->initial_reasons = (server_preason_t)strtol(temp, NULL, 10);
   }
+  else if (!_cups_strcasecmp(token, "Make"))
+  {
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Make value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    _ippVarsExpand(vars, value, temp, sizeof(value));
+
+    pinfo->make = strdup(value);
+  }
   else if (!_cups_strcasecmp(token, "MaxOutputDevices"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
@@ -3033,6 +3049,18 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
     }
 
     pinfo->max_devices = atoi(temp);
+  }
+  else if (!_cups_strcasecmp(token, "Model"))
+  {
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Model value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    _ippVarsExpand(vars, value, temp, sizeof(value));
+
+    pinfo->model = strdup(value);
   }
   else if (!_cups_strcasecmp(token, "OutputDevice"))
   {
@@ -3056,30 +3084,6 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->output_format = strdup(value);
   }
-  else if (!_cups_strcasecmp(token, "Make"))
-  {
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
-    {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Make value on line %d of \"%s\".", f->linenum, f->filename);
-      return (0);
-    }
-
-    _ippVarsExpand(vars, value, temp, sizeof(value));
-
-    pinfo->make = strdup(value);
-  }
-  else if (!_cups_strcasecmp(token, "Model"))
-  {
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
-    {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Model value on line %d of \"%s\".", f->linenum, f->filename);
-      return (0);
-    }
-
-    _ippVarsExpand(vars, value, temp, sizeof(value));
-
-    pinfo->model = strdup(value);
-  }
   else if (!_cups_strcasecmp(token, "Strings"))
   {
     server_lang_t	lang;			/* New localization */
@@ -3087,7 +3091,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing STRINGS language on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Strings language on line %d of \"%s\".", f->linenum, f->filename);
       return (0);
     }
 
@@ -3110,6 +3114,16 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
     cupsArrayAdd(pinfo->strings, &lang);
 
     serverLog(SERVER_LOGLEVEL_DEBUG, "Added strings file \"%s\" for language \"%s\".", stringsfile, value);
+  }
+  else if (!_cups_strcasecmp(token, "WebForms"))
+  {
+    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    {
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing WebForms value on line %d of \"%s\".", f->linenum, f->filename);
+      return (0);
+    }
+
+    pinfo->web_forms = !_cups_strcasecmp(temp, "yes") || !_cups_strcasecmp(temp, "on") || !_cups_strcasecmp(temp, "true");
   }
   else
   {

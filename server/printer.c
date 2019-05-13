@@ -783,7 +783,7 @@ serverCreatePrinter(
 
   if ((attr = ippFindAttribute(printer->pinfo.attrs, "sides-supported", IPP_TAG_KEYWORD)) != NULL)
   {
-    printer->pinfo.duplex = ippContainsString(attr, "two-sided-long-edge");
+    printer->pinfo.duplex = (char)ippContainsString(attr, "two-sided-long-edge");
     serverLog(SERVER_LOGLEVEL_DEBUG, "Using duplex=%d", printer->pinfo.duplex);
   }
 
@@ -1349,12 +1349,15 @@ serverCreatePrinter(
 
   /* printer-location */
   if (!cupsArrayFind(existing, (void *)"printer-location"))
-    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-location", NULL, printer->pinfo.location);
+    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-location", NULL, printer->pinfo.location ? printer->pinfo.location : "Unknown");
 
   /* printer-make-and-model */
   if (!cupsArrayFind(existing, (void *)"printer-make-and-model"))
   {
-    snprintf(make_model, sizeof(make_model), "%s %s", printer->pinfo.make, printer->pinfo.model);
+    if (printer->pinfo.make && printer->pinfo.model)
+      snprintf(make_model, sizeof(make_model), "%s %s", printer->pinfo.make, printer->pinfo.model);
+    else
+      strlcpy(make_model, "Unknown", sizeof(make_model));
 
     ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-make-and-model", NULL, make_model);
   }
@@ -1381,11 +1384,11 @@ serverCreatePrinter(
 
   /* printer-organization */
   if (!cupsArrayFind(existing, (void *)"printer-organization"))
-    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_TEXT), "printer-organization", NULL, "Apple Inc.");
+    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_TEXT), "printer-organization", NULL, "IEEE-ISTO Printer Working Group");
 
   /* printer-organizational-unit */
   if (!cupsArrayFind(existing, (void *)"printer-organizational-unit"))
-    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_TEXT), "printer-organizational-unit", NULL, "Printing Engineering");
+    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_TEXT), "printer-organizational-unit", NULL, "IPP Workgroup");
 
   if (!is_print3d)
   {

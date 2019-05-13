@@ -66,7 +66,12 @@ ippserver - a sample ipp server implementation
 ] [
 -B --help
 ] [
+<b>--no-web-forms</b>
+] [
 -B --relaxed
+] [
+-B --state
+<i>directory</i>
 ] [
 -B --version
 ]
@@ -114,6 +119,8 @@ The default is a directory under the user's current temporary directory.
 The default is the name returned by the
 <b>hostname</b>(1)
 command.
+<dt>-B --no-web-forms
+<dd style="margin-left: 5.0em">Disables the GET-based web forms that allow web requests to change material, media, and supply levels.
 <dt><b>-p </b><i>port</i>
 <dd style="margin-left: 5.0em">Specifies the port number to listen on.
 The default is a user-specific number from 8000 to 8999.
@@ -124,6 +131,10 @@ The default subtype is "_print".
 <dd style="margin-left: 5.0em">Runs the server in relaxed conformance mode, which allows certain harmless IPP conformance issues to be ignored.
 <dt><b>-s </b><i>speed[,color-speed]</i>
 <dd style="margin-left: 5.0em">Specifies the printer speed in pages-per-minute.
+<dt><b>--state </b><i>directory</i>
+<dd style="margin-left: 3.0em">Specifies a persistent state directory to use.
+The directory is created if it does not exist.
+The default is to not save state information between runs.
 <dt><b>-v[vvv]</b>
 <dd style="margin-left: 5.0em">Be (very) verbose when logging activity to the standard output.
 <dt><b>--version</b>
@@ -328,6 +339,10 @@ command can be used for many printers.
 <dd style="margin-left: 5.0em">Specifies the output MIME media type for the printer.
 <dt><b>Strings </b><i>language filename.strings</i>
 <dd style="margin-left: 5.0em">Specifies a localization ("strings") file for the specified language.
+<dt><b>WebForms Yes</b>
+<dd style="margin-left: 5.0em"><dt><b>WebForms No</b>
+<dd style="margin-left: 5.0em">Enables or disables GET-based web forms which are used to manipulate the material, media, and supply levels.
+The default is "Yes" to enable GET-based forms.
 </dl>
 <h3><a name="VARIABLES_IN_ATTRIBUTE_VALUES">Variables In Attribute Values</a></h3>
 <b>ippserver</b>

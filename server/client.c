@@ -20,7 +20,7 @@
 static void		html_escape(server_client_t *client, const char *s,
 			            size_t slen);
 static void		html_footer(server_client_t *client);
-static void		html_header(server_client_t *client, const char *title);
+static void		html_header(server_client_t *client, const char *title, int refresh);
 static void		html_printf(server_client_t *client, const char *format, ...) _CUPS_FORMAT(2, 3);
 static int		parse_options(server_client_t *client, cups_option_t **options);
 static int		show_materials(server_client_t *client, server_printer_t *printer, const char *encoding);
@@ -968,7 +968,8 @@ html_footer(server_client_t *client)	/* I - Client */
 
 static void
 html_header(server_client_t *client,	/* I - Client */
-            const char    *title)	/* I - Title */
+            const char      *title,	/* I - Title */
+            int             refresh)	/* I - Refresh timer, if any */
 {
   html_printf(client,
 	      "<!doctype html>\n"
@@ -977,10 +978,13 @@ html_header(server_client_t *client,	/* I - Client */
 	      "<title>%s</title>\n"
 	      "<link rel=\"shortcut icon\" href=\"/icon.png\" type=\"image/png\">\n"
 	      "<link rel=\"apple-touch-icon\" href=\"/icon.png\" type=\"image/png\">\n"
-	      "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=9\">\n"
+	      "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=9\">\n", title);
+  if (refresh > 0)
+    html_printf(client, "<meta http-equiv=\"refresh\" content=\"%d\">\n", refresh);
+  html_printf(client,
 	      "<meta name=\"viewport\" content=\"width=device-width\">\n"
 	      "<style>\n"
-	      "body { font-family: sans-serif; margin: 0; }\n"
+/*	      "body { font-family: sans-serif; margin: 0; }\n"
               "div.header { background: black; color: white; left: 0px; margin: 0px; padding: 10px; right: 0px; width: 100%%; }\n"
               "div.header a { color: white; text-decoration: none; }\n"
 	      "div.body { padding: 0px 10px 10px; }\n"
@@ -998,12 +1002,32 @@ html_header(server_client_t *client,	/* I - Client */
               "p.buttons { line-height: 200%%; }\n"
 	      "a.button { background: black; border-color: black; border-radius: 8px; color: white; font-size: 12px; padding: 4px 10px; text-decoration: none; white-space: nowrap; }\n"
               "a:hover.button { background: #444; border-color: #444; }\n"
-              "span.bar { border: thin black; box-shadow: 0px 0px 5px rgba(0,0,0,0.2); display: inline-block; height: 10px; width: 100px; }\n"
+              "span.bar { border: thin black; box-shadow: 0px 0px 5px rgba(0,0,0,0.2); display: inline-block; height: 10px; width: 100px; }\n"*/
+	      "body { font-family: sans-serif; margin: 0; }\n"
+              "div.header { background: black; color: white; left: 0px; margin: 0px; padding: 10px; right: 0px; width: 100%%; }\n"
+              "div.header a { color: white; text-decoration: none; }\n"
+	      "div.body { padding: 0px 10px 10px; }\n"
+              "div.even { background: #fcfcfc; margin-left: -10px; margin-right: -10px; padding: 5px 10px; width: 100%%; }\n"
+              "div.odd { background: #f0f0f0; margin-left: -10px; margin-right: -10px; padding: 5px 10px; width: 100%%; }\n"
+	      "span.badge { background: #090; border-radius: 5px; color: #fff; padding: 5px 10px; }\n"
+	      "span.bar { box-shadow: 0px 1px 5px #333; font-size: 75%%; }\n"
+	      "table.form { border-collapse: collapse; margin-left: auto; margin-right: auto; margin-top: 10px; width: auto; }\n"
+	      "table.form td, table.form th { padding: 5px 2px; }\n"
+	      "table.form td.meter { border-right: solid 1px #ccc; padding: 0px; width: 400px; }\n"
+	      "table.form th { text-align: right; }\n"
+	      "table.striped { border-bottom: solid thin black; border-collapse: collapse; width: 100%%; }\n"
+	      "table.striped tr:nth-child(even) { background: #fcfcfc; }\n"
+	      "table.striped tr:nth-child(odd) { background: #f0f0f0; }\n"
+	      "table.striped th { background: white; border-bottom: solid thin black; text-align: left; vertical-align: bottom; }\n"
+	      "table.striped td { margin: 0; padding: 5px; vertical-align: top; }\n"
+              "p.buttons { line-height: 200%%; }\n"
+	      "a.button { background: black; border-color: black; border-radius: 8px; color: white; font-size: 12px; padding: 4px 10px; text-decoration: none; white-space: nowrap; }\n"
+              "a:hover.button { background: #444; border-color: #444; }\n"
 	      "</style>\n"
 	      "</head>\n"
 	      "<body>\n"
 	      "<div class=\"header\"><a href=\"/\">" CUPS_SVERSION "</a></div>\n"
-	      "<div class=\"body\">\n", title);
+	      "<div class=\"body\">\n");
 }
 
 
@@ -1279,10 +1303,11 @@ show_materials(
   ipp_t			*materials_col;	/* materials-col-xxx value */
   const char            *material_name,	/* materials-col-database material-name value */
                         *material_key,	/* materials-col-database material-key value */
-                        *ready_key;	/* materials-col-ready material-key value */
+                        *ready_key,	/* materials-col-ready material-key value */
+                        *ready_name;	/* materials-col-ready marterial-name value */
   int			max_materials;	/* max-materials-col-supported value */
-  int			num_options;	/* Number of form options */
-  cups_option_t		*options;	/* Form options */
+  int			num_options = 0;/* Number of form options */
+  cups_option_t		*options = NULL;/* Form options */
 
 
  /*
@@ -1292,7 +1317,7 @@ show_materials(
   if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
     return (0);
 
-  html_header(client, printer->dns_sd_name);
+  html_header(client, printer->dns_sd_name, 0);
 
   html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a></p>\n", printer->resource);
   html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Materials</h1>\n", printer->resource, printer->dns_sd_name);
@@ -1324,7 +1349,10 @@ show_materials(
   * Process form data if present...
   */
 
-  if ((num_options = parse_options(client, &options)) > 0)
+  if (printer->pinfo.web_forms)
+    num_options = parse_options(client, &options);
+
+  if (num_options > 0)
   {
    /*
     * WARNING: A real printer/server implementation MUST NOT implement
@@ -1368,15 +1396,14 @@ show_materials(
       materials_ready = ippAddOutOfBand(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "materials-col-ready");
 
     _cupsRWUnlock(&printer->rwlock);
-
-    html_printf(client, "<blockquote>Materials updated.</blockquote>\n");
   }
 
  /*
   * Show the currently loaded materials and allow the user to make selections...
   */
 
-  html_printf(client, "<form method=\"GET\" action=\"%s/materials\">\n", printer->resource);
+  if (printer->pinfo.web_forms)
+    html_printf(client, "<form method=\"GET\" action=\"%s/materials\">\n", printer->resource);
 
   html_printf(client, "<table class=\"form\" summary=\"Materials\">\n");
 
@@ -1385,26 +1412,54 @@ show_materials(
     materials_col = ippGetCollection(materials_ready, i);
     ready_key     = ippGetString(ippFindAttribute(materials_col, "material-key", IPP_TAG_ZERO), 0, NULL);
 
-    html_printf(client, "<tr><th>Material %d:</th><td><select name=\"material%d\"><option value=\"\">None</option>", i + 1, i);
-    for (j = 0, count = ippGetCount(materials_db); j < count; j ++)
+    html_printf(client, "<tr><th>Material %d:</th>", i + 1);
+    if (printer->pinfo.web_forms)
     {
-      materials_col = ippGetCollection(materials_db, j);
-      material_key  = ippGetString(ippFindAttribute(materials_col, "material-key", IPP_TAG_ZERO), 0, NULL);
-      material_name = ippGetString(ippFindAttribute(materials_col, "material-name", IPP_TAG_NAME), 0, NULL);
+      html_printf(client, "<td><select name=\"material%d\"><option value=\"\">None</option>", i);
+      for (j = 0, count = ippGetCount(materials_db); j < count; j ++)
+      {
+	materials_col = ippGetCollection(materials_db, j);
+	material_key  = ippGetString(ippFindAttribute(materials_col, "material-key", IPP_TAG_ZERO), 0, NULL);
+	material_name = ippGetString(ippFindAttribute(materials_col, "material-name", IPP_TAG_NAME), 0, NULL);
 
-      if (material_key && material_name)
-        html_printf(client, "<option value=\"%s\"%s>%s</option>", material_key, ready_key && material_key && !strcmp(ready_key, material_key) ? " selected" : "", material_name);
-      else if (material_key)
-        html_printf(client, "<!-- Error: no material-name for material-key=\"%s\" -->", material_key);
-      else if (material_name)
-        html_printf(client, "<!-- Error: no material-key for material-name=\"%s\" -->", material_name);
-      else
-        html_printf(client, "<!-- Error: no material-key or material-name for materials-col-database[%d] -->", j + 1);
+	if (material_key && material_name)
+	  html_printf(client, "<option value=\"%s\"%s>%s</option>", material_key, ready_key && material_key && !strcmp(ready_key, material_key) ? " selected" : "", material_name);
+	else if (material_key)
+	  html_printf(client, "<!-- Error: no material-name for material-key=\"%s\" -->", material_key);
+	else if (material_name)
+	  html_printf(client, "<!-- Error: no material-key for material-name=\"%s\" -->", material_name);
+	else
+	  html_printf(client, "<!-- Error: no material-key or material-name for materials-col-database[%d] -->", j + 1);
+      }
+      html_printf(client, "</select></td></tr>\n");
     }
-    html_printf(client, "</select></td></tr>\n");
+    else if ((ready_name = ippGetString(ippFindAttribute(materials_col, "material-name", IPP_TAG_ZERO), 0, NULL)) != NULL)
+      html_printf(client, "%s</td></tr>\n", ready_name);
+    else if (ready_key)
+      html_printf(client, "%s</td></tr>\n", ready_key);
+    else
+      html_printf(client, "None</td></tr>\n");
   }
 
-  html_printf(client, "<tr><td></td><td><input type=\"submit\" value=\"Update Materials\"></td></tr></table></form>\n");
+  if (printer->pinfo.web_forms)
+  {
+    html_printf(client, "<tr><td></td><td><input type=\"submit\" value=\"Update Materials\">");
+    if (num_options > 0)
+      html_printf(client, " <span class=\"badge\" id=\"status\">Material updated.</span>\n");
+    html_printf(client, "</td></tr></table></form>\n");
+
+    if (num_options > 0)
+      html_printf(client, "<script>\n"
+			  "setTimeout(hide_status, 3000);\n"
+			  "function hide_status() {\n"
+			  "  var status = document.getElementById('status');\n"
+			  "  status.style.display = 'none';\n"
+			  "}\n"
+			  "</script>\n");
+  }
+  else
+    html_printf(client, "</table>\n");
+
   html_footer(client);
 
   return (1);
@@ -1444,8 +1499,8 @@ show_media(server_client_t  *client,	/* I - Client connection */
 			*tray_ptr;	/* Pointer into value */
   int			tray_len;	/* Length of printer-input-tray value */
   int			ready_sheets;	/* printer-input-tray sheets value */
-  int			num_options;	/* Number of form options */
-  cups_option_t		*options;	/* Form options */
+  int			num_options = 0;/* Number of form options */
+  cups_option_t		*options = NULL;/* Form options */
   static const int	sheets[] =	/* Number of sheets */
   {
     250,
@@ -1459,7 +1514,7 @@ show_media(server_client_t  *client,	/* I - Client connection */
   if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
     return (0);
 
-  html_header(client, printer->name);
+  html_header(client, printer->name, 0);
 
   html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource);
   html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Media</h1>\n", printer->resource, printer->dns_sd_name);
@@ -1517,7 +1572,10 @@ show_media(server_client_t  *client,	/* I - Client connection */
   * Process form data if present...
   */
 
-  if ((num_options = parse_options(client, &options)) > 0)
+  if (printer->pinfo.web_forms)
+    num_options = parse_options(client, &options);
+
+  if (num_options > 0)
   {
    /*
     * WARNING: A real printer/server implementation MUST NOT implement
@@ -1622,11 +1680,10 @@ show_media(server_client_t  *client,	/* I - Client connection */
       media_ready = ippAddOutOfBand(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "media-ready");
 
     _cupsRWUnlock(&printer->rwlock);
-
-    html_printf(client, "<blockquote>Media updated.</blockquote>\n");
   }
 
-  html_printf(client, "<form method=\"GET\" action=\"%s/media\">\n", printer->resource);
+  if (printer->pinfo.web_forms)
+    html_printf(client, "<form method=\"GET\" action=\"%s/media\">\n", printer->resource);
 
   html_printf(client, "<table class=\"form\" summary=\"Media\">\n");
   for (i = 0; i < num_sources; i ++)
@@ -1652,27 +1709,38 @@ show_media(server_client_t  *client,	/* I - Client connection */
     * Media size...
     */
 
-    html_printf(client, "<tr><th>%s:</th><td><select name=\"size%d\"><option value=\"\">None</option>", media_source, i);
-    for (j = 0; j < num_sizes; j ++)
+    html_printf(client, "<tr><th>%s:</th>", media_source);
+    if (printer->pinfo.web_forms)
     {
-      media_size = ippGetString(media_sizes, j, NULL);
+      html_printf(client, "<td><select name=\"size%d\"><option value=\"\">None</option>", i);
+      for (j = 0; j < num_sizes; j ++)
+      {
+        media_size = ippGetString(media_sizes, j, NULL);
 
-      html_printf(client, "<option%s>%s</option>", (ready_size && !strcmp(ready_size, media_size)) ? " selected" : "", media_size);
+        html_printf(client, "<option%s>%s</option>", (ready_size && !strcmp(ready_size, media_size)) ? " selected" : "", media_size);
+      }
+      html_printf(client, "</select>\n");
     }
-    html_printf(client, "</select>\n");
+    else
+      html_printf(client, "<td>%s", ready_size);
 
    /*
     * Media type...
     */
 
-    html_printf(client, "<select name=\"type%d\"><option value=\"\">None</option>", i);
-    for (j = 0; j < num_types; j ++)
+    if (printer->pinfo.web_forms)
     {
-      media_type = ippGetString(media_types, j, NULL);
+      html_printf(client, "<select name=\"type%d\"><option value=\"\">None</option>", i);
+      for (j = 0; j < num_types; j ++)
+      {
+	media_type = ippGetString(media_types, j, NULL);
 
-      html_printf(client, "<option%s>%s</option>", (ready_type && !strcmp(ready_type, media_type)) ? " selected" : "", media_type);
+	html_printf(client, "<option%s>%s</option>", (ready_type && !strcmp(ready_type, media_type)) ? " selected" : "", media_type);
+      }
+      html_printf(client, "</select>\n");
     }
-    html_printf(client, "</select>\n");
+    else if (ready_type)
+      html_printf(client, ", %s", ready_type);
 
    /*
     * Level/sheets loaded...
@@ -1693,13 +1761,38 @@ show_media(server_client_t  *client,	/* I - Client connection */
     else
       ready_sheets = 0;
 
-    html_printf(client, "<select name=\"level%d\">", i);
-    for (j = 0; j < (int)(sizeof(sheets) / sizeof(sheets[0])); j ++)
-      html_printf(client, "<option value=\"%d\"%s>%d sheets</option>", sheets[j], sheets[j] == ready_sheets ? " selected" : "", sheets[j]);
-    html_printf(client, "</select></td></tr>\n");
+    if (printer->pinfo.web_forms)
+    {
+      html_printf(client, "<select name=\"level%d\">", i);
+      for (j = 0; j < (int)(sizeof(sheets) / sizeof(sheets[0])); j ++)
+	html_printf(client, "<option value=\"%d\"%s>%d sheets</option>", sheets[j], sheets[j] == ready_sheets ? " selected" : "", sheets[j]);
+      html_printf(client, "</select></td></tr>\n");
+    }
+    else if (ready_sheets > 0)
+      html_printf(client, ", %d sheets</td></tr>\n", ready_sheets);
+    else
+      html_printf(client, "</td></tr>\n");
   }
 
-  html_printf(client, "<tr><td></td><td><input type=\"submit\" value=\"Update Media\"></td></tr></table></form>\n");
+  if (printer->pinfo.web_forms)
+  {
+    html_printf(client, "<tr><td></td><td><input type=\"submit\" value=\"Update Media\">");
+    if (num_options > 0)
+      html_printf(client, " <span class=\"badge\" id=\"status\">Media updated.</span>\n");
+    html_printf(client, "</td></tr></table></form>\n");
+
+    if (num_options > 0)
+      html_printf(client, "<script>\n"
+			  "setTimeout(hide_status, 3000);\n"
+			  "function hide_status() {\n"
+			  "  var status = document.getElementById('status');\n"
+			  "  status.style.display = 'none';\n"
+			  "}\n"
+			  "</script>\n");
+  }
+  else
+    html_printf(client, "</table>\n");
+
   html_footer(client);
 
   return (1);
@@ -1744,7 +1837,7 @@ show_status(server_client_t  *client,	/* I - Client connection */
 
   if (printer)
   {
-    html_header(client, printer->dns_sd_name);
+    html_header(client, printer->dns_sd_name, printer->state == IPP_PSTATE_PROCESSING ? 5 : 15);
     if (!strncmp(printer->resource, "/ipp/print3d", 12))
       html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s/materials\">Show Materials</a>\n", printer->resource);
     else
@@ -1796,7 +1889,7 @@ show_status(server_client_t  *client,	/* I - Client connection */
   }
   else
   {
-    html_header(client, CUPS_SVERSION);
+    html_header(client, CUPS_SVERSION, 0);
     for (i = 0, printer = (server_printer_t *)cupsArrayFirst(Printers); printer; i ++, printer = (server_printer_t *)cupsArrayNext(Printers))
     {
       html_printf(client, "<div class=\"%s\">\n", (i & 1) ? "odd" : "even");
@@ -1833,8 +1926,8 @@ show_supplies(
 		num_supply;		/* Number of supplies */
   ipp_attribute_t *supply,		/* printer-supply attribute */
 		*supply_desc;		/* printer-supply-description attribute */
-  int		num_options;		/* Number of form options */
-  cups_option_t	*options;		/* Form options */
+  int		num_options = 0;	/* Number of form options */
+  cups_option_t	*options = NULL;	/* Form options */
   int		supply_len,		/* Length of supply value */
 		level;			/* Supply level */
   const char	*supply_value;		/* Supply value */
@@ -1853,20 +1946,28 @@ show_supplies(
     "index=5;class=supplyThatIsConsumed;type=toner;unit=percent;"
         "maxcapacity=100;level=%d;colorantname=yellow;"
   };
-  static const char * const colors[] =	/* Colors for the supply-level bars */
-  {
+  static const char * const backgrounds[] =
+  {					/* Background colors for the supply-level bars */
     "#777 linear-gradient(#333,#777)",
     "#000 linear-gradient(#666,#000)",
     "#0FF linear-gradient(#6FF,#0FF)",
     "#F0F linear-gradient(#F6F,#F0F)",
     "#CC0 linear-gradient(#EE6,#EE0)"
   };
+  static const char * const colors[] =	/* Text colors for the supply-level bars */
+  {
+    "#fff",
+    "#fff",
+    "#000",
+    "#000",
+    "#000"
+  };
 
 
   if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
     return (0);
 
-  html_header(client, printer->name);
+  html_header(client, printer->name, 0);
 
   html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/media\">Show Media</a></p>\n", printer->resource, printer->resource);
   html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Media</h1>\n", printer->resource, printer->dns_sd_name);
@@ -1894,7 +1995,10 @@ show_supplies(
     return (1);
   }
 
-  if ((num_options = parse_options(client, &options)) > 0)
+  if (printer->pinfo.web_forms)
+    num_options = parse_options(client, &options);
+
+  if (num_options > 0)
   {
    /*
     * WARNING: A real printer/server implementation MUST NOT implement
@@ -1945,11 +2049,10 @@ show_supplies(
     }
 
     _cupsRWUnlock(&printer->rwlock);
-
-    html_printf(client, "<blockquote>Supplies updated.</blockquote>\n");
   }
 
-  html_printf(client, "<form method=\"GET\" action=\"%s/supplies\">\n", printer->resource);
+  if (printer->pinfo.web_forms)
+    html_printf(client, "<form method=\"GET\" action=\"%s/supplies\">\n", printer->resource);
 
   html_printf(client, "<table class=\"form\" summary=\"Supplies\">\n");
   for (i = 0; i < num_supply; i ++)
@@ -1966,9 +2069,36 @@ show_supplies(
     else
       level = 50;
 
-    html_printf(client, "<tr><th>%s:</th><td><input name=\"supply%d\" size=\"3\" value=\"%d\"><span class=\"bar\" style=\"background: %s; width: %dpx;\"></span></td></tr>\n", ippGetString(supply_desc, i, NULL), i, level, colors[i], level * 2);
+    if (printer->pinfo.web_forms)
+      html_printf(client, "<tr><th>%s:</th><td><input name=\"supply%d\" size=\"3\" value=\"%d\"></td>", ippGetString(supply_desc, i, NULL), i, level);
+    else
+      html_printf(client, "<tr><th>%s:</th>", ippGetString(supply_desc, i, NULL));
+
+    if (level < 10)
+      html_printf(client, "<td class=\"meter\"><span class=\"bar\" style=\"background: %s; padding: 5px %dpx;\"></span>&nbsp;%d%%</td></tr>\n", backgrounds[i], level * 2, level);
+    else
+      html_printf(client, "<td class=\"meter\"><span class=\"bar\" style=\"background: %s; color: %s; padding: 5px %dpx;\">%d%%</span></td></tr>\n", backgrounds[i], colors[i], level * 2, level);
   }
-  html_printf(client, "<tr><td></td><td><input type=\"submit\" value=\"Update Supplies\"></td></tr>\n</table>\n</form>\n");
+
+  if (printer->pinfo.web_forms)
+  {
+    html_printf(client, "<tr><td></td><td colspan=\"2\"><input type=\"submit\" value=\"Update Supplies\">");
+    if (num_options > 0)
+      html_printf(client, " <span class=\"badge\" id=\"status\">Supplies updated.</span>\n");
+    html_printf(client, "</td></tr>\n</table>\n</form>\n");
+
+    if (num_options > 0)
+      html_printf(client, "<script>\n"
+			  "setTimeout(hide_status, 3000);\n"
+			  "function hide_status() {\n"
+			  "  var status = document.getElementById('status');\n"
+			  "  status.style.display = 'none';\n"
+			  "}\n"
+			  "</script>\n");
+  }
+  else
+    html_printf(client, "</table>\n");
+
   html_footer(client);
 
   return (1);
