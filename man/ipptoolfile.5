@@ -1,11 +1,12 @@
 .\"
 .\" ipptoolfile man page.
 .\"
-.\" Copyright 2010-2018 by Apple Inc.
+.\" Copyright © 2010-2019 by Apple Inc.
 .\"
-.\" Licensed under Apache License v2.0.  See the file "LICENSE" for more information.
+.\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
+.\" information.
 .\"
-.TH ipptoolfile 5 "CUPS" "15 June 2017" "Apple Inc."
+.TH ipptoolfile 5 "CUPS" "13 May 2019" "Apple Inc."
 .SH NAME
 ipptoolfile \- ipptool file format
 .SH DESCRIPTION
@@ -593,6 +594,12 @@ Inserts a single "$" character.
 \fB$ENV[\fIname\fB]\fR
 Inserts the value of the named environment variable, or an empty string if the environment variable is not defined.
 .TP 5
+\fB$date-current\fR
+Inserts the current date and time using the ISO-8601 format ("yyyy-mm-ddThh:mm:ssZ").
+.TP 5
+\fB$date-start\fR
+Inserts the starting date and time using the ISO-8601 format ("yyyy-mm-ddThh:mm:ssZ").
+.TP 5
 \fB$filename\fR
 Inserts the filename provided to
 .BR ipptool (8)
@@ -645,4 +652,4 @@ IANA IPP Registry (http://www.iana.org/assignments/ipp-registrations),
 PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp),
 RFC 8011 (http://tools.ietf.org/html/rfc8011)
 .SH COPYRIGHT
-Copyright \[co] 2007-2018 by Apple Inc.
+Copyright \[co] 2007-2019 by Apple Inc.
