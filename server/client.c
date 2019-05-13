@@ -437,17 +437,18 @@ serverProcessHTTP(
     case HTTP_STATE_HEAD :
         if (!strncmp(client->uri, "/ipp/print/", 11))
         {
-          if ((uriptr = strchr(client->uri + 11, '/')) == NULL)
-            uriptr = client->uri + 10;
+          if ((uriptr = strchr(client->uri + 11, '/')) != NULL)
+	    *uriptr++ = '\0';
+	  else
+	    uriptr = client->uri + strlen(client->uri);
 
-	  *uriptr++ = '\0';
         }
         else if (!strncmp(client->uri, "/ipp/print3d/", 13))
         {
-          if ((uriptr = strchr(client->uri + 13, '/')) == NULL)
-            uriptr = client->uri + 12;
-
-	  *uriptr++ = '\0';
+          if ((uriptr = strchr(client->uri + 13, '/')) != NULL)
+	    *uriptr++ = '\0';
+	  else
+	    uriptr = client->uri + strlen(client->uri);
         }
         else if (!strcmp(client->uri, "/ipp/print"))
           uriptr = client->uri + strlen(client->uri);
@@ -488,17 +489,17 @@ serverProcessHTTP(
     case HTTP_STATE_GET :
         if (!strncmp(client->uri, "/ipp/print/", 11))
         {
-          if ((uriptr = strchr(client->uri + 11, '/')) == NULL)
-            uriptr = client->uri + 10;
-
-	  *uriptr++ = '\0';
+          if ((uriptr = strchr(client->uri + 11, '/')) != NULL)
+	    *uriptr++ = '\0';
+	  else
+	    uriptr = client->uri + strlen(client->uri);
         }
         else if (!strncmp(client->uri, "/ipp/print3d/", 13))
         {
-          if ((uriptr = strchr(client->uri + 13, '/')) == NULL)
-            uriptr = client->uri + 12;
-
-	  *uriptr++ = '\0';
+          if ((uriptr = strchr(client->uri + 13, '/')) != NULL)
+	    *uriptr++ = '\0';
+	  else
+	    uriptr = client->uri + strlen(client->uri);
         }
         else if (!strcmp(client->uri, "/ipp/print"))
           uriptr = client->uri + strlen(client->uri);
@@ -1970,7 +1971,7 @@ show_supplies(
   html_header(client, printer->name, 0);
 
   html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/media\">Show Media</a></p>\n", printer->resource, printer->resource);
-  html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Media</h1>\n", printer->resource, printer->dns_sd_name);
+  html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Supplies</h1>\n", printer->resource, printer->dns_sd_name);
 
   if ((supply = ippFindAttribute(printer->pinfo.attrs, "printer-supply", IPP_TAG_STRING)) == NULL)
   {
