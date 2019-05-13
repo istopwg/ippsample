@@ -675,11 +675,24 @@ serverCreatePrinter(
   };
   static const char * const which_jobs[] =
   {					/* which-jobs-supported values */
-    "completed",
-    "not-completed",
     "aborted",
     "all",
     "canceled",
+    "completed",
+    "not-completed",
+    "pending",
+    "pending-held",
+    "processing",
+    "processing-stopped"
+  };
+  static const char * const which_jobs_proxy[] =
+  {					/* which-jobs-supported values */
+    "aborted",
+    "all",
+    "canceled",
+    "completed",
+    "fetchable",
+    "not-completed",
     "pending",
     "pending-held",
     "processing",
@@ -1535,7 +1548,10 @@ serverCreatePrinter(
   }
 
   /* which-jobs-supported */
-  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "which-jobs-supported", sizeof(which_jobs) / sizeof(which_jobs[0]), NULL, which_jobs);
+  if (printer->pinfo.proxy_group != SERVER_GROUP_NONE || printer->pinfo.max_devices > 0)
+    ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "which-jobs-supported", sizeof(which_jobs_proxy) / sizeof(which_jobs_proxy[0]), NULL, which_jobs_proxy);
+  else
+    ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "which-jobs-supported", sizeof(which_jobs) / sizeof(which_jobs[0]), NULL, which_jobs);
 
   /* xri-authentication-supported */
   ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication-supported", NULL, Authentication ? "basic" : "none");
