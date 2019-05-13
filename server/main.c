@@ -64,7 +64,7 @@ main(int  argc,				/* I - Number of command-line args */
       if (i >= argc)
         usage(1);
 
-      if (!access(argv[i], R_OK) && !mkdir(argv[i], 0700))
+      if (access(argv[i], R_OK) && mkdir(argv[i], 0700))
       {
         fprintf(stderr, "ippserver: Unable to access state directory \"%s\": %s\n", argv[i], strerror(errno));
         usage(1);
