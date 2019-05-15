@@ -1,8 +1,8 @@
 #
 # Top-level Makefile for IPP sample implementations.
 #
-# Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
-# Copyright © 2007-2018 by Apple Inc.
+# Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group.
+# Copyright © 2007-2019 by Apple Inc.
 # Copyright © 1997-2007 by Easy Software Products, all rights reserved.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -66,7 +66,7 @@ depend:
 #
 
 install:
-	for dir in $(DIRS) man; do \
+	for dir in $(DIRS) examples man; do \
 		echo Installing in $$dir...; \
 		(cd $$dir; $(MAKE) $(MFLAGS) install) || exit 1; \
 	done
