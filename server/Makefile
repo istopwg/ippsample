@@ -86,22 +86,15 @@ ippserver:	$(OBJS) ../cups/libcups.a
 
 
 #
-# printer-png.h
+# Embedded PNG headers...
 #
 
-printer-png.h:	printer.png
+pngheaders:
 	echo "Generating printer-png.h from printer.png..."
 	echo "static const unsigned char printer_png[] =" >printer-png.h
 	echo "{" >>printer-png.h
 	od -t x1 printer.png | cut -b12- | awk '{printf("  "); for (i = 1; i <= NF; i ++) printf("0x%s,", $$i); print "";}' >>printer-png.h
 	echo "};" >>printer-png.h
-
-
-#
-# printer3d-png.h
-#
-
-printer3d-png.h:	printer3d.png
 	echo "Generating printer3d-png.h from printer3d.png..."
 	echo "static const unsigned char printer3d_png[] =" >printer3d-png.h
 	echo "{" >>printer3d-png.h
