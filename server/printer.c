@@ -76,10 +76,7 @@ serverAllocatePrinterResource(
     * Printer icon...
     */
 
-    if (printer->pinfo.icon)
-      free(printer->pinfo.icon);
-
-    printer->pinfo.icon = strdup(resource->filename);
+    printer->icon_resource = resource;
   }
   else if (!strcmp(resource->type, "static-strings"))
   {
@@ -87,12 +84,11 @@ serverAllocatePrinterResource(
     * Localization file...
     */
 
-    server_lang_t	lang;		/* Language information */
+    const char *language = ippGetString(ippFindAttribute(resource->attrs, "resource-natural-language", IPP_TAG_LANGUAGE), 0, NULL);
+					/* Language for string */
 
-    lang.filename = resource->filename;
-
-    if ((lang.lang = (char *)ippGetString(ippFindAttribute(resource->attrs, "resource-natural-language", IPP_TAG_LANGUAGE), 0, NULL)) != NULL)
-      cupsArrayAdd(printer->pinfo.strings, &lang);
+    if (language)
+      serverAddStringsFile(printer, language, resource);
   }
 
   _cupsRWUnlock(&resource->rwlock);
@@ -810,6 +806,12 @@ serverCreatePrinter(
 
   printer->default_uri = strdup(uri);
 
+  if (printer->pinfo.icon)
+  {
+    printer->icon_resource = serverCreateResource(NULL, printer->pinfo.icon, "image/png", "icon", "Printer Icon", "static-image", NULL);
+    serverAllocatePrinterResource(printer, printer->icon_resource);
+  }
+
   httpAssembleURIf(HTTP_URI_CODING_ALL, icons, sizeof(icons), webscheme, NULL, lis->host, lis->port, "%s/icon.png", resource);
   httpAssembleURI(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), webscheme, NULL, lis->host, lis->port, resource);
   httpAssembleURIf(HTTP_URI_CODING_ALL, supplyurl, sizeof(supplyurl), webscheme, NULL, lis->host, lis->port, "%s/supplies", resource);
@@ -1437,6 +1439,8 @@ serverCreatePrinter(
         ippSetString(printer->pinfo.attrs, &attr, ippGetCount(attr), lang->lang);
       else
         attr = ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_LANGUAGE, "printer-strings-languages-supported", NULL, lang->lang);
+
+      serverAllocatePrinterResource(printer, lang->resource);
     }
   }
 

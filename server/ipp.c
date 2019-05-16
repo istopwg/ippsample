@@ -1085,6 +1085,9 @@ copy_printer_attributes(
 
   copy_printer_state(client->response, printer, ra);
 
+  if (printer->num_resources && (!ra || cupsArrayFind(ra, "printer-resource-ids")))
+    ippAddIntegers(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "printer-resource-ids", printer->num_resources, printer->resources);
+
   if (printer->pinfo.strings && (!ra || cupsArrayFind(ra, "printer-strings-uri")))
   {
    /*
@@ -1122,7 +1125,7 @@ copy_printer_attributes(
         scheme = "https";
 #endif /* HAVE_SSL */
 
-      httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), scheme, NULL, lis->host, lis->port, "%s/%s.strings", printer->resource, match->lang);
+      httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), scheme, NULL, lis->host, lis->port, match->resource->resource);
       ippAddString(client->response, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-strings-uri", NULL, uri);
     }
   }
@@ -2675,7 +2678,8 @@ ipp_create_resource(
   ipp_attribute_t	*attr;		/* Request attribute */
   const char		*type,		/* Resource type keyword */
 			*info,		/* Resource info text */
-			*name;		/* Resource name text */
+			*name,		/* Resource name text */
+			*language;	/* Resource language text */
 
 
   if (Authentication)
@@ -2742,11 +2746,19 @@ ipp_create_resource(
 
   name = ippGetString(attr, 0, NULL);
 
+  if ((attr = ippFindAttribute(client->request, "resource-natural-language", IPP_TAG_ZERO)) != NULL && (ippGetGroupTag(attr) != IPP_TAG_RESOURCE || ippGetValueTag(attr) != IPP_TAG_LANGUAGE || ippGetCount(attr) != 1))
+  {
+    serverRespondUnsupported(client, attr);
+    return;
+  }
+
+  language = ippGetString(attr, 0, NULL);
+
  /*
   * Create an empty resource...
   */
 
-  resource = serverCreateResource(NULL, NULL, NULL, name, info, type);
+  resource = serverCreateResource(NULL, NULL, NULL, name, info, type, language);
 
  /*
   * Return the resource info...

@@ -236,6 +236,7 @@ serverProcessHTTP(
 					/* Hostname */
   int			port;		/* Port number */
   const char		*encoding;	/* Content-Encoding value */
+  server_resource_t	*res;		/* Resource */
   static const char * const http_states[] =
   {					/* Strings for logging HTTP method */
     "WAITING",
@@ -441,7 +442,6 @@ serverProcessHTTP(
 	    *uriptr++ = '\0';
 	  else
 	    uriptr = client->uri + strlen(client->uri);
-
         }
         else if (!strncmp(client->uri, "/ipp/print3d/", 13))
         {
@@ -464,23 +464,14 @@ serverProcessHTTP(
 
           if (printer)
           {
-            char *ext = strrchr(uriptr, '.');
-
             if (!strcmp(uriptr, "icon.png"))
               return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", 0));
             else if (!*uriptr || !strcmp(uriptr, "materials") || !strcmp(uriptr, "media") || !strcmp(uriptr, "supplies"))
               return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "text/html", 0));
-            else if (ext && !strcmp(ext, ".strings"))
-            {
-              server_lang_t key;
-
-              *ext = '\0';
-              key.lang = uriptr;
-              if (cupsArrayFind(printer->pinfo.strings, &key))
-                return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "text/strings", 0));
-            }
           }
         }
+        else if ((res = serverFindResourceByPath(client->uri)) != NULL && res->state == IPP_RSTATE_INSTALLED)
+          return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, res->format, 0));
 	else if (!strcmp(client->uri, "/"))
 	  return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "text/html", 0));
 
@@ -515,8 +506,6 @@ serverProcessHTTP(
 
           if (printer)
           {
-            char *ext = strrchr(uriptr, '.');
-
             if (!strcmp(uriptr, "icon.png"))
             {
              /*
@@ -528,11 +517,11 @@ serverProcessHTTP(
               char		buffer[4096];	/* Copy buffer */
               ssize_t		bytes;		/* Bytes */
 
-              if (printer->pinfo.icon)
+              if (printer->icon_resource)
               {
-                serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Icon file is \"%s\".", printer->pinfo.icon);
+                serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Icon file is \"%s\".", printer->icon_resource->filename);
 
-                if (!stat(printer->pinfo.icon, &fileinfo) && (fd = open(printer->pinfo.icon, O_RDONLY | O_BINARY)) >= 0)
+                if (!stat(printer->icon_resource->filename, &fileinfo) && (fd = open(printer->icon_resource->filename, O_RDONLY | O_BINARY)) >= 0)
                 {
                   if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", (size_t)fileinfo.st_size))
                   {
@@ -588,40 +577,33 @@ serverProcessHTTP(
             {
               return (show_supplies(client, printer, encoding));
             }
-            else if (ext && !strcmp(ext, ".strings"))
-            {
-              server_lang_t key, *match;
-
-              *ext = '\0';
-              key.lang = uriptr;
-              if ((match = (server_lang_t *)cupsArrayFind(printer->pinfo.strings, &key)) != NULL)
-              {
-                int		fd;		/* Icon file */
-                struct stat	fileinfo;	/* Icon file information */
-                char		buffer[4096];	/* Copy buffer */
-                ssize_t		bytes;		/* Bytes */
-
-                serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Strings file is \"%s\".", match->filename);
-
-                if (!stat(match->filename, &fileinfo) && (fd = open(match->filename, O_RDONLY | O_BINARY)) >= 0)
-                {
-                  if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "text/strings", (size_t)fileinfo.st_size))
-                  {
-                    close(fd);
-                    return (0);
-                  }
-
-                  while ((bytes = read(fd, buffer, sizeof(buffer))) > 0)
-                    httpWrite2(client->http, buffer, (size_t)bytes);
-
-                  httpFlushWrite(client->http);
-
-                  close(fd);
-                  return (1);
-                }
-              }
-            }
           }
+	}
+        else if ((res = serverFindResourceByPath(client->uri)) != NULL && res->state == IPP_RSTATE_INSTALLED)
+        {
+	  int		fd;		/* Icon file */
+	  struct stat	fileinfo;	/* Icon file information */
+	  char		buffer[4096];	/* Copy buffer */
+	  ssize_t	bytes;		/* Bytes */
+
+	  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Resource \"%s\" maps to \"%s\".", res->resource, res->filename);
+
+	  if (!stat(res->filename, &fileinfo) && (fd = open(res->filename, O_RDONLY | O_BINARY)) >= 0)
+	  {
+	    if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, res->format, (size_t)fileinfo.st_size))
+	    {
+	      close(fd);
+	      return (0);
+	    }
+
+	    while ((bytes = read(fd, buffer, sizeof(buffer))) > 0)
+	      httpWrite2(client->http, buffer, (size_t)bytes);
+
+	    httpFlushWrite(client->http);
+
+	    close(fd);
+	    return (1);
+	  }
 	}
 	else if (!strcmp(client->uri, "/"))
 	{

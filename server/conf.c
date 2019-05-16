@@ -75,21 +75,22 @@ serverAddPrinter(
 
 void
 serverAddStringsFile(
-    server_printer_t *printer,		/* I - Printer */
-    const char       *language,		/* I - Language */
-    const char       *filename)		/* I - Strings file */
+    server_printer_t  *printer,		/* I - Printer */
+    const char        *language,	/* I - Language */
+    server_resource_t *resource)	/* I - Strings resource file */
 {
   server_lang_t	lang;			/* New localization */
 
   lang.lang     = (char *)language;
-  lang.filename = (char *)filename;
+  lang.resource = resource;
 
   _cupsRWLockWrite(&printer->rwlock);
 
   if (!printer->pinfo.strings)
     printer->pinfo.strings = cupsArrayNew3((cups_array_func_t)compare_lang, NULL, NULL, 0, (cups_acopy_func_t)copy_lang, (cups_afree_func_t)free_lang);
 
-  cupsArrayAdd(printer->pinfo.strings, &lang);
+  if (!cupsArrayFind(printer->pinfo.strings, &lang))
+    cupsArrayAdd(printer->pinfo.strings, &lang);
 
   _cupsRWUnlock(&printer->rwlock);
 }
@@ -1193,7 +1194,7 @@ copy_lang(server_lang_t *a)		/* I - Localization to copy */
   if ((b = calloc(1, sizeof(server_lang_t))) != NULL)
   {
     b->lang     = strdup(a->lang);
-    b->filename = strdup(a->filename);
+    b->resource = a->resource;
   }
 
   return (b);
@@ -2191,7 +2192,6 @@ static void
 free_lang(server_lang_t *a)		/* I - Localization */
 {
   free(a->lang);
-  free(a->filename);
   free(a);
 }
 
@@ -2893,7 +2893,7 @@ save_printer(
       cupsFilePutConf(fp, "OutputFormat", printer->pinfo.output_format);
 
     for (lang = (server_lang_t *)cupsArrayFirst(printer->pinfo.strings); lang; lang = (server_lang_t *)cupsArrayNext(printer->pinfo.strings))
-      cupsFilePrintf(fp, "Strings %s %s\n", lang->lang, lang->filename);
+      cupsFilePrintf(fp, "Strings %s %s\n", lang->lang, lang->resource->filename);
 
     if (printer->pinfo.max_devices)
       cupsFilePrintf(fp, "MaxOutputDevices %d\n", printer->pinfo.max_devices);
@@ -3112,8 +3112,9 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     _ippVarsExpand(vars, stringsfile, temp, sizeof(stringsfile));
 
-    lang.lang     = value;
-    lang.filename = stringsfile;
+    lang.lang = value;
+    if ((lang.resource = serverFindResourceByFilename(stringsfile)) == NULL)
+      lang.resource = serverCreateResource(NULL, stringsfile, "text/strings", value, value, "static-strings", value);
 
     if (!pinfo->strings)
       pinfo->strings = cupsArrayNew3((cups_array_func_t)compare_lang, NULL, NULL, 0, (cups_acopy_func_t)copy_lang, (cups_afree_func_t)free_lang);

@@ -441,10 +441,12 @@ typedef struct server_device_s		/**** Output Device data ****/
   server_preason_t	reasons;	/* printer-state-reasons values */
 } server_device_t;
 
+typedef struct server_resource_s server_resource_t;
+
 typedef struct server_lang_s		/**** Localization data ****/
 {
-  char			*lang,		/* Language code */
-			*filename;	/* Strings file */
+  char			*lang;		/* Language code */
+  server_resource_t	*resource;	/* Strings resource file */
 } server_lang_t;
 
 typedef struct server_pinfo_s		/**** Printer information ****/
@@ -495,6 +497,7 @@ typedef struct server_printer_s		/**** Printer data ****/
 			*resource;	/* Resource path */
   size_t		resourcelen;	/* Length of resource path */
   server_pinfo_t	pinfo;		/* Printer information */
+  server_resource_t	*icon_resource;	/* Printer icon resource */
   ipp_t			*dev_attrs;	/* Current device attributes */
   time_t		start_time;	/* Startup time */
   time_t		config_time;	/* printer-config-change-time */
@@ -553,7 +556,7 @@ struct server_job_s			/**** Job data ****/
 					/* Job resource IDs */
 };
 
-typedef struct server_resource_s	/**** Resource data ****/
+struct server_resource_s		/**** Resource data ****/
 {
   int			id;		/* resource-id */
   _cups_rwlock_t	rwlock;		/* Resource lock */
@@ -566,7 +569,7 @@ typedef struct server_resource_s	/**** Resource data ****/
   int			use,		/* Use count */
 			fd,		/* Resource file descriptor */
 			cancel;		/* Cancel pending */
-} server_resource_t;
+};
 
 typedef struct server_subscription_s	/**** Subscription data ****/
 {
@@ -690,6 +693,7 @@ VAR AvahiClient		*DNSSDClient	VALUE(NULL);
 VAR char		*DNSSDSubType	VALUE(NULL);
 
 VAR _cups_rwlock_t	ResourcesRWLock	VALUE(_CUPS_RWLOCK_INITIALIZER);
+VAR cups_array_t	*ResourcesByFilename VALUE(NULL);
 VAR cups_array_t	*ResourcesById	VALUE(NULL);
 VAR cups_array_t	*ResourcesByPath VALUE(NULL);
 VAR int			NextResourceId 	VALUE(1);
@@ -708,7 +712,7 @@ VAR int			NextSubscriptionId VALUE(1);
 extern void		serverAddEventNoLock(server_printer_t *printer, server_job_t *job, server_resource_t *res, server_event_t event, const char *message, ...) _CUPS_FORMAT(5, 6);
 extern void		serverAddPrinter(server_printer_t *printer);
 extern void		serverAddResourceFile(server_resource_t *res, const char *filename, const char *format);
-extern void		serverAddStringsFile(server_printer_t *printer, const char *language, const char *filename);
+extern void		serverAddStringsFile(server_printer_t *printer, const char *language, server_resource_t *resource);
 extern void		serverAllocatePrinterResource(server_printer_t *printer, server_resource_t *resource);
 extern http_status_t	serverAuthenticateClient(server_client_t *client);
 extern int		serverAuthorizeUser(server_client_t *client, const char *owner, gid_t group, const char *scope);
@@ -725,7 +729,7 @@ extern server_job_t	*serverCreateJob(server_client_t *client);
 extern void		serverCreateJobFilename(server_job_t *job, const char *format, char *fname, size_t fnamesize);
 extern int		serverCreateListeners(const char *host, int port);
 extern server_printer_t	*serverCreatePrinter(const char *resource, const char *name, const char *info, server_pinfo_t *pinfo, int dupe_pinfo);
-extern server_resource_t *serverCreateResource(const char *resource, const char *filename, const char *format, const char *name, const char *info, const char *type);
+extern server_resource_t *serverCreateResource(const char *resource, const char *filename, const char *format, const char *name, const char *info, const char *type, const char *language);
 extern void		serverCreateResourceFilename(server_resource_t *res, const char *format, const char *prefix, char *fname, size_t fnamesize);
 extern server_subscription_t *serverCreateSubscription(server_client_t *client, int interval, int lease, const char *username, ipp_attribute_t *notify_charset, ipp_attribute_t *notify_natural_language, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
 extern int		serverCreateSystem(const char *directory);
@@ -743,6 +747,7 @@ extern server_job_t	*serverFindJob(server_client_t *client, int job_id);
 extern server_printer_t	*serverFindPrinter(const char *resource);
 extern server_resource_t *serverFindResourceById(int id);
 extern server_resource_t *serverFindResourceByPath(const char *resource);
+extern server_resource_t *serverFindResourceByFilename(const char *filename);
 extern server_subscription_t *serverFindSubscription(server_client_t *client, int sub_id);
 extern server_jreason_t	serverGetJobStateReasonsBits(ipp_attribute_t *attr);
 extern server_event_t	serverGetNotifyEventsBits(ipp_attribute_t *attr);

@@ -1,8 +1,8 @@
 /*
  * Resource object code for sample IPP server implementation.
  *
- * Copyright © 2018 by the IEEE-ISTO Printer Working Group
- * Copyright © 2018 by Apple Inc.
+ * Copyright © 2018-2019 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2018-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -15,6 +15,7 @@
  * Local functions...
  */
 
+static int	compare_filenames(server_resource_t *a, server_resource_t *b);
 static int	compare_ids(server_resource_t *a, server_resource_t *b);
 static int	compare_resources(server_resource_t *a, server_resource_t *b);
 
@@ -41,13 +42,21 @@ serverAddResourceFile(
   res->format   = strdup(format);
   res->state    = IPP_RSTATE_AVAILABLE;
 
+  _cupsRWLockWrite(&ResourcesRWLock);
+
+  cupsArrayAdd(ResourcesByFilename, res);
+
   if (!res->resource)
   {
     char path[1024];			/* Resource path */
 
-    serverCreateResourceFilename(res, format, "/ipp/system", path, sizeof(path));
+    serverCreateResourceFilename(res, format, "/ipp/resource", path, sizeof(path));
+
     res->resource = strdup(path);
+    cupsArrayAdd(ResourcesByPath, res);
   }
+
+  _cupsRWUnlock(&ResourcesRWLock);
 
 #ifdef HAVE_SSL
   if (Encryption != HTTP_ENCRYPTION_NEVER)
@@ -82,8 +91,17 @@ serverCreateResourceFilename(
     char              *fname,		/* I - Filename buffer */
     size_t            fnamesize)	/* I - Size of filename buffer */
 {
-  const char	*ext;			/* Extension */
+  char			name[256],	/* "Safe" filename */
+			*nameptr;	/* Pointer into filename */
+  const char		*ext,		/* Filename extension */
+			*res_name;	/* resource-name value */
+  ipp_attribute_t	*res_name_attr;	/* resource-name attribute */
 
+
+  if ((res_name_attr = ippFindAttribute(res->attrs, "resource-name", IPP_TAG_NAME)) != NULL)
+    res_name = ippGetString(res_name_attr, 0, NULL);
+  else
+    res_name = "untitled";
 
   if (!strcmp(format, "application/ipp"))
     ext = ".ipp";
@@ -100,7 +118,17 @@ serverCreateResourceFilename(
   else
     ext = "";
 
-  snprintf(fname, fnamesize, "%s/%d%s", prefix, res->id, ext);
+  for (nameptr = name; *res_name && nameptr < (name + sizeof(name) - 1); res_name ++)
+    if (!_cups_strcasecmp(res_name, ext))
+      break;
+    else if (isalnum(*res_name & 255) || *res_name == '-')
+      *nameptr++ = (char)tolower(*res_name & 255);
+    else
+      *nameptr++ = '_';
+
+  *nameptr = '\0';
+
+  snprintf(fname, fnamesize, "%s/%d-%s%s", prefix, res->id, name, ext);
 }
 
 
@@ -115,7 +143,8 @@ serverCreateResource(
     const char *format,			/* I - MIME media type or `NULL` */
     const char *name,			/* I - Resource name */
     const char *info,			/* I - Resource info */
-    const char *type)			/* I - Resource type */
+    const char *type,			/* I - Resource type */
+    const char *language)		/* I - Resource language or `NULL` */
 {
   server_listener_t *lis = (server_listener_t *)cupsArrayFirst(Listeners);
 					/* First listener */
@@ -206,6 +235,9 @@ serverCreateResource(
 
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_NAME, "resource-name", NULL, name);
 
+  if (language)
+    ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_LANGUAGE, "resource-natural-language", NULL, language);
+
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_TEXT, "resource-state-message", NULL, "");
 
   ippAddOutOfBand(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_NOVALUE, "resource-string-version");
@@ -226,13 +258,16 @@ serverCreateResource(
 
   ippAddOutOfBand(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_NOVALUE, "time-at-canceled");
 
+  if (!ResourcesByFilename)
+    ResourcesByFilename = cupsArrayNew((cups_array_func_t)compare_filenames, NULL);
   if (!ResourcesById)
     ResourcesById = cupsArrayNew((cups_array_func_t)compare_ids, NULL);
   if (!ResourcesByPath)
     ResourcesByPath = cupsArrayNew((cups_array_func_t)compare_resources, NULL);
 
   cupsArrayAdd(ResourcesById, res);
-  cupsArrayAdd(ResourcesByPath, res);
+  if (res->resource)
+    cupsArrayAdd(ResourcesByPath, res);
 
   _cupsRWUnlock(&ResourcesRWLock);
 
@@ -257,6 +292,8 @@ serverDeleteResource(
 {
   _cupsRWLockWrite(&ResourcesRWLock);
 
+  if (res->filename)
+    cupsArrayRemove(ResourcesByFilename, res);
   cupsArrayRemove(ResourcesById, res);
   cupsArrayRemove(ResourcesByPath, res);
 
@@ -264,14 +301,10 @@ serverDeleteResource(
 
   ippDelete(res->attrs);
 
-  if (res->filename)
-    free(res->filename);
-  if (res->format)
-    free(res->format);
-  if (res->resource)
-    free(res->resource);
-  if (res->type)
-    free(res->type);
+  free(res->filename);
+  free(res->format);
+  free(res->resource);
+  free(res->type);
 
   _cupsRWUnlock(&res->rwlock);
   _cupsRWDeinit(&res->rwlock);
@@ -279,6 +312,28 @@ serverDeleteResource(
   free(res);
 
   _cupsRWUnlock(&ResourcesRWLock);
+}
+
+
+/*
+ * 'serverFindResourceByFilename()' - Find a resource by its local filename.
+ */
+
+server_resource_t *			/* O - Resource */
+serverFindResourceByFilename(
+    const char *filename)		/* I - Resource filename */
+{
+  server_resource_t	key,		/* Search key */
+			*res;		/* Matching resource */
+
+
+  key.filename = (char *)filename;
+
+  _cupsRWLockRead(&ResourcesRWLock);
+  res = (server_resource_t *)cupsArrayFind(ResourcesByFilename, &key);
+  _cupsRWUnlock(&ResourcesRWLock);
+
+  return (res);
 }
 
 
@@ -304,7 +359,7 @@ serverFindResourceById(int id)		/* I - Resource ID */
 
 
 /*
- * 'serverFindResourceByPath()' - Find a resource by its path.
+ * 'serverFindResourceByPath()' - Find a resource by its remote path.
  */
 
 server_resource_t *			/* O - Resource */
@@ -375,6 +430,19 @@ serverSetResourceState(
   }
 
   _cupsRWUnlock(&resource->rwlock);
+}
+
+
+/*
+ * 'compare_filenames()' - Compare two resource filenames.
+ */
+
+static int				/* O - Result of comparison */
+compare_filenames(
+    server_resource_t *a,		/* I - First resource */
+    server_resource_t *b)		/* I - Second resource */
+{
+  return (strcmp(a->filename, b->filename));
 }
 
 
