@@ -57,7 +57,7 @@ ippserver - a sample ipp server implementation
 <i>port</i>
 ] [
 <b>-r</b>
-<i>subtype</i>
+<i>subtype[,...,subtype]</i>
 ] [
 <b>-s</b>
 <i>speed[,color-speed]</i>
@@ -124,8 +124,8 @@ command.
 <dt><b>-p </b><i>port</i>
 <dd style="margin-left: 5.0em">Specifies the port number to listen on.
 The default is a user-specific number from 8000 to 8999.
-<dt><b>-r </b><i>subtype</i>
-<dd style="margin-left: 5.0em">Specifies the Bonjour subtype to advertise for the printer.
+<dt><b>-r </b><i>subtype[,...,subtype]</i>
+<dd style="margin-left: 5.0em">Specifies one or more comma-separated DNS-SD subtypes to advertise for the printer.
 The default subtype is "_print".
 <dt><b>--relaxed</b>
 <dd style="margin-left: 5.0em">Runs the server in relaxed conformance mode, which allows certain harmless IPP conformance issues to be ignored.
