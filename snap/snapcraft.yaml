@@ -14,6 +14,9 @@ apps:
     server:
         command: sbin/server
         plugs: [avahi-observe, home, network, network-bind]
+    eveprinter:
+        command: bin/eveprinter
+        plugs: [avahi-observe, home, network, network-bind]
     find:
         command: bin/find
         plugs: [avahi-observe, home, network]
@@ -22,13 +25,13 @@ apps:
         plugs: [avahi-observe, home, network]
     tool:
         command: bin/tool
-        plugs: [avahi-observe, home, network]
+        plugs: [home, network]
     transform:
         command: bin/transform
-        plugs: [avahi-observe, home, network]
+        plugs: [home, network]
     transform3d:
         command: bin/transform3d
-        plugs: [avahi-observe, home, network]
+        plugs: [home, network]
 
 parts:
     mupdf:
