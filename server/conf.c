@@ -2565,6 +2565,10 @@ load_system(const char *conf)		/* I - Configuration file */
 	  *ptr++ = '\0';
 	  port   = atoi(ptr);
 	}
+	else if (DefaultPort)
+	{
+	  port = DefaultPort;
+	}
 	else
 	{
 #ifdef _WIN32
@@ -2573,6 +2577,9 @@ load_system(const char *conf)		/* I - Configuration file */
 	  port = 8000 + ((int)getuid() % 1000);
 #endif /* _WIN32 */
 	}
+
+        if (!DefaultPort)
+          DefaultPort = port;
 
 	if (!serverCreateListeners(host, port))
 	{
