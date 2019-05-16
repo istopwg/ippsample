@@ -26,12 +26,6 @@ apps:
     tool:
         command: bin/tool
         plugs: [home, network]
-    transform:
-        command: bin/transform
-        plugs: [home, network]
-    transform3d:
-        command: bin/transform3d
-        plugs: [home, network]
 
 parts:
     mupdf:
