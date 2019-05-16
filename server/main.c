@@ -342,7 +342,7 @@ usage(int status)			/* O - Exit status */
   puts("-m model                Model name (default=Printer)");
   puts("-n hostname             Hostname for printer");
   puts("-p port                 Port number (default=auto)");
-  puts("-r subtype              Bonjour service subtype (default=_print)");
+  puts("-r subtype[,...]        DNS-SD service subtypes (default=_print)");
   puts("-s speed[,color-speed]  Speed in pages per minute (default=10,0)");
   puts("-v[v]                   Be (very) verbose");
 
