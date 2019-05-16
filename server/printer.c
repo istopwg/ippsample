@@ -2119,7 +2119,7 @@ serverRegisterPrinter(
 	  end = start + strlen(start);
 
 	snprintf(regtype, sizeof(regtype), "%s._sub." SERVER_IPP_TYPE, start);
-	avahi_entry_group_add_service_subtype(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPP_TYPE, NULL, regtype);
+	avahi_entry_group_add_service_subtype(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_IPP_TYPE, NULL, regtype);
       }
 
       free(temptypes);
@@ -2144,7 +2144,7 @@ serverRegisterPrinter(
 	    end = start + strlen(start);
 
 	  snprintf(regtype, sizeof(regtype), "%s._sub." SERVER_IPPS_3D_TYPE, start);
-	  avahi_entry_group_add_service_subtype(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPPS_3D_TYPE, NULL, regtype);
+	  avahi_entry_group_add_service_subtype(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_IPPS_3D_TYPE, NULL, regtype);
 	}
 
 	free(temptypes);
@@ -2165,7 +2165,7 @@ serverRegisterPrinter(
 	    end = start + strlen(start);
 
 	  snprintf(regtype, sizeof(regtype), "%s._sub." SERVER_IPPS_TYPE, start);
-	  avahi_entry_group_add_service_subtype(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, SERVER_IPPS_TYPE, NULL, regtype);
+	  avahi_entry_group_add_service_subtype(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_IPPS_TYPE, NULL, regtype);
 	}
 
 	free(temptypes);
