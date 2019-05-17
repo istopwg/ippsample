@@ -449,6 +449,12 @@ typedef struct server_lang_s		/**** Localization data ****/
   server_resource_t	*resource;	/* Strings resource file */
 } server_lang_t;
 
+typedef struct server_icc_s		/**** ICC color profile data ****/
+{
+  server_resource_t	*resource;	/* ICC resource file */
+  ipp_t			*attrs;		/* Selection attributes/values */
+} server_icc_t;
+
 typedef struct server_pinfo_s		/**** Printer information ****/
 {
   char		*icon,			/* Icon file */
@@ -468,6 +474,7 @@ typedef struct server_pinfo_s		/**** Printer information ****/
 		ppm_color;		/* Pages per minute for color */
   ipp_t		*attrs;			/* Printer attributes */
   cups_array_t	*strings;		/* Strings files */
+  cups_array_t	*profiles;		/* ICC color profiles */
   int		max_devices;		/* Maximum number of devices */
   cups_array_t	*devices;		/* Associated devices */
   char		initial_accepting;	/* Initial printer-is-accepting-jobs */

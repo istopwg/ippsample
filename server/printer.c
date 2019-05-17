@@ -748,6 +748,8 @@ serverCreatePrinter(
     printer->pinfo.device_uri       = pinfo->device_uri ? strdup(pinfo->device_uri) : NULL;
     printer->pinfo.output_format    = pinfo->output_format ? strdup(pinfo->output_format) : NULL;
     printer->pinfo.devices          = cupsArrayDup(pinfo->devices);
+    printer->pinfo.profiles         = cupsArrayDup(pinfo->profiles);
+    printer->pinfo.strings          = cupsArrayDup(pinfo->strings);
   }
 
   uris = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
@@ -1331,6 +1333,22 @@ serverCreatePrinter(
   if (!cupsArrayFind(existing, (void *)"printer-geo-location"))
     ippAddOutOfBand(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_UNKNOWN, "printer-geo-location");
 
+  /* printer-icc-profiles */
+  if (!cupsArrayFind(existing, (void *)"printer-icc-profiles") && printer->pinfo.profiles)
+  {
+    server_icc_t	*icc;		/* ICC profile */
+
+    for (attr = NULL, icc = (server_icc_t *)cupsArrayFirst(printer->pinfo.profiles); icc; icc = (server_icc_t *)cupsArrayNext(printer->pinfo.profiles))
+    {
+      serverAllocatePrinterResource(printer, icc->resource);
+
+      if (!attr)
+        attr = ippAddCollection(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-icc-profiles", icc->attrs);
+      else
+        ippSetCollection(printer->pinfo.attrs, &attr, ippGetCount(attr), icc->attrs);
+    }
+  }
+
   /* printer-icons */
   ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-icons", NULL, icons);
 
@@ -1726,6 +1744,7 @@ serverDeletePrinter(
   if (printer->pinfo.device_uri)
     free(printer->pinfo.device_uri);
 
+  cupsArrayDelete(printer->pinfo.profiles);
   cupsArrayDelete(printer->pinfo.strings);
 
   for (device = (server_device_t *)cupsArrayFirst(printer->pinfo.devices); device; device = (server_device_t *)cupsArrayNext(printer->pinfo.devices))
