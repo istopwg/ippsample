@@ -1,12 +1,12 @@
 .\"
 .\" ippdoclint man page.
 .\"
-.\" Copyright © 2018 by the IEEE-ISTO Printer Working Group.
+.\" Copyright © 2018-2019 by the IEEE-ISTO Printer Working Group.
 .\"
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ippdoclint 1 "ippsample" "6 March 2018" "Apple Inc."
+.TH ippdoclint 1 "ippsample" "2019-05-17" "Apple Inc."
 .SH NAME
 ippdoclint \- check common document formats
 .SH SYNOPSIS
@@ -85,9 +85,9 @@ Specifies the MIME media type of the input file.
 Specifies the value of the "xxx" Job Template attribute, where "xxx" is converted to uppercase.
 For example, the "copies" Job Template attribute is stored as the "IPP_COPIES" environment variable.
 .TP 5
-.B PRINTER_xxx_DEFAULT
+.B IPP_xxx_DEFAULT
 Specifies the default value of the corresponding "xxx-default" Printer Description attribute, where "xxx" is converted to uppercase.
-For example, the "copies-default" Printer Description attribute is stored as the "PRINTER_COPIES_DEFAULT" environment variable.
+For example, the "copies-default" Printer Description attribute is stored as the "IPP_COPIES_DEFAULT" environment variable.
 .TP 5
 .B SERVER_LOGLEVEL
 Specifies the log level (verbosity) as "error", "info", or "debug".
@@ -104,7 +104,8 @@ Check a JPEG file:
     ippdoclint filename.jpg
 .fi
 .SH SEE ALSO
-.BR ipptransform (1),
+.BR ipptransform (7),
+.BR ipptransform3d (7),
 PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp)
 .SH COPYRIGHT
-Copyright \[co] 2018 by the IEEE-ISTO Printer Working Group.
+Copyright \[co] 2018-2019 by the IEEE-ISTO Printer Working Group.

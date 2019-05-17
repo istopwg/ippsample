@@ -78,9 +78,9 @@ recognizes the following environment variables:
 <dt><b>IPP_xxx</b>
 <dd style="margin-left: 5.0em">Specifies the value of the "xxx" Job Template attribute, where "xxx" is converted to uppercase.
 For example, the "copies" Job Template attribute is stored as the "IPP_COPIES" environment variable.
-<dt><b>PRINTER_xxx_DEFAULT</b>
+<dt><b>IPP_xxx_DEFAULT</b>
 <dd style="margin-left: 5.0em">Specifies the default value of the corresponding "xxx-default" Printer Description attribute, where "xxx" is converted to uppercase.
-For example, the "copies-default" Printer Description attribute is stored as the "PRINTER_COPIES_DEFAULT" environment variable.
+For example, the "copies-default" Printer Description attribute is stored as the "IPP_COPIES_DEFAULT" environment variable.
 <dt><b>SERVER_LOGLEVEL</b>
 <dd style="margin-left: 5.0em">Specifies the log level (verbosity) as "error", "info", or "debug".
 </dl>
@@ -96,10 +96,11 @@ Check a PDF file:
     ippdoclint filename.jpg
 </pre>
 <h2 class="title"><a name="SEE_ALSO">See Also</a></h2>
-<a href="ipptransform.html"><b>ipptransform</b>(1)</a>,
+<b>ipptransform</b>(7),
+<b>ipptransform3d</b>(7),
 PWG Internet Printing Protocol Workgroup (<a href="http://www.pwg.org/ipp">http://www.pwg.org/ipp</a>)
 <h2 class="title"><a name="COPYRIGHT">Copyright</a></h2>
-Copyright &copy; 2018 by the IEEE-ISTO Printer Working Group.
+Copyright &copy; 2018-2019 by the IEEE-ISTO Printer Working Group.
 
 </body>
 </html>

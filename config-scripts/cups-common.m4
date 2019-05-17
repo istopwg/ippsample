@@ -203,7 +203,7 @@ case "$use_pdfrip" in
 			AC_DEFINE(HAVE_COREGRAPHICS)
 			IPPTRANSFORM_BIN="ipptransform"
 			IPPTRANSFORM_HTML="ipptransform.html"
-			IPPTRANSFORM_MAN="ipptransform.1"
+			IPPTRANSFORM_MAN="ipptransform.7"
 		],[
 			LIBS="$SAVELIBS"
 			if test "x$with_pdfrip" = xcoregraphics; then
@@ -227,7 +227,7 @@ case "$use_pdfrip" in
 			LIBS="-lmupdf -lmupdfthird $LIBS"
 			IPPTRANSFORM_BIN="ipptransform"
 			IPPTRANSFORM_HTML="ipptransform.html"
-			IPPTRANSFORM_MAN="ipptransform.1"
+			IPPTRANSFORM_MAN="ipptransform.7"
 
                         AC_MSG_CHECKING(for version of fz_new_pixmap function)
                         AC_TRY_COMPILE([#include <mupdf/fitz.h>],[
@@ -284,7 +284,7 @@ PATH="$SAVEPATH"
 if test "x$CURAENGINE" != x; then
 	IPPTRANSFORM3D_BIN="ipptransform3d"
 	IPPTRANSFORM3D_HTML="ipptransform3d.html"
-	IPPTRANSFORM3D_MAN="ipptransform3d.1"
+	IPPTRANSFORM3D_MAN="ipptransform3d.7"
 
 	AC_DEFINE_UNQUOTED(CURAENGINE, "$CURAENGINE")
 fi

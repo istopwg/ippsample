@@ -46,7 +46,7 @@ ipptransform - convert document data to alternate formats
 converts the input file into the output format and optionally sends the output to a network printer.
 <b>ipptransform</b>
 is normally run by
-<a href="ippserver.html"><b>ippserver</b>(8)</a>
+<b>ippserver</b>(8)
 to convert document data for printing.
 <h2 class="title"><a name="OPTIONS">Options</a></h2>
 The following options are recognized by
@@ -132,20 +132,20 @@ recognizes the following environment variables:
 <dt><b>IPP_xxx</b>
 <dd style="margin-left: 5.0em">Specifies the value of the "xxx" Job Template attribute, where "xxx" is converted to uppercase.
 For example, the "media" Job Template attribute is stored as the "IPP_MEDIA" environment variable.
+<dt><b>IPP_xxx_DEFAULT</b>
+<dd style="margin-left: 5.0em">Specifies the default value of the corresponding "xxx-default" Printer Description attribute, where "xxx" is converted to uppercase.
+For example, the "media-default" Printer Description attribute is stored as the "IPP_MEDIA_DEFAULT" environment variable.
+<dt><b>IPP_PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED</b>
+<dd style="margin-left: 5.0em">Lists the supported output resolutions.
+<dt><b>IPP_PWG_RASTER_DOCUMENT_SHEET_BACK</b>
+<dd style="margin-left: 5.0em">Specifies the coordinate system of the back side of duplex sheets.
+<dt><b>IPP_PWG_RASTER_DOCUMENT_TYPE_SUPPORTED</b>
+<dd style="margin-left: 5.0em">Lists the supported output color spaces and bit depths.
 <dt>IPPTRANSFORM_MAX_RASTER
 <dd style="margin-left: 5.0em">Specifies the maximum number of bytes to use when generating raster data.
 The default is 16MB.
 <dt><b>OUTPUT_TYPE</b>
 <dd style="margin-left: 5.0em">Specifies the MIME media type of the output file.
-<dt><b>PRINTER_xxx_DEFAULT</b>
-<dd style="margin-left: 5.0em">Specifies the default value of the corresponding "xxx-default" Printer Description attribute, where "xxx" is converted to uppercase.
-For example, the "media-default" Printer Description attribute is stored as the "PRINTER_MEDIA_DEFAULT" environment variable.
-<dt><b>PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED</b>
-<dd style="margin-left: 5.0em">Lists the supported output resolutions.
-<dt><b>PWG_RASTER_DOCUMENT_SHEET_BACK</b>
-<dd style="margin-left: 5.0em">Specifies the coordinate system of the back side of duplex sheets.
-<dt><b>PWG_RASTER_DOCUMENT_TYPE_SUPPORTED</b>
-<dd style="margin-left: 5.0em">Lists the supported output color spaces and bit depths.
 <dt><b>SERVER_LOGLEVEL</b>
 <dd style="margin-left: 5.0em">Specifies the log level (verbosity) as "error", "info", or "debug".
 </dl>
@@ -169,12 +169,13 @@ Print a PDF file to a PCL printer at 10.0.1.42:
         filename.jpg >filename.ras
 </pre>
 <h2 class="title"><a name="SEE_ALSO">See Also</a></h2>
-<a href="ippserver.html"><b>ippserver</b>(8)</a>,
-<a href="ipptool.html"><b>ipptool</b>(1)</a>,
-<a href="ipptransform3d.html"><b>ipptransform3d</b>(1)</a>
+<b>ippdoclint</b>(7),
+<b>ippserver</b>(8),
+<b>ipptool</b>(1),
+<b>ipptransform3d</b>(7)
 <h2 class="title"><a name="COPYRIGHT">Copyright</a></h2>
-Copyright &copy; 2016-2018 by the IEEE-ISTO Printer Working Group.
-Copyright &copy; 2016-2018 by Apple Inc.
+Copyright &copy; 2016-2019 by the IEEE-ISTO Printer Working Group.
+Copyright &copy; 2016-2019 by Apple Inc.
 
 </body>
 </html>

@@ -1,13 +1,13 @@
 .\"
 .\" ipptransform3d man page.
 .\"
-.\" Copyright © 2016-2017 by the IEEE-ISTO Printer Working Group.
-.\" Copyright © 2016-2017 by Apple Inc.
+.\" Copyright © 2016-2019 by the IEEE-ISTO Printer Working Group.
+.\" Copyright © 2016-2019 by Apple Inc.
 .\"
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ipptransform3d 1 "ippsample" "12 May 2017" "Apple Inc."
+.TH ipptransform3d 7 "ippsample" "2019-05-17" "Apple Inc."
 .SH NAME
 ipptransform3d \- convert 3d document data to alternate formats
 .SH SYNOPSIS
@@ -114,13 +114,13 @@ Specifies the title of the input file.
 Specifies the value of the "xxx" Job Template attribute, where "xxx" is converted to uppercase.
 For example, the "materials-col" Job Template attribute is stored as the "IPP_MATERIALS_COL" environment variable.
 .TP 5
+.B IPP_xxx_DEFAULT
+Specifies the default value of the corresponding "xxx-default" Printer Description attribute, where "xxx" is converted to uppercase.
+For example, the "materials-col-default" Printer Description attribute is stored as the "IPP_MATERIALS_COL_DEFAULT" environment variable.
+.TP 5
 .B OUTPUT_TYPE
 Specifies the MIME media type of the output file.
 For 'application/g-code' the "flavor" media type parameter specifies the variant of G-code to produce: 'bfb', 'griffin', 'mach3', 'makerbot', 'reprap' (default), 'reprap-volumatric', and 'ultimaker' are currently supported.
-.TP 5
-.B PRINTER_xxx_DEFAULT
-Specifies the default value of the corresponding "xxx-default" Printer Description attribute, where "xxx" is converted to uppercase.
-For example, the "materials-col-default" Printer Description attribute is stored as the "PRINTER_MATERIALS_COL_DEFAULT" environment variable.
 .TP 5
 .B SERVER_LOGLEVEL
 Specifies the log level (verbosity) as "error", "info", or "debug".
@@ -132,9 +132,10 @@ Print a 3MF file to a G-code printer connected via USB on Linux using the defaul
         filename.3mf
 .fi
 .SH SEE ALSO
+.BR ippdoclint (7),
 .BR ippserver (8),
-.BR ipptool (1)
-.BR ipptransform (1)
+.BR ipptool (1),
+.BR ipptransform (7)
 .SH COPYRIGHT
-Copyright \[co] 2016-2018 by the IEEE-ISTO Printer Working Group.
-Copyright \[co] 2016-2018 by Apple Inc.
+Copyright \[co] 2016-2019 by the IEEE-ISTO Printer Working Group.
+Copyright \[co] 2016-2019 by Apple Inc.

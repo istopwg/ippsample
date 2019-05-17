@@ -1,13 +1,13 @@
 .\"
 .\" ipptransform man page.
 .\"
-.\" Copyright © 2016-2018 by the IEEE-ISTO Printer Working Group.
-.\" Copyright © 2016-2018 by Apple Inc.
+.\" Copyright © 2016-2019 by the IEEE-ISTO Printer Working Group.
+.\" Copyright © 2016-2019 by Apple Inc.
 .\"
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ipptransform 1 "ippsample" "22 June 2018" "Apple Inc."
+.TH ipptransform 1 "ippsample" "2019-05-17" "Apple Inc."
 .SH NAME
 ipptransform \- convert document data to alternate formats
 .SH SYNOPSIS
@@ -151,25 +151,25 @@ Specifies the title of the input file.
 Specifies the value of the "xxx" Job Template attribute, where "xxx" is converted to uppercase.
 For example, the "media" Job Template attribute is stored as the "IPP_MEDIA" environment variable.
 .TP 5
+.B IPP_xxx_DEFAULT
+Specifies the default value of the corresponding "xxx-default" Printer Description attribute, where "xxx" is converted to uppercase.
+For example, the "media-default" Printer Description attribute is stored as the "IPP_MEDIA_DEFAULT" environment variable.
+.TP 5
+.B IPP_PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED
+Lists the supported output resolutions.
+.TP 5
+.B IPP_PWG_RASTER_DOCUMENT_SHEET_BACK
+Specifies the coordinate system of the back side of duplex sheets.
+.TP 5
+.B IPP_PWG_RASTER_DOCUMENT_TYPE_SUPPORTED
+Lists the supported output color spaces and bit depths.
+.TP 5
 IPPTRANSFORM_MAX_RASTER
 Specifies the maximum number of bytes to use when generating raster data.
 The default is 16MB.
 .TP 5
 .B OUTPUT_TYPE
 Specifies the MIME media type of the output file.
-.TP 5
-.B PRINTER_xxx_DEFAULT
-Specifies the default value of the corresponding "xxx-default" Printer Description attribute, where "xxx" is converted to uppercase.
-For example, the "media-default" Printer Description attribute is stored as the "PRINTER_MEDIA_DEFAULT" environment variable.
-.TP 5
-.B PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED
-Lists the supported output resolutions.
-.TP 5
-.B PWG_RASTER_DOCUMENT_SHEET_BACK
-Specifies the coordinate system of the back side of duplex sheets.
-.TP 5
-.B PWG_RASTER_DOCUMENT_TYPE_SUPPORTED
-Lists the supported output color spaces and bit depths.
 .TP 5
 .B SERVER_LOGLEVEL
 Specifies the log level (verbosity) as "error", "info", or "debug".
@@ -195,9 +195,10 @@ Convert a JPEG file to sRGB PWG Raster at 600dpi:
         filename.jpg >filename.ras
 .fi
 .SH SEE ALSO
+.BR ippdoclint (7),
 .BR ippserver (8),
-.BR ipptool (1)
-.BR ipptransform3d (1),
+.BR ipptool (1),
+.BR ipptransform3d (7)
 .SH COPYRIGHT
-Copyright \[co] 2016-2018 by the IEEE-ISTO Printer Working Group.
-Copyright \[co] 2016-2018 by Apple Inc.
+Copyright \[co] 2016-2019 by the IEEE-ISTO Printer Working Group.
+Copyright \[co] 2016-2019 by Apple Inc.
