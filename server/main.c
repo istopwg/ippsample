@@ -99,6 +99,24 @@ main(int  argc,				/* I - Number of command-line args */
               confdir = argv[i];
               break;
 
+	  case 'D' : /* -D device-uri */
+	      i ++;
+	      if (i >= argc)
+	        usage(1);
+
+
+	      pinfo.device_uri = argv[i];
+	      break;
+
+	  case 'F' : /* -F output-type/subtype */
+	      i ++;
+	      if (i >= argc)
+	        usage(1);
+
+
+	      pinfo.output_format = argv[i];
+	      break;
+
 #ifdef HAVE_SSL
 	  case 'K' : /* -K keypath */
 	      i ++;
@@ -319,11 +337,13 @@ usage(int status)			/* O - Exit status */
   puts("Usage: ippserver [options] \"name\"");
   puts("");
   puts("Options:");
-  puts("--help                  Show program help.");
-  puts("--relaxed               Run in relaxed conformance mode.");
-  puts("--version               Show program version.");
+  puts("--help                  Show program help");
+  puts("--relaxed               Run in relaxed conformance mode");
+  puts("--version               Show program version");
   puts("-2                      Supports 2-sided printing (default=1-sided)");
-  puts("-C config-directory     Load settings and printers from the specified directory.");
+  puts("-C config-directory     Load settings and printers from the specified directory");
+  puts("-D device-uri           Set the device URI for the printer");
+  puts("-F output-type/subtype  Set the output format for the printer");
 #ifdef HAVE_SSL
   puts("-K keypath              Specifies the location of certificates and keys");
 #endif /* HAVE_SSL */

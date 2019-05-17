@@ -17,6 +17,12 @@ ippserver - a sample ipp server implementation
 <b>-C</b>
 <i>config-directory</i>
 ] [
+<b>-D</b>
+<i>device-uri</i>
+] [
+<b>-F</b>
+<i>output-type/subtype</i>
+] [
 <b>-K</b>
 <i>keypath</i>
 ] [
@@ -88,6 +94,10 @@ The following options are recognized by
 <dt><b>-C </b><i>config-directory</i>
 <dd style="margin-left: 5.0em">Specifies the location of a directory containing files that define the configuration of the server and the service instances that are available.
 See the section titled "CONFIGURATION DIRECTORIES" below.
+<dt><b>-D </b><i>device-uri</i>
+<dd style="margin-left: 5.0em">Set the device URI for print output.
+<dt><b>-F </b><i>output-type/subtype[,...]</i>
+<dd style="margin-left: 5.0em">Specifies the output MIME media type.
 <dt><b>-K </b><i>keypath</i>
 <dd style="margin-left: 5.0em">Specifies the location of TLS certificates and private keys.
 <dt><b>-M </b><i>manufacturer</i>

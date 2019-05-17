@@ -1,8 +1,8 @@
 /*
  * Utility for converting PDF and JPEG files to raster data or HP PCL.
  *
- * Copyright © 2016-2018 by the IEEE-ISTO Printer Working Group.
- * Copyright © 2016-2018 by Apple Inc.
+ * Copyright © 2016-2019 by the IEEE-ISTO Printer Working Group.
+ * Copyright © 2016-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -165,9 +165,9 @@ main(int  argc,				/* I - Number of command-line args */
   content_type = getenv("CONTENT_TYPE");
   device_uri   = getenv("DEVICE_URI");
   output_type  = getenv("OUTPUT_TYPE");
-  resolutions  = getenv("PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED");
-  sheet_back   = getenv("PWG_RASTER_DOCUMENT_SHEET_BACK");
-  types        = getenv("PWG_RASTER_DOCUMENT_TYPE_SUPPORTED");
+  resolutions  = getenv("IPP_PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED");
+  sheet_back   = getenv("IPP_PWG_RASTER_DOCUMENT_SHEET_BACK");
+  types        = getenv("IPP_PWG_RASTER_DOCUMENT_TYPE_SUPPORTED");
 
   if ((opt = getenv("SERVER_LOGLEVEL")) != NULL)
   {
@@ -1743,7 +1743,7 @@ xform_document(
   */
 
   if ((print_scaling = cupsGetOption("print-scaling", num_options, options)) == NULL)
-    if ((print_scaling = getenv("PRINTER_PRINT_SCALING_DEFAULT")) == NULL)
+    if ((print_scaling = getenv("IPP_PRINT_SCALING_DEFAULT")) == NULL)
       print_scaling = "auto";
 
  /*
@@ -2343,7 +2343,7 @@ xform_document(
   */
 
   if ((print_scaling = cupsGetOption("print-scaling", num_options, options)) == NULL)
-    if ((print_scaling = getenv("PRINTER_PRINT_SCALING_DEFAULT")) == NULL)
+    if ((print_scaling = getenv("IPP_PRINT_SCALING_DEFAULT")) == NULL)
       print_scaling = "auto";
 
  /*
@@ -2692,7 +2692,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     * Use default size...
     */
 
-    const char	*media_default = getenv("PRINTER_MEDIA_DEFAULT");
+    const char	*media_default = getenv("IPP_MEDIA_DEFAULT");
 				/* "media-default" value */
 
     if (!media_default)
@@ -2784,7 +2784,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   */
 
   if ((print_color_mode = cupsGetOption("print-color-mode", num_options, options)) == NULL)
-    print_color_mode = getenv("PRINTER_PRINT_COLOR_MODE_DEFAULT");
+    print_color_mode = getenv("IPP_PRINT_COLOR_MODE_DEFAULT");
 
   if (print_color_mode)
   {
@@ -2884,7 +2884,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     sides = "one-sided";
   else if ((sides = cupsGetOption("sides", num_options, options)) == NULL)
   {
-    if ((sides = getenv("PRINTER_SIDES_DEFAULT")) == NULL)
+    if ((sides = getenv("IPP_SIDES_DEFAULT")) == NULL)
       sides = "one-sided";
   }
 

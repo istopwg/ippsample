@@ -7,7 +7,7 @@
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ippserver 8 "ippsample" "2019-05-16" "Apple Inc."
+.TH ippserver 8 "ippsample" "2019-05-17" "Apple Inc."
 .SH NAME
 ippserver \- a sample ipp server implementation
 .SH SYNOPSIS
@@ -17,6 +17,12 @@ ippserver \- a sample ipp server implementation
 ] [
 .B \-C
 .I config-directory
+] [
+.B \-D
+.I device-uri
+] [
+.B \-F
+.I output-type/subtype
 ] [
 .B \-K
 .I keypath
@@ -90,6 +96,12 @@ Specifies that the printer supports two-sided printing.
 \fB\-C \fIconfig-directory\fR
 Specifies the location of a directory containing files that define the configuration of the server and the service instances that are available.
 See the section titled "CONFIGURATION DIRECTORIES" below.
+.TP 5
+\fB\-D \fIdevice-uri\fR
+Set the device URI for print output.
+.TP 5
+\fB\-F \fIoutput-type/subtype[,...]\fR
+Specifies the output MIME media type.
 .TP 5
 \fB\-K \fIkeypath\fR
 Specifies the location of TLS certificates and private keys.

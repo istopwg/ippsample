@@ -1,7 +1,7 @@
 /*
  * ipptransform3d utility for converting 3MF and STL files to G-code.
  *
- * Copyright 2016-2018 by the IEEE-ISTO Printer Working Group.
+ * Copyright 2016-2019 by the IEEE-ISTO Printer Working Group.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -762,7 +762,7 @@ xform_document(
 
   if ((val = cupsGetOption("platform-temperature", num_options, options)) != NULL)
     platform = atoi(val);
-  else if ((val = getenv("PRINTER_PLATFORM_TEMPERATURE_DEFAULT")) != NULL)
+  else if ((val = getenv("IPP_PLATFORM_TEMPERATURE_DEFAULT")) != NULL)
     platform = atoi(val);
   else
     platform = 0;
@@ -776,7 +776,7 @@ xform_document(
   }
 
   if ((val = cupsGetOption("materials-col", num_options, options)) == NULL)
-    val = getenv("PRINTER_MATERIALS_COL_DEFAULT");
+    val = getenv("IPP_MATERIALS_COL_DEFAULT");
 
   if (val)
     fprintf(stderr, "DEBUG: materials-col=%s\n", val);
@@ -804,7 +804,7 @@ xform_document(
 
   if ((val = cupsGetOption("print-quality", num_options, options)) != NULL)
     quality = atoi(val);
-  else if ((val = getenv("PRINTER_PRINT_QUALITY_DEFAULT")) != NULL)
+  else if ((val = getenv("IPP_PRINT_QUALITY_DEFAULT")) != NULL)
     quality = atoi(val);
   else
     quality = 4; /* Normal */
@@ -906,7 +906,7 @@ xform_document(
   */
 
   if ((base = cupsGetOption("print-base", num_options, options)) == NULL)
-    if ((base = getenv("PRINTER_PRINT_BASE_DEFAULT")) == NULL)
+    if ((base = getenv("IPP_PRINT_BASE_DEFAULT")) == NULL)
       base = "none";
 
   if (!strcmp(base, "brim"))
@@ -964,7 +964,7 @@ xform_document(
   }
 
   if ((supports = cupsGetOption("print-supports", num_options, options)) == NULL)
-    if ((supports = getenv("PRINTER_PRINT_SUPPORTS_DEFAULT")) == NULL)
+    if ((supports = getenv("IPP_PRINT_SUPPORTS_DEFAULT")) == NULL)
       supports = "none";
 
   if (strcmp(supports, "none"))
