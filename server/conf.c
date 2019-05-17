@@ -3299,6 +3299,7 @@ save_printer(
 #ifndef _WIN32
   struct group	*grp;			/* Group information */
 #endif /* !_WIN32 */
+  server_icc_t	*icc;			/* Current ICC profile */
   server_lang_t	*lang;			/* Current language */
   server_device_t *device;		/* Current device */
 
@@ -3328,6 +3329,27 @@ save_printer(
 
     if (printer->pinfo.output_format)
       cupsFilePutConf(fp, "OutputFormat", printer->pinfo.output_format);
+
+    for (icc = (server_icc_t *)cupsArrayFirst(printer->pinfo.profiles); icc; icc = (server_icc_t *)cupsArrayNext(printer->pinfo.profiles))
+    {
+      const char *name = ippGetString(ippFindAttribute(icc->attrs, "profile-name", IPP_TAG_NAME), 0, NULL);
+					/* Name string */
+
+      cupsFilePuts(fp, "Profile ");
+      print_escaped_string(fp, name, strlen(name));
+      cupsFilePuts(fp, " ");
+      print_escaped_string(fp, icc->resource->filename, strlen(icc->resource->filename));
+      cupsFilePuts(fp, " {\n");
+
+      for (attr = ippFirstAttribute(icc->attrs); attr; attr = ippNextAttribute(icc->attrs))
+      {
+        name = ippGetName(attr);
+
+        if (strcmp(name, "profile-name") && strcmp(name, "profile-uri"))
+          print_ipp_attr(fp, attr, 4);
+      }
+      cupsFilePuts(fp, "}\n");
+    }
 
     for (lang = (server_lang_t *)cupsArrayFirst(printer->pinfo.strings); lang; lang = (server_lang_t *)cupsArrayNext(printer->pinfo.strings))
       cupsFilePrintf(fp, "Strings %s %s\n", lang->lang, lang->resource->filename);
