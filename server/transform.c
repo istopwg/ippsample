@@ -626,8 +626,10 @@ process_state_message(
     char         *message)		/* I - Message */
 {
   int		i;			/* Looping var */
-  server_preason_t state_reasons,	/* printer-state-reasons values */
-		bit;			/* Current reason bit */
+  server_preason_t preasons,		/* printer-state-reasons values */
+		pbit;			/* Current printer reason bit */
+  server_jreason_t jreasons,		/* job-state-reasons values */
+		jbit;			/* Current job reason bit */
   char		*ptr,			/* Pointer into message */
 		*next;			/* Next keyword in message */
   int		remove;			/* Non-zero if we are removing keywords */
@@ -644,7 +646,7 @@ process_state_message(
  /*
   * Support the following forms of message:
   *
-  * "keyword[,keyword,...]" to set the printer-state-reasons value(s).
+  * "keyword[,keyword,...]" to set the job/printer-state-reasons value(s).
   *
   * "-keyword[,keyword,...]" to remove keywords.
   *
@@ -656,26 +658,40 @@ process_state_message(
 
   if (*message == '-')
   {
-    remove        = 1;
-    state_reasons = job->printer->state_reasons;
+    remove   = 1;
+    jreasons = job->state_reasons;
+    preasons = job->printer->state_reasons;
     message ++;
   }
   else if (*message == '+')
   {
-    remove        = 0;
-    state_reasons = job->printer->state_reasons;
+    remove   = 0;
+    jreasons = job->state_reasons;
+    preasons = job->printer->state_reasons;
     message ++;
   }
   else
   {
-    remove        = 0;
-    state_reasons = SERVER_PREASON_NONE;
+    remove   = 0;
+    jreasons = job->state_reasons;
+    preasons = SERVER_PREASON_NONE;
   }
 
   while (*message)
   {
     if ((next = strchr(message, ',')) != NULL)
       *next++ = '\0';
+
+    for (i = 0, jbit = 1; i < (int)(sizeof(server_jreasons) / sizeof(server_jreasons[0])); i ++, jbit *= 2)
+    {
+      if (!strcmp(message, server_jreasons[i]))
+      {
+        if (remove)
+	  jreasons &= ~jbit;
+	else
+	  jreasons |= jbit;
+      }
+    }
 
     if ((ptr = strstr(message, "-error")) != NULL)
       *ptr = '\0';
@@ -684,14 +700,14 @@ process_state_message(
     else if ((ptr = strstr(message, "-warning")) != NULL)
       *ptr = '\0';
 
-    for (i = 0, bit = 1; i < (int)(sizeof(server_preasons) / sizeof(server_preasons[0])); i ++, bit *= 2)
+    for (i = 0, pbit = 1; i < (int)(sizeof(server_preasons) / sizeof(server_preasons[0])); i ++, pbit *= 2)
     {
       if (!strcmp(message, server_preasons[i]))
       {
         if (remove)
-	  state_reasons &= ~bit;
+	  preasons &= ~pbit;
 	else
-	  state_reasons |= bit;
+	  preasons |= pbit;
       }
     }
 
@@ -701,7 +717,8 @@ process_state_message(
       break;
   }
 
-  job->printer->state_reasons = state_reasons;
+  job->state_reasons          = jreasons;
+  job->printer->state_reasons = preasons;
 }
 
 
