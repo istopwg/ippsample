@@ -9,6 +9,7 @@
 
 #include <config.h>
 #include <stdio.h>
+#include <limits.h>
 #include <cups/cups.h>
 #include <cups/raster.h>
 #include <cups/string-private.h>
@@ -418,7 +419,10 @@ lint_pdf(const char    *filename,	/* I - File to check */
   CFURLRef		url;		/* CFURL object for PDF filename */
   CGPDFDocumentRef	document = NULL;/* Input document */
 #elif defined(HAVE_MUPDF)
+  fz_context		*context;	/* MuPDF context */
+  fz_document		*document;	/* Document to print */
 #endif /* HAVE_COREGRAPHICS */
+
 
  /*
   * Gather options...
@@ -458,7 +462,7 @@ lint_pdf(const char    *filename,	/* I - File to check */
   if ((url = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault, (const UInt8 *)filename, (CFIndex)strlen(filename), false)) == NULL)
   {
     fputs("ERROR: Unable to create CFURL for file.\n", stderr);
-    return (1);
+    return (0);
   }
 
   document = CGPDFDocumentCreateWithURL(url);
@@ -467,7 +471,6 @@ lint_pdf(const char    *filename,	/* I - File to check */
   if (!document)
   {
     fputs("ERROR: Unable to create CFPDFDocument for file.\n", stderr);
-    Errors ++;
     return (0);
   }
 
@@ -508,7 +511,11 @@ lint_pdf(const char    *filename,	/* I - File to check */
   if (last_page > num_pages)
     last_page = num_pages;
 
-  num_pages = last_page - first_page + 1;
+ /*
+  * Close the PDF file...
+  */
+
+  CGPDFDocumentRelease(document);
 
  /*
   * For now, assume all pages are color unless 'monochrome' is specified.  In
@@ -516,6 +523,74 @@ lint_pdf(const char    *filename,	/* I - File to check */
   * CGPDFScanner APIs to capture the graphics operations on each page and then
   * mark pages as color or grayscale...
   */
+
+
+#elif defined(HAVE_MUPDF)
+ /*
+  * Open the PDF file...
+  */
+
+  if ((context = fz_new_context(NULL, NULL, FZ_STORE_UNLIMITED)) == NULL)
+  {
+    fputs("ERROR: Unable to create context.\n", stderr);
+    Errors ++;
+    return (0);
+  }
+
+  fz_register_document_handlers(context);
+
+  fz_try(context) document = fz_open_document(context, filename);
+  fz_catch(context)
+  {
+    fprintf(stderr, "ERROR: Unable to open '%s': %s\n", filename, fz_caught_message(context));
+    fz_drop_context(context);
+    Errors ++;
+    return (0);
+  }
+
+  if (fz_needs_password(context, document))
+  {
+    fputs("ERROR: Document is encrypted and cannot be unlocked.\n", stderr);
+    fz_drop_document(context, document);
+    fz_drop_context(context);
+    Errors ++;
+    return (0);
+  }
+
+  num_pages = (int)fz_count_pages(context, document);
+  if (first_page > num_pages)
+  {
+    fputs("ERROR: \"page-ranges\" value does not include any pages to print in the document.\n", stderr);
+
+    fz_drop_document(context, document);
+    fz_drop_context(context);
+
+    return (0);
+  }
+
+  if (last_page > num_pages)
+    last_page = num_pages;
+
+ /*
+  * Close the PDF file...
+  */
+
+  fz_drop_document(context, document);
+  fz_drop_context(context);
+
+ /*
+  * For now, assume all pages are color unless 'monochrome' is specified.  In
+  * the future we might use MuPDF functions to mark individual pages as color or
+  * grayscale...
+  */
+
+#endif /* HAVE_COREGRAPHICS */
+
+ /*
+  * Update the page counters...
+  */
+
+  num_pages = last_page - first_page + 1;
 
   if (!color_mode || strcmp(color_mode, "monochrome"))
   {
@@ -557,15 +632,6 @@ lint_pdf(const char    *filename,	/* I - File to check */
       Impressions.monochrome += copies * num_pages;
     }
   }
-
- /*
-  * Close the PDF file...
-  */
-
-  CGPDFDocumentRelease(document);
-
-#elif defined(HAVE_MUPDF)
-#endif /* HAVE_COREGRAPHICS */
 
   return (1);
 }
