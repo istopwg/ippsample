@@ -13,6 +13,12 @@
 #include <cups/raster.h>
 #include <cups/string-private.h>
 
+#ifdef HAVE_COREGRAPHICS
+#  include <CoreGraphics/CoreGraphics.h>
+#elif defined(HAVE_MUPDF)
+#  include <mupdf/fitz.h>
+#endif /* HAVE_COREGRAPHICS */
+
 
 /*
  * Local types...
@@ -401,28 +407,165 @@ lint_pdf(const char    *filename,	/* I - File to check */
 	 int           num_options,	/* I - Number of options */
 	 cups_option_t *options)	/* I - Options */
 {
+  const char		*value;		/* Option value */
+  int			copies;		/* copies value */
+  const char		*color_mode;	/* print-color-mode value */
+  int			duplex;		/* Duplex printing? */
+  int			first_page,	/* First page in range */
+			last_page,	/* Last page in range */
+			num_pages;	/* Number of pages */
+#ifdef HAVE_COREGRAPHICS
+  CFURLRef		url;		/* CFURL object for PDF filename */
+  CGPDFDocumentRef	document = NULL;/* Input document */
+#elif defined(HAVE_MUPDF)
+#endif /* HAVE_COREGRAPHICS */
+
  /*
-  * TODO: Check that the file opens, write STATE messages for
-  * document-format-error and document-unprintable-error, and write ATTR lines
-  * for the following Job attributes:
-  *
-  * - job-impressions
-  * - job-impressions-col
-  * - job-impressions-completed
-  * - job-impressions-completed-col
-  * - job-media-sheets
-  * - job-media-sheets-col
-  * - job-media-sheets-completed
-  * - job-media-sheets-completed-col
-  * - job-pages
-  * - job-pages-col
-  * - job-pages-completed
-  * - job-pages-completed-col
+  * Gather options...
   */
 
-  (void)filename;
-  (void)num_options;
-  (void)options;
+  if ((value = cupsGetOption("copies", num_options, options)) != NULL)
+    copies = atoi(value);
+  else
+    copies = 1;
+
+  if ((value = cupsGetOption("page-ranges", num_options, options)) != NULL)
+  {
+    if (sscanf(value, "%u-%u", &first_page, &last_page) != 2)
+    {
+      first_page = 1;
+      last_page  = INT_MAX;
+    }
+  }
+  else
+  {
+    first_page = 1;
+    last_page  = INT_MAX;
+  }
+
+  color_mode = cupsGetOption("print-color-mode", num_options, options);
+
+  if ((value = cupsGetOption("sides", num_options, options)) != NULL)
+    duplex = !strncmp(value, "two-sided-", 10);
+  else
+    duplex = 0;
+
+#ifdef HAVE_COREGRAPHICS
+ /*
+  * Open the PDF...
+  */
+
+  if ((url = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault, (const UInt8 *)filename, (CFIndex)strlen(filename), false)) == NULL)
+  {
+    fputs("ERROR: Unable to create CFURL for file.\n", stderr);
+    return (1);
+  }
+
+  document = CGPDFDocumentCreateWithURL(url);
+  CFRelease(url);
+
+  if (!document)
+  {
+    fputs("ERROR: Unable to create CFPDFDocument for file.\n", stderr);
+    Errors ++;
+    return (0);
+  }
+
+  if (CGPDFDocumentIsEncrypted(document))
+  {
+   /*
+    * Only support encrypted PDFs with a blank password...
+    */
+
+    if (!CGPDFDocumentUnlockWithPassword(document, ""))
+    {
+      fputs("ERROR: Document is encrypted and cannot be unlocked.\n", stderr);
+      CGPDFDocumentRelease(document);
+      Errors ++;
+      return (0);
+    }
+  }
+
+  if (!CGPDFDocumentAllowsPrinting(document))
+  {
+    fputs("ERROR: Document does not allow printing.\n", stderr);
+    CGPDFDocumentRelease(document);
+    Errors ++;
+    return (0);
+  }
+
+  num_pages = (int)CGPDFDocumentGetNumberOfPages(document);
+
+  fprintf(stderr, "DEBUG: Total pages in PDF document is %d.\n", num_pages);
+
+  if (first_page > num_pages)
+  {
+    fputs("ERROR: \"page-ranges\" value does not include any pages to print in the document.\n", stderr);
+    CGPDFDocumentRelease(document);
+    return (0);
+  }
+
+  if (last_page > num_pages)
+    last_page = num_pages;
+
+  num_pages = last_page - first_page + 1;
+
+ /*
+  * For now, assume all pages are color unless 'monochrome' is specified.  In
+  * the future we can use the CGPDFContentStream, CGPDFOperatorTable, and
+  * CGPDFScanner APIs to capture the graphics operations on each page and then
+  * mark pages as color or grayscale...
+  */
+
+  if (!color_mode || strcmp(color_mode, "monochrome"))
+  {
+   /*
+    * All pages are color...
+    */
+
+    Pages.full_color += num_pages;
+
+    if (duplex)
+    {
+      if (num_pages & 1)
+        ImpressionsTwoSided.blank += copies;
+
+      ImpressionsTwoSided.full_color += copies * num_pages;
+    }
+    else
+    {
+      Impressions.full_color += copies * num_pages;
+    }
+  }
+  else
+  {
+   /*
+    * All pages are grayscale...
+    */
+
+    Pages.monochrome += num_pages;
+
+    if (duplex)
+    {
+      if (num_pages & 1)
+        ImpressionsTwoSided.blank += copies;
+
+      ImpressionsTwoSided.monochrome += copies * num_pages;
+    }
+    else
+    {
+      Impressions.monochrome += copies * num_pages;
+    }
+  }
+
+ /*
+  * Close the PDF file...
+  */
+
+  CGPDFDocumentRelease(document);
+
+#elif defined(HAVE_MUPDF)
+#endif /* HAVE_COREGRAPHICS */
 
   return (1);
 }
