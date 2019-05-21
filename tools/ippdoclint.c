@@ -49,7 +49,8 @@ static int	lint_jpeg(const char *filename, int num_options, cups_option_t *optio
 static int	lint_pdf(const char *filename, int num_options, cups_option_t *options);
 static int	lint_raster(const char *filename, const char *content_type);
 static int	load_env_options(cups_option_t **options);
-static int	read_raster_header(cups_file_t *fp, unsigned syncword, cups_page_header2_t *header);
+static int	read_apple_raster_header(cups_file_t *fp, cups_page_header2_t *header);
+static int	read_pwg_raster_header(cups_file_t *fp, unsigned syncword, cups_page_header2_t *header);
 static int	read_raster_image(cups_file_t *fp, cups_page_header2_t *header, unsigned page);
 static void	usage(int status) _CUPS_NORETURN;
 
@@ -341,10 +342,15 @@ lint_jpeg(const char    *filename,	/* I - File to check */
 
         fprintf(stderr, "DEBUG: JPEG image is %dx%dx%d\n", width, height, ncolors);
         if (ncolors > 1 && (!color_mode || strcmp(color_mode, "monochrome")))
+        {
+          Pages.full_color ++;
           Impressions.full_color += copies;
+	}
 	else
+	{
+	  Pages.monochrome ++;
 	  Impressions.monochrome += copies;
-
+	}
         break;
       }
 
@@ -426,7 +432,6 @@ lint_raster(const char *filename,	/* I - File to check */
 	    const char *content_type)	/* I - Content type */
 {
   cups_file_t		*fp;		/* File pointer */
-  unsigned		syncword;	/* Sync word */
   cups_page_header2_t	header;		/* Page header */
   unsigned		page = 0;	/* Page number */
 
@@ -439,25 +444,62 @@ lint_raster(const char *filename,	/* I - File to check */
     return (0);
   }
 
-  if (cupsFileRead(fp, (char *)&syncword, sizeof(syncword)) != sizeof(syncword))
+  if (!_cups_strcasecmp(content_type, "image/pwg-raster"))
   {
-    fputs("ERROR: Unable to read sync word from raster file.\n", stderr);
-    cupsFileClose(fp);
-    return (0);
-  }
+    unsigned		syncword;	/* Sync word */
 
-  if (syncword != CUPS_RASTER_SYNCv2 && syncword != CUPS_RASTER_REVSYNCv2)
-  {
-    fprintf(stderr, "ERROR: Bad sync word 0x%08x seen.\n", syncword);
-    cupsFileClose(fp);
-    return (0);
+    if (cupsFileRead(fp, (char *)&syncword, sizeof(syncword)) != sizeof(syncword))
+    {
+      fputs("ERROR: Unable to read sync word from PWG Raster file.\n", stderr);
+      Errors ++;
+    }
+    else if (syncword != CUPS_RASTER_SYNCv2 && syncword != CUPS_RASTER_REVSYNCv2)
+    {
+      fprintf(stderr, "ERROR: Bad sync word 0x%08x seen in PWG Raster file.\n", syncword);
+      Errors ++;
+    }
+    else
+    {
+      while (read_pwg_raster_header(fp, syncword, &header))
+      {
+	page ++;
+	if (!read_raster_image(fp, &header, page))
+	  break;
+      }
+    }
   }
-
-  while (read_raster_header(fp, syncword, &header))
+  else
   {
-    page ++;
-    if (!read_raster_image(fp, &header, page))
-      break;
+    unsigned char	fheader[12];	/* File header */
+    unsigned		num_pages;	/* Number of pages */
+
+    if (cupsFileRead(fp, (char *)fheader, sizeof(fheader)) != sizeof(fheader))
+    {
+      fputs("ERROR: Unable to read header from Apple raster file.\n", stderr);
+      Errors ++;
+    }
+    else  if (memcmp(fheader, "UNIRAST", 8))
+    {
+      fputs("ERROR: Bad Apple Raster header seen.\n", stderr);
+      Errors ++;
+    }
+    else
+    {
+      num_pages = (unsigned)((fheader[8] << 24) | (fheader[9] << 16) | (fheader[10] << 8) | fheader[11]);
+
+      while (read_apple_raster_header(fp, &header))
+      {
+	page ++;
+	if (!read_raster_image(fp, &header, page))
+	  break;
+      }
+
+      if (num_pages > 0 && page != num_pages)
+      {
+	fprintf(stderr, "ERROR: Actual number of pages (%u) does not match file header (%u).\n", page, num_pages);
+	Errors ++;
+      }
+    }
   }
 
   cupsFileClose(fp);
@@ -533,14 +575,88 @@ load_env_options(
 
 
 /*
- * 'read_raster_header()' - Read a page header from a PWG raster file.
+ * 'read_apple_raster_header()' - Read a page header from an Apple raster file.
  */
 
 static int				/* O - 1 on success, 0 on error */
-read_raster_header(
+read_apple_raster_header(
+    cups_file_t         *fp,		/* I - File pointer */
+    cups_page_header2_t *header)	/* O - Raster header */
+{
+  unsigned char	pheader[32];		/* Page header */
+
+
+  memset(header, 0, sizeof(cups_page_header2_t));
+
+  if (cupsFileRead(fp, (char *)pheader, sizeof(pheader)) != sizeof(pheader))
+    return (0);
+
+  switch (pheader[1])
+  {
+    case 0 : /* W */
+        header->cupsColorSpace = CUPS_CSPACE_SW;
+        header->cupsNumColors  = 1;
+        break;
+
+    case 1 : /* sRGB */
+        header->cupsColorSpace = CUPS_CSPACE_SRGB;
+        header->cupsNumColors  = 3;
+        break;
+
+    case 3 : /* AdobeRGB */
+        header->cupsColorSpace = CUPS_CSPACE_ADOBERGB;
+        header->cupsNumColors  = 3;
+        break;
+
+    case 4 : /* DeviceW */
+        header->cupsColorSpace = CUPS_CSPACE_W;
+        header->cupsNumColors  = 1;
+        break;
+
+    case 5 : /* DeviceRGB */
+        header->cupsColorSpace = CUPS_CSPACE_RGB;
+        header->cupsNumColors  = 3;
+        break;
+
+    case 6 : /* DeviceCMYK */
+        header->cupsColorSpace = CUPS_CSPACE_CMYK;
+        header->cupsNumColors  = 4;
+        break;
+
+    default :
+        fprintf(stderr, "ERROR: Unknown Apple Raster colorspace %u.\n", pheader[1]);
+        Errors ++;
+        return (0);
+  }
+
+  if ((header->cupsNumColors == 1 && pheader[0] != 8 && pheader[0] != 16) ||
+      (header->cupsNumColors == 3 && pheader[0] != 24 && pheader[0] != 48) ||
+      (header->cupsNumColors == 4 && pheader[0] != 32 && pheader[0] != 64))
+  {
+    fprintf(stderr, "ERROR: Invalid bits per pixel value %u.\n", pheader[0]);
+    Errors ++;
+    return (0);
+  }
+
+  header->cupsBitsPerPixel = pheader[0];
+  header->cupsBitsPerColor = pheader[0] / header->cupsNumColors;
+  header->cupsWidth        = (unsigned)((pheader[12] << 24) | (pheader[13] << 16) | (pheader[14] << 8) | pheader[15]);
+  header->cupsHeight       = (unsigned)((pheader[16] << 24) | (pheader[17] << 16) | (pheader[18] << 8) | pheader[19]);
+  header->cupsBytesPerLine = header->cupsWidth * header->cupsBitsPerPixel / 8;
+
+  return (1);
+}
+
+
+/*
+ * 'read_pwg_raster_header()' - Read a page header from a PWG raster file.
+ */
+
+static int				/* O - 1 on success, 0 on error */
+read_pwg_raster_header(
     cups_file_t         *fp,		/* I - File pointer */
     unsigned            syncword,	/* I - Sync word from the file */
-    cups_page_header2_t *header)	/* I - Raster header */
+    cups_page_header2_t *header)	/* O - Raster header */
 {
   int		i;			/* Looping/temp var */
   unsigned	num_colors,		/* Number of colors */
