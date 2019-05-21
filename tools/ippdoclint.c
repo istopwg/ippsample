@@ -236,6 +236,8 @@ lint_jpeg(const char    *filename,	/* I - File to check */
           int           num_options,	/* I - Number of options */
           cups_option_t *options)	/* I - Options */
 {
+  const char	*value;			/* Option value */
+  int		copies;			/* copies value */
   const char	*color_mode;		/* print-color-mode value */
   cups_file_t	*fp;			/* File pointer */
   unsigned char	buffer[65536],		/* Read buffer */
@@ -244,6 +246,11 @@ lint_jpeg(const char    *filename,	/* I - File to check */
   ssize_t	bytes;			/* Bytes read */
   size_t	length;			/* Length of marker */
 
+
+  if ((value = cupsGetOption("copies", num_options, options)) != NULL)
+    copies = atoi(value);
+  else
+    copies = 1;
 
   color_mode = cupsGetOption("print-color-mode", num_options, options);
 
@@ -336,9 +343,9 @@ lint_jpeg(const char    *filename,	/* I - File to check */
 
         fprintf(stderr, "DEBUG: JPEG image is %dx%dx%d\n", width, height, ncolors);
         if (ncolors > 1 && (!color_mode || strcmp(color_mode, "monochrome")))
-          Impressions.full_color ++;
+          Impressions.full_color += copies;
 	else
-	  Impressions.monochrome ++;
+	  Impressions.monochrome += copies;
 
         break;
       }
