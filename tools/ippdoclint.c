@@ -194,9 +194,7 @@ main(int  argc,				/* I - Number of command-line arguments */
   }
 
  /*
-  * TODO: Check that the file opens, write STATE messages for
-  * document-format-error and document-unprintable-error, and write ATTR lines
-  * for the following Job attributes:
+  * Write ATTR lines for the following Job attributes:
   *
   * - job-impressions
   * - job-impressions-col
@@ -238,28 +236,141 @@ lint_jpeg(const char    *filename,	/* I - File to check */
           int           num_options,	/* I - Number of options */
           cups_option_t *options)	/* I - Options */
 {
+  const char	*color_mode;		/* print-color-mode value */
+  cups_file_t	*fp;			/* File pointer */
+  unsigned char	buffer[65536],		/* Read buffer */
+		*bufptr,		/* Pointer info buffer */
+		*bufend;		/* Pointer to end of buffer */
+  ssize_t	bytes;			/* Bytes read */
+  size_t	length;			/* Length of marker */
+
+
+  color_mode = cupsGetOption("print-color-mode", num_options, options);
+
+  if ((fp = cupsFileOpen(filename, "rb")) == NULL)
+  {
+    fprintf(stderr, "ERROR: Unable to open \"%s\": %s\n", filename, cupsLastErrorString());
+    return (0);
+  }
+
+  if ((bytes = cupsFileRead(fp, (char *)buffer, sizeof(buffer))) < 3)
+  {
+    fputs("ERROR: Unable to read JPEG file.\n", stderr);
+    cupsFileClose(fp);
+    return (0);
+  }
+
+  if (memcmp(buffer, "\377\330\377", 3))
+  {
+    fputs("ERROR: Bad JPEG file.\n", stderr);
+    cupsFileClose(fp);
+    return (0);
+  }
+
+  bufptr = buffer + 2;
+  bufend = buffer + bytes;
+
  /*
-  * TODO: Check that the file opens, write STATE messages for
-  * document-format-error and document-unprintable-error, and write ATTR lines
-  * for the following Job attributes:
-  *
-  * - job-impressions
-  * - job-impressions-col
-  * - job-impressions-completed
-  * - job-impressions-completed-col
-  * - job-media-sheets
-  * - job-media-sheets-col
-  * - job-media-sheets-completed
-  * - job-media-sheets-completed-col
-  * - job-pages
-  * - job-pages-col
-  * - job-pages-completed
-  * - job-pages-completed-col
+  * Scan the file for a SOFn marker, then we can get the dimensions...
   */
 
-  (void)filename;
-  (void)num_options;
-  (void)options;
+  while (bufptr < bufend)
+  {
+    if (*bufptr == 0xff)
+    {
+      bufptr ++;
+
+      if (bufptr >= bufend)
+      {
+       /*
+	* If we are at the end of the current buffer, re-fill and continue...
+	*/
+
+	if ((bytes = cupsFileRead(fp, (char *)buffer, sizeof(buffer))) <= 0)
+	{
+	  fputs("ERROR: Short JPEG file.\n", stderr);
+	  cupsFileClose(fp);
+	  return (0);
+	}
+
+	bufptr = buffer;
+	bufend = buffer + bytes;
+      }
+
+      if (*bufptr == 0xff)
+	continue;
+
+      if ((bufptr + 16) >= bufend)
+      {
+       /*
+	* Read more of the marker...
+	*/
+
+	bytes = (ssize_t)(bufend - bufptr);
+
+	memmove(buffer, bufptr, bytes);
+	bufptr = buffer;
+	bufend = buffer + bytes;
+
+	if ((bytes = cupsFileRead(fp, (char *)bufend, sizeof(buffer) - (size_t)bytes)) <= 0)
+	{
+	  fputs("ERROR: Short JPEG file.\n", stderr);
+	  cupsFileClose(fp);
+	  return (0);
+	}
+
+	bufend += bytes;
+      }
+
+      length = (size_t)((bufptr[1] << 8) | bufptr[2]);
+
+      if ((*bufptr >= 0xc0 && *bufptr <= 0xc3) || (*bufptr >= 0xc5 && *bufptr <= 0xc7) || (*bufptr >= 0xc9 && *bufptr <= 0xcb) || (*bufptr >= 0xcd && *bufptr <= 0xcf))
+      {
+       /*
+	* SOFn marker, look for dimensions...
+	*/
+
+	int width  = (bufptr[6] << 8) | bufptr[7];
+	int height = (bufptr[4] << 8) | bufptr[5];
+	int ncolors = bufptr[8];
+
+        fprintf(stderr, "DEBUG: JPEG image is %dx%dx%d\n", width, height, ncolors);
+        if (ncolors > 1 && (!color_mode || strcmp(color_mode, "monochrome")))
+          Impressions.full_color ++;
+	else
+	  Impressions.monochrome ++;
+
+        break;
+      }
+
+     /*
+      * Skip past this marker...
+      */
+
+      bufptr ++;
+      bytes = (ssize_t)(bufend - bufptr);
+
+      while (length >= bytes)
+      {
+	length -= (size_t)bytes;
+
+	if ((bytes = cupsFileRead(fp, (char *)buffer, sizeof(buffer))) <= 0)
+	{
+	  fputs("ERROR: Short JPEG file.\n", stderr);
+	  cupsFileClose(fp);
+	  return (0);
+	}
+
+	bufptr = buffer;
+	bufend = buffer + bytes;
+      }
+
+      if (length > bytes)
+	break;
+
+      bufptr += length;
+    }
+  }
 
   return (1);
 }
@@ -328,12 +439,14 @@ lint_raster(const char    *filename,	/* I - File to check */
   if (cupsFileRead(fp, (char *)&syncword, sizeof(syncword)) != sizeof(syncword))
   {
     fputs("ERROR: Unable to read sync word from raster file.\n", stderr);
+    cupsFileClose(fp);
     return (0);
   }
 
   if (syncword != CUPS_RASTER_SYNCv2 && syncword != CUPS_RASTER_REVSYNCv2)
   {
     fprintf(stderr, "ERROR: Bad sync word 0x%08x seen.\n", syncword);
+    cupsFileClose(fp);
     return (0);
   }
 
