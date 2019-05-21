@@ -47,7 +47,7 @@ static int		Warnings = 0;		/* Number of warnings found */
 
 static int	lint_jpeg(const char *filename, int num_options, cups_option_t *options);
 static int	lint_pdf(const char *filename, int num_options, cups_option_t *options);
-static int	lint_raster(const char *filename, int num_options, cups_option_t *options);
+static int	lint_raster(const char *filename, const char *content_type);
 static int	load_env_options(cups_option_t **options);
 static int	read_raster_header(cups_file_t *fp, unsigned syncword, cups_page_header2_t *header);
 static int	read_raster_image(cups_file_t *fp, cups_page_header2_t *header, unsigned page);
@@ -160,8 +160,6 @@ main(int  argc,				/* I - Number of command-line arguments */
         content_type = "image/jpeg";
       else if (!strcmp(opt, ".pwg"))
         content_type = "image/pwg-raster";
-      else if (!strcmp(opt, ".ras"))
-        content_type = "application/vnd.cups-raster";
       else if (!strcmp(opt, ".urf"))
         content_type = "image/urf";
     }
@@ -182,9 +180,9 @@ main(int  argc,				/* I - Number of command-line arguments */
     if (!lint_pdf(filename, num_options, options))
       return (1);
   }
-  else if (!strcmp(content_type, "application/vnd.cups-raster") || !strcmp(content_type, "image/pwg-raster") || !strcmp(content_type, "image/urf"))
+  else if (!strcmp(content_type, "image/pwg-raster") || !strcmp(content_type, "image/urf"))
   {
-    if (!lint_raster(filename, num_options, options))
+    if (!lint_raster(filename, content_type))
       return (1);
   }
   else
@@ -424,9 +422,8 @@ lint_pdf(const char    *filename,	/* I - File to check */
  */
 
 static int				/* O - 1 on success, 0 on failure */
-lint_raster(const char    *filename,	/* I - File to check */
-	    int           num_options,	/* I - Number of options */
-	    cups_option_t *options)	/* I - Options */
+lint_raster(const char *filename,	/* I - File to check */
+	    const char *content_type)	/* I - Content type */
 {
   cups_file_t		*fp;		/* File pointer */
   unsigned		syncword;	/* Sync word */
@@ -434,8 +431,7 @@ lint_raster(const char    *filename,	/* I - File to check */
   unsigned		page = 0;	/* Page number */
 
 
-  (void)num_options;
-  (void)options;
+  (void)content_type;
 
   if ((fp = cupsFileOpen(filename, "rb")) == NULL)
   {
