@@ -207,7 +207,12 @@ main(int  argc,				/* I - Number of command-line arguments */
   * - job-pages-col
   * - job-pages-completed
   * - job-pages-completed-col
+  *
+  * Also write a STATE line if the document format is bad...
   */
+
+  if (Errors)
+    fputs("STATE: +document-format-error\n", stderr);
 
   fprintf(stderr, "ATTR: job-pages=%d job-pages-completed=%d\n", Pages.full_color + Pages.monochrome, Pages.full_color + Pages.monochrome);
   fprintf(stderr, "ATTR: job-pages-col={full-color=%d monochrome=%d} job-pages-completed-col={full-color=%d monochrome=%d}\n", Pages.full_color, Pages.monochrome, Pages.full_color, Pages.monochrome);
