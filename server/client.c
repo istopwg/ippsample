@@ -1906,6 +1906,7 @@ show_status(server_client_t  *client,	/* I - Client connection */
   server_job_t		*job;		/* Current job */
   int			i, j;		/* Looping vars */
   server_preason_t	reason;		/* Current reason */
+  int			apple_client;	/* Is the client running an Apple OS? */
   static const char * const reasons[] =	/* Reason strings */
   {
     "Other",
@@ -1927,6 +1928,8 @@ show_status(server_client_t  *client,	/* I - Client connection */
   };
 
 
+  apple_client = strstr(httpGetField(client->http, HTTP_FIELD_USER_AGENT), "Mac OS X") != NULL;
+
   if (!serverRespondHTTP(client, HTTP_STATUS_OK, encoding, "text/html", 0))
     return (0);
 
@@ -1934,9 +1937,16 @@ show_status(server_client_t  *client,	/* I - Client connection */
   {
     html_header(client, printer->dns_sd_name, printer->state == IPP_PSTATE_PROCESSING ? 5 : 15);
     if (!strncmp(printer->resource, "/ipp/print3d", 12))
+    {
       html_printf(client, "<p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s/materials\">Show Materials</a>\n", printer->resource);
+    }
     else
-      html_printf(client, "<p class=\"buttons\"><p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s/media\">Show Media</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource);
+    {
+      html_printf(client, "<p class=\"buttons\"><p class=\"buttons\"><a class=\"button\" href=\"/\">Show Printers</a> <a class=\"button\" href=\"%s/media\">Show Media</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a>", printer->resource, printer->resource);
+      if (apple_client)
+        html_printf(client, " <a class=\"button\" href=\"%s/apple.mobileconfig\">Use on iOS</a>", printer->resource);
+      html_printf(client, "</p>\n");
+    }
     html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Jobs</h1>\n", printer->resource, printer->dns_sd_name);
     html_printf(client, "<p>%s, %d job(s).", printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
     for (i = 0, reason = 1; i < (int)(sizeof(reasons) / sizeof(reasons[0])); i ++, reason <<= 1)
@@ -1995,9 +2005,16 @@ show_status(server_client_t  *client,	/* I - Client connection */
           html_printf(client, "\n<br>&nbsp;&nbsp;&nbsp;&nbsp;%s", reasons[j]);
       html_printf(client, "</p>\n");
       if (!strncmp(printer->resource, "/ipp/print3d", 12))
+      {
         html_printf(client, "  <p class=\"buttons\"><a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/materials\">Show Materials</a></p>\n", printer->resource, printer->resource);
+      }
       else
-        html_printf(client, "  <p class=\"buttons\"><a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/media\">Show Media</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a></p>\n", printer->resource, printer->resource, printer->resource);
+      {
+        html_printf(client, "  <p class=\"buttons\"><a class=\"button\" href=\"%s\">Show Jobs</a> <a class=\"button\" href=\"%s/media\">Show Media</a> <a class=\"button\" href=\"%s/supplies\">Show Supplies</a>", printer->resource, printer->resource, printer->resource);
+	if (apple_client)
+	  html_printf(client, " <a class=\"button\" href=\"%s/apple.mobileconfig\">Use on iOS</a>", printer->resource);
+	html_printf(client, "</p>\n");
+      }
       html_printf(client, "</div>\n");
     }
   }
