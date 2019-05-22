@@ -5,3 +5,4 @@
 /scripts export-ignore
 *.m4 text eol=lf
 *.sh text eol=lf
+install-sh text eol=lf
