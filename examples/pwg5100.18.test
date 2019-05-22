@@ -1,0 +1,111 @@
+# -*- Mode: conf -*-
+#
+# Tests to validate conformance with section 11.2 from 5100.18
+#
+# 11.2 Conformance Requirements for Infrastructure Printers
+# In order for an Infrastructure Printer to claim conformance to this specification, an Infrastructure Printer MUST support:
+#    8. The required IPP operations defined in section 4.6,
+#    9. The required IPP operation attributes defined in section 4.7,
+#    10.The required IPP Printer attributes defined in section 4.8,
+#    11.The required IPP Job Template attributes defined in section 4.14,
+#    12.The required IPP Job Description attributes defined in section 4.14,
+#    13.The new operations defined in section 5 and section 6,
+#    14.The operation attributes defined in section 7.1,
+#    15.The Document Description attributes defined in section 7.2,
+#    16.The Job Description attributes defined in section 7.3,
+#    17.The Printer Description attributes defined in section 7.4,
+#    18.The additional semantics defined in section 8,
+#    19.The additional values defined in section 9,
+#    20.The status codes defined in section 10,
+#    21.The internationalization considerations in section 12, and
+#    22.The security considerations in section 13.
+#
+
+
+{
+    NAME "PWG 5100.18 -  8. The required IPP operations defined in section 4.6"
+
+    OPERATION Get-Printer-Attributes
+    Version 2.0
+
+    GROUP operation
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR keyword requested-attributes printer-make-and-model,printer-name,operations-supported
+
+
+    STATUS successful-ok
+
+    EXPECT printer-make-and-model
+    EXPECT printer-name
+
+    EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag
+    
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x003F # Acknowledge-Document
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0040 # Acknowledge-Identify-Printer
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0041 # Acknowledge-Job
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0028 # Activate-Printer
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x002D # Cancel-Current-Job
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0033 # Cancel-Document
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0008 # Cancel-Job
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0038 # Cancel-Jobs
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0039 # Cancel-My-Jobs
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x001B # Cancel-Subscription
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x003B # Close-Job
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0005 # Create-Job
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0017 # Create-Job-Subscriptions
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0016 # Create-Printer-Subscriptions
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0027 # Deactivate-Printer
+        EXPECT !operations-supported OF-TYPE enum WITH-VALUE 0x0036 # Delete-Document
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0046 # Deregister-Output-Device
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0023 # Disable-Printer
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0022 # Enable-Printer
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0042 # Fetch-Document
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0043 # Fetch-Job
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0034 # Get-Document-Attributes
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0035 # Get-Documents
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0009 # Get-Job-Attributes
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x000A # Get-Jobs
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x001C # Get-Notifications
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0044 # Get-Output-Device-Attributes
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x000B # Get-Printer-Attributes
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0015 # Get-Printer-Supported-Values
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0018 # Get-Subscription-Attributes
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0019 # Get-Subscriptions
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x000C # Hold-Job
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0025 # Hold-New-Jobs
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x003C # Identify-Printer
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0010 # Pause-Printer
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0024 # Pause-Printer-After-Current-Job
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0002 # Print-Job
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0003 # Print-URI
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0030 # Promote-Job
+        EXPECT !operations-supported OF-TYPE enum WITH-VALUE 0x0012 # Purge-Jobs
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0026 # Release-Held-New-Jobs
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x000D # Release-Job
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x001A # Renew-Subscription
+        EXPECT !operations-supported OF-TYPE enum WITH-VALUE 0x002C # Reprocess-Job
+        EXPECT !operations-supported OF-TYPE enum WITH-VALUE 0x000E # Restart-Job
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0029 # Restart-Printer
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x003A # Resubmit-Job
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x002F # Resume-Job
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0011 # Resume-Printer
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0031 # Schedule-Job-After
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0006 # Send-Document
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0007 # Send-URI
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0037 # Set-Document-Attributes
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0014 # Set-Job-Attributes
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x0013 # Set-Printer-Attributes
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x002A # Shutdown-Printer
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x002B # Startup-Printer
+      EXPECT ?operations-supported OF-TYPE enum WITH-VALUE 0x002E # Suspend-Current-Job
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0045 # Update-Active-Jobs
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0047 # Update-Document-Status
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0048 # Update-Job-Status
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0049 # Update-Output-Device-Attributes
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x003D # Validate-Document
+    EXPECT operations-supported OF-TYPE enum WITH-VALUE 0x0004 # Validate-Job
+  
+}
+
