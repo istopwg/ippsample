@@ -17,12 +17,13 @@
  * Local functions...
  */
 
-static void		html_escape(server_client_t *client, const char *s,
-			            size_t slen);
+static void		html_escape(server_client_t *client, const char *s, size_t slen);
 static void		html_footer(server_client_t *client);
 static void		html_header(server_client_t *client, const char *title, int refresh);
 static void		html_printf(server_client_t *client, const char *format, ...) _CUPS_FORMAT(2, 3);
 static int		parse_options(server_client_t *client, cups_option_t **options);
+static int		send_mobile_config(server_client_t *client, server_printer_t *printer);
+static void		send_printer_payload(server_client_t *client, server_printer_t *printer);
 static int		show_materials(server_client_t *client, server_printer_t *printer, const char *encoding);
 static int		show_media(server_client_t *client, server_printer_t *printer, const char *encoding);
 static int		show_status(server_client_t *client, server_printer_t *printer, const char *encoding);
@@ -464,12 +465,16 @@ serverProcessHTTP(
 
           if (printer)
           {
-            if (!strcmp(uriptr, "icon.png"))
+            if (!strcmp(uriptr, "apple.mobileconfig"))
+              return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "application/x-apple-aspen-config", 0));
+            else if (!strcmp(uriptr, "icon.png"))
               return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", 0));
             else if (!*uriptr || !strcmp(uriptr, "materials") || !strcmp(uriptr, "media") || !strcmp(uriptr, "supplies"))
               return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "text/html", 0));
           }
         }
+        else if (!strcmp(client->uri, "/ipp/system/apple.mobileconfig"))
+	  return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "application/x-apple-aspen-config", 0));
         else if ((res = serverFindResourceByPath(client->uri)) != NULL && res->state == IPP_RSTATE_INSTALLED)
           return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, res->format, 0));
 	else if (!strcmp(client->uri, "/"))
@@ -506,7 +511,11 @@ serverProcessHTTP(
 
           if (printer)
           {
-            if (!strcmp(uriptr, "icon.png"))
+            if (!strcmp(uriptr, "apple.mobileconfig"))
+            {
+              return (send_mobile_config(client, printer));
+            }
+            else if (!strcmp(uriptr, "icon.png"))
             {
              /*
               * Send PNG icon file.
@@ -578,6 +587,10 @@ serverProcessHTTP(
               return (show_supplies(client, printer, encoding));
             }
           }
+	}
+	else if (!strcmp(client->uri, "/ipp/system/apple.mobileconfig"))
+	{
+	  return (send_mobile_config(client, NULL));
 	}
         else if ((res = serverFindResourceByPath(client->uri)) != NULL && res->state == IPP_RSTATE_INSTALLED)
         {
@@ -970,25 +983,6 @@ html_header(server_client_t *client,	/* I - Client */
   html_printf(client,
 	      "<meta name=\"viewport\" content=\"width=device-width\">\n"
 	      "<style>\n"
-/*	      "body { font-family: sans-serif; margin: 0; }\n"
-              "div.header { background: black; color: white; left: 0px; margin: 0px; padding: 10px; right: 0px; width: 100%%; }\n"
-              "div.header a { color: white; text-decoration: none; }\n"
-	      "div.body { padding: 0px 10px 10px; }\n"
-              "div.even { background: #fcfcfc; margin-left: -10px; margin-right: -10px; padding: 5px 10px; width: 100%%; }\n"
-              "div.odd { background: #f0f0f0; margin-left: -10px; margin-right: -10px; padding: 5px 10px; width: 100%%; }\n"
-	      "blockquote { background: #dfd; border-radius: 5px; color: #006; padding: 10px; }\n"
-	      "table.form { border-collapse: collapse; margin-top: 10px; width: 100%%; }\n"
-	      "table.form td, table.form th { padding: 5px 2px; width: 50%%; }\n"
-	      "table.form th { text-align: right; }\n"
-	      "table.striped { border-bottom: solid thin black; border-collapse: collapse; width: 100%%; }\n"
-	      "table.striped tr:nth-child(even) { background: #fcfcfc; }\n"
-	      "table.striped tr:nth-child(odd) { background: #f0f0f0; }\n"
-	      "table.striped th { background: white; border-bottom: solid thin black; text-align: left; vertical-align: bottom; }\n"
-	      "table.striped td { margin: 0; padding: 5px; vertical-align: top; }\n"
-              "p.buttons { line-height: 200%%; }\n"
-	      "a.button { background: black; border-color: black; border-radius: 8px; color: white; font-size: 12px; padding: 4px 10px; text-decoration: none; white-space: nowrap; }\n"
-              "a:hover.button { background: #444; border-color: #444; }\n"
-              "span.bar { border: thin black; box-shadow: 0px 0px 5px rgba(0,0,0,0.2); display: inline-block; height: 10px; width: 100px; }\n"*/
 	      "body { font-family: sans-serif; margin: 0; }\n"
               "div.header { background: black; color: white; left: 0px; margin: 0px; padding: 10px; right: 0px; width: 100%%; }\n"
               "div.header a { color: white; text-decoration: none; }\n"
@@ -1268,6 +1262,121 @@ parse_options(server_client_t *client,	/* I - Client */
   }
 
   return (num_options);
+}
+
+
+/*
+ * 'send_mobile_config()' - Send an Apple mobile configuration file for one or
+ *                          more printers.
+ */
+
+static int				/* O - 1 on success, 0 on failure */
+send_mobile_config(
+    server_client_t  *client,		/* I - Client connection */
+    server_printer_t *printer)		/* I - Printer to send (NULL for all) */
+{
+  if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "application/x-apple-aspen-config", 0))
+    return (0);
+
+  html_printf(client,
+              "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+              "<!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
+              "<plist version=\"1.0\">\n"
+              "\t<dict>\n"
+              "\t\t<key>PayloadIdentifier</key>\n"
+              "\t\t<string>org.pwg.ippserver.%s</string>\n"
+              "\t\t<key>PayloadUUID</key>\n"
+              "\t\t<string>Unused</string>\n"
+              "\t\t<key>PayloadType</key>\n"
+              "\t\t<string>Configuration</string>\n"
+              "\t\t<key>PayloadVersion</key>\n"
+              "\t\t<integer>1</integer>\n"
+              "\t\t<key>PayloadDescription</key>\n"
+              "\t\t<string>Printers on %s.</string>\n"
+              "\t\t<key>PayloadDisplayName</key>\n"
+              "\t\t<string>%s Printers</string>\n"
+              "\t\t<key>PayloadContent</key>\n"
+              "\t\t<array>\n", ServerName, ServerName, ServerName);
+
+  if (printer)
+  {
+    send_printer_payload(client, printer);
+  }
+  else
+  {
+    _cupsRWLockRead(&PrintersRWLock);
+    for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+    {
+      if (printer->type == SERVER_TYPE_PRINT)
+        send_printer_payload(client, printer);
+    }
+    _cupsRWUnlock(&PrintersRWLock);
+  }
+
+  html_printf(client,
+              "\t\t</array>\n"
+              "\t</dict>\n"
+              "</plist>\n");
+  httpWrite2(client->http, "", 0);
+
+  return (1);
+}
+
+
+/*
+ * 'send_printer_payload()' - Send the mobile configuration payload for a
+ *                            printer.
+ */
+
+static void
+send_printer_payload(
+    server_client_t  *client,		/* I - Client connection */
+    server_printer_t *printer)		/* I - Printer to send */
+{
+
+  const char	*make_and_model,	/* printer-make-and-model value */
+		*uuid;			/* printer-uuid value */
+
+  _cupsRWLockRead(&printer->rwlock);
+
+  make_and_model = ippGetString(ippFindAttribute(printer->pinfo.attrs, "printer-make-and-model", IPP_TAG_TEXT), 0, NULL);
+  uuid           = ippGetString(ippFindAttribute(printer->pinfo.attrs, "printer-uuid", IPP_TAG_URI), 0, NULL);
+
+  if (uuid)
+    uuid += 9;				/* Skip "urn:uuid:" URI prefix */
+  else
+    uuid = "unknown";
+
+  html_printf(client,
+              "\t\t\t<dict>\n"
+              "\t\t\t\t<key>PayloadIdentifier</key>\n"
+              "\t\t\t\t<string>org.pwg.ippserver.%s.%s</string>\n"
+              "\t\t\t\t<key>PayloadUUID</key>\n"
+              "\t\t\t\t<string>%s</string>\n"
+              "\t\t\t\t<key>PayloadType</key>\n"
+              "\t\t\t\t<string>com.apple.airprint</string>\n"
+              "\t\t\t\t<key>PayloadVersion</key>\n"
+              "\t\t\t\t<integer>1</integer>\n"
+              "\t\t\t\t<key>PayloadDescription</key>\n"
+              "\t\t\t\t<string>%s</string>\n"
+              "\t\t\t\t<key>PayloadDisplayName</key>\n"
+              "\t\t\t\t<string>%s</string>\n"
+              "\t\t\t\t<key>AirPrint</key>\n"
+              "\t\t\t\t<array>\n"
+              "\t\t\t\t\t<dict>\n"
+              "\t\t\t\t\t\t<key>IPAddress</key>\n"
+              "\t\t\t\t\t\t<string>%s</string>\n"
+              "\t\t\t\t\t\t<key>ResourcePath</key>\n"
+              "\t\t\t\t\t\t<string>%s</string>\n"
+              "\t\t\t\t\t\t<key>Port</key>\n"
+              "\t\t\t\t\t\t<integer>%d</integer>\n"
+              "\t\t\t\t\t\t<key>ForceTLS</key>\n"
+              "\t\t\t\t\t\t<true />\n"
+              "\t\t\t\t\t</dict>\n"
+              "\t\t\t\t</array>\n"
+              "\t\t\t</dict>\n", ServerName, uuid, uuid, make_and_model ? make_and_model : "unknown", printer->dns_sd_name, ServerName, printer->resource, DefaultPort);
+
+  _cupsRWUnlock(&printer->rwlock);
 }
 
 
