@@ -1,7 +1,7 @@
 /.git* export-ignore
 /.mailmap export-ignore
 /.travis.yml export-ignore
-/configure text eol=lf
+/config* text eol=lf
 /scripts export-ignore
 *.m4 text eol=lf
 *.sh text eol=lf
