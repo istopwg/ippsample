@@ -833,10 +833,13 @@ serverRun(void)
     }
 
 #ifdef HAVE_DNSSD
-    fd = DNSServiceRefSockFD(DNSSDMaster);
-    FD_SET(fd, &input);
-    if (max_fd < fd)
-      max_fd = fd;
+    if (DNSSDEnabled)
+    {
+      fd = DNSServiceRefSockFD(DNSSDMaster);
+      FD_SET(fd, &input);
+      if (max_fd < fd)
+        max_fd = fd;
+    }
 #endif /* HAVE_DNSSD */
 
     timeout.tv_sec  = 86400;
@@ -872,7 +875,7 @@ serverRun(void)
     }
 
 #ifdef HAVE_DNSSD
-    if (FD_ISSET(DNSServiceRefSockFD(DNSSDMaster), &input))
+    if (DNSSDEnabled && FD_ISSET(DNSServiceRefSockFD(DNSSDMaster), &input))
     {
       serverLog(SERVER_LOGLEVEL_DEBUG, "serverRun: Input on DNS-SD socket.");
       DNSServiceProcessResult(DNSSDMaster);

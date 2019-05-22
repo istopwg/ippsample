@@ -1909,6 +1909,9 @@ serverRegisterPrinter(
 #  endif /* HAVE_DNSSD */
 
 
+  if (!DNSSDEnabled)
+    return (1);
+
   is_print3d                = !strncmp(printer->resource, "/ipp/print3d/", 13);
   color_supported           = ippFindAttribute(printer->pinfo.attrs, "color-supported", IPP_TAG_BOOLEAN);
   document_format_supported = ippFindAttribute(printer->pinfo.attrs, "document-format-supported", IPP_TAG_MIMETYPE);
@@ -2303,6 +2306,9 @@ void
 serverUnregisterPrinter(
     server_printer_t *printer)		/* I - Printer */
 {
+  if (!DNSSDEnabled)
+    return;
+
 #if HAVE_DNSSD
   if (printer->geo_ref)
   {

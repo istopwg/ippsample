@@ -7,7 +7,7 @@
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ippserver 8 "ippsample" "2019-05-17" "Apple Inc."
+.TH ippserver 8 "ippsample" "2019-05-21" "Apple Inc."
 .SH NAME
 ippserver \- a sample ipp server implementation
 .SH SYNOPSIS
@@ -72,6 +72,8 @@ ippserver \- a sample ipp server implementation
 .B \-v[vvv]
 ] [
 -B \-\-help
+] [
+.B \-\-no\-dns\-sd
 ] [
 .B \-\-no\-web\-forms
 ] [
@@ -148,6 +150,9 @@ The default is the name returned by the
 .BR hostname (1)
 command.
 .TP 5
+-B \-\-no\-dns\-sd
+Disables DNS-SD registrations.
+.TP 5
 -B \-\-no\-web\-forms
 Disables the GET-based web forms that allow web requests to change material, media, and supply levels.
 .TP 5
@@ -156,7 +161,7 @@ Specifies the port number to listen on.
 The default is a user-specific number from 8000 to 8999.
 .TP 5
 \fB\-r \fIsubtype[,...,subtype]\fR
-Specifies one or more comma-separated DNS-SD subtypes to advertise for the printer.
+Specifies one or more comma-delimited DNS-SD subtypes to advertise for the printer.
 The default subtype is "_print".
 .TP 5
 .B \-\-relaxed

@@ -1,8 +1,8 @@
 /*
  * Main entry for IPP Infrastructure Printer sample implementation.
  *
- * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
- * Copyright © 2010-2018 by Apple Inc.
+ * Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -49,6 +49,10 @@ main(int  argc,				/* I - Number of command-line args */
     if (!strcmp(argv[i], "--help"))
     {
       usage(0);
+    }
+    else if (!strcmp(argv[i], "--no-dns-sd"))
+    {
+      DNSSDEnabled = 0;
     }
     else if (!strcmp(argv[i], "--no-web-forms"))
     {
@@ -267,7 +271,9 @@ main(int  argc,				/* I - Number of command-line args */
   }
 
   if (!name && !confdir)
+  {
     usage(1);
+  }
   else if (confdir)
   {
    /*
@@ -338,6 +344,8 @@ usage(int status)			/* O - Exit status */
   puts("");
   puts("Options:");
   puts("--help                  Show program help");
+  puts("--no-dns-sd             Disable DNS-SD registrations");
+  puts("--no-web-forms          Disable web forms for materials, media, and supplies");
   puts("--relaxed               Run in relaxed conformance mode");
   puts("--version               Show program version");
   puts("-2                      Supports 2-sided printing (default=1-sided)");

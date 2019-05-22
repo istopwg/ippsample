@@ -72,6 +72,8 @@ ippserver - a sample ipp server implementation
 ] [
 -B --help
 ] [
+<b>--no-dns-sd</b>
+] [
 <b>--no-web-forms</b>
 ] [
 -B --relaxed
@@ -129,13 +131,15 @@ The default is a directory under the user's current temporary directory.
 The default is the name returned by the
 <b>hostname</b>(1)
 command.
+<dt>-B --no-dns-sd
+<dd style="margin-left: 5.0em">Disables DNS-SD registrations.
 <dt>-B --no-web-forms
 <dd style="margin-left: 5.0em">Disables the GET-based web forms that allow web requests to change material, media, and supply levels.
 <dt><b>-p </b><i>port</i>
 <dd style="margin-left: 5.0em">Specifies the port number to listen on.
 The default is a user-specific number from 8000 to 8999.
 <dt><b>-r </b><i>subtype[,...,subtype]</i>
-<dd style="margin-left: 5.0em">Specifies one or more comma-separated DNS-SD subtypes to advertise for the printer.
+<dd style="margin-left: 5.0em">Specifies one or more comma-delimited DNS-SD subtypes to advertise for the printer.
 The default subtype is "_print".
 <dt><b>--relaxed</b>
 <dd style="margin-left: 5.0em">Runs the server in relaxed conformance mode, which allows certain harmless IPP conformance issues to be ignored.

@@ -691,6 +691,7 @@ VAR char		*ServerName	VALUE(NULL);
 VAR char		*SpoolDirectory	VALUE(NULL);
 VAR char		*StateDirectory	VALUE(NULL);
 
+VAR int			DNSSDEnabled	VALUE(1);
 #ifdef HAVE_DNSSD
 VAR DNSServiceRef	DNSSDMaster	VALUE(NULL);
 #elif defined(HAVE_AVAHI)

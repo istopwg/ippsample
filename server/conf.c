@@ -2169,10 +2169,11 @@ finalize_system(void)
   add_subscription_privacy();
 
  /*
-  * Initialize Bonjour...
+  * Initialize DNS-SD...
   */
 
-  dnssd_init();
+  if (DNSSDEnabled)
+    dnssd_init();
 
  /*
   * Apply default listeners if none are specified...
