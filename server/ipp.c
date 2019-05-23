@@ -2338,12 +2338,6 @@ ipp_close_job(server_client_t *client)	/* I - Client */
 		    "Job #%d is completed - can\'t close.", job->id);
         break;
 
-    case IPP_JSTATE_PROCESSING :
-    case IPP_JSTATE_STOPPED :
-	serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE,
-		    "Job #%d is already closed.", job->id);
-        break;
-
     default :
 	serverRespondIPP(client, IPP_STATUS_OK, NULL);
         break;
@@ -9427,7 +9421,7 @@ valid_values(
 			set_op;		/* Is this a set operation? */
 
 
-  create_op = (op == IPP_OP_CREATE_JOB || op == IPP_OP_CREATE_PRINTER || op == IPP_OP_CREATE_RESOURCE || op == IPP_OP_PRINT_JOB || op == IPP_OP_PRINT_URI);
+  create_op = (op == IPP_OP_CREATE_JOB || op == IPP_OP_CREATE_PRINTER || op == IPP_OP_CREATE_RESOURCE || op == IPP_OP_PRINT_JOB || op == IPP_OP_PRINT_URI || op == IPP_OP_VALIDATE_JOB || op == IPP_OP_VALIDATE_DOCUMENT);
   set_op    = (op == IPP_OP_SET_DOCUMENT_ATTRIBUTES || op == IPP_OP_SET_JOB_ATTRIBUTES || op == IPP_OP_SET_PRINTER_ATTRIBUTES || op == IPP_OP_SET_RESOURCE_ATTRIBUTES || op == IPP_OP_SET_SYSTEM_ATTRIBUTES);
 
   if (supported)

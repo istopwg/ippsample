@@ -897,11 +897,8 @@ serverCreatePrinter(
   ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_CHARSET), "charset-supported", sizeof(charsets) / sizeof(charsets[0]), NULL, charsets);
 
   /* color-supported */
-  if (!is_print3d)
-  {
-    if (!cupsArrayFind(existing, (void *)"color-supported"))
-      ippAddBoolean(printer->pinfo.attrs, IPP_TAG_PRINTER, "color-supported", printer->pinfo.ppm_color > 0);
-  }
+  if (!cupsArrayFind(existing, (void *)"color-supported"))
+    ippAddBoolean(printer->pinfo.attrs, IPP_TAG_PRINTER, "color-supported", printer->pinfo.ppm_color > 0);
 
   /* compression-supported */
   if (!cupsArrayFind(existing, (void *)"compression-supported"))

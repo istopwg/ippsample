@@ -1,7 +1,7 @@
 #
 # IPP 3D test suite.
 #
-# Copyright © 2017 by Apple Inc.
+# Copyright © 2017-2019 by Apple Inc.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
 # information.
@@ -82,11 +82,11 @@
 
 	EXPECT job-ids-supported OF-TYPE boolean IN-GROUP printer-attributes-tag WITH-VALUE true
 
-	EXPECT ?material-amount-units-supported OF-TYPE keyword WITH-VALUE "/^(g|kg|l|ml|mm)\$/" 
+	EXPECT ?material-amount-units-supported OF-TYPE keyword WITH-VALUE "/^(g|kg|l|ml|mm)\$/"
 
-	EXPECT ?material-diameter-supported OF-TYPE integer|rangeOfInteger IN-GROUP printer-attributes-tag 
+	EXPECT ?material-diameter-supported OF-TYPE integer|rangeOfInteger IN-GROUP printer-attributes-tag
 
-	EXPECT material-purpose-supported OF-TYPE keyword IN-GROUP printer-attributes-tag 
+	EXPECT material-purpose-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
 
 	EXPECT ?material-rate-supported OF-TYPE integer|rangeOfInteger IN-GROUP printer-attributes-tag
 	EXPECT ?material-rate-units-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
@@ -95,26 +95,26 @@
 
 	EXPECT ?material-temperature-supported OF-TYPE integer|rangeOfInteger IN-GROUP printer-attributes-tag
 
-	EXPECT material-type-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT material-type-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag
 
 	EXPECT ?materials-col-database OF-TYPE collection IN-GROUP printer-attributes-tag
 
 	EXPECT materials-col-default OF-TYPE collection IN-GROUP printer-attributes-tag
 	EXPECT materials-col-default/material-key OF-TYPE keyword
 	EXPECT materials-col-default/material-name OF-TYPE name
-	EXPECT materials-col-default/material-type OF-TYPE keyword
-	EXPECT materials-col-default/material-fill-density OF-TYPE integer    
-	EXPECT materials-col-default/material-purpose OF-TYPE name             
-	EXPECT materials-col-default/material-shell-thickness OF-TYPE integer 
+	EXPECT materials-col-default/material-type OF-TYPE keyword|name
+	EXPECT materials-col-default/material-fill-density OF-TYPE integer
+	EXPECT materials-col-default/material-purpose OF-TYPE keyword|name
+	EXPECT materials-col-default/material-shell-thickness OF-TYPE integer
 
 	EXPECT materials-col-ready OF-TYPE collection IN-GROUP printer-attributes-tag
 	EXPECT materials-col-ready/material-key OF-TYPE keyword
 	EXPECT materials-col-ready/material-name OF-TYPE name
-	EXPECT materials-col-ready/material-type OF-TYPE keyword
+	EXPECT materials-col-ready/material-type OF-TYPE keyword|name
 
-	EXPECT material-diameter-ready IF-DEFINED HAVE_MATERIAL_DIAMETER DEFINE-VALUE MATERIAL_DIAMETER  
-	EXPECT materials-col-ready/material-type WITH-VALUE "pla" DEFINE-MATCH SUPPORTS_PLA_MATERIAL     
-	EXPECT materials-col-ready/material-type WITH-VALUE "abs" DEFINE-MATCH SUPPORTS_ABS_MATERIAL	 
+	EXPECT material-diameter-ready IF-DEFINED HAVE_MATERIAL_DIAMETER DEFINE-VALUE MATERIAL_DIAMETER
+	EXPECT materials-col-ready/material-type WITH-VALUE "pla" DEFINE-MATCH SUPPORTS_PLA_MATERIAL
+	EXPECT materials-col-ready/material-type WITH-VALUE "abs" DEFINE-MATCH SUPPORTS_ABS_MATERIAL
 
  	EXPECT materials-col-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
 	EXPECT materials-col-supported WITH-VALUE "material-fill-density"
@@ -133,9 +133,9 @@
 
 	EXPECT ?multiple-object-handling-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
 
-	EXPECT multiple-operation-timeout OF-TYPE integer IN-GROUP printer-attributes-tag
+	EXPECT multiple-operation-time-out OF-TYPE integer IN-GROUP printer-attributes-tag
 
-	EXPECT multiple-operation-timeout-action OF-TYPE keyword IN-GROUP printer-attributes-tag
+	EXPECT multiple-operation-time-out-action OF-TYPE keyword IN-GROUP printer-attributes-tag
 
 	EXPECT natural-language-configured OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag
 
@@ -233,9 +233,9 @@
 	EXPECT materials-col-supported WITH-VALUE "material-diameter" IF-DEFINED USES_FILAMENT_MATERIAL  #Printers that use filament material must support this attribute.
 	EXPECT materials-col-supported WITH-VALUE "material-temperature" IF-DEFINED SUPPORTS_MATERIAL_TEMPERATURE_CONTROL
 
-	EXPECT material-amount-units-supported IF-DEFINED HAVE_MATERIAL_AMOUNT  
+	EXPECT material-amount-units-supported IF-DEFINED HAVE_MATERIAL_AMOUNT
 
-	EXPECT material-diameter-supported IF-DEFINED HAVE_MATERIAL_DIAMETER 
+	EXPECT material-diameter-supported IF-DEFINED HAVE_MATERIAL_DIAMETER
 
 	EXPECT material-rate-supported IF-DEFINED HAVE_MATERIAL_RATE
 	EXPECT material-rate-units-supported IF-DEFINED HAVE_MATERIAL_RATE
@@ -316,7 +316,6 @@
 
 	# Job Template attributes
 	EXPECT job-creation-attributes-supported WITH-VALUE "materials-col"
-	EXPECT job-creation-attributes-supported WITH-VALUE "multiple-document-handling"
 	EXPECT job-creation-attributes-supported WITH-VALUE "multiple-object-handling" IF-DEFINED HAVE_PDF
 	EXPECT job-creation-attributes-supported WITH-VALUE "platform-temperature" IF-DEFINED HAVE_PLATFORM_TEMPERATURE
 	EXPECT job-creation-attributes-supported WITH-VALUE "print-accuracy"
@@ -403,12 +402,9 @@
 	STATUS successful-ok
 
 	# Job Status attributes
-	EXPECT compression-supplied OF-TYPE keyword IN-GROUP job-attributes-tag
 	EXPECT date-time-at-completed OF-TYPE dateTime IN-GROUP job-attributes-tag
 	EXPECT date-time-at-creation OF-TYPE dateTime IN-GROUP job-attributes-tag
 	EXPECT date-time-at-processing OF-TYPE dateTime IN-GROUP job-attributes-tag
-	EXPECT document-format-supplied OF-TYPE mimeMediaType IN-GROUP job-attributes-tag WITH-VALUE "model/3mf"
-	EXPECT document-name-supplied OF-TYPE name IN-GROUP job-attributes-tag WITH-VALUE "IPP 3D Test Document"
 	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0
 	EXPECT job-name OF-TYPE name IN-GROUP job-attributes-tag WITH-VALUE "IPP 3D Test Job"
 	EXPECT job-originating-user-name OF-TYPE name IN-GROUP job-attributes-tag
@@ -519,7 +515,7 @@
 
 	STATUS successful-ok
 
-    # Repeat while we are not canceled, aborted, or completed...
+	# Repeat while we are not canceled, aborted, or completed...
 	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag WITH-VALUE <7 REPEAT-MATCH
 }
 
@@ -534,12 +530,9 @@
 	ATTR name requesting-user-name $user
 	ATTR keyword requested-attributes all
 
-	EXPECT compression-supplied OF-TYPE keyword IN-GROUP job-attributes-tag
 	EXPECT date-time-at-completed OF-TYPE dateTime IN-GROUP job-attributes-tag
 	EXPECT date-time-at-creation OF-TYPE dateTime IN-GROUP job-attributes-tag
 	EXPECT date-time-at-processing OF-TYPE dateTime IN-GROUP job-attributes-tag
-	EXPECT document-format-supplied OF-TYPE mimeMediaType IN-GROUP job-attributes-tag WITH-VALUE "model/3mf"
-	EXPECT document-name-supplied OF-TYPE name IN-GROUP job-attributes-tag WITH-VALUE "IPP 3D Test Document"
 	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0
 	EXPECT job-name OF-TYPE name IN-GROUP job-attributes-tag WITH-VALUE "IPP 3D Test Job"
 	EXPECT job-originating-user-name OF-TYPE name IN-GROUP job-attributes-tag
@@ -651,9 +644,9 @@
 }
 
 
-# Create a test job to be cancelled by the Close-Job operation 
+# Create a test job to be cancelled by the Close-Job operation
 {
-	NAME "Create-Job: IPP 3D Test Job"
+	NAME "Create-Job: IPP 3D Test Job (for Close-Job)"
 	OPERATION Create-Job
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -676,7 +669,7 @@
 	       IN-GROUP job-attributes-tag WITH-VALUE >-1
 }
 {
-	NAME "Send-Document: IPP 3D Test Document 1"
+	NAME "Send-Document: IPP 3D Test Document (last-document='false')"
 	OPERATION Send-Document
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
@@ -686,30 +679,14 @@
 	ATTR name requesting-user-name $user
 	ATTR name document-name "IPP 3D Test Document"
 	ATTR mimeMediaType document-format "model/3mf"
-
-	FILE $filename
-
-	STATUS successful-ok
-}
-{
-	NAME "Send-Document: IPP 3D Test Document 2"
-	OPERATION Send-Document
-	GROUP operation-attributes-tag
-	ATTR charset attributes-charset utf-8
-	ATTR naturalLanguage attributes-natural-language en
-	ATTR uri printer-uri $uri
-	ATTR integer job-id $JOBID_CLOSEJOB
-	ATTR name requesting-user-name $user
-	ATTR name document-name "IPP 3D Test Document"
-	ATTR mimeMediaType document-format "model/3mf"
-	ATTR boolean last-document true
+	ATTR boolean last-document false
 
 	FILE $filename
 
 	STATUS successful-ok
 }
 
-#Close-Job operation
+# Close-Job operation
 {
 	NAME "Section 5.3 PWG 5100.11: Close-Job Operation"
 	OPERATION Close-Job
@@ -1163,7 +1140,7 @@
 	STATUS successful-ok
 	STATUS client-error-document-format-not-supported
 	STATUS server-error-job-canceled
-} 
+}
 
 
 
@@ -1228,7 +1205,7 @@
 
 
 
-# Create a test job with 'none' print-base 
+# Create a test job with 'none' print-base
 {
 	SKIP-IF-NOT-DEFINED OPTIONAL_NONE_PRINTBASE
 
