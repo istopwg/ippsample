@@ -40,7 +40,8 @@ DOCFILES	=	\
 			testfile.pdf \
 			testfile.ps \
 			testfile.txt \
-			torus.3mf
+			torus.3mf \
+			vector.pdf
 
 TESTFILES	=	\
 			cancel-current-job.test \
