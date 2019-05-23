@@ -1,8 +1,8 @@
 /*
  * IPP processing code for sample IPP server implementation.
  *
- * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
- * Copyright © 2010-2018 by Apple Inc.
+ * Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -57,6 +57,7 @@ static void		ipp_acknowledge_identify_printer(server_client_t *client);
 static void		ipp_acknowledge_job(server_client_t *client);
 static void		ipp_allocate_printer_resources(server_client_t *client);
 static void		ipp_cancel_current_job(server_client_t *client);
+static void		ipp_cancel_document(server_client_t *client);
 static void		ipp_cancel_job(server_client_t *client);
 static void		ipp_cancel_jobs(server_client_t *client);
 static void		ipp_cancel_resource(server_client_t *client);
@@ -109,6 +110,7 @@ static void		ipp_resume_printer(server_client_t *client);
 static void		ipp_send_document(server_client_t *client);
 static void		ipp_send_resource_data(server_client_t *client);
 static void		ipp_send_uri(server_client_t *client);
+static void		ipp_set_document_attributes(server_client_t *client);
 static void		ipp_set_job_attributes(server_client_t *client);
 static void		ipp_set_printer_attributes(server_client_t *client);
 static void		ipp_set_resource_attributes(server_client_t *client);
@@ -566,7 +568,7 @@ copy_doc_attributes(
   *   time-at-xxx
   */
 
-  serverCopyAttributes(client->response, job->attrs, ra, pa, IPP_TAG_DOCUMENT, 0);
+  serverCopyAttributes(client->response, job->doc_attrs, ra, pa, IPP_TAG_DOCUMENT, 0);
 
   for (srcattr = ippFirstAttribute(job->attrs); srcattr; srcattr = ippNextAttribute(job->attrs))
   {
@@ -584,8 +586,6 @@ copy_doc_attributes(
     }
     else if (!strcmp(name, "document-uri") && check_attribute("document-uri", ra, pa))
       ippAddString(client->response, IPP_TAG_DOCUMENT, IPP_TAG_URI, "document-uri", NULL, ippGetString(srcattr, 0, NULL));
-    else if (!strcmp(name, "document-name") && check_attribute("document-name", ra, pa))
-      ippAddString(client->response, IPP_TAG_DOCUMENT, IPP_TAG_NAME, "document-name", NULL, ippGetString(srcattr, 0, NULL));
     else if (!strcmp(name, "job-printer-uri") && check_attribute("document-printer-uri", ra, pa))
       ippAddString(client->response, IPP_TAG_DOCUMENT, IPP_TAG_URI, "document-printer-uri", NULL, ippGetString(srcattr, 0, NULL));
     else if (!strcmp(name, "job-uri") && check_attribute("document-job-uri", ra, pa))
@@ -593,9 +593,6 @@ copy_doc_attributes(
     else if (!strcmp(name, "job-uuid") && check_attribute("document-uuid", ra, pa))
       ippAddString(client->response, IPP_TAG_DOCUMENT, IPP_TAG_URI, "document-uuid", NULL, ippGetString(srcattr, 0, NULL));
   }
-
-  if (check_attribute("compression", ra, pa))
-    ippAddString(client->response, IPP_TAG_DOCUMENT, IPP_CONST_TAG(IPP_TAG_KEYWORD), "compression", NULL, "none");
 
   if (check_attribute("date-time-at-completed", ra, pa))
   {
@@ -632,10 +629,10 @@ copy_doc_attributes(
     serverCopyJobStateReasons(client->response, IPP_TAG_DOCUMENT, job);
 
   if (check_attribute("impressions", ra, pa))
-    ippAddInteger(client->response, IPP_TAG_DOCUMENT, IPP_TAG_INTEGER, "job-impressions", job->impressions);
+    ippAddInteger(client->response, IPP_TAG_DOCUMENT, IPP_TAG_INTEGER, "impressions", job->impressions);
 
   if (check_attribute("impressions-completed", ra, pa))
-    ippAddInteger(client->response, IPP_TAG_DOCUMENT, IPP_TAG_INTEGER, "job-impressions-completed", job->impcompleted);
+    ippAddInteger(client->response, IPP_TAG_DOCUMENT, IPP_TAG_INTEGER, "impressions-completed", job->impcompleted);
 
   if (check_attribute("last-document", ra, pa))
     ippAddBoolean(client->response, IPP_TAG_DOCUMENT, "last-document", 1);
@@ -1791,6 +1788,103 @@ ipp_cancel_current_job(
 }
 
 
+/*
+ * 'ipp_cancel_document()' - Cancel a document in a job.
+ */
+
+static void
+ipp_cancel_document(
+    server_client_t *client)		/* I - Client */
+{
+  server_job_t		*job;		/* Job information */
+  ipp_attribute_t	*attr;		/* Document number attribute */
+  int			doc_number;	/* Document number value */
+
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
+ /*
+  * Get the job...
+  */
+
+  if ((job = serverFindJob(client, 0)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Job does not exist.");
+    return;
+  }
+
+  if (Authentication && !serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this job.");
+    return;
+  }
+
+  if ((attr = ippFindAttribute(client->request, "document-number", IPP_TAG_ZERO)) == NULL || ippGetGroupTag(attr) != IPP_TAG_OPERATION || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetCount(attr) != 1)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, attr ? "Bad 'document-number' attribute in request." : "Missing 'document-number' attribute in request.");
+    return;
+  }
+  else if ((doc_number = ippGetInteger(attr, 0)) != 1)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Document #%d does not exist.", doc_number);
+    return;
+  }
+
+ /*
+  * See if the job is already completed, canceled, or aborted; if so,
+  * we can't cancel...
+  */
+
+  switch (job->state)
+  {
+    case IPP_JSTATE_CANCELED :
+	serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Document #%d is already canceled - can\'t cancel.", doc_number);
+        break;
+
+    case IPP_JSTATE_ABORTED :
+	serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Document #%d is already aborted - can\'t cancel.", doc_number);
+        break;
+
+    case IPP_JSTATE_COMPLETED :
+	serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Document #%d is already completed - can\'t cancel.", doc_number);
+        break;
+
+    default :
+       /*
+        * Cancel the job...
+	*/
+
+	_cupsRWLockWrite(&(client->printer->rwlock));
+
+	if (job->state == IPP_JSTATE_PROCESSING ||
+	    (job->state == IPP_JSTATE_HELD && job->fd >= 0))
+        {
+          job->cancel = 1;
+
+          if (job->state == IPP_JSTATE_PROCESSING)
+	    serverStopJob(job);
+	}
+	else
+	{
+	  job->state     = IPP_JSTATE_CANCELED;
+	  job->completed = time(NULL);
+	}
+
+	_cupsRWUnlock(&(client->printer->rwlock));
+
+        serverAddEventNoLock(client->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, NULL);
+
+	serverRespondIPP(client, IPP_STATUS_OK, NULL);
+        break;
+  }}
 
 
 /*
@@ -1837,18 +1931,15 @@ ipp_cancel_job(server_client_t *client)	/* I - Client */
   switch (job->state)
   {
     case IPP_JSTATE_CANCELED :
-	serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE,
-		    "Job #%d is already canceled - can\'t cancel.", job->id);
+	serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Job #%d is already canceled - can't cancel.", job->id);
         break;
 
     case IPP_JSTATE_ABORTED :
-	serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE,
-		    "Job #%d is already aborted - can\'t cancel.", job->id);
+	serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Job #%d is already aborted - can't cancel.", job->id);
         break;
 
     case IPP_JSTATE_COMPLETED :
-	serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE,
-		    "Job #%d is already completed - can\'t cancel.", job->id);
+	serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Job #%d is already completed - can't cancel.", job->id);
         break;
 
     default :
@@ -3727,7 +3818,7 @@ ipp_get_document_attributes(
 
   if ((number = ippFindAttribute(client->request, "document-number", IPP_TAG_INTEGER)) == NULL || ippGetInteger(number, 0) != 1)
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Document %d not found.", ippGetInteger(number, 0));
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Document #%d not found.", ippGetInteger(number, 0));
     return;
   }
 
@@ -5374,7 +5465,8 @@ ipp_print_job(server_client_t *client)	/* I - Client */
 			buffer[4096];	/* Copy buffer */
   ssize_t		bytes;		/* Bytes read */
   cups_array_t		*ra;		/* Attributes to send in response */
-  ipp_attribute_t	*hold_until;	/* job-hold-until-xxx attribute, if any */
+  ipp_attribute_t	*hold_until,	/* job-hold-until-xxx attribute, if any */
+			*doc_name;	/* document-name attribute, if any */
 
 
   if (Authentication && !client->username[0])
@@ -5424,6 +5516,16 @@ ipp_print_job(server_client_t *client)	/* I - Client */
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_TOO_MANY_JOBS, "Too many jobs are queued.");
     return;
+  }
+
+  if ((doc_name = ippFindAttribute(client->request, "document-name", IPP_TAG_NAME)) != NULL)
+  {
+    if (!job->doc_attrs)
+      job->doc_attrs = ippNew();
+
+    doc_name = ippCopyAttribute(job->doc_attrs, doc_name, 0);
+
+    ippSetGroupTag(job->doc_attrs, &doc_name, IPP_TAG_DOCUMENT);
   }
 
   if ((hold_until = ippFindAttribute(client->request, "job-hold-until", IPP_TAG_KEYWORD)) == NULL)
@@ -5545,7 +5647,8 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
   server_job_t		*job;		/* New job */
   const char		*uri;		/* document-uri */
   cups_array_t		*ra;		/* Attributes to send in response */
-  ipp_attribute_t	*hold_until;	/* job-hold-until-xxx attribute, if any */
+  ipp_attribute_t	*hold_until,	/* job-hold-until-xxx attribute, if any */
+			*doc_name;	/* document-name attribute, if any */
 
 
   if (Authentication && !client->username[0])
@@ -5603,6 +5706,16 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_TOO_MANY_JOBS, "Too many jobs are queued.");
     return;
+  }
+
+  if ((doc_name = ippFindAttribute(client->request, "document-name", IPP_TAG_NAME)) != NULL)
+  {
+    if (!job->doc_attrs)
+      job->doc_attrs = ippNew();
+
+    doc_name = ippCopyAttribute(job->doc_attrs, doc_name, 0);
+
+    ippSetGroupTag(job->doc_attrs, &doc_name, IPP_TAG_DOCUMENT);
   }
 
   if ((hold_until = ippFindAttribute(client->request, "job-hold-until", IPP_TAG_KEYWORD)) == NULL)
@@ -6193,7 +6306,10 @@ ipp_send_document(server_client_t *client)/* I - Client */
     return;
   }
 
-  serverCopyAttributes(job->attrs, client->request, NULL, NULL, IPP_TAG_JOB, 0);
+  if (!job->doc_attrs)
+    job->doc_attrs = ippNew();
+
+  serverCopyAttributes(job->doc_attrs, client->request, NULL, NULL, IPP_TAG_JOB, 0);
 
  /*
   * Get the document format for the job...
@@ -6586,6 +6702,11 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
     return;
   }
 
+  if (!job->doc_attrs)
+    job->doc_attrs = ippNew();
+
+  serverCopyAttributes(job->doc_attrs, client->request, NULL, NULL, IPP_TAG_JOB, 0);
+
  /*
   * Do we have a file to print?
   */
@@ -6645,6 +6766,100 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
 
   copy_job_attributes(client, job, ra, NULL);
   cupsArrayDelete(ra);
+}
+
+
+/*
+ * 'ipp_set_document_attributes()' - Set document attributes.
+ */
+
+static void
+ipp_set_document_attributes(
+    server_client_t *client)		/* I - Client */
+{
+  server_job_t		*job;		/* Job information */
+  const char		*name;		/* Name of attribute */
+  ipp_attribute_t	*attr;		/* Current attribute */
+  int			doc_number;	/* Document number value */
+
+
+  if (Authentication && !client->username[0])
+  {
+   /*
+    * Require authenticated username...
+    */
+
+    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+    return;
+  }
+
+ /*
+  * Get the job...
+  */
+
+  if ((job = serverFindJob(client, 0)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Job does not exist.");
+    return;
+  }
+
+  if (Authentication && !serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this job.");
+    return;
+  }
+
+  if ((attr = ippFindAttribute(client->request, "document-number", IPP_TAG_ZERO)) == NULL || ippGetGroupTag(attr) != IPP_TAG_OPERATION || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetCount(attr) != 1)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, attr ? "Bad 'document-number' attribute in request." : "Missing 'document-number' attribute in request.");
+    return;
+  }
+  else if ((doc_number = ippGetInteger(attr, 0)) != 1)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Document #%d does not exist.", doc_number);
+    return;
+  }
+
+  if (job->state >= IPP_JSTATE_PROCESSING)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Job is not in a pending/pending-held state.");
+    return;
+  }
+
+ /*
+  * Scan attributes to see if there are any that are not settable...
+  */
+
+  if (!valid_doc_attributes(client))
+    return;
+
+ /*
+  * Set the values...
+  */
+
+  _cupsRWLockWrite(&job->rwlock);
+
+  for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
+  {
+    ipp_attribute_t	*old_attr;	/* Old attribute value */
+
+    name = ippGetName(attr);
+
+    if (ippGetGroupTag(attr) != IPP_TAG_DOCUMENT || !name)
+      continue;
+
+    if ((old_attr = ippFindAttribute(job->doc_attrs, name, IPP_TAG_ZERO)) != NULL)
+      ippDeleteAttribute(job->doc_attrs, old_attr);
+
+    if (!job->doc_attrs)
+      job->doc_attrs = ippNew();
+
+    ippCopyAttribute(job->doc_attrs, attr, 0);
+  }
+
+  _cupsRWUnlock(&job->rwlock);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
 
 
@@ -6724,19 +6939,6 @@ ipp_set_job_attributes(
     else if (!strcmp(name, "job-hold-until-time"))
     {
       serverHoldJob(job, attr);
-    }
-    else if (!strcmp(name, "job-name"))
-    {
-      ipp_attribute_t	*job_name;	/* job-name attribute */
-
-      _cupsRWLockWrite(&job->rwlock);
-
-      if ((job_name = ippFindAttribute(job->attrs, "job-name", IPP_TAG_NAME)) != NULL)
-        ippDeleteAttribute(job->attrs, job_name);
-
-      ippCopyAttribute(job->attrs, attr, 0);
-
-      _cupsRWUnlock(&job->rwlock);
     }
     else if (!strcmp(name, "job-priority"))
     {
@@ -8291,12 +8493,20 @@ serverProcessIPP(
 	      ipp_renew_subscription(client);
 	      break;
 
+	  case IPP_OP_CANCEL_DOCUMENT :
+	      ipp_cancel_document(client);
+	      break;
+
 	  case IPP_OP_GET_DOCUMENT_ATTRIBUTES :
 	      ipp_get_document_attributes(client);
 	      break;
 
 	  case IPP_OP_GET_DOCUMENTS :
 	      ipp_get_documents(client);
+	      break;
+
+	  case IPP_OP_SET_DOCUMENT_ATTRIBUTES :
+	      ipp_set_document_attributes(client);
 	      break;
 
 	  case IPP_OP_VALIDATE_DOCUMENT :
@@ -8793,13 +9003,6 @@ valid_doc_attributes(
     serverRespondUnsupported(client, attr);
     valid = 0;
   }
-
- /*
-  * document-name
-  */
-
-  if ((attr = ippFindAttribute(client->request, "document-name", IPP_TAG_NAME)) != NULL)
-    ippAddString(client->request, IPP_TAG_JOB, IPP_TAG_NAME, "document-name-supplied", NULL, ippGetString(attr, 0, NULL));
 
   return (valid);
 }

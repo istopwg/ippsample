@@ -552,7 +552,8 @@ struct server_job_s			/**** Job data ****/
 			completed;	/* time-at-completed value */
   int			impressions,	/* job-impressions value */
 			impcompleted;	/* job-impressions-completed value */
-  ipp_t			*attrs;		/* Attributes */
+  ipp_t			*attrs,		/* Job attributes */
+			*doc_attrs;	/* Document attributes */
   int			cancel;		/* Non-zero when job canceled */
   char			*filename;	/* Print file name */
   int			fd;		/* Print file descriptor */
