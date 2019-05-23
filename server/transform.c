@@ -215,6 +215,37 @@ serverTransformJob(
   else
     myenvp[myenvc ++] = strdup("SERVER_LOGLEVEL=error");
 
+  for (attr = ippFirstAttribute(job->doc_attrs); attr && myenvc < (int)(sizeof(myenvp) / sizeof(myenvp[0]) - 1); attr = ippNextAttribute(job->doc_attrs))
+  {
+   /*
+    * Convert "attribute-name" to "IPP_ATTRIBUTE_NAME=" and then add the
+    * value(s) from the attribute.
+    */
+
+    const char *name = ippGetName(attr);
+    if (!name)
+      continue;
+
+    valptr = val;
+    *valptr++ = 'I';
+    *valptr++ = 'P';
+    *valptr++ = 'P';
+    *valptr++ = '_';
+    while (*name && valptr < (val + sizeof(val) - 2))
+    {
+      if (*name == '-')
+        *valptr++ = '_';
+      else
+        *valptr++ = (char)toupper(*name & 255);
+
+      name ++;
+    }
+    *valptr++ = '=';
+    ippAttributeString(attr, valptr, sizeof(val) - (size_t)(valptr - val));
+
+    myenvp[myenvc++] = strdup(val);
+  }
+
   for (attr = ippFirstAttribute(job->attrs); attr && myenvc < (int)(sizeof(myenvp) / sizeof(myenvp[0]) - 1); attr = ippNextAttribute(job->attrs))
   {
    /*
@@ -224,6 +255,9 @@ serverTransformJob(
 
     const char *name = ippGetName(attr);
     if (!name)
+      continue;
+
+    if (ippFindAttribute(job->doc_attrs, name, IPP_TAG_ZERO))
       continue;
 
     valptr = val;
