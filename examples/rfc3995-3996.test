@@ -49,7 +49,7 @@
 	EXPECT ippget-event-life DEFINE-VALUE eventlife
 }
 
-{   
+{
     # create printer subscription
 
 	NAME "Create a pull printer subscription"
@@ -99,8 +99,8 @@
 ##ISSUE (ipptool issue): notify-user-data is returned with value "ippuser" by ippserver but ipptool still displays EXPECTED: notify-user-data WITH-VALUE ippuser
     EXPECT notify-user-data WITH-VALUE "ippuser" OF-TYPE octetString IN-GROUP subscription-attributes-tag COUNT 1
 
-#ISSUE: notify-charset and notify-natural-language are not returned.    
-	EXPECT notify-charset OF-TYPE charset IN-GROUP subscription-attributes-tag WITH-VALUE "utf-8" COUNT 1    
+#ISSUE: notify-charset and notify-natural-language are not returned.
+	EXPECT notify-charset OF-TYPE charset IN-GROUP subscription-attributes-tag WITH-VALUE "utf-8" COUNT 1
 	EXPECT notify-natural-language OF-TYPE naturalLanguage IN-GROUP subscription-attributes-tag WITH-VALUE "en" COUNT 1
 
     EXPECT notify-lease-duration OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >0 COUNT 1
@@ -112,7 +112,7 @@
     EXPECT notify-printer-uri OF-TYPE uri IN-GROUP subscription-attributes-tag COUNT 1
 	EXPECT !notify-job-id
     EXPECT notify-subscriber-user-name OF-TYPE name IN-GROUP subscription-attributes-tag WITH-VALUE $user COUNT 1
-	
+
 	EXPECT !notify-status-code
 }
 
@@ -167,27 +167,27 @@
     # but that doesn't seem to be right.
     # ippserver also doesn't follow that.
     # that is why the condition imposed here is <= ippget-event-life value.
-	EXPECT notify-get-interval OF-TYPE integer IN-GROUP operation-attributes-tag WITH-VALUE <$eventlife,=$eventlife COUNT 1					
-	
+	EXPECT notify-get-interval OF-TYPE integer IN-GROUP operation-attributes-tag WITH-VALUE <$eventlife,=$eventlife COUNT 1
+
 	EXPECT notify-subscription-id OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE >0 COUNT 1
 	EXPECT notify-printer-uri OF-TYPE uri IN-GROUP event-notification-attributes-tag COUNT 1
 	EXPECT notify-subscribed-event OF-TYPE keyword IN-GROUP event-notification-attributes-tag WITH-VALUE printer-state-changed COUNT 1
-	
+
 #ISSUE: printer-up-time must be returned.
     EXPECT printer-up-time OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE >0 COUNT 1
-							
+
 	EXPECT notify-sequence-number OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE >-1 COUNT 1
 	EXPECT notify-charset OF-TYPE charset IN-GROUP event-notification-attributes-tag WITH-VALUE "utf-8" COUNT 1
 	EXPECT notify-natural-language OF-TYPE naturalLanguage IN-GROUP event-notification-attributes-tag WITH-VALUE "en"
 
 #ISSUE: notify-user-data must be returned.
-	EXPECT notify-user-data OF-TYPE octetString IN-GROUP event-notification-attributes-tag WITH-VALUE "ippuser" COUNT 1   										
+	EXPECT notify-user-data OF-TYPE octetString IN-GROUP event-notification-attributes-tag WITH-VALUE "ippuser" COUNT 1
 
 	EXPECT notify-text OF-TYPE text IN-GROUP event-notification-attributes-tag
 	EXPECT printer-state OF-TYPE enum IN-GROUP event-notification-attributes-tag
 	EXPECT printer-state-reasons OF-TYPE keyword IN-GROUP event-notification-attributes-tag
 
-#ISSUE: printer-is-accepting-jobs must be returned. 
+#ISSUE: printer-is-accepting-jobs must be returned.
 	EXPECT printer-is-accepting-jobs OF-TYPE boolean IN-GROUP event-notification-attributes-tag
 }
 
@@ -236,23 +236,21 @@
 	STATUS successful-ok
 	STATUS successful-ok-events-complete
 
-	EXPECT notify-get-interval OF-TYPE integer IN-GROUP operation-attributes-tag WITH-VALUE <$eventlife,=$eventlife COUNT 1					
+	EXPECT notify-get-interval OF-TYPE integer IN-GROUP operation-attributes-tag WITH-VALUE <$eventlife,=$eventlife COUNT 1
 
 	EXPECT notify-subscription-id OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE >0 COUNT 1
 	EXPECT notify-printer-uri OF-TYPE uri IN-GROUP event-notification-attributes-tag COUNT 1
 	EXPECT notify-subscribed-event OF-TYPE keyword IN-GROUP event-notification-attributes-tag WITH-VALUE job-completed COUNT 1
-	EXPECT printer-up-time OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE >0 COUNT 1								
+	EXPECT printer-up-time OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE >0 COUNT 1
 	EXPECT notify-sequence-number OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE >-1 COUNT 1
 	EXPECT notify-charset OF-TYPE charset IN-GROUP event-notification-attributes-tag WITH-VALUE "utf-8" COUNT 1
-	EXPECT notify-natural-language OF-TYPE naturalLanguage IN-GROUP event-notification-attributes-tag WITH-VALUE "en"	
+	EXPECT notify-natural-language OF-TYPE naturalLanguage IN-GROUP event-notification-attributes-tag WITH-VALUE "en"
 	EXPECT notify-user-data OF-TYPE octetString IN-GROUP event-notification-attributes-tag WITH-VALUE "ippuser" COUNT 1
 	EXPECT notify-text OF-TYPE text IN-GROUP event-notification-attributes-tag
-	
-#ISSUE: notify-job-id is returned but job-id is not. rfc3996 (Section 5.2) requires printer to return job-id.
-# It is very likely that there in a typographical error in the rfc and notify-job-id should be returned instead of job-id.
-    EXPECT job-id OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE $job-id COUNT 1
-	
-    EXPECT job-state OF-TYPE enum IN-GROUP event-notification-attributes-tag COUNT 1 											
+
+	EXPECT notify-job-id OF-TYPE integer IN-GROUP event-notification-attributes-tag WITH-VALUE $job-id COUNT 1
+
+	EXPECT job-state OF-TYPE enum IN-GROUP event-notification-attributes-tag COUNT 1
 	EXPECT job-state-reasons OF-TYPE keyword IN-GROUP event-Notification-attributes-tag
 }
 
@@ -335,7 +333,7 @@
     EXPECT-ALL notify-pull-method OF-TYPE keyword IN-GROUP subscription-attributes-tag WITH-VALUE "ippget" COUNT 1
     EXPECT-ALL notify-events OF-TYPE keyword
     EXPECT notify-user-data OF-TYPE octetString IN-GROUP subscription-attributes-tag WITH-VALUE "ippuser"
-	EXPECT-ALL notify-charset OF-TYPE charset IN-GROUP subscription-attributes-tag WITH-VALUE "utf-8" COUNT 1   
+	EXPECT-ALL notify-charset OF-TYPE charset IN-GROUP subscription-attributes-tag WITH-VALUE "utf-8" COUNT 1
 	EXPECT-ALL notify-natural-language OF-TYPE naturalLanguage IN-GROUP subscription-attributes-tag WITH-VALUE "en" COUNT 1
     EXPECT-ALL notify-lease-duration OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >0 COUNT 1
     EXPECT-ALL notify-subscription-id OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >0 COUNT 1
@@ -461,7 +459,7 @@
 	ATTR uri printer-uri $uri
 	ATTR integer notify-job-id $job-id
 	ATTR name requesting-user-name $user
-	
+
 	GROUP subscription-attributes-tag
 	ATTR keyword notify-pull-method ippget
 	ATTR keyword notify-events job-state-changed
@@ -491,9 +489,9 @@
 
     EXPECT notify-pull-method OF-TYPE keyword IN-GROUP subscription-attributes-tag WITH-VALUE "ippget" COUNT 1
 	EXPECT notify-events OF-TYPE keyword IN-GROUP subscription-attributes-tag WITH-VALUE "job-state-changed"
-    
-	EXPECT notify-charset OF-TYPE charset IN-GROUP subscription-attributes-tag WITH-VALUE "utf-8" COUNT 1      		
-	EXPECT notify-natural-language OF-TYPE naturalLanguage IN-GROUP subscription-attributes-tag WITH-VALUE "en" COUNT 1	
+
+	EXPECT notify-charset OF-TYPE charset IN-GROUP subscription-attributes-tag WITH-VALUE "utf-8" COUNT 1
+	EXPECT notify-natural-language OF-TYPE naturalLanguage IN-GROUP subscription-attributes-tag WITH-VALUE "en" COUNT 1
 
 #ISSUE: notify-lease-duration isn't defined for a per-job-subscription object, but it shows up here.
     EXPECT !notify-lease-duration
@@ -503,14 +501,14 @@
     EXPECT notify-sequence-number OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE >-1 COUNT 1
 
 #ISSUE: notify-lease-expiration-time and notify-printer-up-time must not show up for per-job subscription object.
-    EXPECT !notify-lease-expiration-time 
+    EXPECT !notify-lease-expiration-time
     EXPECT !notify-printer-up-time
-    
+
 	EXPECT notify-printer-uri OF-TYPE uri IN-GROUP subscription-attributes-tag COUNT 1
 
 #ISSUE: notify-job-id must be returned for per-job-subscription object.
 	EXPECT notify-job-id OF-TYPE integer IN-GROUP subscription-attributes-tag WITH-VALUE $job-id COUNT 1
-    
-	EXPECT notify-subscriber-user-name OF-TYPE name IN-GROUP subscription-attributes-tag WITH-VALUE $user COUNT 1	
-	EXPECT !notify-status-code	
+
+	EXPECT notify-subscriber-user-name OF-TYPE name IN-GROUP subscription-attributes-tag WITH-VALUE $user COUNT 1
+	EXPECT !notify-status-code
 }
