@@ -590,6 +590,14 @@ serverCreatePrinter(
     IPP_QUALITY_NORMAL,
     IPP_QUALITY_HIGH
   };
+  static const char * const print_scaling_supported[] =
+  {					/* print-scaling-supported values */
+    "auto",
+    "auto-fit",
+    "fill",
+    "fit",
+    "none"
+  };
   static const char * const printer_settable_attributes_supported[] =
   {					/* printer-settable-attributes-supported */
     "job-constraints-supported",
@@ -602,6 +610,7 @@ serverCreatePrinter(
     "printer-geo-location",
     "printer-icc-profiles",
     "printer-info",
+    "printer-kind",
     "printer-location",
     "printer-make-and-model",
     "printer-mandatory-job-attributes",
@@ -1273,6 +1282,14 @@ serverCreatePrinter(
     /* print-rendering-intent-supported */
     if (!cupsArrayFind(existing, (void *)"print-rendering-intent-supported"))
       ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "print-rendering-intent-supported", NULL, "auto");
+
+    /* print-scaling-default */
+    if (!cupsArrayFind(existing, (void *)"print-scaling-default"))
+      ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "print-scaling-default", NULL, "auto");
+
+    /* print-scaling-supported */
+    if (!cupsArrayFind(existing, (void *)"print-scaling-supported"))
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "print-scaling-supported", (int)(sizeof(print_scaling_supported) / sizeof(print_scaling_supported[0])), NULL, print_scaling_supported);
   }
 
   /* print-quality-default */
@@ -1363,6 +1380,10 @@ serverCreatePrinter(
       ippAddOctetString(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-input-tray", tray, (int)strlen(tray));
     }
   }
+
+  /* printer-kind */
+  if (!cupsArrayFind(existing, (void *)"printer-kind"))
+    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-kind", NULL, "document");
 
   /* printer-location */
   if (!cupsArrayFind(existing, (void *)"printer-location"))

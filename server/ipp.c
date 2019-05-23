@@ -360,7 +360,7 @@ static server_value_t	printer_values[] =	/* Value tags for printer create/set at
   { "printer-geo-location",			IPP_TAG_URI, IPP_TAG_ZERO, VALUE_NORMAL },
   { "printer-icc-profiles",			IPP_TAG_BEGIN_COLLECTION, IPP_TAG_ZERO, VALUE_NORMAL },
   { "printer-info",				IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_NORMAL },
-  { "printer-kind",				IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_1SETOF },
+  { "printer-kind",				IPP_TAG_KEYWORD, IPP_TAG_NAME, VALUE_1SETOF },
   { "printer-location",				IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_NORMAL },
   { "printer-make-and-model",			IPP_TAG_TEXT, IPP_TAG_ZERO, VALUE_NORMAL },
   { "printer-mandatory-job-attributes",		IPP_TAG_KEYWORD, IPP_TAG_ZERO, VALUE_NORMAL },
