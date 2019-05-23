@@ -3792,7 +3792,8 @@ ipp_get_job_attributes(
     server_client_t *client)		/* I - Client */
 {
   server_job_t	*job;			/* Job */
-  cups_array_t	*ra;			/* requested-attributes */
+  cups_array_t	*ra,			/* requested-attributes */
+		*pa = NULL;		/* job-privacy-attributes */
 
 
   if (Authentication && !client->username[0])
@@ -3820,7 +3821,12 @@ ipp_get_job_attributes(
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
   ra = ippCreateRequestedArray(client->request);
-  copy_job_attributes(client, job, ra, serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope) ? NULL : JobPrivacyArray);
+  if (serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+    serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s Job #%d attributes accessed by \"%s\".", job->printer->name, job->id, client->username);
+  else
+    pa = JobPrivacyArray;
+
+  copy_job_attributes(client, job, ra, pa);
   cupsArrayDelete(ra);
 }
 
@@ -3842,7 +3848,8 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
 			count;		/* Number of jobs that match */
   const char		*username;	/* Username */
   server_job_t		*job;		/* Current job pointer */
-  cups_array_t		*ra;		/* Requested attributes array */
+  cups_array_t		*ra,		/* Requested attributes array */
+			*pa;		/* Privacy attributes array */
 
 
   if (Authentication && !client->username[0])
@@ -4009,7 +4016,18 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
       ippAddSeparator(client->response);
 
     count ++;
-    copy_job_attributes(client, job, ra, serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope) ? NULL : JobPrivacyArray);
+
+    if (serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+    {
+      pa = NULL;
+      serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s Job #%d attributes accessed by \"%s\".", job->printer->name, job->id, client->username);
+    }
+    else
+    {
+      pa = JobPrivacyArray;
+    }
+
+    copy_job_attributes(client, job, ra, pa);
   }
 
   cupsArrayDelete(ra);
@@ -4659,8 +4677,9 @@ ipp_get_subscription_attributes(
     server_client_t *client)		/* I - Client */
 {
   server_subscription_t	*sub;		/* Subscription */
-  cups_array_t		*ra = ippCreateRequestedArray(client->request);
+  cups_array_t		*ra = ippCreateRequestedArray(client->request),
 					/* Requested attributes */
+			*pa = NULL;	/* Privacy attributes */
 
 
   if (Authentication && !client->username[0])
@@ -4691,7 +4710,13 @@ ipp_get_subscription_attributes(
   else
   {
     serverRespondIPP(client, IPP_STATUS_OK, NULL);
-    copy_subscription_attributes(client, sub, ra, serverAuthorizeUser(client, sub->username, SERVER_GROUP_NONE, SubscriptionPrivacyScope) ? NULL : SubscriptionPrivacyArray);
+
+    if (serverAuthorizeUser(client, sub->username, SERVER_GROUP_NONE, SubscriptionPrivacyScope))
+      serverLogClient(SERVER_LOGLEVEL_INFO, client, "Subscription #%d attributes accessed by \"%s\".", sub->id, client->username);
+    else
+      pa = SubscriptionPrivacyArray;
+
+    copy_subscription_attributes(client, sub, ra, pa);
   }
 
   cupsArrayDelete(ra);
@@ -4707,8 +4732,9 @@ ipp_get_subscriptions(
     server_client_t *client)		/* I - Client */
 {
   server_subscription_t	*sub;		/* Current subscription */
-  cups_array_t		*ra = ippCreateRequestedArray(client->request);
+  cups_array_t		*ra = ippCreateRequestedArray(client->request),
 					/* Requested attributes */
+			*pa;		/* Privacy attributes */
   int			job_id,		/* notify-job-id value */
 			limit,		/* limit value, if any */
 			my_subs,	/* my-subscriptions value */
@@ -4759,7 +4785,15 @@ ipp_get_subscriptions(
     if (count > 0)
       ippAddSeparator(client->response);
 
-    copy_subscription_attributes(client, sub, ra, serverAuthorizeUser(client, sub->username, SERVER_GROUP_NONE, SubscriptionPrivacyScope) ? NULL : SubscriptionPrivacyArray);
+    if (serverAuthorizeUser(client, sub->username, SERVER_GROUP_NONE, SubscriptionPrivacyScope))
+    {
+      pa = NULL;
+      serverLogClient(SERVER_LOGLEVEL_INFO, client, "Subscription #%d attributes accessed by \"%s\".", sub->id, client->username);
+    }
+    else
+      pa = SubscriptionPrivacyArray;
+
+    copy_subscription_attributes(client, sub, ra, pa);
 
     count ++;
     if (limit > 0 && count >= limit)
