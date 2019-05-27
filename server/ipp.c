@@ -8856,7 +8856,7 @@ serverRespondUnsupported(
   ipp_attribute_t	*temp;		/* Copy of attribute */
 
 
-  if (ippGetStatusCode(client->response) != IPP_STATUS_OK)
+  if (ippGetStatusCode(client->response) == IPP_STATUS_OK)
     serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Unsupported %s %s%s value.", ippGetName(attr), ippGetCount(attr) > 1 ? "1setOf " : "", ippTagString(ippGetValueTag(attr)));
 
   temp = ippCopyAttribute(client->response, attr, 0);
@@ -9326,7 +9326,7 @@ valid_job_attributes(
 
   if ((attr = ippFindAttribute(client->request, "orientation-requested", IPP_TAG_ZERO)) != NULL)
   {
-    supported = ippFindAttribute(client->printer->pinfo.attrs, "orientation-supported", IPP_TAG_ENUM);
+    supported = ippFindAttribute(client->printer->pinfo.attrs, "orientation-requested-supported", IPP_TAG_ENUM);
 
     if (!ippContainsInteger(supported, ippGetInteger(attr, 0)))
     {

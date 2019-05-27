@@ -1,7 +1,7 @@
 #
 # IPP/1.1 test suite.
 #
-# Copyright © 2007-2017 by Apple Inc.
+# Copyright © 2007-2019 by Apple Inc.
 # Copyright © 2001-2006 by Easy Software Products. All rights reserved.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -204,19 +204,24 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	# Display some useful information to identify the test
 	DISPLAY color-supported
 	DISPLAY compression-supported
+	DISPLAY copies-supported
 	DISPLAY document-format-supported
 	DISPLAY finishings-supported
 	DISPLAY ipp-versions-supported
+	DISPLAY job-hold-until-supported
+	DISPLAY job-priority-supported
 	DISPLAY job-sheets-supported
 	DISPLAY media-supported
 	DISPLAY number-up-supported
 	DISPLAY operations-supported
+	DISPLAY orientation-requested-supported
 	DISPLAY pages-per-minute
 	DISPLAY pages-per-minute-color
 	DISPLAY print-quality-supported
+	DISPLAY printer-resolution-supported
 	DISPLAY printer-uri-supported
 	DISPLAY reference-uri-schemes-supported
-	DISPLAY sizes-supported
+	DISPLAY sides-supported
 	DISPLAY uri-authentication-supported
 	DISPLAY uri-security-supported
 
@@ -233,24 +238,24 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	EXPECT operations-supported WITH-VALUE 0x000b # Get-Printer-Attributes
 	EXPECT operations-supported WITH-VALUE 0x000c DEFINE-MATCH OPTIONAL_HOLD_JOB # Hold-Job
 	EXPECT operations-supported WITH-VALUE 0x000d DEFINE-MATCH OPTIONAL_RELEASE_JOB # Release-Job
-	EXPECT operations-supported WITH-VALUE 0x000e DEFINE-MATCH OPTIONAL_RESTART_JOB # Restart-Job                
+	EXPECT operations-supported WITH-VALUE 0x000e DEFINE-MATCH OPTIONAL_RESTART_JOB # Restart-Job
 	EXPECT operations-supported WITH-VALUE 0x0010 DEFINE-MATCH OPTIONAL_PAUSE_PRINTER # Pause-Printer
 	EXPECT operations-supported WITH-VALUE 0x0011 DEFINE-MATCH OPTIONAL_RESUME_PRINTER # Resume-Printer
-	EXPECT operations-supported WITH-VALUE 0x0012 DEFINE-MATCH OPTIONAL_PURGE_JOBS # Purge-Jobs                  
+	EXPECT operations-supported WITH-VALUE 0x0012 DEFINE-MATCH OPTIONAL_PURGE_JOBS # Purge-Jobs
 
 	#checks for operations expected to exist in pairs
-	EXPECT operations-supported WITH-VALUE 0x000c IF-DEFINED OPTIONAL_RELEASE_JOB                        
-	EXPECT operations-supported WITH-VALUE 0x000d IF-DEFINED OPTIONAL_HOLD_JOB                           
-	EXPECT operations-supported WITH-VALUE 0x0011 IF-DEFINED OPTIONAL_PAUSE_PRINTER                      
-	EXPECT operations-supported WITH-VALUE 0x0010 IF-DEFINED OPTIONAL_RESUME_PRINTER                     
+	EXPECT operations-supported WITH-VALUE 0x000c IF-DEFINED OPTIONAL_RELEASE_JOB
+	EXPECT operations-supported WITH-VALUE 0x000d IF-DEFINED OPTIONAL_HOLD_JOB
+	EXPECT operations-supported WITH-VALUE 0x0011 IF-DEFINED OPTIONAL_PAUSE_PRINTER
+	EXPECT operations-supported WITH-VALUE 0x0010 IF-DEFINED OPTIONAL_RESUME_PRINTER
 
 	# Job template attributes
 	EXPECT ?job-priority-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE >0,<101
 	EXPECT ?job-priority-supported OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE >0,<101
 	EXPECT ?job-hold-until-default OF-TYPE keyword|name IN-GROUP printer-attributes-tag COUNT 1
 	EXPECT ?job-hold-until-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag WITH-VALUE no-hold
-	EXPECT job-hold-until-default IF-DEFINED OPTIONAL_HOLD_JOB            
-	EXPECT job-hold-until-supported IF-DEFINED OPTIONAL_HOLD_JOB           
+	EXPECT job-hold-until-default IF-DEFINED OPTIONAL_HOLD_JOB
+	EXPECT job-hold-until-supported IF-DEFINED OPTIONAL_HOLD_JOB
 	EXPECT ?job-sheets-default OF-TYPE keyword|name IN-GROUP printer-attributes-tag
 	EXPECT ?job-sheets-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag WITH-VALUE none
 	EXPECT ?multiple-document-handling-default OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "/^(single-document|separate-documents-uncollated-copies|separate-documents-collated-copies|single-document-new-sheet)$$/"
@@ -274,8 +279,8 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	EXPECT ?print-quality-default OF-TYPE enum IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE 3,4,5
 	EXPECT ?print-quality-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 3,4,5
 	EXPECT ?pages-ranges-supported OF-TYPE boolean IN-GROUP printer-attributes-tag
-	
-	
+
+
 	# Job template attributes for specific tests...
 	EXPECT job-priority-supported WITH-VALUE >1 DEFINE-MATCH OPTIONAL_PRIORITY
 	EXPECT job-sheets-supported WITH-VALUE "standard" DEFINE-MATCH OPTIONAL_STANDARD_SHEET
@@ -325,7 +330,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	EXPECT print-quality-supported WITH-VALUE 5 DEFINE-MATCH OPTIONAL_BEST_QUALITY
 	EXPECT print-resolution-supported WITH-VALUE 600dpi DEFINE-MATCH OPTIONAL_PRINT_RESOLUTION
 
-	
+
 	# Printer description attributes
 	EXPECT ?color-supported OF-TYPE boolean IN-GROUP printer-attributes-tag COUNT 1
 	EXPECT ?job-impressions-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag COUNT 1
@@ -972,7 +977,6 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	ATTR name job-name $filename
 	ATTR boolean ipp-attribute-fidelity false
 	ATTR name document-name $filename
-	ATTR keyword compression none
 	ATTR uri document-uri $document-uri
 
 	STATUS successful-ok
@@ -1008,7 +1012,6 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	ATTR name job-name $filename
 	ATTR boolean ipp-attribute-fidelity false
 	ATTR name document-name $filename
-	ATTR keyword compression none
 	ATTR uri document-uri "bogus://bogus"
 
 	STATUS client-error-uri-scheme-not-supported
@@ -1191,7 +1194,6 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	ATTR name requesting-user-name $user
 	ATTR boolean last-document true
 	ATTR name document-name $filename
-	ATTR keyword compression none
 	ATTR uri document-uri $document-uri
 
 	STATUS successful-ok
@@ -1245,7 +1247,6 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	ATTR name requesting-user-name $user
 	ATTR boolean last-document true
 	ATTR name document-name $filename
-	ATTR keyword compression none
 	ATTR mimeMediaType document-format $filetype
 	ATTR uri document-uri "bogus://bogus"
 
@@ -1275,13 +1276,13 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	SKIP-IF-NOT-DEFINED OPTIONAL_PAUSE_PRINTER
 
 	NAME "RFC 8011 section 4.2.7: Pause-Printer Operation"
-	
+
 	Operation Pause-Printer
 
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
 	ATTR naturalLanguage attributes-natural-language en
-	ATTR uri printer-uri $uri                                                             
+	ATTR uri printer-uri $uri
 	ATTR name requesting-user-name $user
 
 	STATUS successful-ok
@@ -1357,8 +1358,8 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 }
 #Release-Job Operation
 {
-	SKIP-IF-NOT-DEFINED OPTIONAL_HOLD_JOB      
-	SKIP-IF-NOT-DEFINED OPTIONAL_RELEASE_JOB				
+	SKIP-IF-NOT-DEFINED OPTIONAL_HOLD_JOB
+	SKIP-IF-NOT-DEFINED OPTIONAL_RELEASE_JOB
 
 	NAME "Release-Job"
 	OPERATION Release-Job
@@ -1377,7 +1378,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 {
 	SKIP-IF-NOT-DEFINED OPTIONAL_CREATE_JOB
 	SKIP-IF-NOT-DEFINED OPTIONAL_SEND_DOCUMENT
-	
+
 
 	NAME "RFC 8011 section 4.2.4: Create-Job Operation"
 	OPERATION Create-Job
@@ -1408,7 +1409,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 {
 	SKIP-IF-NOT-DEFINED OPTIONAL_CREATE_JOB
 	SKIP-IF-NOT-DEFINED OPTIONAL_SEND_DOCUMENT
-	
+
 
 	NAME "RFC 8011 section 4.3.1: Send-Document Operation"
 	OPERATION Send-Document
@@ -1455,8 +1456,8 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	STATUS server-error-job-canceled
 	STATUS server-error-busy REPEAT-MATCH REPEAT-LIMIT 30
 
-	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME" 
-	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag 
+	EXPECT job-uri OF-TYPE uri COUNT 1 IN-GROUP job-attributes-tag WITH-VALUE "$IPP_URI_SCHEME"
+	EXPECT job-id OF-TYPE integer COUNT 1 IN-GROUP job-attributes-tag
 	       WITH-VALUE >0
 	EXPECT job-state OF-TYPE unknown|enum COUNT 1 IN-GROUP job-attributes-tag
 	       WITH-VALUE 3,4,5,6,7,8,9
@@ -2518,9 +2519,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 }
 
 {
-	SKIP-IF-NOT-DEFINED OPTIONAL_HOLD_JOB      
-	SKIP-IF-NOT-DEFINED OPTIONAL_RELEASE_JOB				
-	
+	SKIP-IF-NOT-DEFINED OPTIONAL_HOLD_JOB
+	SKIP-IF-NOT-DEFINED OPTIONAL_RELEASE_JOB
+
 
 	NAME "Release-Job"
 	OPERATION Release-Job
@@ -2540,9 +2541,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	SKIP-IF-NOT-DEFINED OPTIONAL_PRIORITY
 
 	NAME "Print-Job with explicit priority"
-	
+
 	OPERATION Print-Job
-	
+
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
 	ATTR naturalLanguage attributes-natural-language en
@@ -2553,7 +2554,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	ATTR name document-name $filename
 	ATTR keyword compression none
 	ATTR mimeMediaType document-format $filetype
-	
+
 	GROUP job-attributes-tag
 	ATTR integer job-priority 2
 	FILE $filename
@@ -2579,9 +2580,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	SKIP-IF-NOT-DEFINED OPTIONAL_SD_MULTIPLE_DOCUMENT_HANDLING
 
 	NAME "Print-Job with single-document multiple-document-handling"
-	
+
 	OPERATION Print-Job
-	
+
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
 	ATTR naturalLanguage attributes-natural-language en
@@ -2592,7 +2593,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	ATTR name document-name $filename
 	ATTR keyword compression none
 	ATTR mimeMediaType document-format $filetype
-	
+
 	GROUP job-attributes-tag
 	ATTR keyword multiple-document-handling "single-document"
 	FILE $filename
@@ -2616,9 +2617,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	SKIP-IF-NOT-DEFINED OPTIONAL_SDUC_MULTIPLE_DOCUMENT_HANDLING
 
 	NAME "Print-Job with separate-documents-uncollated-copies multiple-document-handling"
-	
+
 	OPERATION Print-Job
-	
+
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
 	ATTR naturalLanguage attributes-natural-language en
@@ -2629,7 +2630,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	ATTR name document-name $filename
 	ATTR keyword compression none
 	ATTR mimeMediaType document-format $filetype
-	
+
 	GROUP job-attributes-tag
 	ATTR keyword multiple-document-handling "separate-documents-uncollated-copies"
 	FILE $filename
@@ -2653,9 +2654,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	SKIP-IF-NOT-DEFINED OPTIONAL_SDCC_MULTIPLE_DOCUMENT_HANDLING
 
 	NAME "Print-Job with separate-documents-collated-copies multiple-document-handling"
-	
+
 	OPERATION Print-Job
-	
+
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
 	ATTR naturalLanguage attributes-natural-language en
@@ -2666,7 +2667,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	ATTR name document-name $filename
 	ATTR keyword compression none
 	ATTR mimeMediaType document-format $filetype
-	
+
 	GROUP job-attributes-tag
 	ATTR keyword multiple-document-handling "separate-documents-collated-copies"
 	FILE $filename
@@ -2690,9 +2691,9 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	SKIP-IF-NOT-DEFINED OPTIONAL_SDNS_MULTIPLE_DOCUMENT_HANDLING
 
 	NAME "Print-Job with ssingle-document-new-sheet multiple-document-handling"
-	
+
 	OPERATION Print-Job
-	
+
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
 	ATTR naturalLanguage attributes-natural-language en
@@ -2703,7 +2704,7 @@ DEFINE IPP_URI_SCHEME "/^ipps?://.+$$/"
 	ATTR name document-name $filename
 	ATTR keyword compression none
 	ATTR mimeMediaType document-format $filetype
-	
+
 	GROUP job-attributes-tag
 	ATTR keyword multiple-document-handling "single-document-new-sheet"
 	FILE $filename
