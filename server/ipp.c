@@ -4009,6 +4009,11 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
     job_comparison = 0;
     job_state      = IPP_JSTATE_STOPPED;
   }
+  else if (!strcmp(which_jobs, "fetchable") && client->printer->pinfo.proxy_group != SERVER_GROUP_NONE)
+  {
+    job_comparison = 0;
+    job_state      = IPP_JSTATE_PENDING;
+  }
   else
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES,
