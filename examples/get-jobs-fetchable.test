@@ -27,7 +27,7 @@ DEFINE MY-JOBS false
 
     SKIP-IF-NOT-DEFINED FETCHABLE-SUPPORTED
     
-    NAME "Get completed jobs; -d MY-JOBS=true for just yours"
+    NAME "Get fetchable jobs; -d MY-JOBS=true for just yours"
 
     OPERATION Get-Jobs
 
@@ -35,16 +35,17 @@ DEFINE MY-JOBS false
         ATTR charset attributes-charset utf-8
         ATTR language attributes-natural-language en
         ATTR uri printer-uri $uri
-    
+        ATTR keyword requested-attributes job-name,job-id,job-state,job-state-reasons    
         ATTR keyword which-jobs fetchable
         ATTR boolean my-jobs $MY-JOBS
 
 
     STATUS successful-ok
 
+    EXPECT ?job-name
     EXPECT ?job-id
     EXPECT ?job-state
-    EXPECT ?job-name
+    EXPECT ?job-state-reasons
     EXPECT ?job-originating-user-name
     EXPECT ?job-impressions
     EXPECT ?job-impressions-completed
