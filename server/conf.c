@@ -2181,28 +2181,37 @@ finalize_system(void)
 
   if (!Listeners)
   {
+    int	port = DefaultPort;		/* Current port */
+
 #ifdef _WIN32
    /*
     * Windows is almost always used as a single user system, so use a default port
     * number of 8631.
     */
 
-    if (!DefaultPort)
-      DefaultPort = 8631;
+    if (!port)
+      port = 8631;
 
 #else
    /*
     * Use 8000 + UID mod 1000 for the default port number...
     */
 
-    if (!DefaultPort)
-      DefaultPort = 8000 + ((int)getuid() % 1000);
+    if (!port)
+      port = 8000 + ((int)getuid() % 1000);
 #endif /* _WIN32 */
 
-    serverLog(SERVER_LOGLEVEL_INFO, "Using default listeners for %s:%d.", ServerName, DefaultPort);
+    while (!serverCreateListeners(strcmp(ServerName, "localhost") ? NULL : "localhost", port))
+    {
+      if (DefaultPort)
+        return (0);
 
-    if (!serverCreateListeners(strcmp(ServerName, "localhost") ? NULL : "localhost", DefaultPort))
-      return (0);
+      port ++;
+    }
+
+    DefaultPort = port;
+
+    serverLog(SERVER_LOGLEVEL_INFO, "Using default listeners for %s:%d.", ServerName, DefaultPort);
   }
 
   create_system_attributes();

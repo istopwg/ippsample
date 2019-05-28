@@ -127,7 +127,7 @@ serverCreateListeners(const char *host,	/* I - Hostname, IP address, or NULL for
 
   httpAddrFreeList(addrlist);
 
-  return (1);
+  return (cupsArrayCount(Listeners) > 0);
 }
 
 
