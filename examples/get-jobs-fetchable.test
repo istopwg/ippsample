@@ -1,0 +1,54 @@
+DEFINE MY-JOBS false 
+
+{
+    NAME "Get Printer's which-jobs-supported attribute"
+
+    OPERATION Get-Printer-Attributes
+    Version 2.0
+
+    GROUP operation
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR keyword requested-attributes printer-make-and-model,printer-name,printer-state,which-jobs-supported
+
+    STATUS successful-ok
+
+    EXPECT printer-make-and-model
+    EXPECT printer-name
+    EXPECT printer-state
+    EXPECT which-jobs-supported OF-TYPE keyword WITH-VALUE 'fetchable'
+    EXPECT which-jobs-supported OF-TYPE keyword WITH-VALUE 'fetchable' DEFINE-MATCH FETCHABLE-SUPPORTED
+  
+}
+
+
+{
+
+    SKIP-IF-NOT-DEFINED FETCHABLE-SUPPORTED
+    
+    NAME "Get completed jobs; -d MY-JOBS=true for just yours"
+
+    OPERATION Get-Jobs
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+    
+        ATTR keyword which-jobs fetchable
+        ATTR boolean my-jobs $MY-JOBS
+
+
+    STATUS successful-ok
+
+    EXPECT ?job-id
+    EXPECT ?job-state
+    EXPECT ?job-name
+    EXPECT ?job-originating-user-name
+    EXPECT ?job-impressions
+    EXPECT ?job-impressions-completed
+    EXPECT ?job-media-sheets
+    EXPECT ?job-media-sheets-completed
+}
+
