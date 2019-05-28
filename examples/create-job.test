@@ -1,14 +1,11 @@
 # Print a test page using Create-Job + Send-Document
-
-DEFINE-DEFAULT 
 {
 
     NAME "Print test page using Create-Job"
 
-	OPERATION Create-Job
+    OPERATION Create-Job
 
-	# Attributes, starting in the operation group...
-	GROUP operation-attributes-tag
+    GROUP operation-attributes-tag
         ATTR charset attributes-charset utf-8
         ATTR language attributes-natural-language en
         ATTR uri printer-uri $uri
@@ -17,12 +14,12 @@ DEFINE-DEFAULT
     GROUP job-attributes-tag
         ATTR integer copies 1
 
-	STATUS successful-ok
+    STATUS successful-ok
 
-	EXPECT job-id
-	EXPECT job-uri
+    EXPECT job-id
+    EXPECT job-uri
+
 }
-
 
 {
 
@@ -38,8 +35,9 @@ DEFINE-DEFAULT
         ATTR name requesting-user-name $user
         ATTR boolean last-document true
 
-	FILE $filename
+    FILE $filename
 
-	# What statuses are OK?
-	STATUS successful-ok
+    # What statuses are OK?
+    STATUS successful-ok
+
 }
