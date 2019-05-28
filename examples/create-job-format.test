@@ -48,7 +48,7 @@
 	ATTR mimetype document-format application/postscript
 	ATTR boolean last-document true
 
-	FILE ../data/testprint.ps
+	FILE $filename
 
 	# What statuses are OK?
 	STATUS successful-ok
