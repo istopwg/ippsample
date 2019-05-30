@@ -1239,9 +1239,10 @@ html_printf(server_client_t *client,	/* I - Client */
 
 static int				/* O - Number of options */
 parse_options(server_client_t *client,	/* I - Client */
-              cups_option_t **options)	/* O - Options */
+              cups_option_t   **options)/* O - Options */
 {
-  char	*name,				/* Name */
+  char	*post_data = NULL,		/* POST form data */
+	*name,				/* Name */
       	*value,				/* Value */
 	*next;				/* Next name=value pair */
   int	num_options = 0;		/* Number of options */
@@ -1249,7 +1250,36 @@ parse_options(server_client_t *client,	/* I - Client */
 
   *options = NULL;
 
-  for (name = client->options; name && *name; name = next)
+  if (httpGetState(client->http) == HTTP_STATE_POST_RECV)
+  {
+    off_t	post_len = httpGetLength2(client->http);
+					/* Length of POST form data */
+
+    if (post_len == 0 || post_len > 65535)
+      post_len = 65535;
+
+    if ((post_data = calloc(1, (size_t)post_len + 1)) != NULL)
+    {
+      char	*post_ptr = post_data,	/* Pointer into POST form data */
+		*post_end = post_data + post_len;
+					/* Pointer to end of POST form data */
+      ssize_t	post_bytes;		/* Number of bytes read... */
+
+
+      while ((post_bytes = httpRead2(client->http, post_ptr, (size_t)(post_end - post_ptr))) > 0)
+      {
+        post_ptr += post_bytes;
+      }
+
+      *post_ptr = '\0';
+    }
+
+    name = post_data;
+  }
+  else
+    name = client->options;
+
+  while (name && *name)
   {
     if ((value = strchr(name, '=')) == NULL)
       break;
@@ -1259,7 +1289,11 @@ parse_options(server_client_t *client,	/* I - Client */
       *next++ = '\0';
 
     num_options = cupsAddOption(name, value, num_options, options);
+    name        = next;
   }
+
+  if (post_data)
+    free(post_data);
 
   return (num_options);
 }
