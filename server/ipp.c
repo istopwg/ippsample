@@ -3928,6 +3928,7 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
 					/* which-jobs values */
   int			job_comparison;	/* Job comparison */
   ipp_jstate_t		job_state;	/* job-state value */
+  server_jreason_t	job_reasons;	/* job-state-reasons values */
   int			first_job_id,	/* First job ID */
 			limit,		/* Maximum number of jobs to return */
 			count;		/* Number of jobs that match */
@@ -3957,12 +3958,13 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
   * See if the "which-jobs" attribute have been specified...
   */
 
-  if ((attr = ippFindAttribute(client->request, "which-jobs",
-                               IPP_TAG_KEYWORD)) != NULL)
+  if ((attr = ippFindAttribute(client->request, "which-jobs", IPP_TAG_KEYWORD)) != NULL)
   {
     which_jobs = ippGetString(attr, 0, NULL);
     serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Get-Jobs which-jobs='%s'", which_jobs);
   }
+
+  job_reasons = SERVER_JREASON_NONE;
 
   if (!which_jobs || !strcmp(which_jobs, "not-completed"))
   {
@@ -4013,13 +4015,11 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
   {
     job_comparison = 0;
     job_state      = IPP_JSTATE_STOPPED;
+    job_reasons    = SERVER_JREASON_JOB_FETCHABLE;
   }
   else
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES,
-                "The which-jobs value \"%s\" is not supported.", which_jobs);
-    ippAddString(client->response, IPP_TAG_UNSUPPORTED_GROUP, IPP_TAG_KEYWORD,
-                 "which-jobs", NULL, which_jobs);
+    serverRespondUnsupported(client, attr);
     return;
   }
 
@@ -4094,20 +4094,27 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
     * Filter out jobs that don't match...
     */
 
-    if ((job_comparison < 0 && job->state > job_state) ||
-	(job_comparison == 0 && job->state != job_state) ||
-	(job_comparison > 0 && job->state < job_state) ||
-	job->id < first_job_id ||
-	(username && job->username &&
-	 strcasecmp(username, job->username)))
+    if (job->id < first_job_id || (username && job->username && strcasecmp(username, job->username)))
       continue;
+
+    if (job_reasons != SERVER_JREASON_NONE)
+    {
+      if (!(job->state_reasons & job_reasons))
+        continue;
+    }
+    else if ((job_comparison < 0 && job->state > job_state) ||
+             (job_comparison == 0 && job->state != job_state) ||
+             (job_comparison > 0 && job->state < job_state))
+    {
+      continue;
+    }
 
     if (count > 0)
       ippAddSeparator(client->response);
 
     count ++;
 
-    if (serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
+    if (serverAuthorizeUser(client, job->username, job->printer->pinfo.proxy_group, JobPrivacyScope))
     {
       pa = NULL;
       serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s Job #%d attributes accessed by \"%s\".", job->printer->name, job->id, client->username);
