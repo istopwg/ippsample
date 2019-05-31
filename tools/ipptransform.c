@@ -983,19 +983,19 @@ pcl_start_page(xform_raster_t   *ras,	/* I - Raster information */
   */
 
   ras->top    = ras->header.HWResolution[1] / 6;
-  ras->bottom = ras->header.cupsHeight - ras->header.HWResolution[1] / 6 - 1;
+  ras->bottom = ras->header.cupsHeight - ras->header.HWResolution[1] / 6;
 
   if (ras->header.PageSize[1] == 842)
   {
    /* A4 gets special side margins to expose an 8" print area */
     ras->left  = (ras->header.cupsWidth - 8 * ras->header.HWResolution[0]) / 2;
-    ras->right = ras->left + 8 * ras->header.HWResolution[0] - 1;
+    ras->right = ras->left + 8 * ras->header.HWResolution[0];
   }
   else
   {
    /* All other sizes get 1/4" margins */
     ras->left  = ras->header.HWResolution[0] / 4;
-    ras->right = ras->header.cupsWidth - ras->header.HWResolution[0] / 4 - 1;
+    ras->right = ras->header.cupsWidth - ras->header.HWResolution[0] / 4;
   }
 
   if (!ras->header.Duplex || (page & 1))
@@ -1082,9 +1082,9 @@ pcl_start_page(xform_raster_t   *ras,	/* I - Raster information */
 
   pcl_printf(cb, ctx, "\033*t%uR", ras->header.HWResolution[0]);
 					/* Set resolution */
-  pcl_printf(cb, ctx, "\033*r%uS", ras->right - ras->left + 1);
+  pcl_printf(cb, ctx, "\033*r%uS", ras->right - ras->left);
 					/* Set width */
-  pcl_printf(cb, ctx, "\033*r%uT", ras->bottom - ras->top + 1);
+  pcl_printf(cb, ctx, "\033*r%uT", ras->bottom - ras->top);
 					/* Set height */
   pcl_printf(cb, ctx, "\033&a0H\033&a%uV", 720 * ras->top / ras->header.HWResolution[1]);
 					/* Set position */
@@ -1097,7 +1097,7 @@ pcl_start_page(xform_raster_t   *ras,	/* I - Raster information */
   */
 
   ras->out_blanks  = 0;
-  ras->out_length  = (ras->right - ras->left + 8) / 8;
+  ras->out_length  = (ras->right - ras->left + 7) / 8;
   ras->out_buffer  = malloc(ras->out_length);
   ras->comp_buffer = malloc(2 * ras->out_length + 2);
 }
@@ -1126,7 +1126,7 @@ pcl_write_line(
   const unsigned char	*ditherline;	/* Pointer into dither table */
 
 
-  if (line[0] == 255 && !memcmp(line, line + 1, ras->right - ras->left))
+  if (line[0] == 255 && !memcmp(line, line + 1, ras->right - ras->left - 1))
   {
    /*
     * Skip blank line...
@@ -1143,7 +1143,7 @@ pcl_write_line(
   y &= 63;
   ditherline = ras->dither[y];
 
-  for (x = ras->left, bit = 128, byte = 0, outptr = ras->out_buffer; x <= ras->right; x ++, line ++)
+  for (x = ras->left, bit = 128, byte = 0, outptr = ras->out_buffer; x < ras->right; x ++, line ++)
   {
     if (*line <= ditherline[x & 63])
       byte |= bit;
@@ -1325,8 +1325,8 @@ raster_start_page(xform_raster_t   *ras,/* I - Raster information */
 
   ras->left   = 0;
   ras->top    = 0;
-  ras->right  = ras->header.cupsWidth - 1;
-  ras->bottom = ras->header.cupsHeight - 1;
+  ras->right  = ras->header.cupsWidth;
+  ras->bottom = ras->header.cupsHeight;
 
   if (ras->header.Duplex && !(page & 1))
     cupsRasterWriteHeader2(ras->ras, &ras->back_header);
@@ -1373,7 +1373,7 @@ raster_write_line(
 
     if (ras->header.cupsColorSpace == CUPS_CSPACE_SW)
     {
-      for (x = ras->left, bit = 128, byte = 0, outptr = ras->out_buffer; x <= ras->right; x ++, line ++)
+      for (x = ras->left, bit = 128, byte = 0, outptr = ras->out_buffer; x < ras->right; x ++, line ++)
       {
 	if (*line > ditherline[x & 63])
 	  byte |= bit;
@@ -1390,7 +1390,7 @@ raster_write_line(
     }
     else
     {
-      for (x = ras->left, bit = 128, byte = 0, outptr = ras->out_buffer; x <= ras->right; x ++, line ++)
+      for (x = ras->left, bit = 128, byte = 0, outptr = ras->out_buffer; x < ras->right; x ++, line ++)
       {
 	if (*line <= ditherline[x & 63])
 	  byte |= bit;
@@ -1816,16 +1816,16 @@ xform_document(
 
 	(*(ras.start_page))(&ras, page, cb, ctx);
 
-	for (y = ras.top; y <= ras.bottom; y ++)
+	for (y = ras.top; y < ras.bottom; y ++)
 	{
-	  if (y > band_endy)
+	  if (y >= band_endy)
 	  {
 	   /*
 	    * Draw the next band of raster data...
 	    */
 
 	    band_starty = y;
-	    band_endy   = y + ras.band_height - 1;
+	    band_endy   = y + ras.band_height;
 	    if (band_endy > ras.bottom)
 	      band_endy = ras.bottom;
 
@@ -1861,9 +1861,9 @@ xform_document(
 
 	  lineptr = ras.band_buffer + (y - band_starty) * band_size + ras.left * ras.band_bpp;
 	  if (ras.header.cupsBitsPerPixel == 24)
-	    pack_rgba(lineptr, ras.right - ras.left + 1);
+	    pack_rgba(lineptr, ras.right - ras.left);
 	  else if (ras.header.cupsBitsPerPixel == 48)
-	    pack_rgba16(lineptr, ras.right - ras.left + 1);
+	    pack_rgba16(lineptr, ras.right - ras.left);
 
 	  (*(ras.write_line))(&ras, y, lineptr, cb, ctx);
 	}
@@ -2012,16 +2012,16 @@ xform_document(
 
       (*(ras.start_page))(&ras, 1, cb, ctx);
 
-      for (y = ras.top; y <= ras.bottom; y ++)
+      for (y = ras.top; y < ras.bottom; y ++)
       {
-	if (y > band_endy)
+	if (y >= band_endy)
 	{
 	 /*
 	  * Draw the next band of raster data...
 	  */
 
 	  band_starty = y;
-	  band_endy   = y + ras.band_height - 1;
+	  band_endy   = y + ras.band_height;
 	  if (band_endy > ras.bottom)
 	    band_endy = ras.bottom;
 
@@ -2057,9 +2057,9 @@ xform_document(
 
 	lineptr = ras.band_buffer + (y - band_starty) * band_size + ras.left * ras.band_bpp;
 	if (ras.header.cupsBitsPerPixel == 24)
-	  pack_rgba(lineptr, ras.right - ras.left + 1);
+	  pack_rgba(lineptr, ras.right - ras.left);
 	else if (ras.header.cupsBitsPerPixel == 48)
-	  pack_rgba16(lineptr, ras.right - ras.left + 1);
+	  pack_rgba16(lineptr, ras.right - ras.left);
 
 	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
       }
@@ -2247,10 +2247,16 @@ xform_document(
       cs = fz_new_cal_colorspace(context, "AdobeRGB", wp_val, bp_val, gamma_val, matrix_val);
 #  endif // 0
 
-#  ifdef __APPLE__
-      cs = fz_new_icc_colorspace_from_file(context, "AdobeRGB1998", "/System/Library/ColorSync/Profiles/AdobeRGB1998.icc");
+#  if FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14
+#    define ADOBE_COLORSPACE	FZ_COLORSPACE_RGB
 #  else
-      cs = fz_new_icc_colorspace_from_file(context, "AdobeRGB1998", "/usr/share/color/icc/colord/AdobeRGB1998.icc");
+#    define ADOBE_COLORSPACE	"AdobeRGB1998"
+#  endif /* FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14 */
+
+#  ifdef __APPLE__
+      cs = fz_new_icc_colorspace_from_file(context, ADOBE_COLORSPACE, "/System/Library/ColorSync/Profiles/AdobeRGB1998.icc");
+#  else
+      cs = fz_new_icc_colorspace_from_file(context, ADOBE_COLORSPACE, "/usr/share/color/icc/colord/AdobeRGB1998.icc");
 #  endif /* __APPLE__ */
     }
     else
@@ -2285,10 +2291,20 @@ xform_document(
     ras.band_height = ras.header.cupsHeight;
 
 #  if HAVE_FZ_NEW_PIXMAP_5_ARG
-  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth,  (int)ras.band_height, 0);
+  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth, (int)ras.band_height, 0);
 #  else
-  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth,  (int)ras.band_height, NULL, 0);
-  pixmap->flags = 0;
+  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth, (int)ras.band_height, NULL, 0);
+
+  fprintf(stderr, "pixmap->w       = %d\n", pixmap->w);
+  fprintf(stderr, "pixmap->h       = %d\n", pixmap->h);
+  fprintf(stderr, "pixmap->alpha   = %d\n", pixmap->alpha);
+  fprintf(stderr, "pixmap->flags   = %d\n", pixmap->flags);
+  fprintf(stderr, "pixmap->xres    = %d\n", pixmap->xres);
+  fprintf(stderr, "pixmap->yres    = %d\n", pixmap->yres);
+  fprintf(stderr, "pixmap->stride  = %ld\n", (long)pixmap->stride);
+  fprintf(stderr, "pixmap->samples = %p\n", pixmap->samples);
+
+  pixmap->flags &= ~FZ_PIXMAP_FLAG_INTERPOLATE;
 #  endif /* HAVE_FZ_NEW_PIXMAP_5_ARG */
 
   pixmap->xres = (int)ras.header.HWResolution[0];
@@ -2299,12 +2315,21 @@ xform_document(
 
   if (Verbosity > 1)
     fprintf(stderr, "DEBUG: xscale=%g, yscale=%g\n", xscale, yscale);
+
+#  if FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14
+  base_transform = fz_scale(xscale, yscale);
+#  else
   fz_scale(&base_transform, xscale, yscale);
+#  endif /* FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14 */
 
   if (Verbosity > 1)
     fprintf(stderr, "DEBUG: Band height=%u, page height=%u\n", ras.band_height, ras.header.cupsHeight);
 
+#  if FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14
+  device = fz_new_draw_device(context, base_transform, pixmap);
+#  else
   device = fz_new_draw_device(context, &base_transform, pixmap);
+#  endif /* FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14 */
 
   /* Don't anti-alias or interpolate when creating raster data */
   fz_set_aa_level(context, 0);
@@ -2363,7 +2388,11 @@ xform_document(
 
       pdf_page = fz_load_page(context, document, (int)(page + first - 2));
 
+#  if FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14
+      image_box = fz_bound_page(context, pdf_page);
+#  else
       fz_bound_page(context, pdf_page, &image_box);
+#  endif /* FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14 */
 
       fprintf(stderr, "DEBUG: image_box=[%g %g %g %g]\n", image_box.x0, image_box.y0, image_box.x1, image_box.y1);
 
@@ -2451,16 +2480,16 @@ xform_document(
 
       (*(ras.start_page))(&ras, page, cb, ctx);
 
-      for (y = ras.top; y <= ras.bottom; y ++)
+      for (y = ras.top; y < ras.bottom; y ++)
       {
-	if (y > band_endy)
+	if (y >= band_endy)
 	{
 	 /*
 	  * Draw the next band of raster data...
 	  */
 
 	  band_starty = y;
-	  band_endy   = y + ras.band_height - 1;
+	  band_endy   = y + ras.band_height;
 	  if (band_endy > ras.bottom)
 	    band_endy = ras.bottom;
 
@@ -2468,17 +2497,36 @@ xform_document(
 	    fprintf(stderr, "DEBUG: Drawing band from %u to %u.\n", band_starty, band_endy);
 
           fz_clear_pixmap_with_value(context, pixmap, 0xff);
+          fputs("DEBUG: Band cleared...\n", stderr);
 
           transform = fz_identity;
+
+#  if FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14
+	  transform = fz_pre_translate(transform, 0.0, -1.0 * y / yscale);
+
+	  if (!(page & 1) && ras.header.Duplex)
+	    transform = fz_concat(transform, back_transform);
+
+	  transform = fz_concat(transform, image_transform);
+
+#  else
 	  fz_pre_translate(&transform, 0.0, -1.0 * y / yscale);
+
 	  if (!(page & 1) && ras.header.Duplex)
 	    fz_concat(&transform, &transform, &back_transform);
 
 	  fz_concat(&transform, &transform, &image_transform);
+#  endif /* FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14 */
 
-          fprintf(stderr, "DEBUG: page transform=[%g %g %g %g %g %g]\n", transform.a, transform.b, transform.c, transform.d, transform.e, transform.f);
+          fprintf(stderr, "DEBUG: Page transform=[%g %g %g %g %g %g]\n", transform.a, transform.b, transform.c, transform.d, transform.e, transform.f);
 
+#  if FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14
+          fz_run_page(context, pdf_page, device, transform, NULL);
+#  else
           fz_run_page(context, pdf_page, device, &transform, NULL);
+#  endif /* FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14 */
+
+          fputs("DEBUG: Band rendered...\n", stderr);
 	}
 
        /*
@@ -2488,7 +2536,7 @@ xform_document(
 	lineptr = pixmap->samples + (y - band_starty) * band_size + ras.left * ras.band_bpp;
 
         if (ras.header.cupsColorSpace == CUPS_CSPACE_K)
-          invert_gray(lineptr, ras.right - ras.left + 1);
+          invert_gray(lineptr, ras.right - ras.left);
 
 	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
       }

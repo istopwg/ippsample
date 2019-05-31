@@ -215,16 +215,18 @@ case "$use_pdfrip" in
 		;;
 
 	mupdf)
-		AC_SEARCH_LIBS(FT_Init_FreeType, mupdfthird freetype)
-		AC_SEARCH_LIBS(jpeg_destroy_decompress, mupdfthird jpeg)
-		AC_SEARCH_LIBS(jbig2_ctx_new, mupdfthird jbig2dec)
-		AC_SEARCH_LIBS(opj_create_decompress, mupdfthird openjp2)
-		AC_SEARCH_LIBS(hb_buffer_create, mupdfthird harfbuzz)
+		AC_SEARCH_LIBS(FT_Init_FreeType, mupdf-third freetype)
+		AC_SEARCH_LIBS(jpeg_std_error, mupdf-third jpeg)
+		AC_SEARCH_LIBS(jbig2_ctx_new, mupdf-third jbig2dec)
+		# Need to find mupdf-third symbol that doesn't have dependencies on libmupdf
+		AC_SEARCH_LIBS(opj_set_info_handler, mupdf-third openjp2)
+		# Need to find mupdf-third symbol that doesn't have dependencies on libmupdf
+		AC_SEARCH_LIBS(hb_tag_from_string, mupdf-third harfbuzz)
 		AC_CHECK_LIB(mupdf, fz_drop_document,[
 			AC_MSG_RESULT([    Using MuPDF for PDF RIP])
 
 			AC_DEFINE(HAVE_MUPDF)
-			LIBS="-lmupdf -lmupdfthird $LIBS"
+			LIBS="-lmupdf -lmupdf-third $LIBS"
 			IPPTRANSFORM_BIN="ipptransform"
 			IPPTRANSFORM_HTML="ipptransform.html"
 			IPPTRANSFORM_MAN="ipptransform.7"
