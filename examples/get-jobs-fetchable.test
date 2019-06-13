@@ -35,7 +35,7 @@ DEFINE MY-JOBS false
         ATTR charset attributes-charset utf-8
         ATTR language attributes-natural-language en
         ATTR uri printer-uri $uri
-        ATTR keyword requested-attributes job-name,job-id,job-state,job-state-reasons    
+        ATTR keyword requested-attributes job-name,job-id,job-state,job-state-reasons,job-originating-user-name,output-device-uuid-assigned 
         ATTR keyword which-jobs fetchable
         ATTR boolean my-jobs $MY-JOBS
 
@@ -47,9 +47,7 @@ DEFINE MY-JOBS false
     EXPECT ?job-state
     EXPECT ?job-state-reasons
     EXPECT ?job-originating-user-name
-    EXPECT ?job-impressions
-    EXPECT ?job-impressions-completed
-    EXPECT ?job-media-sheets
-    EXPECT ?job-media-sheets-completed
+    EXPECT ?output-device-uuid-assigned
+
 }
 
