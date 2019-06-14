@@ -111,7 +111,7 @@
 #undef HAVE_STRTOLL
 
 #ifndef HAVE_STRTOLL
-#  define strtoll(nptr,endptr,base) strtol((nptr), (endptr), (base))
+#  define strtoll(p,e,b) strtol((p), (e), (b))
 #endif /* !HAVE_STRTOLL */
 
 
