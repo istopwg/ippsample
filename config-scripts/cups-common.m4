@@ -53,6 +53,22 @@ AC_MSG_RESULT(using $INSTALL)
 dnl Check for pkg-config, which is used for some other tests later on...
 AC_PATH_TOOL(PKGCONFIG, pkg-config)
 
+dnl Check whether -std=standard is supported by the C compiler...
+if test -n "$GCC"; then
+	# Use -std=standard when possible to ensure that all available
+	# functions are available...
+	for standard in c11 c1x c99 c9x; do
+		OLDCFLAGS="$CFLAGS"
+		CFLAGS="$CFLAGS -std=$standard"
+		AC_MSG_CHECKING(whether compiler supports -std=$standard)
+		AC_TRY_COMPILE(,,[
+			AC_MSG_RESULT(yes)
+			break],[
+			AC_MSG_RESULT(no)
+			CFLAGS="$OLDCFLAGS"])
+	done
+fi
+
 dnl Check for libraries...
 AC_SEARCH_LIBS(abs, m, AC_DEFINE(HAVE_ABS))
 AC_SEARCH_LIBS(fmod, m)
