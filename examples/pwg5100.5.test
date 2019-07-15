@@ -23,8 +23,9 @@
 
 	# Checking REQUIRED attributes.
 
-	EXPECT attributes-charset-supported OF-TYPE charset IN-GROUP printer-attributes-tag
-	EXPECT attributes-natural-language-supported OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag
+	EXPECT charset-supported OF-TYPE charset IN-GROUP printer-attributes-tag
+	EXPECT generated-natural-language-supported OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag
+	EXPECT natural-language-configured OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag
 	EXPECT compression-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
 	EXPECT document-format-supported OF-TYPE mimeMediaType IN-GROUP printer-attributes-tag
 
