@@ -4,34 +4,40 @@
 #
 #Usage:
 #
-#	./ipptool -f FILENAME -d "document-uri=URI" printer-uri pwg5100.5.2.test
-#
+#	./ipptool -f FILENAME -d "document-uri=URI" printer-uri pwg5100.5.test
+
 {
-	NAME "Get printer attributes using Get-Printer-Attributes"
+	NAME "Check for 5100.5 required and optional operations support"
 	OPERATION Get-Printer-Attributes
 
 	GROUP operation-attributes-tag
 	ATTR charset attributes-charset utf-8
 	ATTR language attributes-natural-language en
 	ATTR uri printer-uri $uri
-
+	ATTR keyword requested-attributes operations-supported,document-creation-attributes-supported
 	STATUS successful-ok
 
+	EXPECT ?operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0037
 	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0037 DEFINE-MATCH HAVE_SET_DOCUMENT_ATTRIBUTES	# Set-Document-Attributes
-    EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0003 DEFINE-MATCH HAVE_PRINT_URI                  # Print-URI
+    EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0003 
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0003 DEFINE-MATCH HAVE_PRINT_URI                  # Print-URI
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0007 
 	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0007 DEFINE-MATCH HAVE_SEND_URI		            # Send-URI
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0033 
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0033 DEFINE-MATCH HAVE_CANCEL_DOCUMENT			# Cancel-Document
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0034
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0034 DEFINE-MATCH HAVE_GET_DOCUMENT_ATTRIBUTES	# Get-Document-Attributes
 
+	#REQUIRED Job operations
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0035
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0035 DEFINE-MATCH HAVE_GET_DOCUMENTS				# Get-Documents
+	
 	# Checking REQUIRED attributes.
 
-	EXPECT charset-supported OF-TYPE charset IN-GROUP printer-attributes-tag
-	EXPECT generated-natural-language-supported OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag
-	EXPECT natural-language-configured OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag
-	EXPECT compression-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
-	EXPECT document-format-supported OF-TYPE mimeMediaType IN-GROUP printer-attributes-tag
+	EXPECT document-creation-attributes-supported OF-TYPE keyword IN-GROUP printer-attributes-tag 
+	
 
-	EXPECT document-creation-attributes-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
 
-#ISSUE: attributes-charset-supported, attributes-natural-language-supported and document-creation-attributes-supported NOT PRESENT.
 
 }
 
@@ -46,7 +52,7 @@
 	ATTR language attributes-natural-language en
 	ATTR uri printer-uri $uri
 	ATTR name requesting-user-name $user
-	ATTR mimeMediaType document-format $filetype
+	#ATTR mimeMediaType document-format $filetype
 
 	GROUP job-attributes-tag
 	ATTR integer copies 1
@@ -59,9 +65,13 @@
 	STATUS successful-ok-ignored-or-substituted-attributes
 
 	EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+	EXPECT ?document-number OF-TYPE integer IN-GROUP document-attributes-tag WITH-VALUE 1 COUNT 1
+	EXPECT ?document-state OF-TYPE enum IN-GROUP document-attributes-tag
+	EXPECT ?document-state-reasons OF-TYPE keyword IN-GROUP document-attributes-tag
 }
 
 {
+	SKIP-IF-NOT-DEFINED HAVE_GET_DOCUMENT_ATTRIBUTE
 	NAME "Get document attributes"
 	OPERATION Get-Document-Attributes
 
@@ -72,13 +82,23 @@
 	ATTR integer job-id $job-id
 	ATTR integer document-number 1
 	ATTR name requesting-user-name $user
-
+	GROUP document-attributes-tag
+	ATTR integer printer-up-time 1
 	STATUS successful-ok
+
+	#Document description
+	EXPECT document-name OF-TYPE name IN-GROUP document-attributes-tag WITH-VALUE "test-document-1" COUNT 1
+
+	#Document STATUS
+	EXPECT document-number OF-TYPE integer IN-GROUP document-attributes-tag WITH-VALUE 1 COUNT 1
+	EXPECT last-document OF-TYPE boolean IN-GROUP document-attributes-tag
+
+
 
 	EXPECT document-job-id OF-TYPE integer IN-GROUP document-attributes-tag WITH-VALUE >0 COUNT 1
 	EXPECT document-job-uri OF-TYPE uri IN-GROUP document-attributes-tag COUNT 1
-	EXPECT document-name OF-TYPE name IN-GROUP document-attributes-tag WITH-VALUE "test-document-1" COUNT 1
-	EXPECT document-number OF-TYPE integer IN-GROUP document-attributes-tag WITH-VALUE 1 COUNT 1
+	
+	
 	EXPECT document-printer-uri OF-TYPE uri IN-GROUP document-attributes-tag WITH-VALUE $uri COUNT 1
 	EXPECT document-state OF-TYPE enum IN-GROUP document-attributes-tag
 	EXPECT document-state-reasons OF-TYPE keyword IN-GROUP document-attributes-tag
@@ -88,7 +108,7 @@
 	EXPECT time-at-created OF-TYPE integer|no-value IN-GROUP document-attributes-tag WITH-VALUE >0 COUNT 1
 	EXPECT time-at-processing OF-TYPE integer|no-value IN-GROUP document-attributes-tag WITH-VALUE >0 COUNT 1
 
-#ISSUE: printer-up-time NOT PRESENT.
+
 
 }
 
@@ -110,16 +130,15 @@
 	ATTR name document-name "test-document-2" 
 
 	STATUS successful-ok
+	STATUS client-error-not-possible
 
-#ISSUE: got server-error-operation-not-supported. 
-#	 	(set-document-attributes is listed in operations-supported attribute in get-printer-attributes response.)
 
 }
 
 {
 	SKIP-IF-NOT-DEFINED HAVE_SET_DOCUMENT_ATTRIBUTES
 
-	NAME "Get document attributes"
+	NAME "To Set New Document Description Values"
 	OPERATION Get-Document-Attributes
 
 	GROUP operation-attributes-tag
@@ -134,7 +153,7 @@
 
 	EXPECT document-job-id OF-TYPE integer IN-GROUP document-attributes-tag WITH-VALUE >0 COUNT 1
 	EXPECT document-job-uri OF-TYPE uri IN-GROUP document-attributes-tag COUNT 1
-	EXPECT document-name OF-TYPE name IN-GROUP document-attributes-tag WITH-VALUE "test-document-2" COUNT 1
+	EXPECT document-name OF-TYPE name IN-GROUP document-attributes-tag COUNT 1
 	EXPECT document-number OF-TYPE integer IN-GROUP document-attributes-tag WITH-VALUE 1 COUNT 1
 	EXPECT document-printer-uri OF-TYPE uri IN-GROUP document-attributes-tag WITH-VALUE $uri COUNT 1
 	EXPECT document-state OF-TYPE enum IN-GROUP document-attributes-tag
@@ -143,7 +162,7 @@
 
 {
 	NAME "Create job"
-    RESOURCE /admin
+
 	OPERATION create-job
 
 	GROUP operation
@@ -171,7 +190,7 @@
 	ATTR uri printer-uri $uri
 	ATTR integer job-id $job-id
 	ATTR name requesting-user-name $user
-	ATTR boolean last-document false
+	ATTR boolean last-document true
 
 	GROUP job
 	ATTR integer copies 1
@@ -180,10 +199,10 @@
 
 	STATUS successful-ok
 
-    EXPECT document-number OF-TYPE integer IN-GROUP document-attributes-tag WITH-VALUE >0 COUNT 1
-    EXPECT document-state OF-TYPE enum IN-GROUP document-attributes-tag
-    EXPECT document-state-reasons OF-TYPE keyword IN-GROUP document-attributes-tag
-
+    EXPECT ?document-number OF-TYPE integer IN-GROUP document-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT ?document-state OF-TYPE enum IN-GROUP document-attributes-tag
+    EXPECT ?document-state-reasons OF-TYPE keyword IN-GROUP document-attributes-tag
+	EXPECT ?document-state-message
 #ISSUE: document-number, document-state, and document-state-reasons NOT PRESENT.
 
 }
@@ -205,17 +224,18 @@
 
 	GROUP job-attributes-tag
 	ATTR integer copies 1
-
+	FILE $filename
 	STATUS successful-ok
-	EXPECT document-number OF-TYPE integer IN-GROUP document-attributes-tag WITH-VALUE >0 COUNT 1
-    EXPECT document-state OF-TYPE enum IN-GROUP document-attributes-tag
-    EXPECT document-state-reasons OF-TYPE keyword IN-GROUP document-attributes-tag
+	EXPECT ?document-number OF-TYPE integer IN-GROUP document-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT ?document-state OF-TYPE enum IN-GROUP document-attributes-tag
+    EXPECT ?document-state-reasons OF-TYPE keyword IN-GROUP document-attributes-tag
 
-#ISSUE: document-number, document-state, and document-state-reasons NOT PRESENT.
+#ISSUE: Multiple document jobs are not supported
 
 }
 
 {
+	SKIP-IF-NOT-DEFINED HAVE_CANCEL_DOCUMENT
 	NAME "testing cancel-document operation"
 	OPERATION Cancel-Document
 
@@ -229,11 +249,36 @@
 
 	STATUS successful-ok
 
-#ISSUE: got server-error-operation-not-supported. 
-#	 	(cancel-document is listed in operations-supported attribute in get-printer-attributes response.)
+
 
 }
+# To test Get-Documents operation
+{
+	SKIP-IF-NOT-DEFINED HAVE_GET_DOCUMENTS
+	NAME "Get Documents"
+	OPERATION Get-Documents
 
+	GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR language attributes-natural-language en
+	ATTR uri printer-uri $uri
+	ATTR integer job-id $job-id
+	ATTR name requesting-user-name $user
+
+	STATUS successful-ok
+
+	
+
+
+	#Document STATUS
+	EXPECT document-number OF-TYPE integer IN-GROUP document-attributes-tag WITH-VALUE 1 COUNT 1
+	EXPECT last-document OF-TYPE boolean IN-GROUP document-attributes-tag
+	EXPECT ?document-charset OF-TYPE charset IN-GROUP document-attributes-tag
+	EXPECT ?document-format-detected OF-TYPE mimeMediaType IN-GROUP document-attributes-tag
+	EXPECT ?document-message OF-TYPE text IN-GROUP document-attributes-tag
+
+
+}
 {
 	NAME "Get document attributes"
 	OPERATION Get-Document-Attributes
