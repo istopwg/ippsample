@@ -236,6 +236,7 @@ serverProcessHTTP(
 			hostname[HTTP_MAX_HOST];
 					/* Hostname */
   int			port;		/* Port number */
+  const char		*authorization;	/* Authorization value */
   const char		*encoding;	/* Content-Encoding value */
   server_resource_t	*res;		/* Resource */
   static const char * const http_states[] =
@@ -419,6 +420,18 @@ serverProcessHTTP(
       if (!serverRespondHTTP(client, HTTP_STATUS_EXPECTATION_FAILED, NULL, NULL, 0))
 	return (0);
     }
+  }
+
+ /*
+  * Handle Authorization...
+  */
+
+  authorization = httpGetField(client->http, HTTP_FIELD_AUTHORIZATION);
+
+  if (Authentication && *authorization && (http_status = serverAuthenticateClient(client)) != HTTP_STATUS_CONTINUE)
+  {
+    serverRespondHTTP(client, http_status, NULL, NULL, 0);
+    return (0);
   }
 
  /*
