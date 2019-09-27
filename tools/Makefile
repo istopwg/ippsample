@@ -13,6 +13,7 @@ include ../Makedefs
 
 
 OBJS		=	\
+			ipp3dprinter.o \
 			ippdoclint.o \
 			ippeveprinter.o \
 			ippfind.o \
@@ -29,6 +30,7 @@ COMMAND_TARGETS	=	\
 			$(IPPTRANSFORM_BIN) \
 			$(IPPTRANSFORM3D_BIN)
 BIN_TARGETS	=	\
+			ipp3dprinter \
 			ippeveprinter \
 			$(IPPFIND_BIN) \
 			ipptool
@@ -85,6 +87,15 @@ install:	all
 #
 
 test:
+
+
+#
+# ipp3dprinter
+#
+
+ipp3dprinter:	ipp3dprinter.o ../cups/libcups.a
+	echo Linking $@...
+	$(CC) $(LDFLAGS) -o $@ ipp3dprinter.o $(LIBS)
 
 
 #

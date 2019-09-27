@@ -16,6 +16,7 @@ OBJS		=	\
 TARGETS		=	\
 			mantohtml
 MAN1		=	\
+			ipp3dprinter.1 \
 			ippeveprinter.1 \
 			$(IPPFIND_MAN) \
 			ipptool.1
@@ -30,6 +31,7 @@ MAN8		=	\
 			ippproxy.8 \
 			ippserver.8
 HTML		=	\
+			ipp3dprinter.html \
 			ippdoclint.html \
 			ippeveprinter.html \
 			$(IPPFIND_HTML) \

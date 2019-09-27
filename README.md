@@ -11,6 +11,13 @@ to make them more general-purpose and configurable.
 [![Snap Status](https://build.snapcraft.io/badge/istopwg/ippsample.svg)](https://build.snapcraft.io/user/istopwg/ippsample)
 
 
+ipp3dprinter
+-------------
+
+The `ipp3dprinter` program implements a single IPP 3D printer and can be
+configured to use a print command to do processing of document data.
+
+
 ippdoclint
 ----------
 
