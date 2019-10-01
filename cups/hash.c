@@ -16,6 +16,7 @@
 #  include <CommonCrypto/CommonDigest.h>
 #elif defined(HAVE_GNUTLS)
 #  include <gnutls/crypto.h>
+#  include "md5-internal.h"
 #else
 #  include "md5-internal.h"
 #endif /* __APPLE__ */
@@ -186,14 +187,23 @@ cupsHashData(const char    *algorithm,	/* I - Algorithm name */
   size_t	tempsize = 0;		/* Truncate to this size? */
 
 
-#  ifdef HAVE_GNUTLS_FIPS140_SET_MODE
-  unsigned oldmode = gnutls_fips140_mode_enabled();
-
-  gnutls_fips140_set_mode(GNUTLS_FIPS140_LAX, GNUTLS_FIPS140_SET_MODE_THREAD);
-#  endif /* HAVE_GNUTLS_FIPS140_SET_MODE */
-
   if (!strcmp(algorithm, "md5"))
-    alg = GNUTLS_DIG_MD5;
+  {
+   /*
+    * Some versions of GNU TLS disable MD5 without warning...
+    */
+
+    _cups_md5_state_t	state;		/* MD5 state info */
+
+    if (hashsize < 16)
+      goto too_small;
+
+    _cupsMD5Init(&state);
+    _cupsMD5Append(&state, data, datalen);
+    _cupsMD5Finish(&state, hash);
+
+    return (16);
+  }
   else if (!strcmp(algorithm, "sha"))
     alg = GNUTLS_DIG_SHA1;
   else if (!strcmp(algorithm, "sha2-224"))
@@ -229,10 +239,6 @@ cupsHashData(const char    *algorithm,	/* I - Algorithm name */
       gnutls_hash_fast(alg, data, datalen, temp);
       memcpy(hash, temp, tempsize);
 
-#  ifdef HAVE_GNUTLS_FIPS140_SET_MODE
-      gnutls_fips140_set_mode(oldmode, GNUTLS_FIPS140_SET_MODE_THREAD);
-#  endif /* HAVE_GNUTLS_FIPS140_SET_MODE */
-
       return ((ssize_t)tempsize);
     }
 
@@ -241,16 +247,8 @@ cupsHashData(const char    *algorithm,	/* I - Algorithm name */
 
     gnutls_hash_fast(alg, data, datalen, hash);
 
-#  ifdef HAVE_GNUTLS_FIPS140_SET_MODE
-    gnutls_fips140_set_mode(oldmode, GNUTLS_FIPS140_SET_MODE_THREAD);
-#  endif /* HAVE_GNUTLS_FIPS140_SET_MODE */
-
     return ((ssize_t)gnutls_hash_get_len(alg));
   }
-
-#  ifdef HAVE_GNUTLS_FIPS140_SET_MODE
-  gnutls_fips140_set_mode(oldmode, GNUTLS_FIPS140_SET_MODE_THREAD);
-#  endif /* HAVE_GNUTLS_FIPS140_SET_MODE */
 
 #else
  /*
@@ -260,6 +258,9 @@ cupsHashData(const char    *algorithm,	/* I - Algorithm name */
   if (!strcmp(algorithm, "md5"))
   {
     _cups_md5_state_t	state;		/* MD5 state info */
+
+    if (hashsize < 16)
+      goto too_small;
 
     _cupsMD5Init(&state);
     _cupsMD5Append(&state, data, datalen);
@@ -284,10 +285,6 @@ cupsHashData(const char    *algorithm,	/* I - Algorithm name */
   */
 
   too_small:
-
-#ifdef HAVE_GNUTLS_FIPS140_SET_MODE
-  gnutls_fips140_set_mode(oldmode, GNUTLS_FIPS140_SET_MODE_THREAD);
-#endif /* HAVE_GNUTLS_FIPS140_SET_MODE */
 
   _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Hash buffer too small."), 1);
   return (-1);
