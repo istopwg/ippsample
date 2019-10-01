@@ -2918,6 +2918,8 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
       type = "cmyk_8";
   }
 
+  cupsArrayDelete(type_array);
+
   if (!type)
   {
     fputs("ERROR: No supported raster types are available.\n", stderr);
