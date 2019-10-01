@@ -2083,6 +2083,9 @@ xform_document(
 
   CGContextRelease(context);
 
+  free(ras.band_buffer);
+  ras.band_buffer = NULL;
+
   return (0);
 }
 
