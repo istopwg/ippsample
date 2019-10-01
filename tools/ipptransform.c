@@ -8,6 +8,8 @@
  * information.
  */
 
+#define HAVE_COREGRAPHICS 1
+
 #include <cups/cups.h>
 #include <cups/raster.h>
 #include <cups/array-private.h>
@@ -1484,6 +1486,22 @@ write_fd(int                 *fd,	/* I - File descriptor */
 
 
 #ifdef HAVE_COREGRAPHICS
+
+int                /* O - 0 on success, 1 on error */
+xform_document_public(
+      const char       *filename,        /* I - File to transform */
+      const char       *informat,        /* I - Input document (MIME media type */
+      const char       *outformat,    /* I - Output format (MIME media type) */
+      const char       *resolutions,    /* I - Supported resolutions */
+      const char       *sheet_back,    /* I - Back side transform */
+      const char       *types,        /* I - Supported types */
+      int              num_options,    /* I - Number of options */
+      cups_option_t    *options,        /* I - Options */
+      void             *ctx)        /* I - Write context */
+{
+    return xform_document(filename, informat, outformat, resolutions, sheet_back, types, num_options, options, (xform_write_cb_t)httpWrite2, ctx);
+}
+
 /*
  * 'xform_document()' - Transform a file for printing.
  */
