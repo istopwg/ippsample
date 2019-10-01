@@ -5031,15 +5031,11 @@ register_printer(
   if ((value = ippGetString(printer_location, 0, NULL)) != NULL)
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "note=%s", value);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "pdl=%s", formats);
-  ipp_txt = avahi_string_list_add_printf(ipp_txt, "Color=%s", ippGetBoolean(color_supported, 0) ? "T" : "F");
-  ipp_txt = avahi_string_list_add_printf(ipp_txt, "Duplex=%s", ippGetCount(sides_supported) > 1 ? "T" : "F");
   if ((value = ippGetString(printer_uuid, 0, NULL)) != NULL)
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "UUID=%s", value + 9);
 #  ifdef HAVE_SSL
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "TLS=1.2");
 #  endif /* HAVE_SSL */
-  if (urf[0])
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "URF=%s", urf);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "txtvers=1");
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "qtotal=1");
 
