@@ -2213,7 +2213,7 @@ xform_document(
     return (1);
   }
 
-  if (ras.header.cupsBitsPerPixel == 8)
+  if (ras.header.cupsBitsPerPixel <= 8)
   {
    /*
     * Grayscale output...
@@ -2288,6 +2288,8 @@ xform_document(
     max_raster = (size_t)strtol(max_raster_env, NULL, 10);
 
   band_size = ras.header.cupsWidth * ras.band_bpp;
+  fprintf(stderr, "DEBUG: ras.header.cupsWidth=%u, ras.band_bpp=%u, band_size=%ld\n", ras.header.cupsWidth, ras.band_bpp, (long)band_size);
+
   if ((ras.band_height = (unsigned)(max_raster / band_size)) < 1)
     ras.band_height = 1;
   else if (ras.band_height > ras.header.cupsHeight)
@@ -2538,7 +2540,7 @@ xform_document(
 
 	lineptr = pixmap->samples + (y - band_starty) * band_size + ras.left * ras.band_bpp;
 
-        if (ras.header.cupsColorSpace == CUPS_CSPACE_K)
+        if (ras.header.cupsColorSpace == CUPS_CSPACE_K && ras.header.cupsBitsPerPixel >= 8)
           invert_gray(lineptr, ras.right - ras.left);
 
 	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
