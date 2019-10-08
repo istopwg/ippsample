@@ -1496,10 +1496,11 @@ xform_document_public(
       const char       *sheet_back,    /* I - Back side transform */
       const char       *types,        /* I - Supported types */
       int              num_options,    /* I - Number of options */
-      cups_option_t    *options,        /* I - Options */
+      cups_option_t    *options,
+      xform_write_cb_t cb,        /* I - Write callback */
       void             *ctx)        /* I - Write context */
 {
-    return xform_document(filename, informat, outformat, resolutions, sheet_back, types, num_options, options, (xform_write_cb_t)httpWrite2, ctx);
+    return xform_document(filename, informat, outformat, resolutions, sheet_back, types, num_options, options, cb, ctx);
 }
 
 /*
