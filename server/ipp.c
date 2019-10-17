@@ -4013,7 +4013,7 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
   }
   else if (!strcmp(which_jobs, "fetchable") && client->printer->pinfo.proxy_group != SERVER_GROUP_NONE)
   {
-    job_comparison = 0;
+    job_comparison = -1;
     job_state      = IPP_JSTATE_STOPPED;
     job_reasons    = SERVER_JREASON_JOB_FETCHABLE;
   }
