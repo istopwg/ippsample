@@ -124,7 +124,7 @@ static void	raster_start_page(xform_raster_t *ras, unsigned page, xform_write_cb
 static void	raster_write_line(xform_raster_t *ras, unsigned y, const unsigned char *line, xform_write_cb_t cb, void *ctx);
 static void	usage(int status) _CUPS_NORETURN;
 static ssize_t	write_fd(int *fd, const unsigned char *buffer, size_t bytes);
-static int	xform_document(const char *filename, const char *informat, const char *outformat, const char *resolutions, const char *sheet_back, const char *types, int num_options, cups_option_t *options, xform_write_cb_t cb, void *ctx);
+int	xform_document(const char *filename, const char *informat, const char *outformat, const char *resolutions, const char *sheet_back, const char *types, int num_options, cups_option_t *options, xform_write_cb_t cb, void *ctx);
 static int	xform_setup(xform_raster_t *ras, const char *outformat, const char *resolutions, const char *types, const char *sheet_back, int color, unsigned pages, int num_options, cups_option_t *options);
 
 
@@ -1487,27 +1487,11 @@ write_fd(int                 *fd,	/* I - File descriptor */
 
 #ifdef HAVE_COREGRAPHICS
 
-int                /* O - 0 on success, 1 on error */
-xform_document_public(
-      const char       *filename,        /* I - File to transform */
-      const char       *informat,        /* I - Input document (MIME media type */
-      const char       *outformat,    /* I - Output format (MIME media type) */
-      const char       *resolutions,    /* I - Supported resolutions */
-      const char       *sheet_back,    /* I - Back side transform */
-      const char       *types,        /* I - Supported types */
-      int              num_options,    /* I - Number of options */
-      cups_option_t    *options,
-      xform_write_cb_t cb,        /* I - Write callback */
-      void             *ctx)        /* I - Write context */
-{
-    return xform_document(filename, informat, outformat, resolutions, sheet_back, types, num_options, options, cb, ctx);
-}
-
 /*
  * 'xform_document()' - Transform a file for printing.
  */
 
-static int				/* O - 0 on success, 1 on error */
+int				/* O - 0 on success, 1 on error */
 xform_document(
     const char       *filename,		/* I - File to transform */
     const char       *informat,		/* I - Input document (MIME media type */
@@ -2112,7 +2096,7 @@ xform_document(
  * 'xform_document()' - Transform a file for printing.
  */
 
-static int				/* O - 0 on success, 1 on error */
+int				/* O - 0 on success, 1 on error */
 xform_document(
     const char       *filename,		/* I - File to transform */
     const char       *informat,		/* I - Input format (MIME media type) */
