@@ -9,6 +9,8 @@ to make them more general-purpose and configurable.
 [![Travis Build Status](https://travis-ci.org/istopwg/ippsample.svg?branch=master)](https://travis-ci.org/istopwg/ippsample)
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/0ofsfvaqk984tew9?svg=true)](https://ci.appveyor.com/project/michaelrsweet/ippsample)
 [![Snap Status](https://build.snapcraft.io/badge/istopwg/ippsample.svg)](https://build.snapcraft.io/user/istopwg/ippsample)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/istopwg/ippsample.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/istopwg/ippsample/alerts/)
+[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/istopwg/ippsample.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/istopwg/ippsample/context:cpp)
 
 
 ipp3dprinter
