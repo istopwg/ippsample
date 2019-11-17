@@ -21,12 +21,10 @@
 extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
 #elif defined(HAVE_MUPDF)
 #  include <mupdf/fitz.h>
-#  ifndef HAVE_FZ_MAKE_MATRIX
-static inline fz_matrix fz_make_matrix(float a, float b, float c, float d, float e, float f) {
+static inline fz_matrix make_matrix(float a, float b, float c, float d, float e, float f) {
   fz_matrix ret = { a, b, c, d, e, f };
   return (ret);
 }
-#  endif /* !HAVE_FZ_MAKE_MATRIX */
 #endif /* HAVE_COREGRAPHICS */
 
 #include "dither.h"
@@ -2349,19 +2347,19 @@ xform_document(
     if (!strcmp(sheet_back, "flipped"))
     {
       if (ras.header.Tumble)
-        back_transform = fz_make_matrix(-1, 0, 0, 1, ras.header.cupsPageSize[0], 0);
+        back_transform = make_matrix(-1, 0, 0, 1, ras.header.cupsPageSize[0], 0);
       else
-        back_transform = fz_make_matrix(1, 0, 0, -1, 0, ras.header.cupsPageSize[1]);
+        back_transform = make_matrix(1, 0, 0, -1, 0, ras.header.cupsPageSize[1]);
     }
     else if (!strcmp(sheet_back, "manual-tumble") && ras.header.Tumble)
-      back_transform = fz_make_matrix(-1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
+      back_transform = make_matrix(-1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
     else if (!strcmp(sheet_back, "rotated") && !ras.header.Tumble)
-      back_transform = fz_make_matrix(-1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
+      back_transform = make_matrix(-1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
     else
-      back_transform = fz_make_matrix(1, 0, 0, 1, 0, 0);
+      back_transform = make_matrix(1, 0, 0, 1, 0, 0);
   }
   else
-    back_transform = fz_make_matrix(1, 0, 0, 1, 0, 0);
+    back_transform = make_matrix(1, 0, 0, 1, 0, 0);
 
   if (Verbosity > 1)
     fprintf(stderr, "DEBUG: cupsPageSize=[%g %g]\n", ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
@@ -2473,11 +2471,11 @@ xform_document(
 
       if (image_rotation)
       {
-	image_transform = fz_make_matrix(image_xscale, 0, 0, image_yscale, 0.5 * (ras.header.cupsPageSize[0] - image_xscale * image_height), 0.5 * (ras.header.cupsPageSize[1] - image_yscale * image_width));
+	image_transform = make_matrix(image_xscale, 0, 0, image_yscale, 0.5 * (ras.header.cupsPageSize[0] - image_xscale * image_height), 0.5 * (ras.header.cupsPageSize[1] - image_yscale * image_width));
       }
       else
       {
-	image_transform = fz_make_matrix(image_xscale, 0, 0, image_yscale, 0.5 * (ras.header.cupsPageSize[0] - image_xscale * image_width), 0.5 * (ras.header.cupsPageSize[1] - image_yscale * image_height));
+	image_transform = make_matrix(image_xscale, 0, 0, image_yscale, 0.5 * (ras.header.cupsPageSize[0] - image_xscale * image_width), 0.5 * (ras.header.cupsPageSize[1] - image_yscale * image_height));
       }
 
       if (Verbosity > 1)
