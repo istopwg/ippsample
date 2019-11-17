@@ -1,0 +1,217 @@
+.\"
+.\" ipp3dprinter man page.
+.\"
+.\" Copyright © 2014-2019 by Apple Inc.
+.\"
+.\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
+.\" information.
+.\"
+.TH ipp3dprinter 1 "CUPS" "26 September 2019" "Apple Inc."
+.SH NAME
+ipp3dprinter \- an ipp 3d printer application
+.SH SYNOPSIS
+.B ipp3dprinter
+[
+.B \-\-help
+] [
+.B \-\-no\-web\-forms
+] [
+.B \-\-version
+] [
+.B \-D
+.I device-uri
+] [
+.B \-K
+.I keypath
+] [
+.B \-M
+.I manufacturer
+] [
+.B \-a
+.I filename.conf
+] [
+.B \-c
+.I command
+] [
+.B \-d
+.I spool-directory
+] [
+.B \-f
+.I type/subtype[,...]
+] [
+.B \-i
+.I iconfile.png
+] [
+.B \-k
+] [
+.B \-l
+.I location
+] [
+.B \-m
+.I model
+] [
+.B \-n
+.I hostname
+] [
+.B \-p
+.I port
+] [
+.B \-r
+.I subtype[,subtype]
+] [
+.B \-v[vvv]
+]
+.I service-name
+.SH DESCRIPTION
+.B ipp3dprinter
+is a simple Internet Printing Protocol (IPP) server conforming to the IPP 3D Printing Extensions (PWG 5100.21) specification.
+It can be used to test client software or act as a very basic print server that runs a command for every job that is printed.
+.SH OPTIONS
+The following options are recognized by
+.B ipp3dprinter:
+.TP 5
+.B \-\-help
+Show program usage.
+.TP 5
+.B \-\-no\-web\-forms
+Disable the web interface forms used to update the media and supply levels.
+.TP 5
+.B \-\-version
+Show the CUPS version.
+.TP 5
+\fB\-D \fIdevice-uri\fR
+Set the device URI for print output.
+The URI can be a filename, directory, or a network socket URI of the form "socket://ADDRESS[:PORT]" (where the default port number is 9100).
+When specifying a directory,
+.B ipp3dprinter
+will create an output file using the job ID and name.
+.TP 5
+\fB\-M \fImanufacturer\fR
+Set the manufacturer of the printer.
+The default is "Example".
+.TP 5
+\fB\-c \fIcommand\fR
+Run the specified command for each document that is printed.
+If "command" is not an absolute path ("/path/to/command"),
+.B ipp3dprinter
+looks for the command in the "command" subdirectory of the CUPS binary directory, typically /usr/lib/cups/command or /usr/libexec/cups/command.
+The
+.BR cups-config (1)
+command can be used to discover the correct binary directory ("cups-config --serverbin").
+In addition, the CUPS_SERVERBIN environment variable can be used to override the default location of this directory - see the
+.BR cups (1)
+man page for more details.
+.TP 5
+\fB\-d \fIspool-directory\fR
+Specifies the directory that will hold the print files.
+The default is a directory under the user's current temporary directory.
+.TP 5
+\fB\-f \fItype/subtype[,...]\fR
+Specifies a list of MIME media types that the server will accept.
+The default depends on the type of printer created.
+.TP 5
+\fB\-i \fIiconfile.png\fR
+Specifies the printer icon file for the server.
+The file must be a PNG format image.
+The default is an internally-provided PNG image.
+.TP 5
+.B \-k
+Keeps the print documents in the spool directory rather than deleting them.
+.TP 5
+\fB\-l \fIlocation\fR
+Specifies the human-readable location string that is reported by the server.
+The default is the empty string.
+.TP 5
+\fB\-m \fImodel\fR
+Specifies the model name of the printer.
+The default is "Printer".
+.TP 5
+\fB\-n \fIhostname\fR
+Specifies the hostname that is reported by the server.
+The default is the name returned by the
+.BR hostname (1)
+command.
+.TP 5
+\fB\-p \fIport\fR
+Specifies the port number to listen on.
+The default is a user-specific number from 8000 to 8999.
+.TP 5
+\fB\-r \fIsubtype[,subtype]\fR
+Specifies the DNS-SD subtype(s) to advertise.
+Separate multiple subtypes with a comma.
+The default is "_print".
+.TP 5
+.B \-v[vvv]
+Be (very) verbose when logging activity to standard error.
+.SH EXIT STATUS
+The
+.B ipp3dprinter
+program returns 1 if it is unable to process the command-line arguments or register the IPP service.
+Otherwise
+.B ipp3dprinter
+will run continuously until terminated.
+.SH CONFORMING TO
+The
+.B ipp3dprinter
+program is unique to CUPS and conforms to the IPP 3D Printing Extensions (PWG 5100.21) specification.
+.SH ENVIRONMENT
+.B ipp3dprinter
+adds environment variables starting with "IPP_" for all IPP Job attributes in the print request.
+For example, when executing a command for an IPP Job containing the "materials-col" Job Template attribute, the "IPP_MATERIALS_COL" environment variable will be set to the value of that attribute.
+.LP
+In addition, all IPP "xxx-default" and "pwg-xxx" Printer Description attributes are added to the environment.
+For example, the "IPP_MATERIALS_COL_DEFAULT" environment variable will be set to the default value for the "materials-col" Job Template attribute.
+.LP
+Enumerated values are converted to their keyword equivalents.
+For example, a "print-quality" Job Template attribute with a enum value of 3 will become the "IPP_PRINT_QUALITY" environment variable with a value of "draft".
+This string conversion only happens for standard Job Template attributes, currently "finishings" and "print-quality".
+.LP
+Finally, the "CONTENT_TYPE" environment variable contains the MIME media type of the document being printed and the "DEVICE_URI" environment variable contains the device URI as specified with the "\-D" option.
+.SH COMMAND OUTPUT
+Unless they communicate directly with a printer, print commands send printer-ready data to the standard output.
+.LP
+Print commands can send messages back to
+.B ipp3dprinter
+on the standard error with one of the following prefixes:
+.TP 5
+\fBATTR: \fIattribute=value[ attribute=value]\fR
+Sets the named attribute(s) to the given values.
+Currently only the "printer-alert" and "printer-alert-description" Printer Status attributes can be set.
+.TP 5
+\fBDEBUG: \fIDebugging message\fR
+Logs a debugging message if at least two \-v's have been specified.
+.TP 5
+\fBERROR: \fIError message\fR
+Logs an error message and copies the message to the "job-state-message" attribute.
+.TP 5
+\fBINFO: \fIInformational message\fR
+Logs an informational/progress message if \-v has been specified and copies the message to the "job-state-message" attribute unless an error has been reported.
+.TP 5
+\fBSTATE: \fIkeyword[,keyword,...]\fR
+Sets the printer's "printer-state-reasons" attribute to the listed keywords.
+.TP 5
+\fBSTATE: -\fIkeyword[,keyword,...]\fR
+Removes the listed keywords from the printer's "printer-state-reasons" attribute.
+.TP 5
+\fBSTATE: +\fIkeyword[,keyword,...]\fR
+Adds the listed keywords to the printer's "printer-state-reasons" attribute.
+.SH EXAMPLES
+Run
+.B ipp3dprinter
+with a service name of My Cool Printer:
+.nf
+
+    ipp3dprinter "My Cool Printer"
+.fi
+.LP
+Run the
+.BR file (1)
+command whenever a job is sent to the server:
+.nf
+
+    ipp3dprinter \-c /usr/bin/file "My Cool Printer"
+.fi
+.SH SEE ALSO
+PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp)
+.SH COPYRIGHT
+Copyright \[co] 2007-2019 by Apple Inc.
