@@ -2285,7 +2285,7 @@ xform_document(
   if (max_raster_env && strtol(max_raster_env, NULL, 10) > 0)
     max_raster = (size_t)strtol(max_raster_env, NULL, 10);
 
-  band_size = ras.header.cupsWidth * ras.band_bpp;
+  band_size = (size_t)ras.header.cupsWidth * ras.band_bpp;
   fprintf(stderr, "DEBUG: ras.header.cupsWidth=%u, ras.band_bpp=%u, band_size=%ld\n", ras.header.cupsWidth, ras.band_bpp, (long)band_size);
 
   if ((ras.band_height = (unsigned)(max_raster / band_size)) < 1)

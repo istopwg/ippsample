@@ -885,16 +885,16 @@ plogf(proxy_job_t *pjob,			/* I - Proxy job, if any */
   char		temp[1024];		/* Temporary message string */
   va_list	ap;			/* Pointer to additional arguments */
   struct timeval curtime;		/* Current time */
-  struct tm	*curdate;		/* Current date and time */
+  struct tm	curdate;		/* Current date and time */
 
 
   gettimeofday(&curtime, NULL);
-  curdate = gmtime(&curtime.tv_sec);
+  gmtime_r(&curtime.tv_sec, &curdate);
 
   if (pjob)
-    snprintf(temp, sizeof(temp), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ  [Job %d] %s\n", curdate->tm_year + 1900, curdate->tm_mon + 1, curdate->tm_mday, curdate->tm_hour, curdate->tm_min, curdate->tm_sec, (int)curtime.tv_usec / 1000, pjob->remote_job_id, message);
+    snprintf(temp, sizeof(temp), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ  [Job %d] %s\n", curdate.tm_year + 1900, curdate.tm_mon + 1, curdate.tm_mday, curdate.tm_hour, curdate.tm_min, curdate.tm_sec, (int)curtime.tv_usec / 1000, pjob->remote_job_id, message);
   else
-    snprintf(temp, sizeof(temp), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ  %s\n", curdate->tm_year + 1900, curdate->tm_mon + 1, curdate->tm_mday, curdate->tm_hour, curdate->tm_min, curdate->tm_sec, (int)curtime.tv_usec / 1000, message);
+    snprintf(temp, sizeof(temp), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ  %s\n", curdate.tm_year + 1900, curdate.tm_mon + 1, curdate.tm_mday, curdate.tm_hour, curdate.tm_min, curdate.tm_sec, (int)curtime.tv_usec / 1000, message);
 
   va_start(ap, message);
   vfprintf(stderr, temp, ap);

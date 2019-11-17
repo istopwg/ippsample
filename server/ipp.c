@@ -4534,7 +4534,7 @@ ipp_get_printers(
     */
 
     i ++;
-    if (first_index > 0 && i < first_index)
+    if (i < first_index)
       continue;
 
     if (count)

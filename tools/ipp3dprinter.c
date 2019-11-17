@@ -5652,10 +5652,13 @@ time_string(time_t tv,			/* I - Time value */
             char   *buffer,		/* I - Buffer */
 	    size_t bufsize)		/* I - Size of buffer */
 {
-  struct tm	*curtime = localtime(&tv);
-					/* Local time */
+  struct tm	date;			/* Local date and time */
 
-  strftime(buffer, bufsize, "%X", curtime);
+
+  localtime_r(&tv, &date);
+
+  strftime(buffer, bufsize, "%X", &date);
+
   return (buffer);
 }
 

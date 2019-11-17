@@ -527,10 +527,10 @@ serverHoldJob(
   else
   {
     time_t	curtime;		/* Current time */
-    struct tm	*curdate;		/* Current date */
+    struct tm	curdate;		/* Current date */
 
-    curtime = time(NULL);
-    curdate = localtime(&curtime);
+    time(&curtime);
+    localtime_r(&curtime, &curdate);
 
     if ((keyword = ippGetString(hold_until, 0, NULL)) == NULL)
       keyword = "indefinite";
@@ -541,10 +541,10 @@ serverHoldJob(
       * Hold to 6pm unless local time is > 6pm or < 6am.
       */
 
-      if (curdate->tm_hour < 6 || curdate->tm_hour >= 18)
+      if (curdate.tm_hour < 6 || curdate.tm_hour >= 18)
 	job->hold_until = curtime;
       else
-	job->hold_until = curtime + ((17 - curdate->tm_hour) * 60 + 59 - curdate->tm_min) * 60 + 60 - curdate->tm_sec;
+	job->hold_until = curtime + ((17 - curdate.tm_hour) * 60 + 59 - curdate.tm_min) * 60 + 60 - curdate.tm_sec;
     }
     else if (!strcmp(keyword, "second-shift"))
     {
@@ -552,10 +552,10 @@ serverHoldJob(
       * Hold to 4pm unless local time is > 4pm.
       */
 
-      if (curdate->tm_hour >= 16)
+      if (curdate.tm_hour >= 16)
 	job->hold_until = curtime;
       else
-	job->hold_until = curtime + ((15 - curdate->tm_hour) * 60 + 59 - curdate->tm_min) * 60 + 60 - curdate->tm_sec;
+	job->hold_until = curtime + ((15 - curdate.tm_hour) * 60 + 59 - curdate.tm_min) * 60 + 60 - curdate.tm_sec;
     }
     else if (!strcmp(keyword, "third-shift"))
     {
@@ -563,10 +563,10 @@ serverHoldJob(
       * Hold to 12am unless local time is < 8am.
       */
 
-      if (curdate->tm_hour < 8)
+      if (curdate.tm_hour < 8)
 	job->hold_until = curtime;
       else
-	job->hold_until = curtime + ((23 - curdate->tm_hour) * 60 + 59 - curdate->tm_min) * 60 + 60 - curdate->tm_sec;
+	job->hold_until = curtime + ((23 - curdate.tm_hour) * 60 + 59 - curdate.tm_min) * 60 + 60 - curdate.tm_sec;
     }
     else if (!strcmp(keyword, "weekend"))
     {
@@ -574,10 +574,10 @@ serverHoldJob(
       * Hold to weekend unless we are in the weekend.
       */
 
-      if (curdate->tm_wday == 0 || curdate->tm_wday == 6)
+      if (curdate.tm_wday == 0 || curdate.tm_wday == 6)
 	job->hold_until = curtime;
       else
-	job->hold_until = curtime + (((5 - curdate->tm_wday) * 24 + (17 - curdate->tm_hour)) * 60 + 59 - curdate->tm_min) * 60 + 60 - curdate->tm_sec;
+	job->hold_until = curtime + (((5 - curdate.tm_wday) * 24 + (17 - curdate.tm_hour)) * 60 + 59 - curdate.tm_min) * 60 + 60 - curdate.tm_sec;
     }
     else
     {
