@@ -214,7 +214,7 @@ server_log_to_file(
 		*bufptr;		/* Pointer into buffer */
   ssize_t	bytes;			/* Number of bytes in message */
   struct timeval curtime;		/* Current time */
-  struct tm	*curdate;		/* Current date and time */
+  struct tm	curdate;		/* Current date and time */
   static const char * const pris[] =	/* Log priority strings */
   {
     "<63>",				/* Error message */
@@ -226,10 +226,10 @@ server_log_to_file(
 #ifdef _WIN32
   _cups_gettimeofday(&curtime, NULL);
   time_t tv_sec = (time_t)curtime.tv_sec;
-  curdate = gmtime(&tv_sec);
+  gmtime_s(&tv_sec, &curdate);
 #else
   gettimeofday(&curtime, NULL);
-  curdate = gmtime(&curtime.tv_sec);
+  gmtime_r(&curtime.tv_sec, &curdate);
 #endif /* _WIN32 */
 
   if (LogFile)
@@ -238,7 +238,7 @@ server_log_to_file(
     * When logging to a file, use the syslog format...
     */
 
-    snprintf(buffer, sizeof(buffer), "%s1 %04d-%02d-%02dT%02d:%02d:%02d.%03dZ %s ippserver %d -  ", pris[level], curdate->tm_year + 1900, curdate->tm_mon + 1, curdate->tm_mday, curdate->tm_hour, curdate->tm_min, curdate->tm_sec, (int)curtime.tv_usec / 1000, ServerName, getpid());
+    snprintf(buffer, sizeof(buffer), "%s1 %04d-%02d-%02dT%02d:%02d:%02d.%03dZ %s ippserver %d -  ", pris[level], curdate.tm_year + 1900, curdate.tm_mon + 1, curdate.tm_mday, curdate.tm_hour, curdate.tm_min, curdate.tm_sec, (int)curtime.tv_usec / 1000, ServerName, getpid());
   }
   else
   {
@@ -246,7 +246,7 @@ server_log_to_file(
     * Otherwise just include the date and time for convenience...
     */
 
-    snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ  ", curdate->tm_year + 1900, curdate->tm_mon + 1, curdate->tm_mday, curdate->tm_hour, curdate->tm_min, curdate->tm_sec, (int)curtime.tv_usec / 1000);
+    snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ  ", curdate.tm_year + 1900, curdate.tm_mon + 1, curdate.tm_mday, curdate.tm_hour, curdate.tm_min, curdate.tm_sec, (int)curtime.tv_usec / 1000);
   }
 
   bufptr = buffer + strlen(buffer);
