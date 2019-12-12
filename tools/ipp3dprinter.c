@@ -163,6 +163,9 @@ typedef struct ipp3d_printer_s		/**** Printer data ****/
 			*hostname,	/* Hostname */
 			*uri,		/* printer-uri-supported */
 			*device_uri,	/* Device URI (if any) */
+#if !CUPS_LITE
+			*ppdfile,
+#endif
 			*command;	/* Command to run with job file */
   int			port;		/* Port */
   int			web_forms;	/* Enable web interface forms? */
