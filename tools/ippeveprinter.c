@@ -6819,7 +6819,7 @@ register_printer(
 #ifdef HAVE_DNSSD
   DNSServiceErrorType	error;		/* Error from Bonjour */
   char			regtype[256];	/* Bonjour service type */
-  uint32_t		interface;	/* Interface index */
+  unsigned		interface;	/* Interface index */
 
 
  /*
