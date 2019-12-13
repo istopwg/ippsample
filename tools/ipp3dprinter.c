@@ -1771,10 +1771,6 @@ delete_printer(ipp3d_printer_t *printer)	/* I - Printer */
     free(printer->command);
   if (printer->device_uri)
     free(printer->device_uri);
-#if !CUPS_LITE
-  if (printer->ppdfile)
-    free(printer->ppdfile);
-#endif /* !CUPS_LITE */
   if (printer->directory)
     free(printer->directory);
   if (printer->hostname)
