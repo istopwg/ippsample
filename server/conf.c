@@ -2502,7 +2502,7 @@ load_system(const char *conf)		/* I - Configuration file */
     else if (!_cups_strcasecmp(line, "FileDirectory"))
     {
       char		*dir,		/* Directory value */
-			dirabs[256];	/* Absolute directory path */
+			dirabs[PATH_MAX + 1];	/* Absolute directory path */
       struct stat	dirinfo;	/* Directory information */
 
       while (*value)
