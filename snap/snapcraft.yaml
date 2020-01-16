@@ -1,4 +1,5 @@
 name: ipp
+base: core18
 version: 1.0b1
 summary: IPP Sample Implementation
 description: |
