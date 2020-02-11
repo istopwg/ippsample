@@ -6970,7 +6970,7 @@ register_printer(
 #ifdef HAVE_DNSSD
   DNSServiceErrorType	error;		/* Error from Bonjour */
   char			regtype[256];	/* Bonjour service type */
-  uint32_t		interface;	/* Interface index */
+  uint32_t		ifindex;	/* Interface index */
 
 
  /*
@@ -7003,11 +7003,11 @@ register_printer(
   * defend our service name but not actually support LPD...
   */
 
-  interface = !strcmp(printer->hostname, "localhost") ? kDNSServiceInterfaceIndexLocalOnly : kDNSServiceInterfaceIndexAny;
+  ifindex = !strcmp(printer->hostname, "localhost") ? kDNSServiceInterfaceIndexLocalOnly : kDNSServiceInterfaceIndexAny;
 
   printer->printer_ref = DNSSDMaster;
 
-  if ((error = DNSServiceRegister(&(printer->printer_ref), kDNSServiceFlagsShareConnection, interface, printer->dnssd_name, "_printer._tcp", NULL /* domain */, NULL /* host */, 0 /* port */, 0 /* txtLen */, NULL /* txtRecord */, (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
+  if ((error = DNSServiceRegister(&(printer->printer_ref), kDNSServiceFlagsShareConnection, ifindex, printer->dnssd_name, "_printer._tcp", NULL /* domain */, NULL /* host */, 0 /* port */, 0 /* txtLen */, NULL /* txtRecord */, (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
   {
     _cupsLangPrintf(stderr, _("Unable to register \"%s.%s\": %d"), printer->dnssd_name, "_printer._tcp", error);
     return (0);
@@ -7025,7 +7025,7 @@ register_printer(
   else
     strlcpy(regtype, "_ipp._tcp", sizeof(regtype));
 
-  if ((error = DNSServiceRegister(&(printer->ipp_ref), kDNSServiceFlagsShareConnection, interface, printer->dnssd_name, regtype, NULL /* domain */, NULL /* host */, htons(printer->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
+  if ((error = DNSServiceRegister(&(printer->ipp_ref), kDNSServiceFlagsShareConnection, ifindex, printer->dnssd_name, regtype, NULL /* domain */, NULL /* host */, htons(printer->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
   {
     _cupsLangPrintf(stderr, _("Unable to register \"%s.%s\": %d"), printer->dnssd_name, regtype, error);
     return (0);
@@ -7044,7 +7044,7 @@ register_printer(
   else
     strlcpy(regtype, "_ipps._tcp", sizeof(regtype));
 
-  if ((error = DNSServiceRegister(&(printer->ipps_ref), kDNSServiceFlagsShareConnection, interface, printer->dnssd_name, regtype, NULL /* domain */, NULL /* host */, htons(printer->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
+  if ((error = DNSServiceRegister(&(printer->ipps_ref), kDNSServiceFlagsShareConnection, ifindex, printer->dnssd_name, regtype, NULL /* domain */, NULL /* host */, htons(printer->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
   {
     _cupsLangPrintf(stderr, _("Unable to register \"%s.%s\": %d"), printer->dnssd_name, regtype, error);
     return (0);
@@ -7058,7 +7058,7 @@ register_printer(
 
   printer->http_ref = DNSSDMaster;
 
-  if ((error = DNSServiceRegister(&(printer->http_ref), kDNSServiceFlagsShareConnection, interface, printer->dnssd_name, "_http._tcp,_printer", NULL /* domain */, NULL /* host */, htons(printer->port), 0 /* txtLen */, NULL /* txtRecord */, (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
+  if ((error = DNSServiceRegister(&(printer->http_ref), kDNSServiceFlagsShareConnection, ifindex, printer->dnssd_name, "_http._tcp,_printer", NULL /* domain */, NULL /* host */, htons(printer->port), 0 /* txtLen */, NULL /* txtRecord */, (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
   {
     _cupsLangPrintf(stderr, _("Unable to register \"%s.%s\": %d"), printer->dnssd_name, "_http._tcp,_printer", error);
     return (0);
