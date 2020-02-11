@@ -1,6 +1,7 @@
 /*
  * IPP Everywhere printer application for CUPS.
  *
+ * Copyright @ 2020 by the IEEE-ISTO Printer Working Group.
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -38,6 +39,7 @@ typedef ULONG nfds_t;
 #else
 extern char **environ;
 
+#  include <spawn.h>
 #  include <sys/fcntl.h>
 #  include <sys/wait.h>
 #  include <poll.h>
@@ -185,6 +187,7 @@ typedef struct ippeve_printer_s		/**** Printer data ****/
   char			*dnssd_name,	/* printer-dnssd-name */
 			*name,		/* printer-name */
 			*icon,		/* Icon filename */
+			*strings,	/* Strings filename */
 			*directory,	/* Spool directory */
 			*hostname,	/* Hostname */
 			*uri,		/* printer-uri-supported */
@@ -264,7 +267,7 @@ static int		create_job_file(ippeve_job_t *job, char *fname, size_t fnamesize, co
 static int		create_listener(const char *name, int port, int family);
 static ipp_t		*create_media_col(const char *media, const char *source, const char *type, int width, int length, int bottom, int left, int right, int top);
 static ipp_t		*create_media_size(int width, int length);
-static ippeve_printer_t	*create_printer(const char *servername, int serverport, const char *name, const char *location, const char *icon, cups_array_t *docformats, const char *subtypes, const char *directory, const char *command, const char *device_uri, const char *output_format, ipp_t *attrs);
+static ippeve_printer_t	*create_printer(const char *servername, int serverport, const char *name, const char *location, const char *icon, const char *strings, cups_array_t *docformats, const char *subtypes, const char *directory, const char *command, const char *device_uri, const char *output_format, ipp_t *attrs);
 static void		debug_attributes(const char *title, ipp_t *ipp, int response);
 static void		delete_client(ippeve_client_t *client);
 static void		delete_job(ippeve_job_t *job);
@@ -285,6 +288,7 @@ static void		html_footer(ippeve_client_t *client);
 static void		html_header(ippeve_client_t *client, const char *title, int refresh);
 static void		html_printf(ippeve_client_t *client, const char *format, ...) _CUPS_FORMAT(2, 3);
 static void		ipp_cancel_job(ippeve_client_t *client);
+static void		ipp_cancel_my_jobs(ippeve_client_t *client);
 static void		ipp_close_job(ippeve_client_t *client);
 static void		ipp_create_job(ippeve_client_t *client);
 static void		ipp_get_job_attributes(ippeve_client_t *client);
@@ -368,6 +372,7 @@ main(int  argc,				/* I - Number of command-line args */
 #if !CUPS_LITE
 		*ppdfile = NULL,	/* PPD file */
 #endif /* !CUPS_LITE */
+		*strings = NULL,	/* Strings file */
 		*subtypes = "_print";	/* DNS-SD service subtype */
   int		legacy = 0,		/* Legacy mode? */
 		duplex = 0,		/* Duplex mode */
@@ -474,6 +479,14 @@ main(int  argc,				/* I - Number of command-line args */
               ppdfile = argv[i];
               break;
 #endif /* !CUPS_LITE */
+
+	  case 'S' : /* -S filename.strings */
+	      i ++;
+	      if (i >= argc)
+	        usage(1);
+
+	      strings = argv[i];
+	      break;
 
           case 'V' : /* -V max-version */
 	      i ++;
@@ -699,7 +712,7 @@ main(int  argc,				/* I - Number of command-line args */
   else
     attrs = load_legacy_attributes(make, model, ppm, ppm_color, duplex, docformats);
 
-  if ((printer = create_printer(servername, serverport, name, location, icon, docformats, subtypes, directory, command, device_uri, output_format, attrs)) == NULL)
+  if ((printer = create_printer(servername, serverport, name, location, icon, strings, docformats, subtypes, directory, command, device_uri, output_format, attrs)) == NULL)
     return (1);
 
   printer->web_forms = web_forms;
@@ -1386,6 +1399,7 @@ create_printer(
     const char   *name,			/* I - printer-name */
     const char   *location,		/* I - printer-location */
     const char   *icon,			/* I - printer-icons */
+    const char   *strings,		/* I - printer-strings-uri */
     cups_array_t *docformats,		/* I - document-format-supported */
     const char   *subtypes,		/* I - Bonjour service subtype(s) */
     const char   *directory,		/* I - Spool directory */
@@ -1405,6 +1419,8 @@ create_printer(
 			*uris[2],	/* All URIs */
 #endif /* HAVE_SSL */
 			icons[1024],	/* printer-icons URI */
+			stringsurl[1024],
+					/* printer-strings-uri URI */
 			adminurl[1024],	/* printer-more-info URI */
 			supplyurl[1024],/* printer-supply-info-uri URI */
 			uuid[128];	/* printer-uuid */
@@ -1638,6 +1654,7 @@ create_printer(
   printer->output_format = output_format ? strdup(output_format) : NULL;
   printer->directory     = strdup(directory);
   printer->icon          = icon ? strdup(icon) : NULL;
+  printer->strings       = strings ? strdup(strings) : NULL;
   printer->port          = serverport;
   printer->start_time    = time(NULL);
   printer->config_time   = printer->start_time;
@@ -1690,6 +1707,7 @@ create_printer(
 
   httpAssembleURI(HTTP_URI_CODING_ALL, icons, sizeof(icons), WEB_SCHEME, NULL, printer->hostname, printer->port, "/icon.png");
   httpAssembleURI(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), WEB_SCHEME, NULL, printer->hostname, printer->port, "/");
+  httpAssembleURI(HTTP_URI_CODING_ALL, stringsurl, sizeof(stringsurl), WEB_SCHEME, NULL, printer->hostname, printer->port, "/en.strings");
   httpAssembleURI(HTTP_URI_CODING_ALL, supplyurl, sizeof(supplyurl), WEB_SCHEME, NULL, printer->hostname, printer->port, "/supplies");
   httpAssembleUUID(printer->hostname, serverport, name, 0, uuid, sizeof(uuid));
 
@@ -1882,6 +1900,12 @@ create_printer(
 
   /* printer-organizational-unit */
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_TEXT), "printer-organizational-unit", NULL, "");
+
+  /* printer-strings-languages-supported */
+  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_LANGUAGE, "printer-strings-languages-supported", NULL, "en");
+
+  /* printer-strings-uri */
+  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-strings-uri", NULL, stringsurl);
 
   /* printer-supply-info-uri */
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-supply-info-uri", NULL, supplyurl);
@@ -2106,6 +2130,8 @@ delete_printer(ippeve_printer_t *printer)	/* I - Printer */
     free(printer->name);
   if (printer->icon)
     free(printer->icon);
+  if (printer->strings)
+    free(printer->strings);
   if (printer->command)
     free(printer->command);
   if (printer->device_uri)
@@ -3124,6 +3150,53 @@ ipp_cancel_job(ippeve_client_t *client)	/* I - Client */
 
 
 /*
+ * 'ipp_cancel_my_jobs()' - Cancel all jobs.
+ *
+ * Note: Since ippeveprinter doesn't do spooling, this really just cancels the
+ * current job.
+ */
+
+static void
+ipp_cancel_my_jobs(
+    ippeve_client_t *client)		/* I - Client */
+{
+  ippeve_job_t		*job;		/* Job information */
+
+
+  _cupsRWLockWrite(&client->printer->rwlock);
+
+  if ((job = client->printer->active_job) != NULL)
+  {
+   /*
+    * See if the job is already completed, canceled, or aborted; if so,
+    * we can't cancel...
+    */
+
+    if (job->state < IPP_JSTATE_CANCELED)
+    {
+     /*
+      * Cancel the job...
+      */
+
+      if (job->state == IPP_JSTATE_PROCESSING || (job->state == IPP_JSTATE_HELD && job->fd >= 0))
+      {
+	job->cancel = 1;
+      }
+      else
+      {
+	job->state     = IPP_JSTATE_CANCELED;
+	job->completed = time(NULL);
+      }
+    }
+  }
+
+  respond_ipp(client, IPP_STATUS_OK, NULL);
+
+  _cupsRWUnlock(&client->printer->rwlock);
+}
+
+
+/*
  * 'ipp_close_job()' - Close an open job.
  */
 
@@ -3550,8 +3623,21 @@ ipp_identify_printer(
 
   if (!actions || ippContainsString(actions, "sound"))
   {
+#ifdef __APPLE__
+    pid_t	pid;			/* Process ID for "afplay" utility */
+    static const char * const afplay[3] =
+    {					/* Arguments for "afplay" utility */
+      "/usr/bin/afplay",
+      "/System/Library/Sounds/Ping.aiff",
+      NULL
+    };
+
+    posix_spawn(&pid, afplay[0], NULL, NULL, (char **)afplay, NULL);
+
+#else
     putchar(0x07);
     fflush(stdout);
+#endif /* __APPLE__ */
   }
 
   if (ippContainsString(actions, "display"))
@@ -4359,8 +4445,35 @@ load_legacy_attributes(
   if (cupsArrayFind(docformats, (void *)"application/pdf"))
     ippAddInteger(attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "document-password-supported", 1023);
 
+  /* finishing-template-supported */
+  ippAddString(attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "finishing-template-supported", NULL, "none");
+
+  /* finishings-col-database */
+  col = ippNew();
+  ippAddString(col, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "finishing-template", NULL, "none");
+  ippAddCollection(attrs, IPP_TAG_PRINTER, "finishings-col-database", col);
+  ippDelete(col);
+
+  /* finishings-col-default */
+  col = ippNew();
+  ippAddString(col, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "finishing-template", NULL, "none");
+  ippAddCollection(attrs, IPP_TAG_PRINTER, "finishings-col-default", col);
+  ippDelete(col);
+
+  /* finishings-col-ready */
+  col = ippNew();
+  ippAddString(col, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "finishing-template", NULL, "none");
+  ippAddCollection(attrs, IPP_TAG_PRINTER, "finishings-col-ready", col);
+  ippDelete(col);
+
+  /* finishings-col-supported */
+  ippAddString(attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "finishings-col-supported", NULL, "finishing-template");
+
   /* finishings-default */
   ippAddInteger(attrs, IPP_TAG_PRINTER, IPP_TAG_ENUM, "finishings-default", IPP_FINISHINGS_NONE);
+
+  /* finishings-ready */
+  ippAddInteger(attrs, IPP_TAG_PRINTER, IPP_TAG_ENUM, "finishings-ready", IPP_FINISHINGS_NONE);
 
   /* finishings-supported */
   ippAddInteger(attrs, IPP_TAG_PRINTER, IPP_TAG_ENUM, "finishings-supported", IPP_FINISHINGS_NONE);
@@ -4383,7 +4496,7 @@ load_legacy_attributes(
 
     if (pwg->width < 21000 && pwg->length < 21000)
     {
-      source = "photo";    		/* Photo size media from photo tray */
+      source = "photo";			/* Photo size media from photo tray */
       bottom =				/* Borderless margins */
       left   =
       right  =
@@ -4445,7 +4558,7 @@ load_legacy_attributes(
 
     if (pwg->width < 21000 && pwg->length < 21000)
     {
-      source = "photo";    		/* Photo size media from photo tray */
+      source = "photo";			/* Photo size media from photo tray */
       type   = "photographic-glossy";	/* Glossy photo paper */
       bottom =				/* Borderless margins */
       left   =
@@ -5000,7 +5113,7 @@ load_ppd_attributes(
   }
 
   /* finishings-col-supported */
-  ippAddString(attrs, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "finishings-col-supported", NULL, "finishing-template");
+  ippAddString(attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "finishings-col-supported", NULL, "finishing-template");
 
   /* finishings-default */
   ippAddInteger(attrs, IPP_TAG_PRINTER, IPP_TAG_ENUM, "finishings-default", IPP_FINISHINGS_NONE);
@@ -5457,7 +5570,7 @@ parse_options(ippeve_client_t *client,	/* I - Client */
               cups_option_t   **options)/* O - Options */
 {
   char	*name,				/* Name */
-      	*value,				/* Value */
+	*value,				/* Value */
 	*next;				/* Next name=value pair */
   int	num_options = 0;		/* Number of options */
 
@@ -5787,7 +5900,9 @@ process_http(ippeve_client_t *client)	/* I - Client connection */
 	return (respond_http(client, HTTP_STATUS_OK, NULL, NULL, 0));
 
     case HTTP_STATE_HEAD :
-        if (!strcmp(client->uri, "/icon.png"))
+        if (!strcmp(client->uri, "/en.strings"))
+	  return (respond_http(client, HTTP_STATUS_OK, NULL, "text/strings", 0));
+        else if (!strcmp(client->uri, "/icon.png"))
 	  return (respond_http(client, HTTP_STATUS_OK, NULL, "image/png", 0));
 	else if (!strcmp(client->uri, "/") || !strcmp(client->uri, "/media") || !strcmp(client->uri, "/supplies"))
 	  return (respond_http(client, HTTP_STATUS_OK, NULL, "text/html", 0));
@@ -5795,7 +5910,41 @@ process_http(ippeve_client_t *client)	/* I - Client connection */
 	  return (respond_http(client, HTTP_STATUS_NOT_FOUND, NULL, NULL, 0));
 
     case HTTP_STATE_GET :
-        if (!strcmp(client->uri, "/icon.png"))
+        if (!strcmp(client->uri, "/en.strings"))
+	{
+	 /*
+	  * Send strings file.
+	  */
+
+          if (client->printer->strings)
+          {
+	    int		fd;		/* Icon file */
+	    struct stat	fileinfo;	/* Icon file information */
+	    char	buffer[4096];	/* Copy buffer */
+	    ssize_t	bytes;		/* Bytes */
+
+	    if (!stat(client->printer->strings, &fileinfo) && (fd = open(client->printer->strings, O_RDONLY)) >= 0)
+	    {
+	      if (!respond_http(client, HTTP_STATUS_OK, NULL, "text/strings", (size_t)fileinfo.st_size))
+	      {
+		close(fd);
+		return (0);
+	      }
+
+	      while ((bytes = read(fd, buffer, sizeof(buffer))) > 0)
+		httpWrite2(client->http, buffer, (size_t)bytes);
+
+	      httpFlushWrite(client->http);
+
+	      close(fd);
+	    }
+	    else
+	      return (respond_http(client, HTTP_STATUS_NOT_FOUND, NULL, NULL, 0));
+	  }
+	  else
+	    return (respond_http(client, HTTP_STATUS_NOT_FOUND, NULL, NULL, 0));
+        }
+        else if (!strcmp(client->uri, "/icon.png"))
 	{
 	 /*
 	  * Send PNG icon file.
@@ -5807,8 +5956,6 @@ process_http(ippeve_client_t *client)	/* I - Client connection */
 	    struct stat	fileinfo;	/* Icon file information */
 	    char	buffer[4096];	/* Copy buffer */
 	    ssize_t	bytes;		/* Bytes */
-
-	    fprintf(stderr, "Icon file is \"%s\".\n", client->printer->icon);
 
 	    if (!stat(client->printer->icon, &fileinfo) && (fd = open(client->printer->icon, O_RDONLY)) >= 0)
 	    {
@@ -6155,6 +6302,10 @@ process_ipp(ippeve_client_t *client)	/* I - Client */
 
 	    case IPP_OP_CANCEL_JOB :
 		ipp_cancel_job(client);
+		break;
+
+	    case IPP_OP_CANCEL_MY_JOBS :
+		ipp_cancel_my_jobs(client);
 		break;
 
 	    case IPP_OP_GET_JOB_ATTRIBUTES :
@@ -6819,7 +6970,7 @@ register_printer(
 #ifdef HAVE_DNSSD
   DNSServiceErrorType	error;		/* Error from Bonjour */
   char			regtype[256];	/* Bonjour service type */
-  uint32_t		ifindex;	/* Interface index */
+  uint32_t		interface;	/* Interface index */
 
 
  /*
@@ -6852,11 +7003,11 @@ register_printer(
   * defend our service name but not actually support LPD...
   */
 
-  ifindex = !strcmp(printer->hostname, "localhost") ? kDNSServiceInterfaceIndexLocalOnly : kDNSServiceInterfaceIndexAny;
+  interface = !strcmp(printer->hostname, "localhost") ? kDNSServiceInterfaceIndexLocalOnly : kDNSServiceInterfaceIndexAny;
 
   printer->printer_ref = DNSSDMaster;
 
-  if ((error = DNSServiceRegister(&(printer->printer_ref), kDNSServiceFlagsShareConnection, ifindex, printer->dnssd_name, "_printer._tcp", NULL /* domain */, NULL /* host */, 0 /* port */, 0 /* txtLen */, NULL /* txtRecord */, (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
+  if ((error = DNSServiceRegister(&(printer->printer_ref), kDNSServiceFlagsShareConnection, interface, printer->dnssd_name, "_printer._tcp", NULL /* domain */, NULL /* host */, 0 /* port */, 0 /* txtLen */, NULL /* txtRecord */, (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
   {
     _cupsLangPrintf(stderr, _("Unable to register \"%s.%s\": %d"), printer->dnssd_name, "_printer._tcp", error);
     return (0);
@@ -6874,7 +7025,7 @@ register_printer(
   else
     strlcpy(regtype, "_ipp._tcp", sizeof(regtype));
 
-  if ((error = DNSServiceRegister(&(printer->ipp_ref), kDNSServiceFlagsShareConnection, ifindex, printer->dnssd_name, regtype, NULL /* domain */, NULL /* host */, htons(printer->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
+  if ((error = DNSServiceRegister(&(printer->ipp_ref), kDNSServiceFlagsShareConnection, interface, printer->dnssd_name, regtype, NULL /* domain */, NULL /* host */, htons(printer->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
   {
     _cupsLangPrintf(stderr, _("Unable to register \"%s.%s\": %d"), printer->dnssd_name, regtype, error);
     return (0);
@@ -6893,7 +7044,7 @@ register_printer(
   else
     strlcpy(regtype, "_ipps._tcp", sizeof(regtype));
 
-  if ((error = DNSServiceRegister(&(printer->ipps_ref), kDNSServiceFlagsShareConnection, ifindex, printer->dnssd_name, regtype, NULL /* domain */, NULL /* host */, htons(printer->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
+  if ((error = DNSServiceRegister(&(printer->ipps_ref), kDNSServiceFlagsShareConnection, interface, printer->dnssd_name, regtype, NULL /* domain */, NULL /* host */, htons(printer->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
   {
     _cupsLangPrintf(stderr, _("Unable to register \"%s.%s\": %d"), printer->dnssd_name, regtype, error);
     return (0);
@@ -6907,7 +7058,7 @@ register_printer(
 
   printer->http_ref = DNSSDMaster;
 
-  if ((error = DNSServiceRegister(&(printer->http_ref), kDNSServiceFlagsShareConnection, ifindex, printer->dnssd_name, "_http._tcp,_printer", NULL /* domain */, NULL /* host */, htons(printer->port), 0 /* txtLen */, NULL /* txtRecord */, (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
+  if ((error = DNSServiceRegister(&(printer->http_ref), kDNSServiceFlagsShareConnection, interface, printer->dnssd_name, "_http._tcp,_printer", NULL /* domain */, NULL /* host */, htons(printer->port), 0 /* txtLen */, NULL /* txtRecord */, (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
   {
     _cupsLangPrintf(stderr, _("Unable to register \"%s.%s\": %d"), printer->dnssd_name, "_http._tcp,_printer", error);
     return (0);
@@ -7932,7 +8083,10 @@ usage(int status)			/* O - Exit status */
   _cupsLangPuts(stdout, _("-K keypath              Set location of server X.509 certificates and keys."));
 #endif /* HAVE_SSL */
   _cupsLangPuts(stdout, _("-M manufacturer         Set manufacturer name (default=Test)"));
+#if !CUPS_LITE
   _cupsLangPuts(stdout, _("-P filename.ppd         Load printer attributes from PPD file"));
+#endif /* !CUPS_LITE */
+  _cupsLangPuts(stdout, _("-S filename.strings     Set strings file"));
   _cupsLangPuts(stdout, _("-V version              Set default IPP version"));
   _cupsLangPuts(stdout, _("-a filename.conf        Load printer attributes from conf file"));
   _cupsLangPuts(stdout, _("-c command              Set print command"));

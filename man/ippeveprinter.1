@@ -1,12 +1,13 @@
 .\"
 .\" ippeveprinter man page for CUPS.
 .\"
+.\" Copyright © 2020 by the IEEE-ISTO Printer Working Group.
 .\" Copyright © 2014-2019 by Apple Inc.
 .\"
 .\" Licensed under Apache License v2.0.  See the file "LICENSE" for more
 .\" information.
 .\"
-.TH ippeveprinter 1 "CUPS" "2 December 2019" "Apple Inc."
+.TH ippeveprinter 1 "CUPS" "11 February 2020" "Apple Inc."
 .SH NAME
 ippeveprinter \- an ipp everywhere printer application for cups
 .SH SYNOPSIS
@@ -16,14 +17,9 @@ ippeveprinter \- an ipp everywhere printer application for cups
 ] [
 .B \-\-no\-web\-forms
 ] [
-.B \-\-pam\-service
-.I service
-] [
 .B \-\-version
 ] [
 .B \-2
-] [
-.B \-A
 ] [
 .B \-D
 .I device-uri
@@ -39,6 +35,9 @@ ippeveprinter \- an ipp everywhere printer application for cups
 ] [
 .B \-P
 .I filename.ppd
+] [
+.B \-S
+.I filename.strings
 ] [
 .B \-V
 .I ipp-version
@@ -94,20 +93,11 @@ Show program usage.
 .B \-\-no\-web\-forms
 Disable the web interface forms used to update the media and supply levels.
 .TP 5
-\fB\-\-pam\-service \fIservice\fR
-Set the PAM service name.
-The default service is "cups".
-.TP 5
 .B \-\-version
 Show the CUPS version.
 .TP 5
 .B \-2
 Report support for two-sided (duplex) printing.
-.TP 5
-.B \-A
-Enable authentication for the created printer.
-.B ippeveprinter
-uses PAM to authenticate HTTP Basic credentials.
 .TP 5
 \fB\-D \fIdevice-uri\fR
 Set the device URI for print output.
@@ -129,6 +119,11 @@ Load printer attributes from the specified PPD file.
 This option is typically used in conjunction with the
 .BR ippeveps (7)
 printer command ("\-c ippeveps").
+.TP 5
+\fB\-S \fIfilename.strings\fR
+Specifies the message strings file for the server.
+The file must be an "text/strings" file as defined in PWG 5100.14.
+The default is no strings file.
 .TP 5
 \fB\-V 1.1\fR
 .TP 5
@@ -181,9 +176,6 @@ command.
 \fB\-p \fIport\fR
 Specifies the port number to listen on.
 The default is a user-specific number from 8000 to 8999.
-.TP 5
-.B \-r off
-Turns off DNS-SD service advertisements entirely.
 .TP 5
 \fB\-r \fIsubtype[,subtype]\fR
 Specifies the DNS-SD subtype(s) to advertise.
@@ -270,4 +262,5 @@ command whenever a job is sent to the server:
 .BR ippeveps (7),
 PWG Internet Printing Protocol Workgroup (http://www.pwg.org/ipp)
 .SH COPYRIGHT
+Copyright \[co] 2020 by the IEEE-ISTO Printer Working Group.
 Copyright \[co] 2007-2019 by Apple Inc.
