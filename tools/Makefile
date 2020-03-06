@@ -1,7 +1,7 @@
 #
 # IPP tools makefile.
 #
-# Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group.
+# Copyright © 2014-2020 by the IEEE-ISTO Printer Working Group.
 # Copyright © 2007-2019 by Apple Inc.
 # Copyright © 1997-2006 by Easy Software Products, all rights reserved.
 #
@@ -87,6 +87,21 @@ install:	all
 #
 
 test:
+
+
+#
+# Make icon resource headers...
+#
+
+resheaders:
+	for file in printer printer-sm printer-lg; do \
+		var="`echo $$file | sed -e '1,$$s/-/_/g'`"; \
+		echo "Generating $$file-png.h from $$file.png..."; \
+		echo "static const unsigned char $${var}_png[] =" >$${file}-png.h; \
+		echo "{" >>$${file}-png.h; \
+		od -t x1 -A n -v $$file.png | awk '{printf("  "); for (i = 1; i <= NF; i ++) printf("0x%s,", $$i); print "";}' >>$${file}-png.h; \
+		echo "};" >>$${file}-png.h; \
+	done
 
 
 #
