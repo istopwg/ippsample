@@ -76,6 +76,8 @@ extern char **environ;
 #endif /* HAVE_LIBPAM */
 
 #include "printer-png.h"
+#include "printer-lg-png.h"
+#include "printer-sm-png.h"
 
 
 /*
@@ -186,11 +188,10 @@ typedef struct ippeve_printer_s		/**** Printer data ****/
 			printer_ref;	/* Bonjour LPD service */
   char			*dnssd_name,	/* printer-dnssd-name */
 			*name,		/* printer-name */
-			*icon,		/* Icon filename */
+			*icons[3],	/* Icon filenames */
 			*strings,	/* Strings filename */
 			*directory,	/* Spool directory */
 			*hostname,	/* Hostname */
-			*uri,		/* printer-uri-supported */
 			*device_uri,	/* Device URI (if any) */
 			*output_format,	/* Output format */
 #if !CUPS_LITE
@@ -242,7 +243,10 @@ typedef struct ippeve_client_s		/**** Client data ****/
   http_state_t		operation;	/* Request operation */
   ipp_op_t		operation_id;	/* IPP operation-id */
   char			uri[1024],	/* Request URI */
-			*options;	/* URI options */
+			*options,	/* URI options */
+			host_field[HTTP_MAX_VALUE];
+					/* Host: header */
+  int			host_port;	/* Port number from Host: header */
   http_addr_t		addr;		/* Client address */
   char			hostname[256],	/* Client hostname */
 			username[HTTP_MAX_VALUE];
@@ -267,7 +271,7 @@ static int		create_job_file(ippeve_job_t *job, char *fname, size_t fnamesize, co
 static int		create_listener(const char *name, int port, int family);
 static ipp_t		*create_media_col(const char *media, const char *source, const char *type, int width, int length, int bottom, int left, int right, int top);
 static ipp_t		*create_media_size(int width, int length);
-static ippeve_printer_t	*create_printer(const char *servername, int serverport, const char *name, const char *location, const char *icon, const char *strings, cups_array_t *docformats, const char *subtypes, const char *directory, const char *command, const char *device_uri, const char *output_format, ipp_t *attrs);
+static ippeve_printer_t	*create_printer(const char *servername, int serverport, const char *name, const char *location, const char *icons, const char *strings, cups_array_t *docformats, const char *subtypes, const char *directory, const char *command, const char *device_uri, const char *output_format, ipp_t *attrs);
 static void		debug_attributes(const char *title, ipp_t *ipp, int response);
 static void		delete_client(ippeve_client_t *client);
 static void		delete_job(ippeve_job_t *job);
@@ -1190,7 +1194,11 @@ create_job(ippeve_client_t *client)	/* I - Client */
 
   job->id = client->printer->next_job_id ++;
 
-  snprintf(uri, sizeof(uri), "%s/%d", client->printer->uri, job->id);
+  if ((attr = ippFindAttribute(client->request, "printer-uri", IPP_TAG_URI)) != NULL)
+    snprintf(uri, sizeof(uri), "%s/%d", ippGetString(attr, 0, NULL), job->id);
+  else
+    httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), "ipp", NULL, client->printer->hostname, client->printer->port, "/ipp/print/%d", job->id);
+
   httpAssembleUUID(client->printer->hostname, client->printer->port, client->printer->name, job->id, uuid, sizeof(uuid));
 
   ippAddDate(job->attrs, IPP_TAG_JOB, "date-time-at-creation", ippTimeToDate(time(&job->created)));
@@ -1198,9 +1206,17 @@ create_job(ippeve_client_t *client)	/* I - Client */
   ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_URI, "job-uri", NULL, uri);
   ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_URI, "job-uuid", NULL, uuid);
   if ((attr = ippFindAttribute(client->request, "printer-uri", IPP_TAG_URI)) != NULL)
+  {
     ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_URI, "job-printer-uri", NULL, ippGetString(attr, 0, NULL));
+  }
   else
-    ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_URI, "job-printer-uri", NULL, client->printer->uri);
+  {
+    char printer_uri[1024];		/* job-printer-uri value */
+
+    httpAssembleURI(HTTP_URI_CODING_ALL, printer_uri, sizeof(printer_uri), "ipp", NULL, client->printer->hostname, client->printer->port, "/ipp/print");
+    ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_URI, "job-printer-uri", NULL, printer_uri);
+  }
+
   ippAddInteger(job->attrs, IPP_TAG_JOB, IPP_TAG_INTEGER, "time-at-creation", (int)(job->created - client->printer->start_time));
 
   cupsArrayAdd(client->printer->jobs, job);
@@ -1398,7 +1414,7 @@ create_printer(
     int          serverport,		/* I - Server port */
     const char   *name,			/* I - printer-name */
     const char   *location,		/* I - printer-location */
-    const char   *icon,			/* I - printer-icons */
+    const char   *icons,		/* I - printer-icons */
     const char   *strings,		/* I - printer-strings-uri */
     cups_array_t *docformats,		/* I - document-format-supported */
     const char   *subtypes,		/* I - Bonjour service subtype(s) */
@@ -1413,17 +1429,10 @@ create_printer(
 #ifndef _WIN32
   char			path[1024];	/* Full path to command */
 #endif /* !_WIN32 */
-  char			uri[1024],	/* Printer URI */
-#ifdef HAVE_SSL
-			securi[1024],	/* Secure printer URI */
-			*uris[2],	/* All URIs */
-#endif /* HAVE_SSL */
-			icons[1024],	/* printer-icons URI */
-			stringsurl[1024],
-					/* printer-strings-uri URI */
-			adminurl[1024],	/* printer-more-info URI */
-			supplyurl[1024],/* printer-supply-info-uri URI */
-			uuid[128];	/* printer-uuid */
+  unsigned char		sha256[32];	/* SHA-256 digest/sum */
+  char			uuid_data[1024],/* Data to hash for printer-uuid */
+			uuid[128],	/* printer-uuid */
+			*iconsptr;	/* Pointer into icons string */
   int			k_supported;	/* Maximum file size supported */
   int			num_formats;	/* Number of supported document formats */
   const char		*formats[100],	/* Supported document formats */
@@ -1653,7 +1662,7 @@ create_printer(
   printer->device_uri    = device_uri ? strdup(device_uri) : NULL;
   printer->output_format = output_format ? strdup(output_format) : NULL;
   printer->directory     = strdup(directory);
-  printer->icon          = icon ? strdup(icon) : NULL;
+  printer->icons[0]      = icons ? strdup(icons) : NULL;
   printer->strings       = strings ? strdup(strings) : NULL;
   printer->port          = serverport;
   printer->start_time    = time(NULL);
@@ -1663,6 +1672,28 @@ create_printer(
   printer->state_time    = printer->start_time;
   printer->jobs          = cupsArrayNew((cups_array_func_t)compare_jobs, NULL);
   printer->next_job_id   = 1;
+
+  if (printer->icons[0])
+  {
+   /*
+    * Extract up to 3 icons...
+    */
+
+    for (i = 1, iconsptr = strchr(icons, ','); iconsptr && i < 3; i ++, iconsptr = strchr(iconsptr, ','))
+    {
+      *iconsptr++ = '\0';
+      printer->icons[i] = iconsptr;
+    }
+
+    if (iconsptr)
+      *iconsptr = '\0';			/* Strip any icons after the third... */
+
+    while (i < 3)
+    {
+      printer->icons[i] = printer->icons[i - 1];
+      i ++;
+    }
+  }
 
   if (servername)
   {
@@ -1694,32 +1725,21 @@ create_printer(
   }
 
  /*
-  * Prepare URI values for the printer attributes...
+  * Prepare values for the printer attributes...
   */
 
-  httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "ipp", NULL, printer->hostname, printer->port, "/ipp/print");
-  printer->uri    = strdup(uri);
-  printer->urilen = strlen(uri);
-
-#ifdef HAVE_SSL
-  httpAssembleURI(HTTP_URI_CODING_ALL, securi, sizeof(securi), "ipps", NULL, printer->hostname, printer->port, "/ipp/print");
-#endif /* HAVE_SSL */
-
-  httpAssembleURI(HTTP_URI_CODING_ALL, icons, sizeof(icons), WEB_SCHEME, NULL, printer->hostname, printer->port, "/icon.png");
-  httpAssembleURI(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), WEB_SCHEME, NULL, printer->hostname, printer->port, "/");
-  httpAssembleURI(HTTP_URI_CODING_ALL, stringsurl, sizeof(stringsurl), WEB_SCHEME, NULL, printer->hostname, printer->port, "/en.strings");
-  httpAssembleURI(HTTP_URI_CODING_ALL, supplyurl, sizeof(supplyurl), WEB_SCHEME, NULL, printer->hostname, printer->port, "/supplies");
-  httpAssembleUUID(printer->hostname, serverport, name, 0, uuid, sizeof(uuid));
+  snprintf(uuid_data, sizeof(uuid_data), "_IPPEVEPRINTER_:%s:%d:%s", printer->hostname, printer->port, printer->name);
+  cupsHashData("sha2-256", (unsigned char *)uuid_data, strlen(uuid_data), sha256, sizeof(sha256));
+  snprintf(uuid, sizeof(uuid), "urn:uuid:%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x", sha256[0], sha256[1], sha256[3], sha256[4], sha256[5], sha256[6], (sha256[10] & 15) | 0x30, sha256[11], (sha256[15] & 0x3f) | 0x40, sha256[16], sha256[20], sha256[21], sha256[25], sha256[26], sha256[30], sha256[31]);
 
   if (Verbosity)
   {
-    fprintf(stderr, "printer-more-info=\"%s\"\n", adminurl);
-    fprintf(stderr, "printer-supply-info-uri=\"%s\"\n", supplyurl);
 #ifdef HAVE_SSL
-    fprintf(stderr, "printer-uri=\"%s\",\"%s\"\n", uri, securi);
+    fprintf(stderr, "printer-uri-supported=\"ipp://%s:%d/ipp/print\",\"ipps://%s:%d/ipp/print\"\n", printer->hostname, printer->port, printer->hostname, printer->port);
 #else
-    fprintf(stderr, "printer-uri=\"%s\"\n", uri);
+    fprintf(stderr, "printer-uri-supported=\"ipp://%s:%d/ipp/print\"\n", printer->hostname, printer->port);
 #endif /* HAVE_SSL */
+    fprintf(stderr, "printer-uuid=\"%s\"\n", uuid);
   }
 
  /*
@@ -1877,9 +1897,6 @@ create_printer(
   /* printer-geo-location */
   ippAddOutOfBand(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_UNKNOWN, "printer-geo-location");
 
-  /* printer-icons */
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-icons", NULL, icons);
-
   /* printer-is-accepting-jobs */
   ippAddBoolean(printer->attrs, IPP_TAG_PRINTER, "printer-is-accepting-jobs", 1);
 
@@ -1888,9 +1905,6 @@ create_printer(
 
   /* printer-location */
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-location", NULL, location);
-
-  /* printer-more-info */
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-more-info", NULL, adminurl);
 
   /* printer-name */
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_NAME, "printer-name", NULL, name);
@@ -1903,23 +1917,6 @@ create_printer(
 
   /* printer-strings-languages-supported */
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_LANGUAGE, "printer-strings-languages-supported", NULL, "en");
-
-  /* printer-strings-uri */
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-strings-uri", NULL, stringsurl);
-
-  /* printer-supply-info-uri */
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-supply-info-uri", NULL, supplyurl);
-
-  /* printer-uri-supported */
-#ifdef HAVE_SSL
-  uris[0] = uri;
-  uris[1] = securi;
-
-  ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uri-supported", 2, NULL, (const char **)uris);
-
-#else
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uri-supported", NULL, uri);
-#endif /* HAVE_SSL */
 
   /* printer-uuid */
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uuid", NULL, uuid);
@@ -2128,8 +2125,8 @@ delete_printer(ippeve_printer_t *printer)	/* I - Printer */
     free(printer->dnssd_name);
   if (printer->name)
     free(printer->name);
-  if (printer->icon)
-    free(printer->icon);
+  if (printer->icons[0])
+    free(printer->icons[0]);
   if (printer->strings)
     free(printer->strings);
   if (printer->command)
@@ -2144,8 +2141,6 @@ delete_printer(ippeve_printer_t *printer)	/* I - Printer */
     free(printer->directory);
   if (printer->hostname)
     free(printer->hostname);
-  if (printer->uri)
-    free(printer->uri);
 
   ippDelete(printer->attrs);
   cupsArrayDelete(printer->jobs);
@@ -2318,10 +2313,12 @@ find_job(ippeve_client_t *client)		/* I - Client */
   if ((attr = ippFindAttribute(client->request, "job-uri", IPP_TAG_URI)) != NULL)
   {
     const char *uri = ippGetString(attr, 0, NULL);
+					/* URI value */
+    const char *uriptr = strrchr(uri, '/');
+					/* Pointer to the last slash in the URI */
 
-    if (!strncmp(uri, client->printer->uri, client->printer->urilen) &&
-        uri[client->printer->urilen] == '/')
-      key.id = atoi(uri + client->printer->urilen + 1);
+    if (uriptr && isdigit(uriptr[1] & 255))
+      key.id = atoi(uriptr + 1);
     else
       return (NULL);
   }
@@ -3550,6 +3547,29 @@ ipp_get_printer_attributes(
   if (!ra || cupsArrayFind(ra, "printer-current-time"))
     ippAddDate(client->response, IPP_TAG_PRINTER, "printer-current-time", ippTimeToDate(time(NULL)));
 
+  if (!ra || cupsArrayFind(ra, "printer-icons"))
+  {
+    char	uris[3][1024];		/* Buffers for URIs */
+    const char	*values[3];		/* Values for attribute */
+
+    httpAssembleURI(HTTP_URI_CODING_ALL, uris[0], sizeof(uris[0]), WEB_SCHEME, NULL, client->host_field, client->host_port, "/icon-sm.png");
+    httpAssembleURI(HTTP_URI_CODING_ALL, uris[1], sizeof(uris[1]), WEB_SCHEME, NULL, client->host_field, client->host_port, "/icon.png");
+    httpAssembleURI(HTTP_URI_CODING_ALL, uris[2], sizeof(uris[2]), WEB_SCHEME, NULL, client->host_field, client->host_port, "/icon-lg.png");
+
+    values[0] = uris[0];
+    values[1] = uris[1];
+    values[2] = uris[2];
+
+    ippAddStrings(client->response, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-icons", 3, NULL, values);
+  }
+
+  if (!ra || cupsArrayFind(ra, "printer-more-info"))
+  {
+    char	uri[1024];		/* URI value */
+
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), WEB_SCHEME, NULL, client->host_field, client->host_port, "/");
+    ippAddString(client->response, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-more-info", NULL, uri);
+  }
 
   if (!ra || cupsArrayFind(ra, "printer-state"))
     ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_ENUM, "printer-state", (int)printer->state);
@@ -3594,8 +3614,41 @@ ipp_get_printer_attributes(
     }
   }
 
+  if (!ra || cupsArrayFind(ra, "printer-strings-uri"))
+  {
+    char	uri[1024];		/* URI value */
+
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), WEB_SCHEME, NULL, client->host_field, client->host_port, "/en.strings");
+    ippAddString(client->response, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-strings-uri", NULL, uri);
+  }
+
+  if (!ra || cupsArrayFind(ra, "printer-supply-info-uri"))
+  {
+    char	uri[1024];		/* URI value */
+
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), WEB_SCHEME, NULL, client->host_field, client->host_port, "/supplies");
+    ippAddString(client->response, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-supply-info-uri", NULL, uri);
+  }
+
   if (!ra || cupsArrayFind(ra, "printer-up-time"))
     ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "printer-up-time", (int)(time(NULL) - printer->start_time));
+
+  if (!ra || cupsArrayFind(ra, "printer-uri-supported"))
+  {
+    char	uris[2][1024];		/* Buffers for URIs */
+    const char	*values[2];		/* Values for attribute */
+    int		num_values = 0;		/* Number of values */
+
+    httpAssembleURI(HTTP_URI_CODING_ALL, uris[0], sizeof(uris[0]), "ipp", NULL, client->host_field, client->host_port, "/ipp/print");
+    values[num_values ++] = uris[0];
+
+#ifdef HAVE_SSL
+    httpAssembleURI(HTTP_URI_CODING_ALL, uris[1], sizeof(uris[1]), "ipps", NULL, client->host_field, client->host_port, "/ipp/print");
+    values[num_values ++] = uris[1];
+#endif /* HAVE_SSL */
+
+    ippAddStrings(client->response, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uri-supported", num_values, NULL, values);
+  }
 
   if (!ra || cupsArrayFind(ra, "queued-job-count"))
     ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "queued-job-count", printer->active_job && printer->active_job->state < IPP_JSTATE_CANCELED);
@@ -5736,8 +5789,9 @@ process_http(ippeve_client_t *client)	/* I - Client connection */
   ipp_state_t		ipp_state;	/* State of IPP transfer */
   char			scheme[32],	/* Method/scheme */
 			userpass[128],	/* Username:password */
-			hostname[HTTP_MAX_HOST];
+			hostname[HTTP_MAX_HOST],
 					/* Hostname */
+			*ptr;		/* Pointer into value */
   int			port;		/* Port number */
   static const char * const http_states[] =
   {					/* Strings for logging HTTP method */
@@ -5846,6 +5900,10 @@ process_http(ippeve_client_t *client)	/* I - Client connection */
     return (0);
   }
 
+ /*
+  * Validate the host header...
+  */
+
   if (!httpGetField(client->http, HTTP_FIELD_HOST)[0] &&
       httpGetVersion(client->http) >= HTTP_VERSION_1_1)
   {
@@ -5853,6 +5911,36 @@ process_http(ippeve_client_t *client)	/* I - Client connection */
     * HTTP/1.1 and higher require the "Host:" field...
     */
 
+    fprintf(stderr, "%s Missing Host: header.\n", client->hostname);
+    respond_http(client, HTTP_STATUS_BAD_REQUEST, NULL, NULL, 0);
+    return (0);
+  }
+
+  strlcpy(client->host_field, httpGetField(client->http, HTTP_FIELD_HOST), sizeof(client->host_field));
+  if ((ptr = strrchr(client->host_field, ':')) != NULL)
+  {
+   /*
+    * Grab port number from Host: header...
+    */
+
+    *ptr++ = '\0';
+    client->host_port = atoi(ptr);
+  }
+  else
+  {
+   /*
+    * Use the default port number...
+    */
+
+    client->host_port = client->printer->port;
+  }
+
+  ptr = strrchr(client->host_field, '.');
+
+  if (!isdigit(client->host_field[0] & 255) && client->host_field[0] != '[' && strcmp(client->host_field, client->printer->hostname) && strcmp(client->host_field, "localhost") &&
+      (!ptr || (strcmp(ptr, ".local") && strcmp(ptr, ".local."))))
+  {
+    fprintf(stderr, "%s Bad Host: header '%s'.\n", client->hostname, client->host_field);
     respond_http(client, HTTP_STATUS_BAD_REQUEST, NULL, NULL, 0);
     return (0);
   }
@@ -5902,7 +5990,7 @@ process_http(ippeve_client_t *client)	/* I - Client connection */
     case HTTP_STATE_HEAD :
         if (!strcmp(client->uri, "/en.strings"))
 	  return (respond_http(client, HTTP_STATUS_OK, NULL, "text/strings", 0));
-        else if (!strcmp(client->uri, "/icon.png"))
+        else if (!strcmp(client->uri, "/icon.png") || !strcmp(client->uri, "/icon-lg.png") || !strcmp(client->uri, "/icon-sm.png"))
 	  return (respond_http(client, HTTP_STATUS_OK, NULL, "image/png", 0));
 	else if (!strcmp(client->uri, "/") || !strcmp(client->uri, "/media") || !strcmp(client->uri, "/supplies"))
 	  return (respond_http(client, HTTP_STATUS_OK, NULL, "text/html", 0));
@@ -5947,17 +6035,17 @@ process_http(ippeve_client_t *client)	/* I - Client connection */
         else if (!strcmp(client->uri, "/icon.png"))
 	{
 	 /*
-	  * Send PNG icon file.
+	  * Send medium PNG icon file.
 	  */
 
-          if (client->printer->icon)
+          if (client->printer->icons[1])
           {
 	    int		fd;		/* Icon file */
 	    struct stat	fileinfo;	/* Icon file information */
 	    char	buffer[4096];	/* Copy buffer */
 	    ssize_t	bytes;		/* Bytes */
 
-	    if (!stat(client->printer->icon, &fileinfo) && (fd = open(client->printer->icon, O_RDONLY)) >= 0)
+	    if (!stat(client->printer->icons[1], &fileinfo) && (fd = open(client->printer->icons[1], O_RDONLY)) >= 0)
 	    {
 	      if (!respond_http(client, HTTP_STATUS_OK, NULL, "image/png", (size_t)fileinfo.st_size))
 	      {
@@ -5983,6 +6071,90 @@ process_http(ippeve_client_t *client)	/* I - Client connection */
 	      return (0);
 
             httpWrite2(client->http, (const char *)printer_png, sizeof(printer_png));
+	    httpFlushWrite(client->http);
+	  }
+	}
+        else if (!strcmp(client->uri, "/icon-lg.png"))
+	{
+	 /*
+	  * Send large PNG icon file.
+	  */
+
+          if (client->printer->icons[2])
+          {
+	    int		fd;		/* Icon file */
+	    struct stat	fileinfo;	/* Icon file information */
+	    char	buffer[4096];	/* Copy buffer */
+	    ssize_t	bytes;		/* Bytes */
+
+	    if (!stat(client->printer->icons[2], &fileinfo) && (fd = open(client->printer->icons[2], O_RDONLY)) >= 0)
+	    {
+	      if (!respond_http(client, HTTP_STATUS_OK, NULL, "image/png", (size_t)fileinfo.st_size))
+	      {
+		close(fd);
+		return (0);
+	      }
+
+	      while ((bytes = read(fd, buffer, sizeof(buffer))) > 0)
+		httpWrite2(client->http, buffer, (size_t)bytes);
+
+	      httpFlushWrite(client->http);
+
+	      close(fd);
+	    }
+	    else
+	      return (respond_http(client, HTTP_STATUS_NOT_FOUND, NULL, NULL, 0));
+	  }
+	  else
+	  {
+	    fputs("Icon file is internal printer-lg.png.\n", stderr);
+
+	    if (!respond_http(client, HTTP_STATUS_OK, NULL, "image/png", sizeof(printer_lg_png)))
+	      return (0);
+
+            httpWrite2(client->http, (const char *)printer_lg_png, sizeof(printer_lg_png));
+	    httpFlushWrite(client->http);
+	  }
+	}
+        else if (!strcmp(client->uri, "/icon-sm.png"))
+	{
+	 /*
+	  * Send small PNG icon file.
+	  */
+
+          if (client->printer->icons[0])
+          {
+	    int		fd;		/* Icon file */
+	    struct stat	fileinfo;	/* Icon file information */
+	    char	buffer[4096];	/* Copy buffer */
+	    ssize_t	bytes;		/* Bytes */
+
+	    if (!stat(client->printer->icons[0], &fileinfo) && (fd = open(client->printer->icons[0], O_RDONLY)) >= 0)
+	    {
+	      if (!respond_http(client, HTTP_STATUS_OK, NULL, "image/png", (size_t)fileinfo.st_size))
+	      {
+		close(fd);
+		return (0);
+	      }
+
+	      while ((bytes = read(fd, buffer, sizeof(buffer))) > 0)
+		httpWrite2(client->http, buffer, (size_t)bytes);
+
+	      httpFlushWrite(client->http);
+
+	      close(fd);
+	    }
+	    else
+	      return (respond_http(client, HTTP_STATUS_NOT_FOUND, NULL, NULL, 0));
+	  }
+	  else
+	  {
+	    fputs("Icon file is internal printer-sm.png.\n", stderr);
+
+	    if (!respond_http(client, HTTP_STATUS_OK, NULL, "image/png", sizeof(printer_sm_png)))
+	      return (0);
+
+            httpWrite2(client->http, (const char *)printer_sm_png, sizeof(printer_sm_png));
 	    httpFlushWrite(client->http);
 	  }
 	}
@@ -6230,7 +6402,8 @@ process_ipp(ippeve_client_t *client)	/* I - Client */
         else if ((!strcmp(name, "job-uri") &&
                   strncmp(resource, "/ipp/print/", 11)) ||
                  (!strcmp(name, "printer-uri") &&
-                  strcmp(resource, "/ipp/print")))
+                  strcmp(resource, "/ipp/print") &&
+                  (strcmp(resource, "/") || ippGetOperation(client->request) != IPP_OP_GET_PRINTER_ATTRIBUTES)))
 	  respond_ipp(client, IPP_STATUS_ERROR_NOT_FOUND, "%s %s not found.",
 		      name, ippGetString(uri, 0, NULL));
 	else if (client->operation_id != IPP_OP_GET_PRINTER_ATTRIBUTES && (status = authenticate_request(client)) != HTTP_STATUS_CONTINUE)
@@ -6912,12 +7085,12 @@ register_printer(
 			*document_format_supported,
 			*printer_location,
 			*printer_make_and_model,
-			*printer_more_info,
 			*printer_uuid,
 			*sides_supported,
 			*urf_supported;	/* Printer attributes */
   const char		*value;		/* Value string */
-  char			formats[252],	/* List of supported formats */
+  char			adminurl[247],	/* adminurl value */
+			formats[252],	/* List of supported formats */
 			urf[252],	/* List of supported URF values */
 			*ptr;		/* Pointer into string */
 
@@ -6929,10 +7102,11 @@ register_printer(
   document_format_supported = ippFindAttribute(printer->attrs, "document-format-supported", IPP_TAG_MIMETYPE);
   printer_location          = ippFindAttribute(printer->attrs, "printer-location", IPP_TAG_TEXT);
   printer_make_and_model    = ippFindAttribute(printer->attrs, "printer-make-and-model", IPP_TAG_TEXT);
-  printer_more_info         = ippFindAttribute(printer->attrs, "printer-more-info", IPP_TAG_URI);
   printer_uuid              = ippFindAttribute(printer->attrs, "printer-uuid", IPP_TAG_URI);
   sides_supported           = ippFindAttribute(printer->attrs, "sides-supported", IPP_TAG_KEYWORD);
   urf_supported             = ippFindAttribute(printer->attrs, "urf-supported", IPP_TAG_KEYWORD);
+
+  httpAssembleURI(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), WEB_SCHEME, NULL, printer->hostname, printer->port, "/");
 
   for (i = 0, count = ippGetCount(document_format_supported), ptr = formats; i < count; i ++)
   {
@@ -6981,8 +7155,7 @@ register_printer(
   TXTRecordSetValue(&ipp_txt, "rp", 9, "ipp/print");
   if ((value = ippGetString(printer_make_and_model, 0, NULL)) != NULL)
     TXTRecordSetValue(&ipp_txt, "ty", (uint8_t)strlen(value), value);
-  if ((value = ippGetString(printer_more_info, 0, NULL)) != NULL)
-    TXTRecordSetValue(&ipp_txt, "adminurl", (uint8_t)strlen(value), value);
+  TXTRecordSetValue(&ipp_txt, "adminurl", (uint8_t)strlen(adminurl), adminurl);
   if ((value = ippGetString(printer_location, 0, NULL)) != NULL)
     TXTRecordSetValue(&ipp_txt, "note", (uint8_t)strlen(value), value);
   TXTRecordSetValue(&ipp_txt, "pdl", (uint8_t)strlen(formats), formats);
@@ -7077,8 +7250,7 @@ register_printer(
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "rp=ipp/print");
   if ((value = ippGetString(printer_make_and_model, 0, NULL)) != NULL)
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "ty=%s", value);
-  if ((value = ippGetString(printer_more_info, 0, NULL)) != NULL)
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "adminurl=%s", value);
+  ipp_txt = avahi_string_list_add_printf(ipp_txt, "adminurl=%s", adminurl);
   if ((value = ippGetString(printer_location, 0, NULL)) != NULL)
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "note=%s", value);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "pdl=%s", formats);
@@ -8092,7 +8264,7 @@ usage(int status)			/* O - Exit status */
   _cupsLangPuts(stdout, _("-c command              Set print command"));
   _cupsLangPuts(stdout, _("-d spool-directory      Set spool directory"));
   _cupsLangPuts(stdout, _("-f type/subtype[,...]   Set supported file types"));
-  _cupsLangPuts(stdout, _("-i iconfile.png         Set icon file"));
+  _cupsLangPuts(stdout, _("-i iconfile.png[,...]   Set icon file(s)"));
   _cupsLangPuts(stdout, _("-k                      Keep job spool files"));
   _cupsLangPuts(stdout, _("-l location             Set location of printer"));
   _cupsLangPuts(stdout, _("-m model                Set model name (default=Printer)"));

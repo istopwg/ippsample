@@ -54,7 +54,7 @@ ippeveprinter - an ipp everywhere printer application for cups
 <i>type/subtype[,...]</i>
 ] [
 <b>-i</b>
-<i>iconfile.png</i>
+<i>iconfile.png[,...]</i>
 ] [
 <b>-k</b>
 ] [
@@ -136,10 +136,11 @@ The default is a directory under the user's current temporary directory.
 <dt><b>-f </b><i>type/subtype[,...]</i>
 <dd style="margin-left: 5.0em">Specifies a list of MIME media types that the server will accept.
 The default depends on the type of printer created.
-<dt><b>-i </b><i>iconfile.png</i>
-<dd style="margin-left: 5.0em">Specifies the printer icon file for the server.
-The file must be a PNG format image.
-The default is an internally-provided PNG image.
+<dt><b>-i </b><i>iconfile.png[,...]</i>
+<dd style="margin-left: 5.0em">Specifies the printer icon file(s) for the server.
+Each file must be a PNG format image.
+The standard dimensions for printer icons are 48x48, 128x128, and 512x512 pixels.
+The defaults are internally-provided PNG images at each of the standard sizes.
 <dt><b>-k</b>
 <dd style="margin-left: 5.0em">Keeps the print documents in the spool directory rather than deleting them.
 <dt><b>-l </b><i>location</i>
