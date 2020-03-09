@@ -7332,9 +7332,9 @@ register_printer(
   */
 
   avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_ipp._tcp", NULL, NULL, printer->port, ipp_txt);
-  if (subtypes && *subtypes)
+  if (printer->dnssd_subtypes && *(printer->dnssd_subtypes))
   {
-    char *temptypes = strdup(subtypes), *start, *end;
+    char *temptypes = strdup(printer->dnssd_subtypes), *start, *end;
 
     for (start = temptypes; *start; start = end)
     {
@@ -7356,9 +7356,9 @@ register_printer(
   */
 
   avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_ipps._tcp", NULL, NULL, printer->port, ipp_txt);
-  if (subtypes && *subtypes)
+  if (printer->dnssd_subtypes && *(printer->dnssd_subtypes))
   {
-    char *temptypes = strdup(subtypes), *start, *end;
+    char *temptypes = strdup(printer->dnssd_subtypes), *start, *end;
 
     for (start = temptypes; *start; start = end)
     {
