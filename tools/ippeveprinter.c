@@ -50,7 +50,9 @@ extern char **environ;
 #elif defined(HAVE_AVAHI)
 #  include <avahi-client/client.h>
 #  include <avahi-client/publish.h>
+#  include <avahi-common/alternative.h>
 #  include <avahi-common/error.h>
+#  include <avahi-common/malloc.h>
 #  include <avahi-common/thread-watch.h>
 #endif /* HAVE_DNSSD */
 
@@ -182,10 +184,16 @@ typedef struct ippeve_printer_s		/**** Printer data ****/
   /* TODO: One IPv4 and one IPv6 listener are really not sufficient */
   int			ipv4,		/* IPv4 listener */
 			ipv6;		/* IPv6 listener */
+#ifdef HAVE_DNSSD
   ippeve_srv_t		ipp_ref,	/* Bonjour IPP service */
 			ipps_ref,	/* Bonjour IPPS service */
 			http_ref,	/* Bonjour HTTP service */
 			printer_ref;	/* Bonjour LPD service */
+#elif defined(HAVE_AVAHI)
+  ippeve_srv_t		ipp_ref;	/* Bonjour services */
+  char			*subtypes;	/* Bonjour subtypes */
+  int			dnssd_collision;/* Name collision? */
+#endif /* HAVE_DNSSD */
   char			*dnssd_name,	/* printer-dnssd-name */
 			*name,		/* printer-name */
 			*icons[3],	/* Icon filenames */
@@ -1658,6 +1666,9 @@ create_printer(
   printer->ipv6          = -1;
   printer->name          = strdup(name);
   printer->dnssd_name    = strdup(name);
+#ifdef HAVE_AVAHI
+  printer->subtypes      = subtypes ? strdup(subtypes) : NULL;
+#endif /* HAVE_AVAHI */
   printer->command       = command ? strdup(command) : NULL;
   printer->device_uri    = device_uri ? strdup(device_uri) : NULL;
   printer->output_format = output_format ? strdup(output_format) : NULL;
@@ -1956,6 +1967,14 @@ create_printer(
   if (!register_printer(printer, subtypes))
     goto bad_printer;
 
+#ifdef HAVE_AVAHI
+  /* TODO: Rework this code as this feels like such a hack! */
+  sleep(1);
+
+  if (printer->dnssd_collision)
+    register_printer(printer, subtypes);
+#endif /* HAVE_AVAHI */
+
  /*
   * Return it!
   */
@@ -2109,14 +2128,8 @@ delete_printer(ippeve_printer_t *printer)	/* I - Printer */
 #elif defined(HAVE_AVAHI)
   avahi_threaded_poll_lock(DNSSDMaster);
 
-  if (printer->printer_ref)
-    avahi_entry_group_free(printer->printer_ref);
   if (printer->ipp_ref)
     avahi_entry_group_free(printer->ipp_ref);
-  if (printer->ipps_ref)
-    avahi_entry_group_free(printer->ipps_ref);
-  if (printer->http_ref)
-    avahi_entry_group_free(printer->http_ref);
 
   avahi_threaded_poll_unlock(DNSSDMaster);
 #endif /* HAVE_DNSSD */
@@ -2162,7 +2175,7 @@ dnssd_callback(
     const char          *name,		/* I - Service name */
     const char          *regtype,	/* I - Service type */
     const char          *domain,	/* I - Domain for service */
-    ippeve_printer_t      *printer)	/* I - Printer */
+    ippeve_printer_t    *printer)	/* I - Printer */
 {
   (void)sdRef;
   (void)flags;
@@ -2196,9 +2209,14 @@ dnssd_callback(
     AvahiEntryGroupState state,		/* I - Registration state */
     void                 *context)	/* I - Printer */
 {
+  ippeve_printer_t *printer = (ippeve_printer_t *)context;
+ 					/* Printer */
+
+
   (void)srv;
-  (void)state;
-  (void)context;
+
+  if (state == AVAHI_ENTRY_GROUP_COLLISION)
+    printer->dnssd_collision = 1;
 }
 
 
@@ -2212,10 +2230,8 @@ static void
 dnssd_client_cb(
     AvahiClient      *c,		/* I - Client */
     AvahiClientState state,		/* I - Current state */
-    void             *userdata)		/* I - User data (unused) */
+    void             *userdata)		/* I - User data (printer) */
 {
-  (void)userdata;
-
   if (!c)
     return;
 
@@ -7095,7 +7111,7 @@ register_printer(
 			*ptr;		/* Pointer into string */
 
 
-  if (!strcmp(subtypes, "off"))
+  if (subtypes && !strcmp(subtypes, "off"))
     return (1);
 
   color_supported           = ippFindAttribute(printer->attrs, "color-supported", IPP_TAG_BOOLEAN);
@@ -7270,9 +7286,32 @@ register_printer(
   * Register _printer._tcp (LPD) with port 0 to reserve the service name...
   */
 
+  if (printer->dnssd_collision)
+  {
+    char	new_dnssd_name[256];	/* New DNS-SD name */
+    const char	*uuid = ippGetString(ippFindAttribute(printer->attrs, "printer-uuid", IPP_TAG_URI), 0, NULL);
+					/* "printer-uuid" value */
+
+    _cupsRWLockWrite(&printer->rwlock);
+
+    snprintf(new_dnssd_name, sizeof(new_dnssd_name), "%s (%c%c%c%c%c%c)", printer->dnssd_name, toupper(uuid[39]), toupper(uuid[40]), toupper(uuid[41]), toupper(uuid[42]), toupper(uuid[43]), toupper(uuid[44]));
+
+    free(printer->dnssd_name);
+    printer->dnssd_name = strdup(new_dnssd_name);
+
+    fprintf(stderr, "Avahi name collision, trying new DNS-SD service name '%s'.\n", printer->dnssd_name);
+
+    _cupsRWUnlock(&printer->rwlock);
+
+    printer->dnssd_collision = 0;
+  }
+
   avahi_threaded_poll_lock(DNSSDMaster);
 
-  printer->ipp_ref = avahi_entry_group_new(DNSSDClient, dnssd_callback, NULL);
+  if (printer->ipp_ref)
+    avahi_entry_group_free(printer->ipp_ref);
+
+  printer->ipp_ref = avahi_entry_group_new(DNSSDClient, dnssd_callback, printer);
 
   avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_printer._tcp", NULL, NULL, 0, NULL);
 
