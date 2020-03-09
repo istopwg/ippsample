@@ -1714,6 +1714,14 @@ create_printer(
   {
     char	temp[1024];		/* Temporary string */
 
+#ifdef HAVE_AVAHI
+    const char *avahi_name = avahi_client_get_host_name_fqdn(DNSSDClient);
+
+    if (avahi_name)
+      printer->hostname = strdup(avahi_name);
+    else
+#endif /* HAVE_AVAHI */
+
     printer->hostname = strdup(httpGetHostname(NULL, temp, sizeof(temp)));
   }
 
@@ -2120,8 +2128,8 @@ delete_printer(ippeve_printer_t *printer)	/* I - Printer */
 #elif defined(HAVE_AVAHI)
   avahi_threaded_poll_lock(DNSSDMaster);
 
-  if (printer->ipp_ref)
-    avahi_entry_group_free(printer->ipp_ref);
+  if (printer->dnssd_ref)
+    avahi_entry_group_free(printer->dnssd_ref);
 
   avahi_threaded_poll_unlock(DNSSDMaster);
 #endif /* HAVE_DNSSD */
@@ -7303,18 +7311,18 @@ register_printer(
 
   avahi_threaded_poll_lock(DNSSDMaster);
 
-  if (printer->ipp_ref)
-    avahi_entry_group_free(printer->ipp_ref);
+  if (printer->dnssd_ref)
+    avahi_entry_group_free(printer->dnssd_ref);
 
-  printer->ipp_ref = avahi_entry_group_new(DNSSDClient, dnssd_callback, printer);
+  printer->dnssd_ref = avahi_entry_group_new(DNSSDClient, dnssd_callback, printer);
 
-  avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_printer._tcp", NULL, NULL, 0, NULL);
+  avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_printer._tcp", NULL, NULL, 0, NULL);
 
  /*
   * Then register the _ipp._tcp (IPP)...
   */
 
-  avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_ipp._tcp", NULL, NULL, printer->port, ipp_txt);
+  avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_ipp._tcp", NULL, NULL, printer->port, ipp_txt);
   if (subtypes && *subtypes)
   {
     char *temptypes = strdup(subtypes), *start, *end;
@@ -7327,7 +7335,7 @@ register_printer(
         end = start + strlen(start);
 
       snprintf(temp, sizeof(temp), "%s._sub._ipp._tcp", start);
-      avahi_entry_group_add_service_subtype(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_ipp._tcp", NULL, temp);
+      avahi_entry_group_add_service_subtype(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_ipp._tcp", NULL, temp);
     }
 
     free(temptypes);
@@ -7338,7 +7346,7 @@ register_printer(
   * _ipps._tcp (IPPS) for secure printing...
   */
 
-  avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_ipps._tcp", NULL, NULL, printer->port, ipp_txt);
+  avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_ipps._tcp", NULL, NULL, printer->port, ipp_txt);
   if (subtypes && *subtypes)
   {
     char *temptypes = strdup(subtypes), *start, *end;
@@ -7351,7 +7359,7 @@ register_printer(
         end = start + strlen(start);
 
       snprintf(temp, sizeof(temp), "%s._sub._ipps._tcp", start);
-      avahi_entry_group_add_service_subtype(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_ipps._tcp", NULL, temp);
+      avahi_entry_group_add_service_subtype(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_ipps._tcp", NULL, temp);
     }
 
     free(temptypes);
@@ -7362,14 +7370,14 @@ register_printer(
   * Finally _http.tcp (HTTP) for the web interface...
   */
 
-  avahi_entry_group_add_service_strlst(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_http._tcp", NULL, NULL, printer->port, NULL);
-  avahi_entry_group_add_service_subtype(printer->ipp_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_http._tcp", NULL, "_printer._sub._http._tcp");
+  avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_http._tcp", NULL, NULL, printer->port, NULL);
+  avahi_entry_group_add_service_subtype(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dnssd_name, "_http._tcp", NULL, "_printer._sub._http._tcp");
 
  /*
   * Commit it...
   */
 
-  avahi_entry_group_commit(printer->ipp_ref);
+  avahi_entry_group_commit(printer->dnssd_ref);
   avahi_threaded_poll_unlock(DNSSDMaster);
 
   avahi_string_list_free(ipp_txt);
@@ -7580,7 +7588,7 @@ run_printer(ippeve_printer_t *printer)	/* I - Printer */
 
   for (;;)
   {
-    if (poll(polldata, (nfds_t)num_fds, 10000) < 0 && errno != EINTR)
+    if (poll(polldata, (nfds_t)num_fds, 1000) < 0 && errno != EINTR)
     {
       perror("poll() failed");
       break;
