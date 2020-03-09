@@ -5,7 +5,7 @@
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
- * information.º
+ * information.
  *
  * Note: This program began life as the "ippserver" sample code that first
  * appeared in CUPS 1.4.  The name has been changed in order to distinguish it
@@ -185,16 +185,16 @@ typedef struct ippeve_printer_s		/**** Printer data ****/
   int			ipv4,		/* IPv4 listener */
 			ipv6;		/* IPv6 listener */
 #ifdef HAVE_DNSSD
-  ippeve_srv_t		ipp_ref,	/* Bonjour IPP service */
-			ipps_ref,	/* Bonjour IPPS service */
-			http_ref,	/* Bonjour HTTP service */
-			printer_ref;	/* Bonjour LPD service */
+  ippeve_srv_t		ipp_ref,	/* DNS-SD IPP service */
+			ipps_ref,	/* DNS-SD IPPS service */
+			http_ref,	/* DNS-SD HTTP service */
+			printer_ref;	/* DNS-SD LPD service */
 #elif defined(HAVE_AVAHI)
-  ippeve_srv_t		ipp_ref;	/* Bonjour services */
-  char			*subtypes;	/* Bonjour subtypes */
+  ippeve_srv_t		dnssd_ref;	/* DNS-SD services */
+  char			*dnssd_subtypes;/* DNS-SD subtypes */
   int			dnssd_collision;/* Name collision? */
 #endif /* HAVE_DNSSD */
-  char			*dnssd_name,	/* printer-dnssd-name */
+  char			*dnssd_name,	/* printer-dns-sd-name */
 			*name,		/* printer-name */
 			*icons[3],	/* Icon filenames */
 			*strings,	/* Strings filename */
@@ -1425,7 +1425,7 @@ create_printer(
     const char   *icons,		/* I - printer-icons */
     const char   *strings,		/* I - printer-strings-uri */
     cups_array_t *docformats,		/* I - document-format-supported */
-    const char   *subtypes,		/* I - Bonjour service subtype(s) */
+    const char   *subtypes,		/* I - DNS-SD service subtype(s) */
     const char   *directory,		/* I - Spool directory */
     const char   *command,		/* I - Command to run on job files, if any */
     const char   *device_uri,		/* I - Output device, if any */
@@ -1662,27 +1662,27 @@ create_printer(
     return (NULL);
   }
 
-  printer->ipv4          = -1;
-  printer->ipv6          = -1;
-  printer->name          = strdup(name);
-  printer->dnssd_name    = strdup(name);
+  printer->ipv4           = -1;
+  printer->ipv6           = -1;
+  printer->name           = strdup(name);
+  printer->dnssd_name     = strdup(name);
 #ifdef HAVE_AVAHI
-  printer->subtypes      = subtypes ? strdup(subtypes) : NULL;
+  printer->dnssd_subtypes = subtypes ? strdup(subtypes) : NULL;
 #endif /* HAVE_AVAHI */
-  printer->command       = command ? strdup(command) : NULL;
-  printer->device_uri    = device_uri ? strdup(device_uri) : NULL;
-  printer->output_format = output_format ? strdup(output_format) : NULL;
-  printer->directory     = strdup(directory);
-  printer->icons[0]      = icons ? strdup(icons) : NULL;
-  printer->strings       = strings ? strdup(strings) : NULL;
-  printer->port          = serverport;
-  printer->start_time    = time(NULL);
-  printer->config_time   = printer->start_time;
-  printer->state         = IPP_PSTATE_IDLE;
-  printer->state_reasons = IPPEVE_PREASON_NONE;
-  printer->state_time    = printer->start_time;
-  printer->jobs          = cupsArrayNew((cups_array_func_t)compare_jobs, NULL);
-  printer->next_job_id   = 1;
+  printer->command        = command ? strdup(command) : NULL;
+  printer->device_uri     = device_uri ? strdup(device_uri) : NULL;
+  printer->output_format  = output_format ? strdup(output_format) : NULL;
+  printer->directory      = strdup(directory);
+  printer->icons[0]       = icons ? strdup(icons) : NULL;
+  printer->strings        = strings ? strdup(strings) : NULL;
+  printer->port           = serverport;
+  printer->start_time     = time(NULL);
+  printer->config_time    = printer->start_time;
+  printer->state          = IPP_PSTATE_IDLE;
+  printer->state_reasons  = IPPEVE_PREASON_NONE;
+  printer->state_time     = printer->start_time;
+  printer->jobs           = cupsArrayNew((cups_array_func_t)compare_jobs, NULL);
+  printer->next_job_id    = 1;
 
   if (printer->icons[0])
   {
@@ -1961,19 +1961,11 @@ create_printer(
   debug_attributes("Printer", printer->attrs, 0);
 
  /*
-  * Register the printer with Bonjour...
+  * Register the printer with DNS-SD...
   */
 
   if (!register_printer(printer, subtypes))
     goto bad_printer;
-
-#ifdef HAVE_AVAHI
-  /* TODO: Rework this code as this feels like such a hack! */
-  sleep(1);
-
-  if (printer->dnssd_collision)
-    register_printer(printer, subtypes);
-#endif /* HAVE_AVAHI */
 
  /*
   * Return it!
@@ -2164,7 +2156,7 @@ delete_printer(ippeve_printer_t *printer)	/* I - Printer */
 
 #ifdef HAVE_DNSSD
 /*
- * 'dnssd_callback()' - Handle Bonjour registration events.
+ * 'dnssd_callback()' - Handle DNS-SD registration events.
  */
 
 static void DNSSD_API
@@ -2200,7 +2192,7 @@ dnssd_callback(
 
 #elif defined(HAVE_AVAHI)
 /*
- * 'dnssd_callback()' - Handle Bonjour registration events.
+ * 'dnssd_callback()' - Handle DNS-SD registration events.
  */
 
 static void
@@ -2216,7 +2208,10 @@ dnssd_callback(
   (void)srv;
 
   if (state == AVAHI_ENTRY_GROUP_COLLISION)
+  {
+    fputs("Avahi detected a service name collision.\n", stderr);
     printer->dnssd_collision = 1;
+  }
 }
 
 
@@ -2263,7 +2258,7 @@ dnssd_init(void)
 #ifdef HAVE_DNSSD
   if (DNSServiceCreateConnection(&DNSSDMaster) != kDNSServiceErr_NoError)
   {
-    fputs("Error: Unable to initialize Bonjour.\n", stderr);
+    fputs("Error: Unable to initialize DNS-SD.\n", stderr);
     exit(1);
   }
 
@@ -2272,13 +2267,13 @@ dnssd_init(void)
 
   if ((DNSSDMaster = avahi_threaded_poll_new()) == NULL)
   {
-    fputs("Error: Unable to initialize Bonjour.\n", stderr);
+    fputs("Error: Unable to initialize DNS-SD.\n", stderr);
     exit(1);
   }
 
   if ((DNSSDClient = avahi_client_new(avahi_threaded_poll_get(DNSSDMaster), AVAHI_CLIENT_NO_FAIL, dnssd_client_cb, NULL, &error)) == NULL)
   {
-    fputs("Error: Unable to initialize Bonjour.\n", stderr);
+    fputs("Error: Unable to initialize DNS-SD.\n", stderr);
     exit(1);
   }
 
@@ -7085,7 +7080,7 @@ process_state_message(
 
 
 /*
- * 'register_printer()' - Register a printer object via Bonjour.
+ * 'register_printer()' - Register a printer object via DNS-SD.
  */
 
 static int				/* O - 1 on success, 0 on error */
@@ -7094,7 +7089,7 @@ register_printer(
     const char       *subtypes)		/* I - Service subtype(s) */
 {
 #if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
-  ippeve_txt_t		ipp_txt;	/* Bonjour IPP TXT record */
+  ippeve_txt_t		ipp_txt;	/* DNS-SD IPP TXT record */
   int			i,		/* Looping var */
 			count;		/* Number of values */
   ipp_attribute_t	*color_supported,
@@ -7158,8 +7153,8 @@ register_printer(
 
 #endif /* HAVE_DNSSD || HAVE_AVAHI */
 #ifdef HAVE_DNSSD
-  DNSServiceErrorType	error;		/* Error from Bonjour */
-  char			regtype[256];	/* Bonjour service type */
+  DNSServiceErrorType	error;		/* Error from DNS-SD */
+  char			regtype[256];	/* DNS-SD service type */
   uint32_t		ifindex;	/* Interface index */
 
 
@@ -7556,14 +7551,14 @@ respond_unsupported(
 static void
 run_printer(ippeve_printer_t *printer)	/* I - Printer */
 {
-  int		num_fds;		/* Number of file descriptors */
-  struct pollfd	polldata[3];		/* poll() data */
-  int		timeout;		/* Timeout for poll() */
-  ippeve_client_t	*client;		/* New client */
+  int			num_fds;	/* Number of file descriptors */
+  struct pollfd		polldata[3];	/* poll() data */
+  int			timeout;	/* Timeout for poll() */
+  ippeve_client_t	*client;	/* New client */
 
 
  /*
-  * Setup poll() data for the Bonjour service socket and IPv4/6 listeners...
+  * Setup poll() data for the DNS-SD service socket and IPv4/6 listeners...
   */
 
   polldata[0].fd     = printer->ipv4;
@@ -7585,12 +7580,7 @@ run_printer(ippeve_printer_t *printer)	/* I - Printer */
 
   for (;;)
   {
-    if (cupsArrayCount(printer->jobs))
-      timeout = 10;
-    else
-      timeout = -1;
-
-    if (poll(polldata, (nfds_t)num_fds, timeout) < 0 && errno != EINTR)
+    if (poll(polldata, (nfds_t)num_fds, 10000) < 0 && errno != EINTR)
     {
       perror("poll() failed");
       break;
@@ -7632,9 +7622,17 @@ run_printer(ippeve_printer_t *printer)	/* I - Printer */
       }
     }
 
+   /*
+    * Process DNS-SD messages...
+    */
+
 #ifdef HAVE_DNSSD
     if (polldata[2].revents & POLLIN)
       DNSServiceProcessResult(DNSSDMaster);
+
+#elif defined(HAVE_AVAHI)
+    if (printer->dnssd_collision)
+      register_printer(printer, printer->dnssd_subtypes);
 #endif /* HAVE_DNSSD */
 
    /*
