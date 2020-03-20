@@ -3868,8 +3868,6 @@ ipp_send_document(
 
   have_data = have_document_data(client);
 
-  fprintf(stderr, "%s Send-Document have_data=%d, job->state=%d, job->filename=\"%s\"\n", client->hostname, have_data, (int)job->state, job->filename);
-
   if ((job->filename || job->fd >= 0) && have_data)
   {
     flush_document_data(client);
