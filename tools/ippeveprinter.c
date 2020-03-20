@@ -295,6 +295,8 @@ static int		filter_cb(ippeve_filter_t *filter, ipp_t *dst, ipp_attribute_t *attr
 static ippeve_job_t	*find_job(ippeve_client_t *client);
 static void		finish_document_data(ippeve_client_t *client, ippeve_job_t *job);
 static void		finish_document_uri(ippeve_client_t *client, ippeve_job_t *job);
+static void		flush_document_data(ippeve_client_t *client);
+static int		have_document_data(ippeve_client_t *client);
 static void		html_escape(ippeve_client_t *client, const char *s, size_t slen);
 static void		html_footer(ippeve_client_t *client);
 static void		html_header(ippeve_client_t *client, const char *title, int refresh);
@@ -2512,8 +2514,9 @@ finish_document_uri(
   * Do we have a file to print?
   */
 
-  if (httpGetState(client->http) == HTTP_STATE_POST_RECV)
+  if (have_document_data(client))
   {
+    flush_document_data(client);
     respond_ipp(client, IPP_STATUS_ERROR_BAD_REQUEST, "Unexpected document data following request.");
 
     goto abort_job;
@@ -2760,6 +2763,42 @@ finish_document_uri(
 
   copy_job_attributes(client, job, ra);
   cupsArrayDelete(ra);
+}
+
+
+/*
+ * 'flush_document_data()' - Safely flush remaining document data.
+ */
+
+static void
+flush_document_data(
+    ippeve_client_t *client)		/* I - Client */
+{
+  char	buffer[8192];			/* Read buffer */
+
+
+  if (httpGetState(client->http) == HTTP_STATE_POST_RECV)
+  {
+    while (httpRead2(client->http, buffer, sizeof(buffer)) > 0);
+  }
+}
+
+
+/*
+ * 'have_document_data()' - Determine whether we have more document data.
+ */
+
+static int				/* O - 1 if data is present, 0 otherwise */
+have_document_data(
+    ippeve_client_t *client)		/* I - Client */
+{
+  char temp;				/* Data */
+
+
+  if (httpGetState(client->http) != HTTP_STATE_POST_RECV)
+    return (0);
+  else
+    return (httpPeek(client->http, &temp, 1) > 0);
 }
 
 
@@ -3273,25 +3312,23 @@ ipp_create_job(ippeve_client_t *client)	/* I - Client */
 
 
  /*
-  * Validate print job attributes...
-  */
-
-  if (!valid_job_attributes(client))
-  {
-    httpFlush(client->http);
-    return;
-  }
-
- /*
   * Do we have a file to print?
   */
 
-  if (httpGetState(client->http) == HTTP_STATE_POST_RECV)
+  if (have_document_data(client))
   {
+    flush_document_data(client);
     respond_ipp(client, IPP_STATUS_ERROR_BAD_REQUEST,
                 "Unexpected document data following request.");
     return;
   }
+
+ /*
+  * Validate print job attributes...
+  */
+
+  if (!valid_job_attributes(client))
+    return;
 
  /*
   * Create the job...
@@ -3729,7 +3766,7 @@ ipp_print_job(ippeve_client_t *client)	/* I - Client */
 
   if (!valid_job_attributes(client))
   {
-    httpFlush(client->http);
+    flush_document_data(client);
     return;
   }
 
@@ -3737,7 +3774,7 @@ ipp_print_job(ippeve_client_t *client)	/* I - Client */
   * Do we have a file to print?
   */
 
-  if (httpGetState(client->http) == HTTP_STATE_POST_SEND)
+  if (!have_document_data(client))
   {
     respond_ipp(client, IPP_STATUS_ERROR_BAD_REQUEST, "No file in request.");
     return;
@@ -3777,7 +3814,7 @@ ipp_print_uri(ippeve_client_t *client)	/* I - Client */
 
   if (!valid_job_attributes(client))
   {
-    httpFlush(client->http);
+    flush_document_data(client);
     return;
   }
 
@@ -3810,6 +3847,7 @@ ipp_send_document(
 {
   ippeve_job_t		*job;		/* Job information */
   ipp_attribute_t	*attr;		/* Current attribute */
+  int			have_data;	/* Have document data? */
 
 
  /*
@@ -3818,26 +3856,30 @@ ipp_send_document(
 
   if ((job = find_job(client)) == NULL)
   {
+    flush_document_data(client);
     respond_ipp(client, IPP_STATUS_ERROR_NOT_FOUND, "Job does not exist.");
-    httpFlush(client->http);
     return;
   }
 
  /*
   * See if we already have a document for this job or the job has already
-  * in a non-pending state...
+  * in a terminating state...
   */
 
-  if (job->state > IPP_JSTATE_HELD)
+  have_data = have_document_data(client);
+
+  fprintf(stderr, "%s Send-Document have_data=%d, job->state=%d, job->filename=\"%s\"\n", client->hostname, have_data, (int)job->state, job->filename);
+
+  if ((job->filename || job->fd >= 0) && have_data)
   {
-    respond_ipp(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Job is not in a pending state.");
-    httpFlush(client->http);
+    flush_document_data(client);
+    respond_ipp(client, IPP_STATUS_ERROR_MULTIPLE_JOBS_NOT_SUPPORTED, "Multiple document jobs are not supported.");
     return;
   }
-  else if (job->filename || job->fd >= 0)
+  else if (job->state > IPP_JSTATE_HELD && have_data)
   {
-    respond_ipp(client, IPP_STATUS_ERROR_MULTIPLE_JOBS_NOT_SUPPORTED, "Multiple document jobs are not supported.");
-    httpFlush(client->http);
+    flush_document_data(client);
+    respond_ipp(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Job is not in a pending state.");
     return;
   }
 
@@ -3847,20 +3889,20 @@ ipp_send_document(
 
   if ((attr = ippFindAttribute(client->request, "last-document", IPP_TAG_ZERO)) == NULL)
   {
+    flush_document_data(client);
     respond_ipp(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing required last-document attribute.");
-    httpFlush(client->http);
     return;
   }
   else if (ippGetGroupTag(attr) != IPP_TAG_OPERATION)
   {
+    flush_document_data(client);
     respond_ipp(client, IPP_STATUS_ERROR_BAD_REQUEST, "The last-document attribute is not in the operation group.");
-    httpFlush(client->http);
     return;
   }
-  else if (ippGetValueTag(attr) != IPP_TAG_BOOLEAN || ippGetCount(attr) != 1 || !ippGetBoolean(attr, 0))
+  else if (ippGetValueTag(attr) != IPP_TAG_BOOLEAN || ippGetCount(attr) != 1)
   {
+    flush_document_data(client);
     respond_unsupported(client, attr);
-    httpFlush(client->http);
     return;
   }
 
@@ -3868,11 +3910,14 @@ ipp_send_document(
   * Validate document attributes...
   */
 
-  if (!valid_doc_attributes(client))
+  if (have_data && !valid_doc_attributes(client))
   {
-    httpFlush(client->http);
+    flush_document_data(client);
     return;
   }
+
+  if (!have_data && !job->filename)
+    job->state = IPP_JSTATE_ABORTED;
 
  /*
   * Then finish getting the document data and process things...
@@ -3891,7 +3936,8 @@ ipp_send_document(
 
   _cupsRWUnlock(&(client->printer->rwlock));
 
-  finish_document_data(client, job);
+  if (have_data)
+    finish_document_data(client, job);
 }
 
 
@@ -3914,44 +3960,39 @@ ipp_send_uri(ippeve_client_t *client)	/* I - Client */
   if ((job = find_job(client)) == NULL)
   {
     respond_ipp(client, IPP_STATUS_ERROR_NOT_FOUND, "Job does not exist.");
-    httpFlush(client->http);
     return;
   }
 
  /*
   * See if we already have a document for this job or the job has already
-  * in a non-pending state...
+  * in a non-terminating state...
   */
 
-  if (job->state > IPP_JSTATE_HELD)
-  {
-    respond_ipp(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Job is not in a pending state.");
-    httpFlush(client->http);
-    return;
-  }
-  else if (job->filename || job->fd >= 0)
+  if (job->filename || job->fd >= 0)
   {
     respond_ipp(client, IPP_STATUS_ERROR_MULTIPLE_JOBS_NOT_SUPPORTED, "Multiple document jobs are not supported.");
-    httpFlush(client->http);
+    return;
+  }
+  else if (job->state > IPP_JSTATE_HELD)
+  {
+    flush_document_data(client);
+    respond_ipp(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "Job is not in a pending state.");
     return;
   }
 
   if ((attr = ippFindAttribute(client->request, "last-document", IPP_TAG_ZERO)) == NULL)
   {
     respond_ipp(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing required last-document attribute.");
-    httpFlush(client->http);
     return;
   }
   else if (ippGetGroupTag(attr) != IPP_TAG_OPERATION)
   {
     respond_ipp(client, IPP_STATUS_ERROR_BAD_REQUEST, "The last-document attribute is not in the operation group.");
-    httpFlush(client->http);
     return;
   }
-  else if (ippGetValueTag(attr) != IPP_TAG_BOOLEAN || ippGetCount(attr) != 1 || !ippGetBoolean(attr, 0))
+  else if (ippGetValueTag(attr) != IPP_TAG_BOOLEAN || ippGetCount(attr) != 1)
   {
     respond_unsupported(client, attr);
-    httpFlush(client->http);
     return;
   }
 
@@ -3961,7 +4002,7 @@ ipp_send_uri(ippeve_client_t *client)	/* I - Client */
 
   if (!valid_doc_attributes(client))
   {
-    httpFlush(client->http);
+    flush_document_data(client);
     return;
   }
 
@@ -6421,7 +6462,7 @@ process_ipp(ippeve_client_t *client)	/* I - Client */
 		      name, ippGetString(uri, 0, NULL));
 	else if (client->operation_id != IPP_OP_GET_PRINTER_ATTRIBUTES && (status = authenticate_request(client)) != HTTP_STATUS_CONTINUE)
         {
-          httpFlush(client->http);
+          flush_document_data(client);
 
           return (respond_http(client, status, NULL, NULL, 0));
         }
@@ -6451,7 +6492,7 @@ process_ipp(ippeve_client_t *client)	/* I - Client */
 	      if (!respond_http(client, HTTP_STATUS_EXPECTATION_FAILED, NULL, NULL, 0))
 		return (0);
 
-	      httpFlush(client->http);
+	      flush_document_data(client);
 	      return (1);
 	    }
 	  }
@@ -8437,6 +8478,7 @@ valid_doc_attributes(
     memset(header, 0, sizeof(header));
     httpPeek(client->http, (char *)header, sizeof(header));
 
+    fprintf(stderr, "%s %s Auto-type header: %02X%02X%02X%02X%02X%02X%02X%02X\n", client->hostname, op_name, header[0], header[1], header[2], header[3], header[4], header[5], header[6], header[7]);
     if (!memcmp(header, "%PDF", 4))
       format = "application/pdf";
     else if (!memcmp(header, "%!", 2))
@@ -8445,7 +8487,7 @@ valid_doc_attributes(
       format = "image/jpeg";
     else if (!memcmp(header, "\211PNG", 4))
       format = "image/png";
-    else if (!memcmp(header, "RAS2", 4))
+    else if (!memcmp(header, "RaS2PwgR", 8))
       format = "image/pwg-raster";
     else if (!memcmp(header, "UNIRAST", 8))
       format = "image/urf";
