@@ -3284,23 +3284,6 @@ ipp_delete_printer(
 
   client->printer->is_deleted = 1;
 
-  if (client->printer->processing_job)
-  {
-    client->printer->state_reasons |= SERVER_PREASON_MOVING_TO_PAUSED | SERVER_PREASON_DELETING;
-    serverStopJob(client->printer->processing_job);
-
-    serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer being deleted.");
-  }
-  else
-  {
-    client->printer->state         = IPP_PSTATE_STOPPED;
-    client->printer->state_reasons |= SERVER_PREASON_DELETING;
-
-    serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_DELETED, "Printer deleted.");
-
-    serverDeletePrinter(client->printer);
-  }
-
  /*
   * Abort all jobs for this printer...
   */
@@ -3335,6 +3318,27 @@ ipp_delete_printer(
   }
 
   _cupsRWUnlock(&SubscriptionsRWLock);
+
+  if (client->printer->processing_job)
+  {
+   /*
+    * Printer is processing a job, delete immediately...
+    */
+
+    client->printer->state_reasons |= SERVER_PREASON_MOVING_TO_PAUSED | SERVER_PREASON_DELETING;
+    serverStopJob(client->printer->processing_job);
+
+    serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer being deleted.");
+  }
+  else
+  {
+    client->printer->state         = IPP_PSTATE_STOPPED;
+    client->printer->state_reasons |= SERVER_PREASON_DELETING;
+
+    serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_DELETED, "Printer deleted.");
+
+    serverDeletePrinter(client->printer);
+  }
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
