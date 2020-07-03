@@ -84,8 +84,7 @@ serverTransformJob(
   int		mystdout[2] = {-1, -1},	/* Pipe for stdout */
 		mystderr[2] = {-1, -1};	/* Pipe for stderr */
   struct pollfd	polldata[2];		/* Poll data */
-  int		pollcount,		/* Number of pipes to poll */
-                pollret;                /* Return value from poll() */
+  int		pollcount;		/* Number of pipes to poll */
   char		data[32768],		/* Data from stdout */
 		line[2048],		/* Line from stderr */
                 *ptr,			/* Pointer into line */
@@ -381,7 +380,7 @@ serverTransformJob(
     pollcount ++;
   }
 
-  while ((pollret = poll(polldata, (nfds_t)pollcount, -1)) > 0)
+  while (poll(polldata, (nfds_t)pollcount, -1) > 0)
   {
     if (polldata[0].revents & POLLIN)
     {

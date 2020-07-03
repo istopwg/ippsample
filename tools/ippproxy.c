@@ -1368,7 +1368,7 @@ run_printer(
               */
 
               pjob->remote_job_id    = job_id;
-              pjob->remote_job_state = job_state;
+              pjob->remote_job_state = (int)job_state;
               pjob->local_job_state  = IPP_JSTATE_PENDING;
 
 	      plogf(pjob, "Job is now fetchable, queuing up.", pjob);
@@ -1397,9 +1397,9 @@ run_printer(
 
           if (pjob)
           {
-	    pjob->remote_job_state = job_state;
+	    pjob->remote_job_state = (int)job_state;
 
-	    plogf(pjob, "Updated remote job-state to '%s'.", ippEnumString("job-state", job_state));
+	    plogf(pjob, "Updated remote job-state to '%s'.", ippEnumString("job-state", (int)job_state));
 
 	    _cupsCondBroadcast(&jobs_cond);
 	  }
@@ -1878,7 +1878,7 @@ update_document_status(
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, info->device_uuid);
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
 
-  ippAddInteger(request, IPP_TAG_JOB, IPP_TAG_ENUM, "output-device-document-state", doc_state);
+  ippAddInteger(request, IPP_TAG_JOB, IPP_TAG_ENUM, "output-device-document-state", (int)doc_state);
 
   ippDelete(cupsDoRequest(info->http, request, info->resource));
 
@@ -1904,7 +1904,7 @@ update_job_status(proxy_info_t *info,	/* I - Proxy info */
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, info->device_uuid);
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
 
-  ippAddInteger(request, IPP_TAG_JOB, IPP_TAG_ENUM, "output-device-job-state", pjob->local_job_state);
+  ippAddInteger(request, IPP_TAG_JOB, IPP_TAG_ENUM, "output-device-job-state", (int)pjob->local_job_state);
 
   ippDelete(cupsDoRequest(info->http, request, info->resource));
 

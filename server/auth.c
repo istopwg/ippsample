@@ -85,7 +85,7 @@ serverAuthenticateClient(
 
     strlcpy(scheme, authorization, sizeof(scheme));
     if ((schemeptr = strchr(scheme, ' ')) != NULL)
-      *scheme = '\0';
+      *schemeptr = '\0';
 
     serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Unsupported authorization scheme \"%s\".", scheme);
     status = HTTP_STATUS_BAD_REQUEST;

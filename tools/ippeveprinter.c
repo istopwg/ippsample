@@ -2180,6 +2180,7 @@ dnssd_callback(
   (void)sdRef;
   (void)flags;
   (void)domain;
+  (void)name;
 
   if (errorCode == kDNSServiceErr_NameConflict)
   {
@@ -7609,7 +7610,6 @@ run_printer(ippeve_printer_t *printer)	/* I - Printer */
 {
   int			num_fds;	/* Number of file descriptors */
   struct pollfd		polldata[3];	/* poll() data */
-  int			timeout;	/* Timeout for poll() */
   ippeve_client_t	*client;	/* New client */
 
 

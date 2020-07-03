@@ -85,7 +85,7 @@ serverAddEventNoLock(
       }
       if (job && (event & SERVER_EVENT_JOB_ALL))
       {
-	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_ENUM, "job-state", job->state);
+	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_ENUM, "job-state", (int)job->state);
 	serverCopyJobStateReasons(n, IPP_TAG_EVENT_NOTIFICATION, job);
 	if (event == SERVER_EVENT_JOB_CREATED)
 	{
@@ -96,7 +96,7 @@ serverAddEventNoLock(
       if (!sub->job && printer && (event & SERVER_EVENT_PRINTER_ALL))
       {
 	ippAddBoolean(n, IPP_TAG_EVENT_NOTIFICATION, "printer-is-accepting-jobs", printer->is_accepting);
-	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_ENUM, "printer-state", printer->state);
+	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_ENUM, "printer-state", (int)printer->state);
 	serverCopyPrinterStateReasons(n, IPP_TAG_EVENT_NOTIFICATION, printer);
       }
       if (printer)
