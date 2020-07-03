@@ -1,7 +1,7 @@
 #
 # Travis CI configuration file for the IPP sample project.
 #
-# Copyright © 2018 by the IEEE-ISTO Printer Working Group.
+# Copyright © 2018-2020 by the IEEE-ISTO Printer Working Group.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
 # information.
@@ -13,12 +13,20 @@ matrix:
   include:
     # Linux-specific build stuff
     - os: linux
-      script:
-        - docker build -t ippsample .
+      dist: bionic
+      addons:
+        apt:
+          packages: [cura-engine, libavahi-client-dev, libfreetype6-dev, libgnutls28-dev, libharfbuzz-dev, libjbig2dec0-dev, libjpeg-dev, liblcms2-dev, libmupdf-dev, libopenjp2-7-dev, libpng-dev, zlib1g-dev]
+
+# The following is the old docker-based build instructions, which are no longer
+# necessary now that Travis CI supports Ubuntu 18.04 (Bionic)
+#
+#      script:
+#        - docker build -t ippsample .
 
     # macOS-specific build stuff
     - os: osx
-      osx_image: xcode9.4
+      osx_image: xcode12
 
 
 notifications:
@@ -26,4 +34,4 @@ notifications:
     recipients:
       - istopwg-ippsample-dev@pwg.org
     on_success: always # default: change
-    on_failure: always # default: always      
+    on_failure: always # default: always
