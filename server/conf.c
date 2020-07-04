@@ -2377,14 +2377,20 @@ load_system(const char *conf)		/* I - Configuration file */
 #ifndef _WIN32
     else if (!_cups_strcasecmp(line, "AuthAdminGroup"))
     {
-      if ((group = getgrnam(value)) == NULL)
+      if (!strcasecmp(value, "@system"))
+      {
+        AuthAdminGroup = getgid();
+      }
+      else if ((group = getgrnam(value)) == NULL)
       {
         fprintf(stderr, "ippserver: Unable to find AuthAdminGroup \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
         status = 0;
         break;
       }
-
-      AuthAdminGroup = group->gr_gid;
+      else
+      {
+        AuthAdminGroup = group->gr_gid;
+      }
     }
 #endif /* !_WIN32 */
     else if (!_cups_strcasecmp(line, "AuthName"))
@@ -2394,25 +2400,37 @@ load_system(const char *conf)		/* I - Configuration file */
 #ifndef _WIN32
     else if (!_cups_strcasecmp(line, "AuthOperatorGroup"))
     {
-      if ((group = getgrnam(value)) == NULL)
+      if (!strcasecmp(value, "@system"))
+      {
+        AuthOperatorGroup = getgid();
+      }
+      else if ((group = getgrnam(value)) == NULL)
       {
         fprintf(stderr, "ippserver: Unable to find AuthOperatorGroup \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
         status = 0;
         break;
       }
-
-      AuthOperatorGroup = group->gr_gid;
+      else
+      {
+	AuthOperatorGroup = group->gr_gid;
+      }
     }
     else if (!_cups_strcasecmp(line, "AuthProxyGroup"))
     {
-      if ((group = getgrnam(value)) == NULL)
+      if (!strcasecmp(value, "@system"))
+      {
+        AuthProxyGroup = getgid();
+      }
+      else if ((group = getgrnam(value)) == NULL)
       {
         fprintf(stderr, "ippserver: Unable to find AuthProxyGroup \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
         status = 0;
         break;
       }
-
-      AuthProxyGroup = group->gr_gid;
+      else
+      {
+	AuthProxyGroup = group->gr_gid;
+      }
     }
 #endif /* !_WIN32 */
     else if (!_cups_strcasecmp(line, "AuthService"))
@@ -3425,13 +3443,19 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     _ippVarsExpand(vars, value, temp, sizeof(value));
 
-    if ((group = getgrnam(value)) == NULL)
+    if (!strcasecmp(value, "@system"))
+    {
+      pinfo->print_group = getgid();
+    }
+    else if ((group = getgrnam(value)) == NULL)
     {
       serverLog(SERVER_LOGLEVEL_ERROR, "Unknown AuthPrintGroup \"%s\" on line %d of \"%s\".", value, f->linenum, f->filename);
       return (0);
     }
-
-    pinfo->print_group = group->gr_gid;
+    else
+    {
+      pinfo->print_group = group->gr_gid;
+    }
   }
   else if (!_cups_strcasecmp(token, "AuthProxyGroup"))
   {
@@ -3445,13 +3469,19 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     _ippVarsExpand(vars, value, temp, sizeof(value));
 
-    if ((group = getgrnam(value)) == NULL)
+    if (!strcasecmp(value, "@system"))
+    {
+      pinfo->proxy_group = getgid();
+    }
+    else if ((group = getgrnam(value)) == NULL)
     {
       serverLog(SERVER_LOGLEVEL_ERROR, "Unknown AuthProxyGroup \"%s\" on line %d of \"%s\".", value, f->linenum, f->filename);
       return (0);
     }
-
-    pinfo->proxy_group = group->gr_gid;
+    else
+    {
+      pinfo->proxy_group = group->gr_gid;
+    }
   }
 #endif /* !_WIN32 */
   else if (!_cups_strcasecmp(token, "Command"))
