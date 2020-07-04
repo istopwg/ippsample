@@ -1,7 +1,7 @@
 /*
  * Configuration file support for sample IPP server implementation.
  *
- * Copyright © 2015-2019 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2015-2020 by the IEEE-ISTO Printer Working Group
  * Copyright © 2015-2018 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -11,11 +11,13 @@
 #include "ippserver.h"
 #include <cups/file.h>
 #include <cups/dir.h>
-#ifndef _WIN32
+#if _WIN32
+#  define PATH_MAX 256
+#else
 #  include <fnmatch.h>
 #  include <pwd.h>
 #  include <grp.h>
-#endif /* !_WIN32 */
+#endif /* _WIN32 */
 #include <cups/ipp-private.h>
 
 
