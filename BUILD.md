@@ -68,6 +68,10 @@ configure:
     LDFLAGS="-L/some/directory" \
     ./configure ...
 
+On BSD, you may want to compile with `gcc` instead of `clang` by first installing `gcc`, and then specifying its path in the `CC` environment variable when configuring:
+
+    CC=/usr/local/bin/gcc9 ./configure
+
 Once you have configured things, just type:
 
     make ENTER
