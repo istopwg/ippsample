@@ -50,6 +50,26 @@ static inline fz_matrix make_matrix(float a, float b, float c, float d, float e,
  * Local types...
  */
 
+typedef void * (*renderer_make_renderer_cb_t)();
+typedef void (*renderer_deallocate_cb_t)(void *);
+typedef bool (*renderer_open_document_cb_t)(CFURLRef, void *);
+typedef int  (*renderer_get_page_count_cb_t)(void *);
+typedef bool (*renderer_load_page_cb_t)(const int, void *);
+typedef CGRect (*renderer_get_page_rect_cb_t)(void *);
+typedef CGAffineTransform  (*renderer_get_page_transform_cb_t)(void *);
+typedef bool (*renderer_render_cb_t)(CGContextRef, void *);
+
+extern struct renderer {
+    renderer_make_renderer_cb_t makeRenderer;
+    renderer_deallocate_cb_t deallocate;
+    renderer_open_document_cb_t openDocument;
+    renderer_get_page_count_cb_t getPageCount;
+    renderer_load_page_cb_t loadPage;
+    renderer_get_page_rect_cb_t getPageRect;
+    renderer_get_page_transform_cb_t getPageTransform;
+    renderer_render_cb_t render;
+};
+
 typedef ssize_t (*xform_write_cb_t)(void *, const unsigned char *, size_t);
 
 typedef struct xform_raster_s xform_raster_t;
@@ -124,7 +144,7 @@ static void	raster_start_page(xform_raster_t *ras, unsigned page, xform_write_cb
 static void	raster_write_line(xform_raster_t *ras, unsigned y, const unsigned char *line, xform_write_cb_t cb, void *ctx);
 static void	usage(int status) _CUPS_NORETURN;
 static ssize_t	write_fd(int *fd, const unsigned char *buffer, size_t bytes);
-int	xform_document(const char *filename, const char *informat, const char *outformat, const char *resolutions, const char *sheet_back, const char *types, int num_options, cups_option_t *options, xform_write_cb_t cb, void *ctx);
+int    xform_document(const char *filename, const char *informat, const char *outformat, const char *resolutions, const char *sheet_back, const char *types, int num_options, cups_option_t *options, xform_write_cb_t cb, struct renderer renderer, void *ctx);
 static int	xform_setup(xform_raster_t *ras, const char *outformat, const char *resolutions, const char *types, const char *sheet_back, int color, unsigned pages, int num_options, cups_option_t *options);
 
 
@@ -545,7 +565,8 @@ main(int  argc,				/* I - Number of command-line args */
   * Do transform...
   */
 
-  status = xform_document(filename, content_type, output_type, resolutions, sheet_back, types, num_options, options, write_cb, write_ptr);
+  // only used for command line
+  // status = xform_document(filename, content_type, output_type, resolutions, sheet_back, types, num_options, options, write_cb, write_ptr);
 
   if (http)
   {
@@ -1502,11 +1523,10 @@ xform_document(
     int              num_options,	/* I - Number of options */
     cups_option_t    *options,		/* I - Options */
     xform_write_cb_t cb,		/* I - Write callback */
+    struct renderer renderer,
     void             *ctx)		/* I - Write context */
 {
   CFURLRef		url;		/* CFURL object for PDF filename */
-  CGPDFDocumentRef	document = NULL;/* Input document */
-  CGPDFPageRef		pdf_page;	/* Page in PDF file */
   CGImageSourceRef	src;		/* Image reader */
   CGImageRef		image = NULL;	/* Image */
   xform_raster_t	ras;		/* Raster info */
@@ -1548,41 +1568,20 @@ xform_document(
     return (1);
   }
 
+  void *rendering;
+
   if (!strcmp(informat, "application/pdf"))
   {
    /*
     * Open the PDF...
     */
-
-    document = CGPDFDocumentCreateWithURL(url);
+    rendering = renderer.makeRenderer();
+    if(!renderer.openDocument(url, rendering)) {
+      // open document failed
+      renderer.deallocate(rendering);
+      return 1;
+    }
     CFRelease(url);
-
-    if (!document)
-    {
-      fputs("ERROR: Unable to create CFPDFDocument for file.\n", stderr);
-      return (1);
-    }
-
-    if (CGPDFDocumentIsEncrypted(document))
-    {
-     /*
-      * Only support encrypted PDFs with a blank password...
-      */
-
-      if (!CGPDFDocumentUnlockWithPassword(document, ""))
-      {
-	fputs("ERROR: Document is encrypted and cannot be unlocked.\n", stderr);
-	CGPDFDocumentRelease(document);
-	return (1);
-      }
-    }
-
-    if (!CGPDFDocumentAllowsPrinting(document))
-    {
-      fputs("ERROR: Document does not allow printing.\n", stderr);
-      CGPDFDocumentRelease(document);
-      return (1);
-    }
 
    /*
     * Check page ranges...
@@ -1593,15 +1592,14 @@ xform_document(
       if (sscanf(page_ranges, "%u-%u", &first, &last) != 2 || first > last)
       {
 	fprintf(stderr, "ERROR: Bad \"page-ranges\" value '%s'.\n", page_ranges);
-	CGPDFDocumentRelease(document);
 	return (1);
       }
 
-      pages = (unsigned)CGPDFDocumentGetNumberOfPages(document);
+      pages = (unsigned)renderer.getPageCount(rendering);
       if (first > pages)
       {
 	fputs("ERROR: \"page-ranges\" value does not include any pages to print in the document.\n", stderr);
-	CGPDFDocumentRelease(document);
+	renderer.deallocate(rendering);
 	return (1);
       }
 
@@ -1611,7 +1609,7 @@ xform_document(
     else
     {
       first = 1;
-      last  = (unsigned)CGPDFDocumentGetNumberOfPages(document);
+      last  = (unsigned)renderer.getPageCount(rendering);
     }
 
     pages = last - first + 1;
@@ -1650,9 +1648,6 @@ xform_document(
 
   if (xform_setup(&ras, outformat, resolutions, sheet_back, types, color, pages, num_options, options))
   {
-    if (document)
-      CGPDFDocumentRelease(document);
-
     if (image)
       CFRelease(image);
 
@@ -1764,7 +1759,7 @@ xform_document(
 
   (*(ras.start_job))(&ras, cb, ctx);
 
-  if (document)
+  if (rendering)
   {
    /*
     * Render pages in the PDF...
@@ -1808,9 +1803,12 @@ xform_document(
 			band_starty = 0,/* Start line of band */
 			band_endy = 0;	/* End line of band */
 	unsigned char	*lineptr;	/* Pointer to line */
-
-	pdf_page  = CGPDFDocumentGetPage(document, page + first - 1);
-	transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox,dest, 0, true);
+	if (!renderer.loadPage(page + first - 1, rendering)) {
+	  // Failed loading page
+	  renderer.deallocate(rendering);
+	  return 1;
+	}
+    transform = renderer.getPageTransform(rendering);
 
 	if (Verbosity > 1)
 	  fprintf(stderr, "DEBUG: Printing copy %d/%d, page %d/%d, transform=[%g %g %g %g %g %g]\n", copy + 1, ras.copies, page, pages, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
@@ -1850,9 +1848,13 @@ xform_document(
 	      if (!(page & 1) && ras.header.Duplex)
 		CGContextConcatCTM(context, back_transform);
 	      CGContextConcatCTM(context, transform);
-
-	      CGContextClipToRect(context, CGPDFPageGetBoxRect(pdf_page, kCGPDFCropBox));
-	      CGContextDrawPDFPage(context, pdf_page);
+          CGContextClipToRect(context, renderer.getPageRect(rendering));
+          CGContextSetRGBFillColor(context, 0.8, 0.8, 0.8, 1.);
+          if (!renderer.render(context, rendering)) {
+            // Rendering failed
+            renderer.deallocate(rendering);
+            return 1;
+          }
 	    CGContextRestoreGState(context);
 	  }
 
@@ -1909,8 +1911,7 @@ xform_document(
 	}
       }
     }
-
-    CGPDFDocumentRelease(document);
+	renderer.deallocate(rendering);
   }
   else
   {
