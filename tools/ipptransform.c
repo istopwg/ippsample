@@ -1512,7 +1512,7 @@ write_fd(int                 *fd,	/* I - File descriptor */
  * 'xform_document()' - Transform a file for printing.
  */
 
-int				/* O - 0 on success, 1 on error */
+static int				/* O - 0 on success, 1 on error */
 xform_document(
     const char       *filename,		/* I - File to transform */
     const char       *informat,		/* I - Input document (MIME media type */
@@ -1556,7 +1556,7 @@ xform_document(
   unsigned		page;		/* Current page */
   unsigned		media_sheets = 0,
 			impressions = 0;/* Page/sheet counters */
-
+  void *rendering; /* instance of pdf renderer */
 
  /*
   * Open the file...
@@ -1567,8 +1567,6 @@ xform_document(
     fputs("ERROR: Unable to create CFURL for file.\n", stderr);
     return (1);
   }
-
-  void *rendering;
 
   if (!strcmp(informat, "application/pdf"))
   {
@@ -2097,7 +2095,7 @@ xform_document(
  * 'xform_document()' - Transform a file for printing.
  */
 
-int				/* O - 0 on success, 1 on error */
+static int				/* O - 0 on success, 1 on error */
 xform_document(
     const char       *filename,		/* I - File to transform */
     const char       *informat,		/* I - Input format (MIME media type) */
