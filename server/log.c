@@ -226,7 +226,7 @@ server_log_to_file(
 #ifdef _WIN32
   _cups_gettimeofday(&curtime, NULL);
   time_t tv_sec = (time_t)curtime.tv_sec;
-  gmtime_s(&tv_sec, &curdate);
+  gmtime_s(&curdate, &tv_sec);
 #else
   gettimeofday(&curtime, NULL);
   gmtime_r(&curtime.tv_sec, &curdate);
