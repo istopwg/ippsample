@@ -167,15 +167,32 @@ serverLogPrinter(
      const char        *format,		/* I - Printf-style format string */
      ...)				/* I - Additional arguments as needed */
 {
-  char		temp[1024];		/* Temporary format string */
+  char		temp[1024],		/* Temporary format string */
+		*tempptr,		/* Pointer into temporary string */
+		*nameptr;		/* Pointer into printer name */
   va_list	ap;			/* Pointer to arguments */
 
 
   if (level > LogLevel)
     return;
 
+ /*
+  * Prefix the message with "[Printer foo]", making sure to not insert any
+  * printf format specifiers.
+  */
+
+  strlcpy(temp, "[Printer ", sizeof(temp));
+  for (tempptr = temp + 9, nameptr = printer->name; *nameptr && tempptr < (temp + 200); tempptr ++)
+  {
+    if (*nameptr == '%')
+      *tempptr++ = '%';
+    *tempptr = *nameptr++;
+  }
+  *tempptr++ = ']';
+  *tempptr++ = ' ';
+  strlcpy(tempptr, format, sizeof(temp) - (size_t)(tempptr - temp));
+
   va_start(ap, format);
-  snprintf(temp, sizeof(temp), "[Printer %s] %s", printer->name, format);
   server_log_to_file(level, temp, ap);
   va_end(ap);
 }

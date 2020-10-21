@@ -3,3 +3,4 @@ queries:
   - exclude: cpp/missing-header-guard
   - exclude: cpp/short-global-name
   - exclude: cpp/uncontrolled-allocation-size
+  - exclude: cpp/tainted-format-string
