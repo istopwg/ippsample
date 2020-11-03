@@ -841,6 +841,13 @@ httpGetDateTime(const char *s)		/* I - Date/time string */
                 "min=%d, sec=%d", day, mon, year, hour, min, sec));
 
  /*
+  * Check for invalid year (RFC 7231 says it's 4DIGIT)
+  */
+
+  if (year > 9999)
+    return (0);
+
+ /*
   * Convert the month name to a number from 0 to 11.
   */
 
@@ -2483,7 +2490,7 @@ http_poll_cb(
 static void
 http_resolve_cb(
     AvahiServiceResolver   *resolver,	/* I - Resolver (unused) */
-    AvahiIfIndex           interface,	/* I - Interface index (unused) */
+    AvahiIfIndex           interface,	/* I - Interface index */
     AvahiProtocol          protocol,	/* I - Network protocol (unused) */
     AvahiResolverEvent     event,	/* I - Event (found, etc.) */
     const char             *name,	/* I - Service name */
@@ -2504,6 +2511,8 @@ http_resolve_cb(
 			*resdefault;	/* Default path */
   char			resource[257],	/* Remote path */
 			fqdn[256];	/* FQDN of the .local name */
+  char			ifname[IF_NAMESIZE];
+					/* Interface name */
   AvahiStringList	*pair;		/* Current TXT record key/value pair */
   char			*value;		/* Value for "rp" key */
   size_t		valueLen = 0;	/* Length of "rp" key */
@@ -2631,12 +2640,32 @@ http_resolve_cb(
   }
 
  /*
-  * Lookup the FQDN if needed...
+  * Get the name of the interface this is coming from...
   */
 
-  if ((uribuf->options & _HTTP_RESOLVE_FQDN) &&
-      (hostptr = hostTarget + strlen(hostTarget) - 6) > hostTarget &&
-      !_cups_strcasecmp(hostptr, ".local"))
+  if (!if_indextoname((unsigned int)interface, ifname))
+  {
+    if (uribuf->options & _HTTP_RESOLVE_STDERR)
+      fprintf(stderr, "DEBUG: Unable to find interface name for interface %d: %s\n", interface, strerror(errno));
+    DEBUG_printf(("Unable to find interface name for interface %d: %s\n", interface, strerror(errno)));
+    ifname[0] = '\0';
+  }
+
+  if (!strcmp(ifname, "lo"))
+  {
+   /*
+    * If this service is registered on loopback interface ("lo"), force the host
+    * name to "localhost"...
+    */
+
+    if (uribuf->options & _HTTP_RESOLVE_STDERR)
+      fputs("DEBUG: Service comes from loopback interface \"lo\", setting \"localhost\" as host name.\n", stderr);
+    DEBUG_puts("Service comes from loopback interface \"lo\", setting \"localhost\" as host name.");
+    hostTarget = "localhost";
+  }
+  else if ((uribuf->options & _HTTP_RESOLVE_FQDN) &&
+	   (hostptr = hostTarget + strlen(hostTarget) - 6) > hostTarget &&
+	   !_cups_strcasecmp(hostptr, ".local"))
   {
    /*
     * OK, we got a .local name but the caller needs a real domain.  Start by
@@ -2682,8 +2711,7 @@ http_resolve_cb(
   * Assemble the final device URI using the resolved hostname...
   */
 
-  httpAssembleURI(HTTP_URI_CODING_ALL, uribuf->buffer, (int)uribuf->bufsize, scheme,
-                  NULL, hostTarget, port, resource);
+  httpAssembleURI(HTTP_URI_CODING_ALL, uribuf->buffer, (int)uribuf->bufsize, scheme, NULL, hostTarget, port, resource);
   DEBUG_printf(("5http_resolve_cb: Resolved URI is \"%s\".", uribuf->buffer));
 
   avahi_simple_poll_quit(uribuf->poll);
