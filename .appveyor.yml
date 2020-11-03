@@ -24,8 +24,8 @@ build_script:
 
 test_script:
   - .\vcnet\x64\Release\ippfind.exe --help
-  - .\vcnet\x64\Release\ipptool.exe --help
-  - .\vcnet\x64\Release\ippserver.exe --help
+#  - .\vcnet\x64\Release\ipptool.exe --help
+#  - .\vcnet\x64\Release\ippserver.exe --help
 
 artifacts:
   - path: '**\*.exe'
