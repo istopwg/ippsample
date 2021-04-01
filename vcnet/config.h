@@ -1,7 +1,7 @@
 /*
  * Configuration file for the IPP samples on Windows.
  *
- * Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group.
+ * Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group.
  * Copyright © 2007-2019 by Apple Inc.
  * Copyright © 1997-2007 by Easy Software Products.
  *
@@ -171,15 +171,6 @@ typedef unsigned long useconds_t;
 
 
 /*
- * Use <string.h>, <strings.h>, and/or <bstring.h>?
- */
-
-#define HAVE_STRING_H 1
-/* #undef HAVE_STRINGS_H */
-/* #undef HAVE_BSTRING_H */
-
-
-/*
  * Do we have the long long type?
  */
 
@@ -218,9 +209,8 @@ typedef unsigned long useconds_t;
  * Do we have the (v)snprintf() functions?
  */
 
-/* Windows snprintf/vsnprintf are non-conforming */
-/* #def HAVE_SNPRINTF */
-/* #undef HAVE_VSNPRINTF */
+#define HAVE_SNPRINTF 1
+#define HAVE_VSNPRINTF 1
 
 
 /*
@@ -250,17 +240,10 @@ typedef unsigned long useconds_t;
  * Which encryption libraries do we have?
  */
 
+#define HAVE_TLS 1
 /* #undef HAVE_CDSASSL */
 /* #undef HAVE_GNUTLS */
-#define HAVE_SSPISSL
-#define HAVE_SSL
-
-
-/*
- * Do we have the gnutls_fips140_set_mode function?
- */
-
-/* #undef HAVE_GNUTLS_FIPS140_SET_MODE */
+#define HAVE_SSPISSL 1
 
 
 /*
@@ -294,10 +277,16 @@ typedef unsigned long useconds_t;
 
 
 /*
- * Do we have mDNSResponder for DNS Service Discovery (aka Bonjour)?
+ * Do we have DNS Service Discovery (aka Bonjour) support?
  */
 
 #define HAVE_DNSSD 1
+
+/*
+ * Do we have mDNSResponder for DNS Service Discovery (aka Bonjour)?
+ */
+
+#define HAVE_MDNSRESPONDER 1
 
 
 /*

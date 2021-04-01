@@ -1,7 +1,7 @@
 /*
  * Configuration file for the IPP sample code.
  *
- * Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group.
+ * Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group.
  * Copyright © 2007-2019 by Apple Inc.
  * Copyright © 1997-2007 by Easy Software Products.
  *
@@ -81,15 +81,6 @@
 
 
 /*
- * Use <string.h>, <strings.h>, and/or <bstring.h>?
- */
-
-#define HAVE_STRING_H 1
-#define HAVE_STRINGS_H 1
-/* #undef HAVE_BSTRING_H */
-
-
-/*
  * Do we have the long long type?
  */
 
@@ -159,17 +150,10 @@
  * Which encryption libraries do we have?
  */
 
+#define HAVE_TLS 1
 #define HAVE_CDSASSL 1
 /* #undef HAVE_GNUTLS */
 /* #undef HAVE_SSPISSL */
-#define HAVE_SSL 1
-
-
-/*
- * Do we have the gnutls_fips140_set_mode function?
- */
-
-/* #undef HAVE_GNUTLS_FIPS140_SET_MODE */
 
 
 /*
@@ -203,10 +187,16 @@
 
 
 /*
- * Do we have mDNSResponder for DNS Service Discovery (aka Bonjour)?
+ * Do we have DNS Service Discovery (aka Bonjour) support?
  */
 
 #define HAVE_DNSSD 1
+
+/*
+ * Do we have mDNSResponder for DNS Service Discovery (aka Bonjour)?
+ */
+
+#define HAVE_MDNSRESPONDER 1
 
 
 /*
