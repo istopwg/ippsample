@@ -6,9 +6,11 @@ Systems.  It is largely based upon the [CUPS](https://www.cups.org/) software,
 with substantial changes to the original `ippproxy` and `ippserver` sample code
 to make them more general-purpose and configurable.
 
-[![Travis Build Status](https://travis-ci.org/istopwg/ippsample.svg?branch=master)](https://travis-ci.org/istopwg/ippsample)
+![Version](https://img.shields.io/github/v/release/istopwg/ippsample?include_prereleases)
+![Apache 2.0](https://img.shields.io/github/license/istopwg/ippsample)
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/0ofsfvaqk984tew9?svg=true)](https://ci.appveyor.com/project/michaelrsweet/ippsample)
-[![Snap Status](https://build.snapcraft.io/badge/istopwg/ippsample.svg)](https://build.snapcraft.io/user/istopwg/ippsample)
+![Build and Test](https://github.com/istopwg/ippsample/workflows/Build%20and%20Test/badge.svg)
+[![ipp](https://snapcraft.io/ipp/badge.svg)](https://snapcraft.io/ipp)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/istopwg/ippsample.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/istopwg/ippsample/alerts/)
 [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/istopwg/ippsample.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/istopwg/ippsample/context:cpp)
 
@@ -88,7 +90,7 @@ printers.
 Legal Stuff
 -----------
 
-Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group.
+Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group.
 Copyright © 2007-2019 by Apple Inc.
 Copyright © 1997-2007 by Easy Software Products.
 
