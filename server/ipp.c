@@ -1,7 +1,7 @@
 /*
  * IPP processing code for sample IPP server implementation.
  *
- * Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -777,11 +777,11 @@ copy_document_uri(
   {
     serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "GET %s", uri);
 
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
     if (port == 443 || !strcmp(scheme, "https"))
       encryption = HTTP_ENCRYPTION_ALWAYS;
     else
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
     encryption = HTTP_ENCRYPTION_IF_REQUESTED;
 
     if ((http = httpConnect2(hostname, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
@@ -827,11 +827,11 @@ copy_document_uri(
 	return (0);
       }
 
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
       if (strcmp(scheme, "http") && strcmp(scheme, "https"))
 #else
       if (strcmp(scheme, "http"))
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
       {
 	serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Redirected to unsupported URI scheme \"%s\".", scheme);
 
@@ -1117,10 +1117,10 @@ copy_printer_attributes(
       const char	*scheme = "http";
 					/* URL scheme */
 
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
       if (Encryption != HTTP_ENCRYPTION_NEVER)
         scheme = "https";
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
 
       httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), scheme, NULL, lis->host, lis->port, match->resource->resource);
       ippAddString(client->response, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-strings-uri", NULL, uri);
@@ -1404,9 +1404,9 @@ get_document_uri(
   }
 
   if (strcmp(scheme, "file") &&
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
       strcmp(scheme, "https") &&
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
       strcmp(scheme, "http"))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_URI_SCHEME, "URI scheme \"%s\" not supported.", scheme);
@@ -5058,10 +5058,10 @@ ipp_get_system_attributes(
       const char	*scheme = "http";
 					/* URL scheme */
 
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
       if (Encryption != HTTP_ENCRYPTION_NEVER)
         scheme = "https";
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
 
       httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), scheme, NULL, lis->host, lis->port, "%s/%s.strings", printer->resource, match->lang);
       ippAddString(client->response, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-strings-uri", NULL, uri);

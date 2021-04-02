@@ -1,7 +1,7 @@
 /*
  * Printer object code for sample IPP server implementation.
  *
- * Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -20,14 +20,14 @@ static int		compare_completed_jobs(server_job_t *a, server_job_t *b);
 static int		compare_jobs(server_job_t *a, server_job_t *b);
 static ipp_t		*create_media_col(const char *media, const char *source, const char *type, int width, int length, int margins);
 static ipp_t		*create_media_size(int width, int length);
-#ifdef HAVE_DNSSD
+#ifdef HAVE_MDNSRESPONDER
 static void DNSSD_API	dnssd_callback(DNSServiceRef sdRef, DNSServiceFlags flags, DNSServiceErrorType errorCode, const char *name, const char *regtype, const char *domain, server_printer_t *printer);
 #elif defined(HAVE_AVAHI)
 static void		dnssd_callback(AvahiEntryGroup *p, AvahiEntryGroupState state, void *context);
-#endif /* HAVE_DNSSD */
-#if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
+#endif /* HAVE_MDNSRESPONDER */
+#ifdef HAVE_DNSSD
 static void		register_geo(server_printer_t *printer);
-#endif /* HAVE_DNSSD || HAVE_AVAHI */
+#endif /* HAVE_DNSSD */
 
 
 /*
@@ -656,9 +656,9 @@ serverCreatePrinter(
   {					/* reference-uri-schemes-supported */
     "ftp",
     "http",
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
     "https",
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
     "file"
   };
   static const char * const sides_supported[] =
@@ -802,14 +802,14 @@ serverCreatePrinter(
 
   lis = cupsArrayFirst(Listeners);
 
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
   {
     httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPPS_SCHEME, NULL, lis->host, lis->port, resource);
     webscheme = SERVER_HTTPS_SCHEME;
   }
   else
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
   {
     httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPP_SCHEME, NULL, lis->host, lis->port, resource);
     webscheme = SERVER_HTTP_SCHEME;
@@ -1523,11 +1523,11 @@ serverCreatePrinter(
 
     ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
 
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
     if (Encryption != HTTP_ENCRYPTION_NEVER)
       ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "tls");
     else
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
       ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "none");
 
     ippAddString(xri_col, IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uriptrs[i]);
@@ -1579,7 +1579,7 @@ serverCreatePrinter(
     ippSetString(printer->pinfo.attrs, &attr, i, Authentication ? "basic"  : "none");
 
   /* uri-security-supported */
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
   {
     attr = ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", num_uris, NULL, NULL);
@@ -1587,7 +1587,7 @@ serverCreatePrinter(
       ippSetString(printer->pinfo.attrs, &attr, i, "tls");
   }
   else
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
   {
     attr = ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", num_uris, NULL, NULL);
     for (i = 0; i < num_uris; i ++)
@@ -1604,19 +1604,19 @@ serverCreatePrinter(
   ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication-supported", NULL, Authentication ? "basic" : "none");
 
   /* xri-security-supported */
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
     ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "tls");
   else
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
     ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "none");
 
   /* xri-uri-scheme-supported */
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
     ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipps");
   else
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
     ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipp");
 
   if (num_formats > 0)
@@ -1904,7 +1904,7 @@ int					/* O - 1 on success, 0 on error */
 serverRegisterPrinter(
     server_printer_t *printer)		/* I - Printer */
 {
-#if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
+#ifdef HAVE_DNSSD
   int			is_print3d;	/* 3D printer? */
   server_txt_t		ipp_txt;	/* Bonjour IPP TXT record */
   int			i,		/* Looping var */
@@ -1926,9 +1926,9 @@ serverRegisterPrinter(
   server_listener_t	*lis = cupsArrayFirst(Listeners);
 					/* Listen socket */
   char			regtype[256];	/* DNS-SD service type */
-#  ifdef HAVE_DNSSD
+#  ifdef HAVE_MDNSRESPONDER
   DNSServiceErrorType	error;		/* Error from Bonjour */
-#  endif /* HAVE_DNSSD */
+#  endif /* HAVE_MDNSRESPONDER */
 
 
   if (!DNSSDEnabled)
@@ -1991,9 +1991,9 @@ serverRegisterPrinter(
     if (ptr >= (urf + sizeof(urf) - 1))
       break;
   }
-#endif /* HAVE_DNSSD || HAVE_AVAHI */
+#endif /* HAVE_DNSSD */
 
-#ifdef HAVE_DNSSD
+#ifdef HAVE_MDNSRESPONDER
  /*
   * Build the TXT record for IPP...
   */
@@ -2017,10 +2017,10 @@ serverRegisterPrinter(
     TXTRecordSetValue(&ipp_txt, "Duplex", 1, ippGetCount(sides_supported) > 1 ? "T" : "F");
   }
 
-#  ifdef HAVE_SSL
+#  ifdef HAVE_TLS
   if (!is_print3d && Encryption != HTTP_ENCRYPTION_NEVER)
     TXTRecordSetValue(&ipp_txt, "TLS", 3, "1.2");
-#  endif /* HAVE_SSL */
+#  endif /* HAVE_TLS */
   if (urf[0])
     TXTRecordSetValue(&ipp_txt, "URF", (uint8_t)strlen(urf), urf);
   TXTRecordSetValue(&ipp_txt, "txtvers", 1, "1");
@@ -2060,7 +2060,7 @@ serverRegisterPrinter(
     }
   }
 
-#  ifdef HAVE_SSL
+#  ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
   {
     printer->ipps_ref = DNSSDMaster;
@@ -2083,7 +2083,7 @@ serverRegisterPrinter(
       return (0);
     }
   }
-#  endif /* HAVE_SSL */
+#  endif /* HAVE_TLS */
 
  /*
   * Register the geolocation of the service...
@@ -2129,10 +2129,10 @@ serverRegisterPrinter(
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "Duplex=%s", ippGetCount(sides_supported) > 1 ? "T" : "F");
   }
 
-#  ifdef HAVE_SSL
+#  ifdef HAVE_TLS
   if (!is_print3d && Encryption != HTTP_ENCRYPTION_NEVER)
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "TLS=1.2");
-#  endif /* HAVE_SSL */
+#  endif /* HAVE_TLS */
   if (urf[0])
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "URF=%s", urf);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "txtvers=1");
@@ -2174,7 +2174,7 @@ serverRegisterPrinter(
     }
   }
 
-#  ifdef HAVE_SSL
+#  ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
   {
     if (is_print3d)
@@ -2220,7 +2220,7 @@ serverRegisterPrinter(
       }
     }
   }
-#  endif /* HAVE_SSL */
+#  endif /* HAVE_TLS */
 
  /*
   * Register the geolocation of the service...
@@ -2243,7 +2243,7 @@ serverRegisterPrinter(
   avahi_threaded_poll_unlock(DNSSDMaster);
 
   avahi_string_list_free(ipp_txt);
-#endif /* HAVE_DNSSD */
+#endif /* HAVE_MDNSRESPONDER */
 
   return (1);
 }
@@ -2331,7 +2331,7 @@ serverUnregisterPrinter(
   if (!DNSSDEnabled)
     return;
 
-#if HAVE_DNSSD
+#if HAVE_MDNSRESPONDER
   if (printer->geo_ref)
   {
     DNSServiceRemoveRecord(printer->printer_ref, printer->geo_ref, 0);
@@ -2347,13 +2347,13 @@ serverUnregisterPrinter(
     DNSServiceRefDeallocate(printer->ipp_ref);
     printer->ipp_ref = NULL;
   }
-#  ifdef HAVE_SSL
+#  ifdef HAVE_TLS
   if (printer->ipps_ref)
   {
     DNSServiceRefDeallocate(printer->ipps_ref);
     printer->ipps_ref = NULL;
   }
-#  endif /* HAVE_SSL */
+#  endif /* HAVE_TLS */
   if (printer->http_ref)
   {
     DNSServiceRefDeallocate(printer->http_ref);
@@ -2370,7 +2370,7 @@ serverUnregisterPrinter(
   }
 
   avahi_threaded_poll_unlock(DNSSDMaster);
-#endif /* HAVE_DNSSD */
+#endif /* HAVE_MDNSRESPONDER */
 }
 
 
@@ -2492,7 +2492,7 @@ create_media_size(int width,		/* I - x-dimension in 2540ths */
 }
 
 
-#ifdef HAVE_DNSSD
+#ifdef HAVE_MDNSRESPONDER
 /*
  * 'dnssd_callback()' - Handle Bonjour registration events.
  */
@@ -2543,10 +2543,10 @@ dnssd_callback(
   (void)state;
   (void)context;
 }
-#endif /* HAVE_DNSSD */
+#endif /* HAVE_MDNSRESPONDER */
 
 
-#if defined(HAVE_DNSSD) || defined(HAVE_AVAHI)
+#ifdef HAVE_DNSSD
 /*
  * 'register_geo()' - Register (or update) a printer's geo-location via Bonjour.
  */
@@ -2650,21 +2650,21 @@ register_geo(server_printer_t *printer)	/* I - Printer */
 
   if (printer->geo_ref)
   {
-#ifdef HAVE_DNSSD
+#ifdef HAVE_MDNSRESPONDER
     DNSServiceUpdateRecord(printer->ipp_ref, printer->geo_ref, 0, sizeof(loc), loc, 0);
 
 #elif defined(HAVE_AVAHI)
     /* Avahi doesn't support updating */
-#endif /* HAVE_DNSSD */
+#endif /* HAVE_MDNSRESPONDER */
   }
   else
   {
-#ifdef HAVE_DNSSD
+#ifdef HAVE_MDNSRESPONDER
     DNSServiceAddRecord(printer->ipp_ref, &printer->geo_ref, 0, kDNSServiceType_LOC, sizeof(loc), loc, 0);
 
 #elif defined(HAVE_AVAHI)
     avahi_entry_group_add_record(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, AVAHI_DNS_CLASS_IN, 29, 0, loc, sizeof(loc));
-#endif /* HAVE_DNSSD */
+#endif /* HAVE_MDNSRESPONDER */
   }
 }
-#endif /* HAVE_DNSSD || HAVE_AVAHI */
+#endif /* HAVE_DNSSD */

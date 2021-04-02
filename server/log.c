@@ -1,7 +1,7 @@
 /*
  * Logging support for sample IPP server implementation.
  *
- * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group
  * Copyright © 2010-2018 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -117,11 +117,11 @@ serverLogClient(
   va_start(ap, format);
   if (client)
   {
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
     if (httpIsEncrypted(client->http))
       snprintf(temp, sizeof(temp), "[Client %dE] %s", client->number, format);
     else
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
     snprintf(temp, sizeof(temp), "[Client %d] %s", client->number, format);
     server_log_to_file(level, temp, ap);
   }

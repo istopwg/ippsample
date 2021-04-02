@@ -1,14 +1,14 @@
 /*
  * Main entry for IPP Infrastructure Printer sample implementation.
  *
- * Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
  */
 
-#define _MAIN_C_
+#define IPPSERVER_MAIN_C
 #include "ippserver.h"
 
 
@@ -121,7 +121,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      pinfo.output_format = argv[i];
 	      break;
 
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
 	  case 'K' : /* -K keypath */
 	      i ++;
 	      if (i >= argc)
@@ -129,7 +129,7 @@ main(int  argc,				/* I - Number of command-line args */
 
 	      KeychainPath = strdup(argv[i]);
 	      break;
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
 
 	  case 'M' : /* -M manufacturer */
 	      i ++;
@@ -352,9 +352,9 @@ usage(int status)			/* O - Exit status */
   puts("-C config-directory     Load settings and printers from the specified directory");
   puts("-D device-uri           Set the device URI for the printer");
   puts("-F output-type/subtype  Set the output format for the printer");
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
   puts("-K keypath              Specifies the location of certificates and keys");
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
   puts("-M manufacturer         Manufacturer name (default=Test)");
   puts("-P                      PIN printing mode");
   puts("-a attributes-file      Load printer attributes from file");

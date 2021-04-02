@@ -1,7 +1,7 @@
 /*
  * Configuration file support for sample IPP server implementation.
  *
- * Copyright © 2015-2020 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2015-2021 by the IEEE-ISTO Printer Working Group
  * Copyright © 2015-2018 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -1870,11 +1870,11 @@ create_system_attributes(void)
 
       ippAddString(col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
 
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
       if (Encryption != HTTP_ENCRYPTION_NEVER)
         ippAddString(col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "tls");
       else
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
         ippAddString(col, IPP_TAG_ZERO, IPP_TAG_KEYWORD, "xri-security", NULL, "none");
 
       ippAddString(col, IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uri);
@@ -1897,19 +1897,19 @@ create_system_attributes(void)
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication-supported", NULL, Authentication ? "basic" : "none");
 
   /* xri-security-supported */
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
     ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "tls");
   else
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
     ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "none");
 
   /* xri-uri-scheme-supported */
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
     ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipps");
   else
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
     ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipp");
 }
 
@@ -1957,7 +1957,7 @@ dnssd_client_cb(
 static void
 dnssd_init(void)
 {
-#ifdef HAVE_DNSSD
+#ifdef HAVE_MDNSRESPONDER
   if (DNSServiceCreateConnection(&DNSSDMaster) != kDNSServiceErr_NoError)
   {
     fputs("Error: Unable to initialize Bonjour.\n", stderr);
@@ -1980,7 +1980,7 @@ dnssd_init(void)
   }
 
   avahi_threaded_poll_start(DNSSDMaster);
-#endif /* HAVE_DNSSD */
+#endif /* HAVE_MDNSRESPONDER */
 }
 
 
@@ -2059,13 +2059,13 @@ finalize_system(void)
   if (!ServerName)
     ServerName = strdup("localhost");
 
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
  /*
   * Setup TLS certificate for server...
   */
 
   cupsSetServerCredentials(KeychainPath, ServerName, 1);
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
 
  /*
   * Default directories...
@@ -3627,11 +3627,11 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     ippAddString(icc.attrs, IPP_TAG_PRINTER, IPP_TAG_NAME, "profile-name", NULL, value);
     httpAssembleURI(HTTP_URI_CODING_ALL, temp, sizeof(temp),
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
                     Encryption != HTTP_ENCRYPTION_NEVER ? SERVER_HTTPS_SCHEME : SERVER_HTTP_SCHEME,
 #else
                     SERVER_HTTP_SCHEME,
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
                     NULL, ServerName, DefaultPort, icc.resource->resource);
     ippAddString(icc.attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "profile-uri", NULL, temp);
 

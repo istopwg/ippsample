@@ -1,7 +1,7 @@
 /*
  * Client code for sample IPP server implementation.
  *
- * Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -171,13 +171,13 @@ serverProcessClient(
   * Loop until we are out of requests or timeout (30 seconds)...
   */
 
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
   int first_time = 1;			/* First time request? */
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
 
   while (httpWait(client->http, 30000))
   {
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
     if (first_time && Encryption != HTTP_ENCRYPTION_NEVER)
     {
      /*
@@ -202,7 +202,7 @@ serverProcessClient(
 
       first_time = 0;
     }
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
 
     if (!serverProcessHTTP(client))
       break;
@@ -363,7 +363,7 @@ serverProcessHTTP(
   if (!strcasecmp(httpGetField(client->http, HTTP_FIELD_CONNECTION),
                         "Upgrade"))
   {
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
     if (strstr(httpGetField(client->http, HTTP_FIELD_UPGRADE), "TLS/") != NULL && !httpIsEncrypted(client->http) && Encryption != HTTP_ENCRYPTION_NEVER)
     {
       if (!serverRespondHTTP(client, HTTP_STATUS_SWITCHING_PROTOCOLS, NULL, NULL, 0))
@@ -381,20 +381,20 @@ serverProcessHTTP(
       serverLogClient(SERVER_LOGLEVEL_INFO, client, "Connection now encrypted.");
     }
     else
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
 
     if (!serverRespondHTTP(client, HTTP_STATUS_NOT_IMPLEMENTED, NULL, NULL, 0))
       return (0);
   }
 
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
   if (Encryption == HTTP_ENCRYPTION_REQUIRED && !httpIsEncrypted(client->http))
   {
     serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Forcing encryption of connection.");
     serverRespondHTTP(client, HTTP_STATUS_UPGRADE_REQUIRED, NULL, NULL, 0);
     return (0);
   }
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
 
  /*
   * Handle HTTP Expect...
@@ -824,9 +824,9 @@ serverRespondHTTP(
 void
 serverRun(void)
 {
-#ifdef HAVE_DNSSD
+#ifdef HAVE_MDNSRESPONDER
   int			fd;		/* File descriptor */
-#endif /* HAVE_DNSSD */
+#endif /* HAVE_MDNSRESPONDER */
   int			max_fd;		/* Number of file descriptors */
   fd_set		input;		/* select() input set */
   struct timeval	timeout;	/* Timeout for poll() */
@@ -858,7 +858,7 @@ serverRun(void)
         max_fd = lis->fd;
     }
 
-#ifdef HAVE_DNSSD
+#ifdef HAVE_MDNSRESPONDER
     if (DNSSDEnabled)
     {
       fd = DNSServiceRefSockFD(DNSSDMaster);
@@ -866,7 +866,7 @@ serverRun(void)
       if (max_fd < fd)
         max_fd = fd;
     }
-#endif /* HAVE_DNSSD */
+#endif /* HAVE_MDNSRESPONDER */
 
     timeout.tv_sec  = 86400;
     timeout.tv_usec = 0;
@@ -900,13 +900,13 @@ serverRun(void)
       }
     }
 
-#ifdef HAVE_DNSSD
+#ifdef HAVE_MDNSRESPONDER
     if (DNSSDEnabled && FD_ISSET(DNSServiceRefSockFD(DNSSDMaster), &input))
     {
       serverLog(SERVER_LOGLEVEL_DEBUG, "serverRun: Input on DNS-SD socket.");
       DNSServiceProcessResult(DNSSDMaster);
     }
-#endif /* HAVE_DNSSD */
+#endif /* HAVE_MDNSRESPONDER */
 
     if (time(NULL) >= next_clean)
     {

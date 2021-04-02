@@ -1,97 +1,100 @@
 /*
  * Header file for sample IPP server implementation.
  *
- * Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
  */
 
+#ifndef IPPSERVER_H
+#  define IPPSERVER_H
+
 /*
  * Disable deprecated stuff so we can verify that the public API is sufficient
  * to implement a server.
  */
 
-#define _CUPS_NO_DEPRECATED 1		/* Disable deprecated stuff */
+#  define _CUPS_NO_DEPRECATED 1		/* Disable deprecated stuff */
 
 
 /*
  * Include necessary headers...
  */
 
-#include <config.h>			/* CUPS configuration header */
-#include <cups/cups.h>			/* Public API */
-#include <cups/string-private.h>	/* CUPS string functions */
-#include <cups/thread-private.h>	/* For multithreading functions */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <errno.h>
-#include <limits.h>
-#include <sys/stat.h>
+#  include <config.h>			/* CUPS configuration header */
+#  include <cups/cups.h>		/* Public API */
+#  include <cups/string-private.h>	/* CUPS string functions */
+#  include <cups/thread-private.h>	/* For multithreading functions */
+#  include <stdio.h>
+#  include <stdlib.h>
+#  include <string.h>
+#  include <ctype.h>
+#  include <errno.h>
+#  include <limits.h>
+#  include <sys/stat.h>
 
-#ifdef _WIN32
-#  include <fcntl.h>
-#  include <io.h>
-#  include <process.h>
-#  define WEXITSTATUS(s) (s)
-#  include <winsock2.h>
+#  ifdef _WIN32
+#    include <fcntl.h>
+#    include <io.h>
+#    include <process.h>
+#    define WEXITSTATUS(s) (s)
+#    include <winsock2.h>
 typedef ULONG nfds_t;
-#  define poll WSAPoll
+#    define poll WSAPoll
 typedef int gid_t;
-#else
+#  else
 extern char **environ;
 
-#  include <sys/fcntl.h>
-#  include <sys/wait.h>
-#  include <poll.h>
-#endif /* _WIN32 */
+#    include <sys/fcntl.h>
+#    include <sys/wait.h>
+#    include <poll.h>
+#  endif /* _WIN32 */
 
-#ifdef HAVE_DNSSD
-#  include <dns_sd.h>
-#elif defined(HAVE_AVAHI)
-#  include <avahi-client/client.h>
-#  include <avahi-client/publish.h>
-#  include <avahi-common/error.h>
-#  include <avahi-common/thread-watch.h>
-#endif /* HAVE_DNSSD */
+#  ifdef HAVE_MDNSRESPONDER
+#    include <dns_sd.h>
+#  elif defined(HAVE_AVAHI)
+#    include <avahi-client/client.h>
+#    include <avahi-client/publish.h>
+#    include <avahi-common/error.h>
+#    include <avahi-common/thread-watch.h>
+#  endif /* HAVE_MDNSRESPONDER */
 
-#ifdef HAVE_SYS_MOUNT_H
-#  include <sys/mount.h>
-#endif /* HAVE_SYS_MOUNT_H */
-#ifdef HAVE_SYS_STATFS_H
-#  include <sys/statfs.h>
-#endif /* HAVE_SYS_STATFS_H */
-#ifdef HAVE_SYS_STATVFS_H
-#  include <sys/statvfs.h>
-#endif /* HAVE_SYS_STATVFS_H */
-#ifdef HAVE_SYS_VFS_H
-#  include <sys/vfs.h>
-#endif /* HAVE_SYS_VFS_H */
+#  ifdef HAVE_SYS_MOUNT_H
+#    include <sys/mount.h>
+#  endif /* HAVE_SYS_MOUNT_H */
+#  ifdef HAVE_SYS_STATFS_H
+#    include <sys/statfs.h>
+#  endif /* HAVE_SYS_STATFS_H */
+#  ifdef HAVE_SYS_STATVFS_H
+#    include <sys/statvfs.h>
+#  endif /* HAVE_SYS_STATVFS_H */
+#  ifdef HAVE_SYS_VFS_H
+#    include <sys/vfs.h>
+#  endif /* HAVE_SYS_VFS_H */
 
-#ifdef HAVE_PTHREAD_H
-#  define _cupsCondDeinit(c)	pthread_cond_destroy(c)
-#  define _cupsMutexDeinit(m)	pthread_mutex_destroy(m)
-#  define _cupsRWDeinit(rw)	pthread_rwlock_destroy(rw)
-#else
-#  define _cupsCondDeinit(c)
-#  define _cupsMutexDeinit(m)
-#  define _cupsRWDeinit(rw)
-#endif /* HAVE_PTHREAD_H */
+#  ifdef HAVE_PTHREAD_H
+#    define _cupsCondDeinit(c)	pthread_cond_destroy(c)
+#    define _cupsMutexDeinit(m)	pthread_mutex_destroy(m)
+#    define _cupsRWDeinit(rw)	pthread_rwlock_destroy(rw)
+#  else
+#    define _cupsCondDeinit(c)
+#    define _cupsMutexDeinit(m)
+#    define _cupsRWDeinit(rw)
+#  endif /* HAVE_PTHREAD_H */
 
 #  ifndef O_BINARY			/* Windows "binary file" nonsense */
 #    define O_BINARY 0
 #  endif /* !O_BINARY */
 
-#ifdef _MAIN_C_
-#  define VAR
-#  define VALUE(...) =__VA_ARGS__
-#else
-#  define VAR extern
-#  define VALUE(...)
-#endif /* _MAIN_C_ */
+#  ifdef IPPSERVER_MAIN_C
+#    define VAR
+#    define VALUE(...) =__VA_ARGS__
+#  else
+#    define VAR extern
+#    define VALUE(...)
+#  endif /* IPPSERVER_MAIN_C */
 
 
 /*
@@ -401,7 +404,7 @@ typedef enum server_type_e		/* Service types */
  * Base types...
  */
 
-#  ifdef HAVE_DNSSD
+#  ifdef HAVE_MDNSRESPONDER
 typedef DNSServiceRef server_srv_t;	/* Service reference */
 typedef TXTRecordRef server_txt_t;	/* TXT record */
 typedef DNSRecordRef server_loc_t;	/* LOC record */
@@ -415,7 +418,7 @@ typedef void *server_loc_t;		/* LOC record */
 typedef void *server_srv_t;		/* Service reference */
 typedef void *server_txt_t;		/* TXT record */
 typedef void *server_loc_t;		/* LOC record */
-#  endif /* HAVE_DNSSD */
+#  endif /* HAVE_MDNSRESPONDER */
 
 
 /*
@@ -489,11 +492,11 @@ typedef struct server_printer_s		/**** Printer data ****/
   _cups_rwlock_t	rwlock;		/* Printer lock */
 #ifdef HAVE_AVAHI
   server_srv_t		dnssd_ref;	/* DNS-SD registrations */
-#elif defined(HAVE_DNSSD)
+#elif defined(HAVE_MDNSRESPONDER)
   server_srv_t		ipp_ref,	/* DNS-SD IPP service */
-#  ifdef HAVE_SSL
+#  ifdef HAVE_TLS
 			ipps_ref,	/* DNS-SD IPPS service */
-#  endif /* HAVE_SSL */
+#  endif /* HAVE_TLS */
 			http_ref,	/* DNS-SD HTTP(S) service */
 			printer_ref;	/* DNS-SD LPD service */
 #endif /* HAVE_AVAHI */
@@ -676,9 +679,9 @@ VAR char		*DefaultSystemURI VALUE(NULL);
 VAR http_encryption_t	Encryption	VALUE(HTTP_ENCRYPTION_IF_REQUESTED);
 VAR cups_array_t	*FileDirectories VALUE(NULL);
 VAR int			KeepFiles	VALUE(0);
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
 VAR char		*KeychainPath	VALUE(NULL);
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
 VAR cups_array_t	*Listeners	VALUE(NULL);
 VAR char		*LogFile	VALUE(NULL);
 VAR server_loglevel_t	LogLevel	VALUE(SERVER_LOGLEVEL_ERROR);
@@ -693,12 +696,12 @@ VAR char		*SpoolDirectory	VALUE(NULL);
 VAR char		*StateDirectory	VALUE(NULL);
 
 VAR int			DNSSDEnabled	VALUE(1);
-#ifdef HAVE_DNSSD
+#ifdef HAVE_MDNSRESPONDER
 VAR DNSServiceRef	DNSSDMaster	VALUE(NULL);
 #elif defined(HAVE_AVAHI)
 VAR AvahiThreadedPoll	*DNSSDMaster	VALUE(NULL);
 VAR AvahiClient		*DNSSDClient	VALUE(NULL);
-#endif /* HAVE_DNSSD */
+#endif /* HAVE_MDNSRESPONDER */
 VAR char		*DNSSDSubType	VALUE(NULL);
 
 VAR _cups_rwlock_t	ResourcesRWLock	VALUE(_CUPS_RWLOCK_INITIALIZER);
@@ -791,3 +794,6 @@ extern int		serverTransformJob(server_client_t *client, server_job_t *job, const
 extern void		serverUnregisterPrinter(server_printer_t *printer);
 extern void		serverUpdateDeviceAttributesNoLock(server_printer_t *printer);
 extern void		serverUpdateDeviceStateNoLock(server_printer_t *printer);
+
+
+#endif // !IPPSERVER_H

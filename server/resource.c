@@ -1,7 +1,7 @@
 /*
  * Resource object code for sample IPP server implementation.
  *
- * Copyright © 2018-2019 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2018-2021 by the IEEE-ISTO Printer Working Group
  * Copyright © 2018-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -58,11 +58,11 @@ serverAddResourceFile(
 
   _cupsRWUnlock(&ResourcesRWLock);
 
-#ifdef HAVE_SSL
+#ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
     httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "https", NULL, lis->host, lis->port, res->resource);
   else
-#endif /* HAVE_SSL */
+#endif /* HAVE_TLS */
     httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "http", NULL, lis->host, lis->port, res->resource);
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_URI, "resource-data-uri", NULL, uri);
 
