@@ -1,7 +1,7 @@
 #
 # IPP examples makefile.
 #
-# Copyright © 2019 by the IEEE-ISTO Printer Working Group.
+# Copyright © 2021 by the IEEE-ISTO Printer Working Group.
 # Copyright © 2019 by Apple Inc.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -79,14 +79,15 @@ TESTFILES	=	\
 			ipp-3d.test \
 			ipp-everywhere.test \
 			pause-printer.test \
+			print-job.test \
 			print-job-and-wait.test \
 			print-job-deflate.test \
 			print-job-draft.test \
 			print-job-gzip.test \
 			print-job-hold.test \
 			print-job-media-col.test \
+			print-job-media-needed.test \
 			print-job-password.test \
-			print-job.test \
 			print-uri.test \
 			pwg5100.1.test \
 			pwg5100.2.test \

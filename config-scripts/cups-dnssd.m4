@@ -26,6 +26,7 @@ AC_ARG_WITH([dnssd_includes], AS_HELP_STRING([--with-dnssd-includes], [set direc
 DNSSDLIBS=""
 DNSSD_BACKEND=""
 IPPFIND_BIN=""
+IPPFIND_HTML=""
 IPPFIND_MAN=""
 
 dnl First try using mDNSResponder...
@@ -38,6 +39,7 @@ AS_IF([test $with_dnssd = yes -o $with_dnssd = mdnsresponder], [
 	    AC_DEFINE([HAVE_MDNSRESPONDER], [1], [Have mDNSResponder library?])
 	    DNSSD_BACKEND="dnssd"
 	    IPPFIND_BIN="ippfind"
+	    IPPFIND_HTML="ippfind.html"
 	    IPPFIND_MAN="ippfind.1"
 	], [*], [
 	    # All others...
@@ -59,6 +61,7 @@ AS_IF([test $with_dnssd = yes -o $with_dnssd = mdnsresponder], [
 		DNSSDLIBS="-ldns_sd"
 		DNSSD_BACKEND="dnssd"
 		IPPFIND_BIN="ippfind"
+		IPPFIND_HTML="ippfind.html"
 		IPPFIND_MAN="ippfind.1"
 		PKGCONFIG_LIBS_STATIC="$PKGCONFIG_LIBS_STATIC $DNSSDLIBS"
 	    ], [
@@ -86,6 +89,7 @@ AS_IF([test $with_dnssd = avahi -o $with_dnssd = yes], [
 	    DNSSDLIBS="`$PKGCONFIG --libs avahi-client`"
 	    DNSSD_BACKEND="dnssd"
 	    IPPFIND_BIN="ippfind"
+	    IPPFIND_HTML="ippfind.html"
 	    IPPFIND_MAN="ippfind.1"
 		PKGCONFIG_REQUIRES="$PKGCONFIG_REQUIRES avahi-client"
 	    AC_DEFINE([HAVE_AVAHI], [1], [Have Avahi client library?])
@@ -102,4 +106,5 @@ AS_IF([test $with_dnssd = avahi -o $with_dnssd = yes], [
 AC_SUBST([DNSSDLIBS])
 AC_SUBST([DNSSD_BACKEND])
 AC_SUBST([IPPFIND_BIN])
+AC_SUBST([IPPFIND_HTML])
 AC_SUBST([IPPFIND_MAN])
