@@ -1,7 +1,7 @@
 /*
  * Utility for converting PDF and JPEG files to raster data or HP PCL.
  *
- * Copyright © 2016-2019 by the IEEE-ISTO Printer Working Group.
+ * Copyright © 2016-2021 by the IEEE-ISTO Printer Working Group.
  * Copyright © 2016-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -1331,7 +1331,7 @@ raster_start_page(xform_raster_t   *ras,/* I - Raster information */
   else
     cupsRasterWriteHeader2(ras->ras, &ras->header);
 
-  if (ras->header.cupsBitsPerPixel == 1)
+  if (ras->header.cupsBitsPerPixel == 1 || ras->header.cupsColorSpace == CUPS_CSPACE_K)
   {
     ras->out_length = ras->header.cupsBytesPerLine;
     ras->out_buffer = malloc(ras->header.cupsBytesPerLine);
@@ -1409,8 +1409,20 @@ raster_write_line(
 
     cupsRasterWritePixels(ras->ras, ras->out_buffer, ras->header.cupsBytesPerLine);
   }
+  else if (ras->header.cupsColorSpace == CUPS_CSPACE_K)
+  {
+    unsigned		x;		/* Column number */
+    unsigned char	*outptr;	/* Pointer into output buffer */
+
+    for (x = ras->left, outptr = ras->out_buffer; x < ras->right; x ++)
+      *outptr++ = 255 - *line++;
+
+    cupsRasterWritePixels(ras->ras, ras->out_buffer, ras->header.cupsBytesPerLine);
+  }
   else
+  {
     cupsRasterWritePixels(ras->ras, (unsigned char *)line, ras->header.cupsBytesPerLine);
+  }
 }
 
 
