@@ -123,6 +123,8 @@ cupsDirOpen(const char *directory)	/* I - Directory name */
   dp->dir = INVALID_HANDLE_VALUE;
 
   strlcpy(dp->directory, directory, sizeof(dp->directory));
+  if (strlcat(dp->directory, "\\*", sizeof(dp->directory)) >= sizeof(dp->directory)) /* FindFirstFile needs a pattern */
+    return (NULL);
 
  /*
   * Return the new directory structure...
