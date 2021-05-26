@@ -14,6 +14,10 @@ to make them more general-purpose and configurable.
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/istopwg/ippsample.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/istopwg/ippsample/alerts/)
 [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/istopwg/ippsample.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/istopwg/ippsample/context:cpp)
 
+> Note: This code is provided for educational purposes only.  It is not
+> intended as a production solution of any kind, hasn't gone through any
+> formal security testing or analysis, and might eat your pet...
+
 
 ipp3dprinter
 -------------
