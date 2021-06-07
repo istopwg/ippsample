@@ -355,6 +355,9 @@ serverFindPrinter(const char *resource)	/* I - Resource path */
 			*match = NULL;	/* Matching printer */
 
 
+  if (cupsArrayCount(Printers) == 0)
+    return (NULL);
+
   _cupsRWLockRead(&PrintersRWLock);
   if (cupsArrayCount(Printers) == 1 || !strcmp(resource, "/ipp/print"))
   {
