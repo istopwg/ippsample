@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=ippserver
+Comment=Sample implementation of an IPP Server
+Exec=ippserver
+Icon=printer
+Terminal=true
+Type=Application
+Categories=System;Printing;
