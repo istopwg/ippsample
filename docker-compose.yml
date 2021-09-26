@@ -9,6 +9,7 @@ services:
       - './test:/config'
       - './data/print:/print'
       - './data/spool:/spool'
+      - './data/tools:/tools'
     command: ippserver -C /config -r _print
 
   ippfind:
