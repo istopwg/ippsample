@@ -49,14 +49,14 @@ jobs:
       -
         name: Call commands
         run: |
-          docker run ippsample:${{ github.sha }} ipp3dprinter --help
-          docker run ippsample:${{ github.sha }} ippeveprinter --help
-          docker run ippsample:${{ github.sha }} ippfind --help
-          docker run ippsample:${{ github.sha }} ipptool --help
-          docker run ippsample:${{ github.sha }} ippproxy --help
-          docker run ippsample:${{ github.sha }} ippserver --help
-          docker run ippsample:${{ github.sha }} ipptransform --help
-          docker run ippsample:${{ github.sha }} ipptransform3d --help
+          docker run ippsample:${{ github.sha }} ipp3dprinter --version
+          docker run ippsample:${{ github.sha }} ippeveprinter --version
+          docker run ippsample:${{ github.sha }} ippfind --version
+          docker run ippsample:${{ github.sha }} ipptool --version
+          docker run ippsample:${{ github.sha }} ippproxy --version
+          docker run ippsample:${{ github.sha }} ippserver --version
+          docker run ippsample:${{ github.sha }} ipptransform --version
+          docker run ippsample:${{ github.sha }} ipptransform3d --version
 
   hub:
     runs-on: ubuntu-latest
