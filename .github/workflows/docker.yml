@@ -28,7 +28,7 @@ jobs:
           name: ippsample
           path: /tmp/ippsample.tar
 
-  use:
+  test:
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -49,7 +49,7 @@ jobs:
 
   hub:
     runs-on: ubuntu-latest
-    needs: use
+    needs: test
     steps:
       -
         name: Set up Docker Buildx
@@ -82,7 +82,7 @@ jobs:
 
   ghcr:
     runs-on: ubuntu-latest
-    needs: use
+    needs: test
     steps:
       -
         name: Set up Docker Buildx
