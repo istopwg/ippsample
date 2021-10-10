@@ -93,6 +93,7 @@ jobs:
   ghcr:
     runs-on: ubuntu-latest
     needs: test
+    if: ${{ secrets.GHCR_IMAGE && secrets.GITHUB_TOKEN }}
     steps:
       -
         name: Set up Docker Buildx
