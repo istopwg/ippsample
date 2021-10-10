@@ -22,6 +22,10 @@ jobs:
           tags: ippsample:${{ github.sha }}
           outputs: type=docker,dest=/tmp/ippsample.tar
       -
+        name: Display image details
+        run: |
+          docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedSince}}"
+      -
         name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
