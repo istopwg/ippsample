@@ -46,6 +46,18 @@ jobs:
         run: |
           docker load --input /tmp/ippsample.tar
           docker image ls -a
+      -
+        name: Call commands
+        run: |
+          docker run ippsample:${{ github.sha }} ipp3dprinter --help
+          docker run ippsample:${{ github.sha }} ippdoclint --help
+          docker run ippsample:${{ github.sha }} ippeveprinter --help
+          docker run ippsample:${{ github.sha }} ippfind --help
+          docker run ippsample:${{ github.sha }} ipptool --help
+          docker run ippsample:${{ github.sha }} ippproxy --help
+          docker run ippsample:${{ github.sha }} ippserver --help
+          docker run ippsample:${{ github.sha }} ipptransform --help
+          docker run ippsample:${{ github.sha }} ipptransform3d --help
 
   hub:
     runs-on: ubuntu-latest
