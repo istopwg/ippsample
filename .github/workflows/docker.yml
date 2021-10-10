@@ -50,7 +50,6 @@ jobs:
         name: Call commands
         run: |
           docker run ippsample:${{ github.sha }} ipp3dprinter --help
-          docker run ippsample:${{ github.sha }} ippdoclint --help
           docker run ippsample:${{ github.sha }} ippeveprinter --help
           docker run ippsample:${{ github.sha }} ippfind --help
           docker run ippsample:${{ github.sha }} ipptool --help
