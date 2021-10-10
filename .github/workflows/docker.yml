@@ -19,7 +19,9 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          tags: ippsample:latest
+          tags:
+            - ippsample:latest
+            - ippsample:${{ github.ref }}
           outputs: type=docker,dest=/tmp/ippsample.tar
       -
         name: Upload artifact
