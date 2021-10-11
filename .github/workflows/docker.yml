@@ -8,6 +8,10 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      -
+        name: Continue
+        run: true
     
   build:
     runs-on: ubuntu-latest
