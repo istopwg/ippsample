@@ -15,7 +15,6 @@ jobs:
       IMAGE_TAG: ${{ steps.setter.outputs.IMAGE_TAG }}
     steps:
       - id: setter
-        shell: bash
         run: |
           BRANCH_NAME=${GITHUB_HEAD_REF-}
           if [ "$BRANCH_NAME" == "" ]; then
