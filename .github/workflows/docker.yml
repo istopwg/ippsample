@@ -15,7 +15,7 @@ jobs:
     steps:
       - id: setter
         run: >
-          echo "::set-output name=ARTIFACT_NAME::ippsample-${GITHUB_HEAD_REF-${GITHUB_REF##*/}}-${{ github.sha }}";
+          echo "::set-output name=ARTIFACT_NAME::ippsample-${GITHUB_HEAD_REF-${GITHUB_REF##*/}}-${{ github.sha }}-$(date +%s)";
   
   build:
     runs-on: ubuntu-latest
