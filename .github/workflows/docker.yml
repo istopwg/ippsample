@@ -29,6 +29,7 @@ jobs:
         with:
           name: ippsample
           path: /tmp/ippsample.tar
+          retention-days: 1
 
   test:
     runs-on: ubuntu-latest
