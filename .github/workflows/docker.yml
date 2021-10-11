@@ -66,8 +66,8 @@ jobs:
     needs: test
     if: github.event.workflow_run.conclusion == 'success'
     outputs:
-      PUSH_TO_HUB: ${{ steps.check.outputs.PUSH_TO_HUB }}
-      PUSH_TO_GHCR: ${{ steps.check.outputs.PUSH_TO_GHCR }}
+      PUSH_TO_HUB: ${{ steps.run.outputs.PUSH_TO_HUB }}
+      PUSH_TO_GHCR: ${{ steps.run.outputs.PUSH_TO_GHCR }}
     steps:
       - run: >
           echo "::set-output name=PUSH_TO_HUB::${{ secrets.DOCKERHUB_IMAGE != '' }}";
