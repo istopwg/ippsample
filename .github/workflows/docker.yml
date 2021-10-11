@@ -17,7 +17,8 @@ jobs:
       - id: setter
         run: >
           BRANCH_NAME=${GITHUB_HEAD_REF-}
-          if [ "$BRANCH_NAME" == "" ]; then
+          if [ "$BRANCH_NAME" == "" ]
+          then
             BRANCH_NAME=${{ github.event.workflow_run.head_branch }}
           fi
           TAG="$BRANCH_NAME-${{ github.sha }}-$(date +%s)"
