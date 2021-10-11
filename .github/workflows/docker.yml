@@ -2,9 +2,9 @@ name: Docker
 
 on:
   push:
-    branches-ignore: [ master ]
+    branches: [ '*' ]
   pull_request:
-    branches-ignore: [ master ]
+    branches: [ '*' ]
 
 jobs:
   build:
