@@ -4,11 +4,14 @@ on:
   workflow_run:
     workflows: [ "Build and Test" ]
     types: [ completed ]
+  push:
+    branches-ignore: [ master ]
+  pull_request:
+    branches-ignore: [ master ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success'
     steps:
       -
         name: Checkout
@@ -63,6 +66,7 @@ jobs:
   secrets:
     runs-on: ubuntu-latest
     needs: test
+    if: github.event.workflow_run.conclusion == 'success'
     outputs:
       PUSH_TO_HUB: ${{ steps.check.outputs.PUSH_TO_HUB }}
       PUSH_TO_GHCR: ${{ steps.check.outputs.PUSH_TO_GHCR }}
