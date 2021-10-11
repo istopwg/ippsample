@@ -2,7 +2,7 @@ on:
   workflow_run:
     workflows: [ build ]
     branches: [ master ]
-    types: [completed]
+    types: [ completed ]
 
 jobs:
   verify:
