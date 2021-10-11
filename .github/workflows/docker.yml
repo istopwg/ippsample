@@ -12,9 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       ARTIFACT_NAME: ${{ steps.setter.outputs.ARTIFACT_NAME }}
+      IMAGE_TAG: ${{ steps.setter.outputs.IMAGE_TAG }}
     steps:
       - id: setter
         run: >
+          echo "::set-output name=IMAGE_TAG::${GITHUB_HEAD_REF-${GITHUB_REF##*/}}-${{ github.sha }}-$(date +%s)";
           echo "::set-output name=ARTIFACT_NAME::ippsample-${GITHUB_HEAD_REF-${GITHUB_REF##*/}}-${{ github.sha }}-$(date +%s)";
   
   build:
@@ -32,7 +34,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          tags: ippsample:${{ github.sha }}
+          tags: ippsample:${{ needs.setup.outputs.IMAGE_TAG }}
           outputs: type=docker,dest=/tmp/ippsample.tar
       -
         name: Upload artifact
@@ -66,10 +68,10 @@ jobs:
       -
         name: Call commands
         run: |
-          docker run ippsample:${{ github.sha }} ipp3dprinter --version
-          docker run ippsample:${{ github.sha }} ippeveprinter --version
-          docker run ippsample:${{ github.sha }} ippfind --version
-          docker run ippsample:${{ github.sha }} ipptool --version
+          docker run ippsample:${{ needs.setup.outputs.IMAGE_TAG }} ipp3dprinter --version
+          docker run ippsample:${{ needs.setup.outputs.IMAGE_TAG }} ippeveprinter --version
+          docker run ippsample:${{ needs.setup.outputs.IMAGE_TAG }} ippfind --version
+          docker run ippsample:${{ needs.setup.outputs.IMAGE_TAG }} ipptool --version
 
   secrets:
     runs-on: ubuntu-latest
@@ -105,7 +107,7 @@ jobs:
       -
         name: Tag image
         run: |
-          docker tag ippsample:${{ github.sha }} ${{ secrets.DOCKERHUB_IMAGE }}:${{ github.sha }}
+          docker tag ippsample:${{ needs.setup.outputs.IMAGE_TAG }} ${{ secrets.DOCKERHUB_IMAGE }}:${{ needs.setup.outputs.IMAGE_TAG }}
       -
         name: Login to DockerHub
         uses: docker/login-action@v1
@@ -115,7 +117,7 @@ jobs:
       -
         name: Push image
         run: |
-          docker push ${{ secrets.DOCKERHUB_IMAGE }}:${{ github.sha }}
+          docker push ${{ secrets.DOCKERHUB_IMAGE }}:${{ needs.setup.outputs.IMAGE_TAG }}
 
   ghcr:
     runs-on: ubuntu-latest
@@ -138,7 +140,7 @@ jobs:
       -
         name: Tag image
         run: |
-          docker tag ippsample:${{ github.sha }} ${{ secrets.GHCR_IMAGE }}:${{ github.sha }}
+          docker tag ippsample:${{ needs.setup.outputs.IMAGE_TAG }} ${{ secrets.GHCR_IMAGE }}:${{ needs.setup.outputs.IMAGE_TAG }}
       -
         name: Login to GitHub Container Registry
         uses: docker/login-action@v1 
@@ -149,4 +151,4 @@ jobs:
       -
         name: Push image
         run: |
-          docker push ghcr.io/${{ secrets.GHCR_IMAGE }}:${{ github.sha }}
+          docker push ghcr.io/${{ secrets.GHCR_IMAGE }}:${{ needs.setup.outputs.IMAGE_TAG }}
