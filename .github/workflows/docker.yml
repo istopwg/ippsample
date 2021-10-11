@@ -1,11 +1,11 @@
 name: Docker
 
 on:
+  pull_request:
   workflow_run:
     workflows: [ "Build and Test" ]
     branches: [ master ]
     types: [ completed ]
-  pull_request:
 
 jobs:
   build:
