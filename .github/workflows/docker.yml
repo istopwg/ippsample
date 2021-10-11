@@ -62,7 +62,6 @@ jobs:
   secrets:
     runs-on: ubuntu-latest
     needs: test
-    if: github.ref == 'ref/head/master'
     outputs:
       PUSH_TO_HUB: ${{ steps.check.outputs.PUSH_TO_HUB }}
       PUSH_TO_GHCR: ${{ steps.check.outputs.PUSH_TO_GHCR }}
