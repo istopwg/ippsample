@@ -16,8 +16,13 @@ jobs:
     steps:
       - id: setter
         run: >
-          echo "::set-output name=IMAGE_TAG::${GITHUB_HEAD_REF-${{ github.event.workflow_run.head_branch }}}-${{ github.sha }}-$(date +%s)";
-          echo "::set-output name=ARTIFACT_NAME::ippsample-${GITHUB_HEAD_REF-${GITHUB_REF}}-${{ github.sha }}-$(date +%s)";
+          BRANCH_NAME=${GITHUB_HEAD_REF-}
+          if [ "$BRANCH_NAME" == "" ]; then
+            BRANCH_NAME=${{ github.event.workflow_run.head_branch }}
+          fi
+          TAG="$BRANCH_NAME-${{ github.sha }}-$(date +%s)"
+          echo "::set-output name=IMAGE_TAG::$TAG";
+          echo "::set-output name=ARTIFACT_NAME::ippsample-$TAG";
   
   build:
     runs-on: ubuntu-latest
