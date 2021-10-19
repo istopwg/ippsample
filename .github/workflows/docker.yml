@@ -151,7 +151,7 @@ jobs:
       -
         name: Tag image
         run: |
-          docker tag ippsample:${{ needs.setup.outputs.IMAGE_TAG }} ${{ secrets.GHCR_IMAGE }}:${{ needs.setup.outputs.IMAGE_TAG }}
+          docker tag ippsample:${{ needs.setup.outputs.IMAGE_TAG }} ghcr.io/${{ secrets.GHCR_IMAGE }}:${{ needs.setup.outputs.IMAGE_TAG }}
       -
         name: Login to GitHub Container Registry
         uses: docker/login-action@v1 
