@@ -1,7 +1,7 @@
 /*
  * IPP Proxy implementation for HP PCL and IPP Everywhere printers.
  *
- * Copyright © 2016-2018 by the IEEE-ISTO Printer Working Group.
+ * Copyright © 2016-2021 by the IEEE-ISTO Printer Working Group.
  * Copyright © 2014-2018 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -159,6 +159,7 @@ main(int  argc,				/* I - Number of command-line arguments */
       else if (!strcmp(argv[i], "--version"))
       {
         puts(CUPS_SVERSION);
+        return (0);
       }
       else
       {
