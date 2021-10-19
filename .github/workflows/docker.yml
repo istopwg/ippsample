@@ -10,6 +10,7 @@ on:
 jobs:
   setup:
     runs-on: ubuntu-latest
+    environment: docker
     outputs:
       ARTIFACT_NAME: ${{ steps.setter.outputs.ARTIFACT_NAME }}
       IMAGE_TAG: ${{ steps.setter.outputs.IMAGE_TAG }}
@@ -26,6 +27,7 @@ jobs:
   
   build:
     runs-on: ubuntu-latest
+    environment: docker
     needs: setup
     steps:
       -
@@ -51,6 +53,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    environment: docker
     needs: [ build, setup ]
     steps:
       -
@@ -80,6 +83,7 @@ jobs:
 
   secrets:
     runs-on: ubuntu-latest
+    environment: docker
     needs: test
     if: github.event.workflow_run.conclusion == 'success'
     outputs:
@@ -93,6 +97,7 @@ jobs:
 
   hub:
     runs-on: ubuntu-latest
+    environment: docker
     needs: [ secrets, setup ]
     if: needs.secrets.outputs.PUSH_TO_HUB == 'true'
     steps:
@@ -126,6 +131,7 @@ jobs:
 
   ghcr:
     runs-on: ubuntu-latest
+    environment: docker
     needs: [ secrets, setup ]
     if: needs.secrets.outputs.PUSH_TO_GHCR == 'true'
     steps:
