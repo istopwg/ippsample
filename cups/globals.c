@@ -274,7 +274,7 @@ cups_globals_alloc(void)
   if ((cg->localedir = getenv("LOCALEDIR")) == NULL)
     cg->localedir = localedir;
 
-  cg->home = getenv("HOME");
+  cg->home = getenv("USERPROFILE");
 
 #else
 #  ifdef HAVE_GETEUID
@@ -325,10 +325,12 @@ cups_globals_alloc(void)
 
   if (!cg->home)
   {
-    struct passwd	*pw;		/* User info */
+    struct passwd	pw;		/* User info */
+    struct passwd	*result;	/* Auxiliary pointer */
 
-    if ((pw = getpwuid(getuid())) != NULL)
-      cg->home = _cupsStrAlloc(pw->pw_dir);
+    getpwuid_r(getuid(), &pw, cg->pw_buf, PW_BUF_SIZE, &result);
+    if (result)
+      cg->home = _cupsStrAlloc(pw.pw_dir);
   }
 #endif /* _WIN32 */
 

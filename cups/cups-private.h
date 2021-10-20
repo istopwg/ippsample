@@ -1,6 +1,7 @@
 /*
  * Private definitions for CUPS.
  *
+ * Copyright © 2021 by OpenPrinting.
  * Copyright © 2007-2019 by Apple Inc.
  * Copyright © 1997-2007 by Easy Software Products, all rights reserved.
  *
@@ -84,6 +85,11 @@ typedef struct _cups_globals_s		/**** CUPS global state data ****/
 			*cups_statedir,	/* CUPS_STATEDIR environment var */
 			*home,		/* HOME environment var */
 			*localedir;	/* LOCALDIR environment var */
+#ifndef _WIN32
+#define PW_BUF_SIZE 16384		/* As per glibc manual page */
+  char			pw_buf[PW_BUF_SIZE];
+					/* Big buffer for struct passwd buffers */
+#endif
 
   /* adminutil.c */
   time_t		cupsd_update;	/* Last time we got or set cupsd.conf */
@@ -172,6 +178,8 @@ typedef struct _cups_globals_s		/**** CUPS global state data ****/
 			server[256],	/* Server address */
 			servername[256],/* Server hostname */
 			password[128];	/* Password for default callback */
+  cups_oauth_cb_t	oauth_cb;	/* OAuth callback */
+  void			*oauth_data;	/* OAuth user data */
   cups_password_cb2_t	password_cb;	/* Password callback */
   void			*password_data;	/* Password user data */
   http_tls_credentials_t tls_credentials;

@@ -310,6 +310,43 @@ cupsSetEncryption(http_encryption_t e)	/* I - New encryption preference */
 
 
 /*
+ * 'cupsSetOAuthCB()' - Set the OAuth 2.0 callback for CUPS.
+ *
+ * This function sets the OAuth 2.0 callback for the various CUPS APIs that
+ * send HTTP requests. Pass @code NULL@ to restore the default (console-based)
+ * callback.
+ *
+ * The OAuth callback receives the HTTP connection, realm name, scope name (if
+ * any), resource path, and the "user_data" pointer for each request that
+ * requires an OAuth access token. The function then returns either the Bearer
+ * token string or `NULL` if no authorization could be obtained.
+ *
+ * Beyond reusing the Bearer token for subsequent requests on the same HTTP
+ * connection, no caching of the token is done by the CUPS library.  The
+ * callback can determine whether to refresh a cached token by examining any
+ * existing token returned by the @link httpGetAuthString@ function.
+ *
+ * Note: The current OAuth callback is tracked separately for each thread in a
+ * program. Multi-threaded programs that override the callback need to do so in
+ * each thread for the same callback to be used.
+ *
+ * @since CUPS 2.4@
+ */
+
+void
+cupsSetOAuthCB(
+    cups_oauth_cb_t cb,			/* I - Callback function */
+    void            *user_data)		/* I - User data pointer */
+{
+  _cups_globals_t *cg = _cupsGlobals();	/* Pointer to library globals */
+
+
+  cg->oauth_cb   = cb;
+  cg->oauth_data = user_data;
+}
+
+
+/*
  * 'cupsSetPasswordCB()' - Set the password callback for CUPS.
  *
  * Pass @code NULL@ to restore the default (console) password callback, which
@@ -1005,7 +1042,12 @@ _cupsSetDefaults(void)
     * Look for ~/.cups/client.conf...
     */
 
+#if _WIN32
+    snprintf(filename, sizeof(filename), "%s/AppData/Local/cups/client.conf", cg->home);
+#else
     snprintf(filename, sizeof(filename), "%s/.cups/client.conf", cg->home);
+#endif // _WIN32
+
     if ((fp = cupsFileOpen(filename, "r")) != NULL)
     {
       cups_read_client_conf(fp, &cc);
@@ -1214,9 +1256,10 @@ cups_finalize_client_conf(
     * Try the USER environment variable as the default username...
     */
 
-    const char *envuser = getenv("USER");
-					/* Default username */
-    struct passwd *pw = NULL;		/* Account information */
+    const char *envuser = getenv("USER");	/* Default username */
+    struct passwd pw;				/* Account information */
+    struct passwd *result = NULL;		/* Auxiliary pointer */
+    _cups_globals_t *cg = _cupsGlobals();	/* Pointer to library globals */
 
     if (envuser)
     {
@@ -1225,16 +1268,16 @@ cups_finalize_client_conf(
       * override things...  This makes sure that printing after doing su
       * or sudo records the correct username.
       */
-
-      if ((pw = getpwnam(envuser)) != NULL && pw->pw_uid != getuid())
-	pw = NULL;
+      getpwnam_r(envuser, &pw, cg->pw_buf, PW_BUF_SIZE, &result);
+      if (result && pw.pw_uid != getuid())
+        result = NULL;
     }
 
-    if (!pw)
-      pw = getpwuid(getuid());
+    if (!result)
+      getpwuid_r(getuid(), &pw, cg->pw_buf, PW_BUF_SIZE, &result);
 
-    if (pw)
-      strlcpy(cc->user, pw->pw_name, sizeof(cc->user));
+    if (result)
+      strlcpy(cc->user, pw.pw_name, sizeof(cc->user));
     else
 #endif /* _WIN32 */
     {
