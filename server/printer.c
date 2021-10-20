@@ -109,6 +109,11 @@ serverCopyPrinterStateReasons(
 					/* Combined reasons */
 
 
+  if (printer->state == IPP_PSTATE_STOPPED)
+    creasons |= SERVER_PREASON_PAUSED;
+  else
+    creasons &= ~SERVER_PREASON_PAUSED;
+
   if (creasons == SERVER_PREASON_NONE)
   {
     ippAddString(ipp, group_tag, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-state-reasons", NULL, "none");
