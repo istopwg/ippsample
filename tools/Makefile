@@ -1,7 +1,7 @@
 #
 # IPP tools makefile.
 #
-# Copyright © 2014-2020 by the IEEE-ISTO Printer Working Group.
+# Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group.
 # Copyright © 2007-2019 by Apple Inc.
 # Copyright © 1997-2006 by Easy Software Products, all rights reserved.
 #
@@ -73,7 +73,9 @@ install:	all
 	done
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(libexecdir)/cups/command
 	for file in $(COMMAND_TARGETS); do \
-		$(INSTALL_BIN) $$file $(BUILDROOT)$(libexecdir)/cups/command; \
+		destfile=`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`; \
+		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir)/$$destfile; \
+		ln -sf $(bindir)/$$destfile $(BUILDROOT)$(libexecdir)/cups/command/$$file; \
 	done
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(sbindir)
 	for file in $(SBIN_TARGETS); do \
