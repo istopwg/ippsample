@@ -84,16 +84,14 @@ for file in $files; do
 	esac
 
 	for type in $types; do
-		typename=`echo $type | sed -e '1,$s/_/-/g'`
+		test -d $dir/$type || mkdir $dir/$type
 
-		test -d $dir/$typename || mkdir $dir/$typename
-
-		output="$base-$typename-$resolution.pwg"
+		output="$base-$type-$resolution.pwg"
 
 		echo "$output: \c"
 		echo "$output:" >>$log
-		tools/ipptransform -m image/pwg-raster -t $type -r $resolution -o media=$media -o print-quality=$quality -i $mimetype -vvv examples/$file  >"$dir/$typename/$output" 2>>"$log"
-		ls -l "$dir/$typename/$output" | awk '{if ($5 > 1048575) printf "%.1fMiB\n", $5 / 1048576; else printf "%.0fkiB\n", $5 / 1024;}'
+		tools/ipptransform -m image/pwg-raster -t $type -r $resolution -o media=$media -o print-quality=$quality -i $mimetype -vvv examples/$file  >"$dir/$type/$output" 2>>"$log"
+		ls -l "$dir/$type/$output" | awk '{if ($5 > 1048575) printf "%.1fMiB\n", $5 / 1048576; else printf "%.0fkiB\n", $5 / 1024;}'
 	done
 done
 
