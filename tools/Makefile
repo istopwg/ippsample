@@ -75,7 +75,7 @@ install:	all
 	for file in $(COMMAND_TARGETS); do \
 		destfile=`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`; \
 		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir)/$$destfile; \
-		ln -sf $(bindir)/$$destfile $(BUILDROOT)$(libexecdir)/cups/command/$$file; \
+		ln -sf ../../../bin/$$destfile $(BUILDROOT)$(libexecdir)/cups/command/$$file; \
 	done
 	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(sbindir)
 	for file in $(SBIN_TARGETS); do \
