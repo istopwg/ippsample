@@ -77,16 +77,22 @@ IGNORE-ERRORS no
 
     STATUS successful-ok
 
-    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 3 DEFINE-MATCH HAVE_NONE        # none
-    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 4 DEFINE-MATCH HAVE_STITCHING   # staple
-    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 5 DEFINE-MATCH HAVE_PUNCHING    # punch
-    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 6 DEFINE-MATCH HAVE_COVERING    # cover    
-    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 7 DEFINE-MATCH HAVE_BINDING     # bind
-    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 10 DEFINE-MATCH HAVE_FOLDING    # fold
-    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 11 DEFINE-MATCH HAVE_TRIMMING   # trim
-    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 12 DEFINE-MATCH HAVE_BALING       # bale
-    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 15 DEFINE-MATCH HAVE_COATING    # coat
-    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 16 DEFINE-MATCH HAVE_LAMINATE   # laminate
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 3 DEFINE-MATCH HAVE_NONE            # none
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 4 DEFINE-MATCH HAVE_STITCHING       # staple
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 5 DEFINE-MATCH HAVE_PUNCHING        # punch
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 6 DEFINE-MATCH HAVE_COVERING        # cover    
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 7 DEFINE-MATCH HAVE_BINDING         # bind
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 8 DEFINE-MATCH HAVE_SADDLE_STITCH   # saddle-stitch
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 9 DEFINE-MATCH HAVE_EDGE_STITCH     # edge-stitch
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 10 DEFINE-MATCH HAVE_FOLDING        # fold
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 11 DEFINE-MATCH HAVE_TRIMMING       # trim
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 12 DEFINE-MATCH HAVE_BALING         # bale
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 13 DEFINE-MATCH HAVE_BOOKLET_MAKER  # booklet-maker
+    
+    EXPECT !finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 14 DEFINE-MATCH HAVE_BALING        # jog-offset (deprecated)
+    
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 15 DEFINE-MATCH HAVE_COATING        # coat
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 16 DEFINE-MATCH HAVE_LAMINATE       # laminate
     
     # 17-19 undefined as of 2022-01-19
     EXPECT !finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 17
@@ -240,12 +246,12 @@ IGNORE-ERRORS no
     NAME '[BALING-3] Check Job attributes finishings = baling'
     OPERATION Get-Job-Attributes
 
-    GROUP operation
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR integer job-id $job-id
-    ATTR name requesting-user-name $user
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
 
     STATUS successful-ok
     
@@ -263,11 +269,11 @@ IGNORE-ERRORS no
     OPERATION Print-Job
 
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR name requesting-user-name $user
-    ATTR mimeMediaType document-format $filetype
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
     
     GROUP job-attributes-tag
     ATTR integer copies 1
@@ -296,12 +302,12 @@ IGNORE-ERRORS no
     NAME '[BALING-5] Check Job attributes finishings-col'
     OPERATION Get-Job-Attributes
 
-    GROUP operation
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR integer job-id $job-id
-    ATTR name requesting-user-name $user
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
 
     STATUS successful-ok
     
@@ -357,15 +363,15 @@ IGNORE-ERRORS no
     OPERATION Print-Job
 
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR name requesting-user-name $user
-    ATTR mimeMediaType document-format $filetype
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
     
     GROUP job-attributes-tag
-    ATTR integer copies 1
-    ATTR enum finishings 7  # bind
+        ATTR integer copies 1
+        ATTR enum finishings 7  # bind
 
     FILE $filename
 
@@ -382,12 +388,12 @@ IGNORE-ERRORS no
     NAME '[BINDING-3] Check Job attributes finishings = binding'
     OPERATION Get-Job-Attributes
 
-    GROUP operation
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR integer job-id $job-id
-    ATTR name requesting-user-name $user
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
 
     STATUS successful-ok
     
@@ -412,16 +418,16 @@ IGNORE-ERRORS no
     ATTR mimeMediaType document-format $filetype
     
     GROUP job-attributes-tag
-    ATTR integer copies 1
-    ATTR collection finishings-col
-    {
-      MEMBER keyword finishing-template         'bind'
-      MEMBER collection binding
-      {
-        MEMBER keyword binding-type             'spiral'
-        MEMBER keyword binding-reference-edge   'left'
-      }
-    }
+        ATTR integer copies 1
+        ATTR collection finishings-col
+        {
+            MEMBER keyword finishing-template         'bind'
+            MEMBER collection binding
+            {
+                MEMBER keyword binding-type             'spiral'
+                MEMBER keyword binding-reference-edge   'left'
+            }
+        }
 
     FILE $filename
 
@@ -438,12 +444,12 @@ IGNORE-ERRORS no
     NAME '[BINDING-5] Check Job attributes finishings-col'
     OPERATION Get-Job-Attributes
 
-    GROUP operation
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR integer job-id $job-id
-    ATTR name requesting-user-name $user
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
 
     STATUS successful-ok
     
@@ -499,15 +505,15 @@ IGNORE-ERRORS no
     OPERATION Print-Job
 
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR name requesting-user-name $user
-    ATTR mimeMediaType document-format $filetype
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
     
     GROUP job-attributes-tag
-    ATTR integer copies 1
-    ATTR enum finishings 15  # coat
+        ATTR integer copies 1
+        ATTR enum finishings 15  # coat
 
     FILE $filename
 
@@ -524,12 +530,12 @@ IGNORE-ERRORS no
     NAME '[COATING-3] Check Job attributes finishings = coating'
     OPERATION Get-Job-Attributes
 
-    GROUP operation
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR integer job-id $job-id
-    ATTR name requesting-user-name $user
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
 
     STATUS successful-ok
     
@@ -547,23 +553,23 @@ IGNORE-ERRORS no
     OPERATION Print-Job
 
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR name requesting-user-name $user
-    ATTR mimeMediaType document-format $filetype
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
     
     GROUP job-attributes-tag
-    ATTR integer copies 1
-    ATTR collection finishings-col
-    {
-      MEMBER keyword finishing-template         'coat'
-      MEMBER collection coating
-      {
-        MEMBER keyword coating-sides             'front'
-        MEMBER keyword coating-type              'semi-gloss'
-      }
-    }
+        ATTR integer copies 1
+        ATTR collection finishings-col
+        {
+            MEMBER keyword finishing-template         'coat'
+            MEMBER collection coating
+            {
+                MEMBER keyword coating-sides             'front'
+                MEMBER keyword coating-type              'semi-gloss'
+            }
+        }
 
     FILE $filename
 
@@ -580,12 +586,12 @@ IGNORE-ERRORS no
     NAME '[COATING-5] Check Job attributes finishings-col'
     OPERATION Get-Job-Attributes
 
-    GROUP operation
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR integer job-id $job-id
-    ATTR name requesting-user-name $user
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
 
     STATUS successful-ok
     
@@ -638,15 +644,15 @@ IGNORE-ERRORS no
     OPERATION Print-Job
 
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR name requesting-user-name $user
-    ATTR mimeMediaType document-format $filetype
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
     
     GROUP job-attributes-tag
-    ATTR integer copies 1
-    ATTR enum finishings 6  # cover
+        ATTR integer copies 1
+        ATTR enum finishings 6  # cover
 
     FILE $filename
 
@@ -663,12 +669,12 @@ IGNORE-ERRORS no
     NAME '[COVERING-3] Check Job attributes finishings = covering'
     OPERATION Get-Job-Attributes
 
-    GROUP operation
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR integer job-id $job-id
-    ATTR name requesting-user-name $user
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
 
     STATUS successful-ok
     
@@ -686,22 +692,22 @@ IGNORE-ERRORS no
     OPERATION Print-Job
 
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR name requesting-user-name $user
-    ATTR mimeMediaType document-format $filetype
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
     
     GROUP job-attributes-tag
-    ATTR integer copies 1
-    ATTR collection finishings-col
-    {
-      MEMBER keyword finishing-template         'cover'
-      MEMBER collection covering
-      {
-        MEMBER keyword covering-name             'plain'
-      }
-    }
+        ATTR integer copies 1
+        ATTR collection finishings-col
+        {
+            MEMBER keyword finishing-template         'cover'
+            MEMBER collection covering
+            {
+                MEMBER keyword covering-name             'plain'
+            }
+        }
 
     FILE $filename
 
@@ -718,12 +724,12 @@ IGNORE-ERRORS no
     NAME '[COVERING-5] Check Job attributes finishings-col'
     OPERATION Get-Job-Attributes
 
-    GROUP operation
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR integer job-id $job-id
-    ATTR name requesting-user-name $user
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
 
     STATUS successful-ok
     
@@ -755,7 +761,7 @@ IGNORE-ERRORS no
     STATUS successful-ok
 
     EXPECT folding-direction-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
-    EXPECT folding-offset-supported OF-TYPE integer IN-GROUP printer-attributes-tag
+    EXPECT folding-offset-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag
     EXPECT folding-reference-edge-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
 
     EXPECT finishings-col-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE 'folding'
@@ -773,6 +779,114 @@ IGNORE-ERRORS no
     EXPECT ?printer-finisher-description OF-TYPE text IN-GROUP printer-attributes-tag SAME-COUNT-AS printer-finisher
     EXPECT ?printer-finisher-supplies OF-TYPE octetString IN-GROUP printer-attributes-tag
     EXPECT ?printer-finisher-supplies-description OF-TYPE text IN-GROUP printer-attributes-tag SAME-COUNT-AS printer-finisher-supplies        
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_FOLDING
+
+    NAME '[FOLDING-2] Print requesting folding using finishings'
+    OPERATION Print-Job
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
+    
+    GROUP job-attributes-tag
+        ATTR integer copies 1
+        ATTR enum finishings 10  # fold
+
+    FILE $filename
+
+    STATUS successful-ok
+
+    EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_FOLDING
+
+    NAME '[FOLDING-3] Check Job attributes finishings = folding'
+    OPERATION Get-Job-Attributes
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
+
+    STATUS successful-ok
+    
+    EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+    EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
+
+    EXPECT finishings OF-TYPE enum IN-GROUP job-attributes-tag WITH-VALUE 10 COUNT 1
+}
+
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_FOLDING
+
+    NAME '[FOLDING-4] Print requesting folding using finishings-col'
+    OPERATION Print-Job
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
+    
+    GROUP job-attributes-tag
+        ATTR integer copies 1
+        ATTR keyword media 'na_letter_8.5x11in'
+        ATTR collection finishings-col
+        {
+        MEMBER keyword finishing-template 'fold' # same as fold-half
+        MEMBER collection folding
+            {
+                MEMBER keyword folding-direction 'inward'
+                MEMBER integer folding-offset 13950
+                MEMBER keyword folding-reference-edge 'top'
+            }
+        }
+
+    FILE $filename
+
+    STATUS successful-ok
+
+    EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_FOLDING
+
+    NAME '[FOLDING-5] Check Job attributes finishings-col'
+    OPERATION Get-Job-Attributes
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
+
+    STATUS successful-ok
+    
+    EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+    EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
+
+    EXPECT finishings-col/folding OF-TYPE collection
+    EXPECT finishings-col/folding/folding-direction OF-TYPE keyword WITH-VALUE 'inward'
+    EXPECT finishings-col/folding/folding-offset OF-TYPE integer WITH-VALUE 13950
+    EXPECT finishings-col/folding/folding-reference-edge OF-TYPE keyword WITH-VALUE 'top'
 }
 
 
@@ -814,11 +928,11 @@ IGNORE-ERRORS no
     OPERATION Print-Job
 
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR name requesting-user-name $user
-    ATTR mimeMediaType document-format $filetype
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
     
     GROUP job-attributes-tag
     ATTR integer copies 1
@@ -839,12 +953,12 @@ IGNORE-ERRORS no
     NAME '[LAMINATING-3] Check Job attributes finishings = coating'
     OPERATION Get-Job-Attributes
 
-    GROUP operation
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR integer job-id $job-id
-    ATTR name requesting-user-name $user
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
 
     STATUS successful-ok
     
@@ -862,23 +976,23 @@ IGNORE-ERRORS no
     OPERATION Print-Job
 
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR name requesting-user-name $user
-    ATTR mimeMediaType document-format $filetype
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
     
     GROUP job-attributes-tag
-    ATTR integer copies 1
-    ATTR collection finishings-col
-    {
-      MEMBER keyword finishing-template         'laminate'
-      MEMBER collection laminating
-      {
-        MEMBER keyword laminating-sides             'front'
-        MEMBER keyword laminating-type              'semi-gloss'
-      }
-    }
+        ATTR integer copies 1
+        ATTR collection finishings-col
+        {
+            MEMBER keyword finishing-template         'laminate'
+            MEMBER collection laminating
+            {
+                MEMBER keyword laminating-sides             'front'
+                MEMBER keyword laminating-type              'semi-gloss'
+            }
+        }
 
     FILE $filename
 
@@ -895,12 +1009,12 @@ IGNORE-ERRORS no
     NAME '[LAMINATING-5] Check Job attributes finishings-col'
     OPERATION Get-Job-Attributes
 
-    GROUP operation
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR integer job-id $job-id
-    ATTR name requesting-user-name $user
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
 
     STATUS successful-ok
     
@@ -951,15 +1065,15 @@ IGNORE-ERRORS no
     OPERATION Print-Job
 
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR name requesting-user-name $user
-    ATTR mimeMediaType document-format $filetype
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
     
     GROUP job-attributes-tag
-    ATTR integer copies 1
-    ATTR enum finishings 5  # punch
+        ATTR integer copies 1
+        ATTR enum finishings 5  # punch
 
     FILE $filename
 
@@ -976,12 +1090,12 @@ IGNORE-ERRORS no
     NAME '[PUNCHING-3] Get job info with get-job-attributes'
     OPERATION Get-Job-Attributes
 
-    GROUP operation
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR integer job-id $job-id
-    ATTR name requesting-user-name $user
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
 
     STATUS successful-ok
     
@@ -1022,15 +1136,15 @@ IGNORE-ERRORS no
     OPERATION Print-Job
 
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR name requesting-user-name $user
-    ATTR mimeMediaType document-format $filetype
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
     
     GROUP job-attributes-tag
-    ATTR integer copies 1
-    ATTR enum finishings 4  #staple
+        ATTR integer copies 1
+        ATTR enum finishings 4  #staple
 
     FILE $filename
 
@@ -1052,12 +1166,12 @@ IGNORE-ERRORS no
     NAME '[STITCHING-3] Check Job attributes for stitching'
     OPERATION Get-Job-Attributes
 
-    GROUP operation
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR integer job-id $job-id
-    ATTR name requesting-user-name $user
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
 
     STATUS successful-ok
     
