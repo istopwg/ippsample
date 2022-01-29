@@ -10,7 +10,7 @@
 IGNORE-ERRORS no
 
 {
-    NAME '[1] Check "finishings-supported" supports more than 3 (none)'
+    NAME '[FIN3-GENERAL-1] Check for all REQUIRED Printer Description attributes'
 
     OPERATION Get-Printer-Attributes
 
@@ -18,7 +18,30 @@ IGNORE-ERRORS no
         ATTR charset attributes-charset utf-8
         ATTR language attributes-natural-language en
         ATTR uri printer-uri $uri
-        ATTR keyword requested-attributes finishings-supported
+        ATTR keyword requested-attributes 'finishings-supported','finishing-template-supported','finishings-col-database','finishings-col-default','finishings-col-ready','copies-supported','job-pages-per-set-supported'
+
+
+    STATUS successful-ok
+
+    # Check for all REQUIRED Printer Description attributes
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag
+    EXPECT finishing-template-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag
+    EXPECT finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag
+
+}
+
+{
+    NAME '[FIN3-GENERAL-2] Check "finishings-supported" supports more than 3 (none)'
+
+    OPERATION Get-Printer-Attributes
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR keyword requested-attributes 'finishings-supported'
 
     STATUS successful-ok
 
@@ -29,12 +52,12 @@ IGNORE-ERRORS no
 
 
 # From now on, don't stop on errors so that all tests can run
-#IGNORE-ERRORS yes
+IGNORE-ERRORS yes
 
 {
     SKIP-IF-NOT-DEFINED HAVE_FINISHINGS
     
-    NAME "[2] Check support for required Printer Description attributes"
+    NAME "[FIN3-GENERAL-3] Check support for required Printer Description attributes"
 
     OPERATION Get-Printer-Attributes
 
@@ -42,17 +65,17 @@ IGNORE-ERRORS no
         ATTR charset attributes-charset utf-8
         ATTR language attributes-natural-language en
         ATTR uri printer-uri $uri
-        ATTR keyword requested-attributes finishings-supported,finishings-col-supported,finishings-col-ready,finishings-col-database,finishing-template-supported,printer-finisher,printer-finisher-description,printer-finisher-supplies,printer-finisher-supplies-description
+        ATTR keyword requested-attributes 'finishings-supported','finishings-col-supported','finishings-col-ready','finishings-col-database','finishing-template-supported','printer-finisher','printer-finisher-description','printer-finisher-supplies','printer-finisher-supplies-description'
 
     STATUS successful-ok
 
     EXPECT finishings-supported     OF-TYPE enum        IN-GROUP printer-attributes-tag WITH-VALUE >3
-    EXPECT finishings-col-ready     OF-TYPE collection  IN-GROUP printer-attributes-tag
+    EXPECT finishings-col-ready     OF-TYPE collection  IN-GROUP printer-attributes-tag WITH-DISTINCT-VALUES
     EXPECT finishings-col-ready     OF-TYPE collection  IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_FINISHINGS_COL_READY
-    EXPECT finishings-col-database  OF-TYPE collection  IN-GROUP printer-attributes-tag
+    EXPECT finishings-col-database  OF-TYPE collection  IN-GROUP printer-attributes-tag WITH-DISTINCT-VALUES
     EXPECT finishings-col-database  OF-TYPE collection  IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_FINISHINGS_COL_DATABASE
 
-    EXPECT finishings-col-supported OF-TYPE keyword     IN-GROUP printer-attributes-tag WITH-VALUE finishing-template
+    EXPECT finishings-col-supported OF-TYPE keyword     IN-GROUP printer-attributes-tag WITH-VALUE 'finishing-template'
 
     EXPECT finishing-template-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag
     EXPECT printer-finisher OF-TYPE octetString IN-GROUP printer-attributes-tag
@@ -63,9 +86,27 @@ IGNORE-ERRORS no
 }
 
 {
+    NAME '[FIN3-GENERAL-4] Check for job-pages-per-set for file doc format'
+
+    OPERATION Get-Printer-Attributes
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR keyword requested-attributes 'job-pages-per-set-supported'
+        ATTR mimeMediaType document-format $filetype
+
+    STATUS successful-ok
+
+    # Check for all CONDITIONALLY REQUIRED Printer Description attributes not attached to finishings
+    EXPECT copies-supported OF-TYPE integer IN-GROUP printer-attributes-tag WITH-VALUE 1 DEFINE-MATCH STREAMING_PRINTER
+    EXPECT job-pages-per-set-supported OF-TYPE boolean WITH-VALUE true DEFINE-MATCH HAS_JOB_PAGES_PER_SET
+
+}{
     SKIP-IF-NOT-DEFINED HAVE_FINISHINGS
     
-    NAME "[3] Discover supported finishing features and define matches"
+    NAME "[FIN3-GENERAL-5] Discover supported finishing features and define matches"
 
     OPERATION Get-Printer-Attributes
 
@@ -221,15 +262,17 @@ IGNORE-ERRORS no
     OPERATION Print-Job
 
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR language attributes-natural-language en
-    ATTR uri printer-uri $uri
-    ATTR name requesting-user-name $user
-    ATTR mimeMediaType document-format $filetype
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
     
     GROUP job-attributes-tag
-    ATTR integer copies 1
-    ATTR enum finishings 12  # bale
+        ATTR integer copies 1
+        ATTR enum finishings 12  # bale
+#         ATTR integer job-pages-per-set 3 IF-DEFINED HAS_JOB_PAGES_PER_SET
+#         ATTR integer copies 2 IF-NOT-DEFINED HAS_JOB_PAGES_PER_SET
 
     FILE $filename
 
@@ -924,7 +967,7 @@ IGNORE-ERRORS no
 {
     SKIP-IF-NOT-DEFINED HAVE_LAMINATING
 
-    NAME '[LAMINATING-2] Print requesting coating using finishings'
+    NAME '[LAMINATING-2] Print requesting laminating using finishings'
     OPERATION Print-Job
 
     GROUP operation-attributes-tag
@@ -950,7 +993,7 @@ IGNORE-ERRORS no
 {
     SKIP-IF-NOT-DEFINED HAVE_LAMINATING
 
-    NAME '[LAMINATING-3] Check Job attributes finishings = coating'
+    NAME '[LAMINATING-3] Check Job attributes finishings = laminating'
     OPERATION Get-Job-Attributes
 
     GROUP operation-attributes-tag
@@ -972,7 +1015,7 @@ IGNORE-ERRORS no
 {
     SKIP-IF-NOT-DEFINED HAVE_LAMINATING
 
-    NAME '[LAMINATING-4] Print requesting coating using finishings-col'
+    NAME '[LAMINATING-4] Print requesting laminating using finishings-col'
     OPERATION Print-Job
 
     GROUP operation-attributes-tag
@@ -1032,7 +1075,7 @@ IGNORE-ERRORS no
 ##################################
 
 {
-    SKIP-IF-NOT-DEFINED HAVE_FINISHINGS_COL
+    SKIP-IF-NOT-DEFINED HAVE_PUNCHING
 
     NAME '[PUNCHING-1] Check finishings-col members support for punching'
 
@@ -1104,6 +1147,66 @@ IGNORE-ERRORS no
 
     EXPECT finishings OF-TYPE enum IN-GROUP job-attributes-tag WITH-VALUE 5 COUNT 1
 }
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_PUNCHING
+
+    NAME '[PUNCHING-4] Print requesting coating using finishings-col'
+    OPERATION Print-Job
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
+    
+    GROUP job-attributes-tag
+        ATTR integer copies 1
+        ATTR collection finishings-col
+        {
+            MEMBER keyword finishing-template         'punch'
+            MEMBER collection punching
+            {
+                MEMBER integer punching-locations               635,13950,27305
+                MEMBER integer punching-offset                  635
+                MEMBER keyword punching-reference-edge          'left'
+            }
+        }
+
+    FILE $filename
+
+    STATUS successful-ok
+
+    EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_PUNCHING
+
+    NAME '[PUNCHING-5] Check Job attributes finishings-col'
+    OPERATION Get-Job-Attributes
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
+
+    STATUS successful-ok
+    
+    EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+    EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
+
+    EXPECT finishings-col/punching OF-TYPE collection
+    EXPECT finishings-col/punching/punching-offset OF-TYPE integer WITH-VALUE 635,13950,27305
+    EXPECT finishings-col/punching/punching-offset OF-TYPE integer WITH-VALUE 635
+    EXPECT finishings-col/punching/punching-reference-edge OF-TYPE keyword WITH-VALUE 'left'
+}
+
 
 #####################################
 # STITCHING
@@ -1181,15 +1284,73 @@ IGNORE-ERRORS no
     EXPECT finishings OF-TYPE enum IN-GROUP job-attributes-tag WITH-VALUE 4 COUNT 1
 }
 
+{
+    SKIP-IF-NOT-DEFINED HAVE_STITCHING
+
+    NAME '[STITCHING-4] Print requesting stitching using finishings-col'
+    OPERATION Print-Job
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
+    
+    GROUP job-attributes-tag
+        ATTR integer copies 1
+        ATTR collection finishings-col
+        {
+            MEMBER keyword finishing-template         'staple-top-left'
+            MEMBER collection stitching
+            {
+                MEMBER integer stitching-locations              635
+                MEMBER integer stitching-offset                 635
+                MEMBER keyword stitching-reference-edge         'left'
+            }
+        }
+
+    FILE $filename
+
+    STATUS successful-ok
+
+    EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_STITCHING
+
+    NAME '[STITCHING-5] Check Job attributes finishings-col'
+    OPERATION Get-Job-Attributes
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
+
+    STATUS successful-ok
+    
+    EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+    EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
+
+    EXPECT finishings-col/stitching OF-TYPE collection
+    EXPECT finishings-col/stitching/stitching-offset OF-TYPE integer WITH-VALUE 635
+    EXPECT finishings-col/stitching/stitching-offset OF-TYPE integer WITH-VALUE 635
+    EXPECT finishings-col/stitching/stitching-reference-edge OF-TYPE keyword WITH-VALUE 'left'
+}
+
 
 ##################################
-# TRIMMINIG
+# TRIMMING
 ##################################
 
 {
-    SKIP-IF-NOT-DEFINED HAVE_FINISHINGS_COL
+    SKIP-IF-NOT-DEFINED HAVE_TRIMMING
 
-    NAME '[TRIMMINIG-1] Check finishings-col members support for trimming'
+    NAME '[TRIMMING-1] Check finishings-col members support for trimming'
 
     OPERATION Get-Printer-Attributes
 
@@ -1210,5 +1371,117 @@ IGNORE-ERRORS no
     EXPECT trimming-reference-edge-supported OF-TYPE keyword IN-GROUP printer-attributes-tag IF-DEFINED HAVE_TRIMMING    
     EXPECT trimming-type-supported OF-TYPE keyword IN-GROUP printer-attributes-tag IF-DEFINED HAVE_TRIMMING
     EXPECT trimming-when-supported OF-TYPE keyword IN-GROUP printer-attributes-tag IF-DEFINED HAVE_TRIMMING
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_TRIMMING
+
+    NAME '[TRIMMING-2] Print-Job using "finishing" = 11 (trim)'
+    OPERATION Print-Job
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
+    
+    GROUP job-attributes-tag
+        ATTR integer copies 1
+        ATTR enum finishings 11  #trim
+
+    FILE $filename
+
+    MONITOR-PRINTER-STATE $uri
+    {
+        EXPECT printer-state WITH-VALUE 4 DEFINE-MATCH STITCHING_JOB_COMPLETE DISPLAY-MATCH "JOB PROCESSING"
+    }
+
+    STATUS successful-ok
+
+    EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_TRIMMING
+
+    NAME '[TRIMMING-3] Check Job attributes for trimming'
+    OPERATION Get-Job-Attributes
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
+
+    STATUS successful-ok
+    
+    EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+    EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
+
+    EXPECT finishings OF-TYPE enum IN-GROUP job-attributes-tag WITH-VALUE 11 COUNT 1
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_TRIMMING
+
+    NAME '[TRIMMING-4] Print requesting trimming using finishings-col'
+    OPERATION Print-Job
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR name requesting-user-name $user
+        ATTR mimeMediaType document-format $filetype
+    
+    GROUP job-attributes-tag
+        ATTR integer copies 1
+        ATTR collection finishings-col
+        {
+            MEMBER keyword finishing-template         'staple-top-left'
+            MEMBER collection trimming
+            {
+                MEMBER integer trimming-offset                  0
+                MEMBER keyword trimming-reference-edge          'bottom'
+                MEMBER keyword trimming-type                    'full'
+                MEMBER keyword trimming-when                    'after-sheets'
+            }
+        }
+
+    FILE $filename
+
+    STATUS successful-ok
+
+    EXPECT job-id OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_TRIMMING
+
+    NAME '[TRIMMING-5] Check Job attributes finishings-col'
+    OPERATION Get-Job-Attributes
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR integer job-id $job-id
+        ATTR name requesting-user-name $user
+
+    STATUS successful-ok
+    
+    EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
+    EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
+
+    EXPECT finishings-col/trimming OF-TYPE collection
+    EXPECT finishings-col/trimming/trimming-offset OF-TYPE integer WITH-VALUE 0
+    EXPECT finishings-col/trimming/trimming-reference-edge OF-TYPE keyword WITH-VALUE 'bottom'
+    EXPECT finishings-col/trimming/trimming-type OF-TYPE keyword WITH-VALUE 'full'
+    EXPECT finishings-col/trimming/trimming-when OF-TYPE keyword WITH-VALUE 'after-sheets'
 }
 
