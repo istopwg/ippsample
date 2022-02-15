@@ -1,7 +1,7 @@
 /*
  * User-defined destination (and option) support for CUPS.
  *
- * Copyright © 2021 by OpenPrinting.
+ * Copyright © 2021-2022 by OpenPrinting.
  * Copyright © 2007-2019 by Apple Inc.
  * Copyright © 1997-2007 by Easy Software Products.
  *
@@ -1142,7 +1142,7 @@ _cupsGetDestResource(
   DEBUG_printf(("1_cupsGetDestResource: device-uri=\"%s\", printer-uri-supported=\"%s\".", device_uri, printer_uri));
 
 #ifdef HAVE_DNSSD
-  if (((flags & CUPS_DEST_FLAGS_DEVICE) || !printer_uri) && strstr(device_uri, "._tcp"))
+  if (((flags & CUPS_DEST_FLAGS_DEVICE) || !printer_uri) && device_uri && strstr(device_uri, "._tcp"))
   {
     if ((device_uri = cups_dnssd_resolve(dest, device_uri, 5000, NULL, NULL, NULL)) != NULL)
     {
@@ -2831,7 +2831,9 @@ cups_dnssd_get_device(
                   !strcmp(regtype, "_ipps._tcp") ? "IPPS" : "IPP",
                   replyDomain));
 
-    device            = calloc(sizeof(_cups_dnssd_device_t), 1);
+    if ((device = calloc(sizeof(_cups_dnssd_device_t), 1)) == NULL)
+      return (NULL);
+
     device->dest.name = _cupsStrAlloc(name);
     device->domain    = _cupsStrAlloc(replyDomain);
     device->regtype   = _cupsStrAlloc(regtype);
@@ -3635,6 +3637,7 @@ cups_enum_dests(
     DEBUG_puts("1cups_enum_dests: Unable to create service browser, returning 0.");
 
     cupsFreeDests(data.num_dests, data.dests);
+    cupsArrayDelete(data.devices);
 
     return (0);
   }
@@ -3648,6 +3651,7 @@ cups_enum_dests(
     DNSServiceRefDeallocate(data.main_ref);
 
     cupsFreeDests(data.num_dests, data.dests);
+    cupsArrayDelete(data.devices);
 
     return (0);
   }
@@ -3660,6 +3664,7 @@ cups_enum_dests(
     DNSServiceRefDeallocate(data.main_ref);
 
     cupsFreeDests(data.num_dests, data.dests);
+    cupsArrayDelete(data.devices);
 
     return (0);
   }
@@ -3671,6 +3676,7 @@ cups_enum_dests(
     DEBUG_puts("1cups_enum_dests: Unable to create Avahi poll, returning 0.");
 
     cupsFreeDests(data.num_dests, data.dests);
+    cupsArrayDelete(data.devices);
 
     return (0);
   }
@@ -3686,6 +3692,7 @@ cups_enum_dests(
     avahi_simple_poll_free(data.simple_poll);
 
     cupsFreeDests(data.num_dests, data.dests);
+    cupsArrayDelete(data.devices);
 
     return (0);
   }
@@ -3699,6 +3706,7 @@ cups_enum_dests(
     avahi_simple_poll_free(data.simple_poll);
 
     cupsFreeDests(data.num_dests, data.dests);
+    cupsArrayDelete(data.devices);
 
     return (0);
   }
@@ -3714,6 +3722,7 @@ cups_enum_dests(
     avahi_simple_poll_free(data.simple_poll);
 
     cupsFreeDests(data.num_dests, data.dests);
+    cupsArrayDelete(data.devices);
 
     return (0);
   }

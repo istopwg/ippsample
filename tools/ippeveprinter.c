@@ -1,7 +1,7 @@
 /*
  * IPP Everywhere printer application for CUPS.
  *
- * Copyright © 2021 by OpenPrinting.
+ * Copyright © 2021-2022 by OpenPrinting.
  * Copyright © 2020 by the IEEE-ISTO Printer Working Group.
  * Copyright © 2010-2021 by Apple Inc.
  *
@@ -1141,6 +1141,7 @@ create_job(ippeve_client_t *client)	/* I - Client */
   if ((job = calloc(1, sizeof(ippeve_job_t))) == NULL)
   {
     perror("Unable to allocate memory for job");
+    _cupsRWUnlock(&(client->printer->rwlock));
     return (NULL);
   }
 
@@ -7024,8 +7025,6 @@ process_job(ippeve_job_t *job)		/* I - Job */
 #endif /* !_WIN32 */
       job->state = IPP_JSTATE_ABORTED;
     }
-    else if (status < 0)
-      job->state = IPP_JSTATE_ABORTED;
     else
       fprintf(stderr, "[Job %d] Command \"%s\" completed successfully.\n", job->id, job->printer->command);
 
@@ -8048,6 +8047,8 @@ show_media(ippeve_client_t  *client)	/* I - Client connection */
   else
     html_printf(client, "</table>\n");
 
+  cupsFreeOptions(num_options, options);
+
   html_footer(client);
 
   return (1);
@@ -8331,6 +8332,8 @@ show_supplies(
   }
   else
     html_printf(client, "</table>\n");
+
+  cupsFreeOptions(num_options, options);
 
   html_footer(client);
 

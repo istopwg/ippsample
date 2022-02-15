@@ -1,7 +1,7 @@
 /*
  * HTTP support routines for CUPS.
  *
- * Copyright © 2020-2021 by OpenPrinting
+ * Copyright © 2020-2022 by OpenPrinting
  * Copyright © 2007-2019 by Apple Inc.
  * Copyright © 1997-2007 by Easy Software Products, all rights reserved.
  *
@@ -1430,6 +1430,12 @@ _httpSetDigestAuthString(
     * Use old RFC 2069 Digest method...
     */
 
+    if (cg->digestoptions == _CUPS_DIGESTOPTIONS_DENYMD5)
+    {
+      DEBUG_puts("3_httpSetDigestAuthString: MD5 Digest is disabled.");
+      return (0);
+    }
+
     /* H(A1) = H(username:realm:password) */
     snprintf(temp, sizeof(temp), "%s:%s:%s", username, http->realm, password);
     hashsize = (size_t)cupsHashData("md5", (unsigned char *)temp, strlen(temp), hash, sizeof(hash));
@@ -2564,15 +2570,6 @@ http_resolve_cb(
  /*
   * Figure out the scheme from the full name...
   */
-
-  if (strstr(type, "_ipp."))
-    scheme = "ipp";
-  else if (strstr(type, "_printer."))
-    scheme = "lpd";
-  else if (strstr(type, "_pdl-datastream."))
-    scheme = "socket";
-  else
-    scheme = "riousbprint";
 
   if (!strncmp(type, "_ipps.", 6) || !strncmp(type, "_ipp-tls.", 9))
     scheme = "ipps";
