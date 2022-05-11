@@ -11,10 +11,8 @@
 #define IPPSAMPLE_CONFIG_H
 
 
-// Version numbers
+// Version number
 #define IPPSAMPLE_VERSION ""
-#define IPPSAMPLE_VERSION_MAJOR 0
-#define IPPSAMPLE_VERSION_MINOR 0
 
 
 // PAM support

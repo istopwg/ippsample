@@ -10,9 +10,7 @@
 
 #include <cups/cups.h>
 #include <cups/raster.h>
-#include <cups/array-private.h>
-#include <cups/string-private.h>
-#include <cups/thread-private.h>
+#include <cups/thread.h>
 
 #ifdef HAVE_COREGRAPHICS
 #  include <CoreGraphics/CoreGraphics.h>

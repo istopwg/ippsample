@@ -683,8 +683,6 @@ build_os
 build_vendor
 build_cpu
 build
-IPPSAMPLE_VERSION_MINOR
-IPPSAMPLE_VERSION_MAJOR
 IPPSAMPLE_VERSION
 subdirs
 target_alias
@@ -2442,21 +2440,11 @@ subdirs="$subdirs libcups"
 
 
 IPPSAMPLE_VERSION="1.0b1"
-IPPSAMPLE_VERSION_MAJOR="`echo 1.0b1 | awk -F. '{print $1}'`"
-IPPSAMPLE_VERSION_MINOR="`echo 1.0b1 | awk -F. '{printf("%d\n",$2);}'`"
-
-
 
 
 
 
 printf "%s\n" "#define IPPSAMPLE_VERSION \"$IPPSAMPLE_VERSION\"" >>confdefs.h
-
-
-printf "%s\n" "#define IPPSAMPLE_VERSION_MAJOR $IPPSAMPLE_VERSION_MAJOR" >>confdefs.h
-
-
-printf "%s\n" "#define IPPSAMPLE_VERSION_MINOR $IPPSAMPLE_VERSION_MINOR" >>confdefs.h
 
 
 
@@ -3969,12 +3957,14 @@ fi
 
 PATH="$SAVEPATH"
 
-if
+if test "x$CURAENGINE" != x
 then :
 
-fitest "x$CURAENGINE" != x,
-    AC_DEFINE_UNQUOTED([CURAENGINE], "$CURAENGINE", [CuraEngine path])
-)
+
+printf "%s\n" "#define CURAENGINE \"$CURAENGINE\"" >>confdefs.h
+
+
+fi
 
 
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for install-sh script" >&5

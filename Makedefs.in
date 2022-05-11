@@ -63,50 +63,27 @@ INSTALL_MAN	=	$(INSTALL) -c -m 444
 
 LIBZ		=	@LIBZ@
 
-#
-# Program options...
-#
-# ARCHFLAGS     Defines the default architecture build options.
-# OPTIM         Defines the common compiler optimization/debugging options
-#               for all architectures.
-# OPTIONS       Defines other compile-time options (currently only -DDEBUG
-#               for extra debug info)
-#
-
-ALL_CFLAGS	=	-I.. -D_CUPS_SOURCE -DCUPS_LITE $(CFLAGS) $(TLSFLAGS) \
-			@LARGEFILE@ @PTHREAD_FLAGS@ $(OPTIONS)
-ALL_CXXFLAGS	=	-I.. -D_CUPS_SOURCE -DCUPS_LITE $(CXXFLAGS) $(TLSFLAGS) \
-			@LARGEFILE@ @PTHREAD_FLAGS@ $(OPTIONS)
-ARCHFLAGS	=	@ARCHFLAGS@
-ARFLAGS		=	@ARFLAGS@
-CFLAGS		=	@CPPFLAGS@ @CFLAGS@
-COMMONLIBS	=	@LIBS@
-DNSSDLIBS	=	@DNSSDLIBS@
-LDFLAGS		=	@LDARCHFLAGS@ @LDFLAGS@ $(OPTIM)
-LINKCUPS	=	../cups/libcups.a $(TLSLIBS) $(DNSSDLIBS) $(LIBZ)
-LIBS		=	$(LINKCUPS) $(COMMONLIBS)
+# Programs and options...
+CC		=	@CC@
+CFLAGS		=	@CFLAGS@ $(CPPFLAGS) $(OPTIM) $(WARNINGS)
+CODE_SIGN	=	@CODE_SIGN@
+CODESIGN_IDENTITY =	-
+CPPFLAGS	=	-I.. -I../libcups -I../pdfio @CPPFLAGS@
+CSFLAGS		=	-s "$(CODESIGN_IDENTITY)" @CSFLAGS@ --timestamp
+INSTALL		=	@INSTALL@
+LDFLAGS		=	@LDFLAGS@ $(OPTIM)
+LIBS		=	../pdfio/libpdfio.a -L../libcups/cups `PKG_CONFIG_PATH=../libcups pkg-config --libs cups` @LIBS@
+LN		=	@LN@
+MKDIR           =       @MKDIR@ -p
 OPTIM		=	@OPTIM@
-OPTIONS		=
 PAMLIBS		=	@PAMLIBS@
-TLSFLAGS	=	@TLSFLAGS@
-TLSLIBS		=	@TLSLIBS@
+RM		=	@RM@ -f
+RMDIR		=	@RMDIR@
+SHELL		=	/bin/sh
+WARNINGS	=	@WARNINGS@
 
 
-#
 # Directories...
-#
-# The first section uses the GNU names (which are *extremely*
-# difficult to find in a makefile because they are lowercase...)
-# We have to define these first because autoconf uses ${prefix}
-# and ${exec_prefix} for most of the other directories...
-#
-# The "datarootdir" variable may not get defined if you are using
-# a version of autoconf prior to 2.60.
-#
-# This is immediately followed by definition in ALL CAPS for the
-# needed directories...
-#
-
 bindir		=	@bindir@
 datadir		=	@datadir@
 datarootdir	=	@datarootdir@
@@ -126,17 +103,13 @@ srcdir		=	@srcdir@
 sysconfdir	=	@sysconfdir@
 top_srcdir	=	@top_srcdir@
 
-BUILDROOT	=	$(DSTROOT)$(DESTDIR)
-IPP		=	@IPP@
+BUILDROOT	=	$(DSTROOT)$(RPM_BUILD_ROOT)$(DESTDIR)
 
 
-#
-# Rules...
-#
-
+# Build commands...
 .SILENT:
-.SUFFIXES:	.a .c .h .o
+.SUFFIXES:	.c .h .o
 
 .c.o:
 	echo Compiling $<...
-	$(CC) $(ARCHFLAGS) $(OPTIM) $(ALL_CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -c -o $@ $<

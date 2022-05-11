@@ -24,16 +24,10 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SUBDIRS([libcups])
 
 IPPSAMPLE_VERSION="AC_PACKAGE_VERSION"
-IPPSAMPLE_VERSION_MAJOR="`echo AC_PACKAGE_VERSION | awk -F. '{print $1}'`"
-IPPSAMPLE_VERSION_MINOR="`echo AC_PACKAGE_VERSION | awk -F. '{printf("%d\n",$2);}'`"
 
 AC_SUBST([IPPSAMPLE_VERSION])
-AC_SUBST([IPPSAMPLE_VERSION_MAJOR])
-AC_SUBST([IPPSAMPLE_VERSION_MINOR])
 
 AC_DEFINE_UNQUOTED([IPPSAMPLE_VERSION], ["$IPPSAMPLE_VERSION"], [Version number])
-AC_DEFINE_UNQUOTED([IPPSAMPLE_VERSION_MAJOR], [$IPPSAMPLE_VERSION_MAJOR], [Major version number])
-AC_DEFINE_UNQUOTED([IPPSAMPLE_VERSION_MINOR], [$IPPSAMPLE_VERSION_MINOR], [Minor version number])
 
 
 dnl This line is provided to ensure that you don't run the autoheader program
@@ -111,7 +105,7 @@ AS_CASE(["$use_pdfrip"], [coregraphics], [
     AC_PATH_PROG([PDFTOPPM], [pdftoppm])
 
     AS_IF([test "x$PDFTOPPM" != x], [
-	AC_DEFINE_UNQUOTED([PDFTOPPM], "$PDFTOPPM", [pdftoppm path])
+	AC_DEFINE_UNQUOTED([PDFTOPPM], ["$PDFTOPPM"], [pdftoppm path])
     ], [test "x$with_pdfrip" = xpdftoppm], [
 	AC_MSG_ERROR([Unable to find pdftoppm program.])
     ])
@@ -134,8 +128,8 @@ PATH="$PATH:/Applications/Ultimaker Cura.app/Contents/MacOS"
 AC_PATH_PROG([CURAENGINE], [CuraEngine])
 PATH="$SAVEPATH"
 
-AS_IF[test "x$CURAENGINE" != x], [
-    AC_DEFINE_UNQUOTED([CURAENGINE], "$CURAENGINE", [CuraEngine path])
+AS_IF([test "x$CURAENGINE" != x], [
+    AC_DEFINE_UNQUOTED([CURAENGINE], ["$CURAENGINE"], [CuraEngine path])
 ])
 
 

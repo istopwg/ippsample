@@ -25,8 +25,7 @@
 
 #  include <config.h>			/* CUPS configuration header */
 #  include <cups/cups.h>		/* Public API */
-#  include <cups/string-private.h>	/* CUPS string functions */
-#  include <cups/thread-private.h>	/* For multithreading functions */
+#  include <cups/thread.h>		/* For multithreading functions */
 #  include <stdio.h>
 #  include <stdlib.h>
 #  include <string.h>

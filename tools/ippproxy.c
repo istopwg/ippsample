@@ -15,7 +15,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <cups/cups.h>
-#include <cups/thread-private.h>
+#include <cups/thread.h>
 
 
 /*

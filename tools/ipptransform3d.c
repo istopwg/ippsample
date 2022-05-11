@@ -9,9 +9,7 @@
 
 #include <config.h>
 #include <cups/cups.h>
-#include <cups/array-private.h>
-#include <cups/string-private.h>
-#include <cups/thread-private.h>
+#include <cups/thread.h>
 #include <fcntl.h>
 #include <termios.h>
 #include <sys/select.h>

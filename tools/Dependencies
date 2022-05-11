@@ -1,45 +1,30 @@
-ipp3dprinter.o: ipp3dprinter.c ../cups/cups-private.h \
-  ../cups/string-private.h ../config.h ../cups/versioning.h \
-  ../cups/array-private.h ../cups/array.h ../cups/ipp-private.h \
-  ../cups/cups.h ../cups/file.h ../cups/ipp.h ../cups/http.h \
-  ../cups/language.h ../cups/pwg.h ../cups/http-private.h \
-  ../cups/language-private.h ../cups/transcode.h ../cups/pwg-private.h \
-  ../cups/thread-private.h ../cups/debug-private.h \
+ipp3dprinter.o: ipp3dprinter.c ../libcups/cups/cups-private.h \
+  ../libcups/cups/string-private.h ../config.h ../libcups/cups/base.h \
+  ../libcups/cups/array-private.h ../libcups/cups/array.h \
+  ../libcups/cups/ipp-private.h ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/ipp.h ../libcups/cups/http.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/http-private.h ../libcups/cups/language-private.h \
+  ../libcups/cups/transcode.h ../libcups/cups/pwg-private.h \
+  ../libcups/cups/thread.h ../libcups/cups/debug-private.h \
   ../server/printer3d-png.h
-ippdoclint.o: ippdoclint.c ../config.h ../cups/cups.h ../cups/file.h \
-  ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
-  ../cups/language.h ../cups/pwg.h ../cups/raster.h \
-  ../cups/string-private.h
-ippeveprinter.o: ippeveprinter.c ../cups/cups-private.h \
-  ../cups/string-private.h ../config.h ../cups/versioning.h \
-  ../cups/array-private.h ../cups/array.h ../cups/ipp-private.h \
-  ../cups/cups.h ../cups/file.h ../cups/ipp.h ../cups/http.h \
-  ../cups/language.h ../cups/pwg.h ../cups/http-private.h \
-  ../cups/language-private.h ../cups/transcode.h ../cups/pwg-private.h \
-  ../cups/thread-private.h ../cups/debug-private.h printer-png.h \
-  printer-lg-png.h printer-sm-png.h
-ippfind.o: ippfind.c ../cups/cups-private.h ../cups/string-private.h \
-  ../config.h ../cups/versioning.h ../cups/array-private.h \
-  ../cups/array.h ../cups/ipp-private.h ../cups/cups.h ../cups/file.h \
-  ../cups/ipp.h ../cups/http.h ../cups/language.h ../cups/pwg.h \
-  ../cups/http-private.h ../cups/language-private.h ../cups/transcode.h \
-  ../cups/pwg-private.h ../cups/thread-private.h
-ippproxy.o: ippproxy.c ../config.h ../cups/cups.h ../cups/file.h \
-  ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
-  ../cups/language.h ../cups/pwg.h ../cups/thread-private.h
-ipptool.o: ipptool.c ../cups/cups-private.h ../cups/string-private.h \
-  ../config.h ../cups/versioning.h ../cups/array-private.h \
-  ../cups/array.h ../cups/ipp-private.h ../cups/cups.h ../cups/file.h \
-  ../cups/ipp.h ../cups/http.h ../cups/language.h ../cups/pwg.h \
-  ../cups/http-private.h ../cups/language-private.h ../cups/transcode.h \
-  ../cups/pwg-private.h ../cups/thread-private.h
-ipptransform.o: ipptransform.c ../cups/cups.h ../cups/file.h \
-  ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
-  ../cups/language.h ../cups/pwg.h ../cups/raster.h \
-  ../cups/array-private.h ../cups/string-private.h ../config.h \
-  ../cups/thread-private.h dither.h
-ipptransform3d.o: ipptransform3d.c ../config.h ../cups/cups.h \
-  ../cups/file.h ../cups/versioning.h ../cups/ipp.h ../cups/http.h \
-  ../cups/array.h ../cups/language.h ../cups/pwg.h \
-  ../cups/array-private.h ../cups/string-private.h \
-  ../cups/thread-private.h
+ippdoclint.o: ippdoclint.c ../config.h ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
+  ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/raster.h ../libcups/cups/string-private.h
+ippproxy.o: ippproxy.c ../config.h ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
+  ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/thread.h
+ipptransform.o: ipptransform.c ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
+  ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/raster.h ../libcups/cups/thread.h dither.h
+ipptransform3d.o: ipptransform3d.c ../config.h ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
+  ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/thread.h
