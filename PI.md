@@ -11,22 +11,20 @@ Run the following command to install the core software you'll need to build and
 use all of the ippsample code:
 
     sudo apt-get install build-essential autoconf avahi-daemon avahi-utils \
-        cura-engine libavahi-client-dev libfreetype6-dev libgnutls28-dev \
-        libharfbuzz-dev libjbig2dec0-dev libjpeg-dev libmupdf-dev libnss-mdns \
-        libopenjp2-7-dev libpng-dev zlib1g-dev
+        cura-engine libavahi-client-dev libjpeg-dev libnss-mdns libpam-dev \
+        libpng-dev libssl-dev libusb-1.0-0-dev zlib1g-dev
 
 Prerequisites for just 2D printing:
 
     sudo apt-get install build-essential autoconf avahi-daemon avahi-utils \
-        libavahi-client-dev libfreetype6-dev libgnutls28-dev libharfbuzz-dev \
-        libjbig2dec0-dev libjpeg-dev libmupdf-dev libnss-mdns libopenjp2-7-dev \
-        libpng-dev zlib1g-dev
+        libavahi-client-dev libjpeg-dev libnss-mdns libpam-dev libpng-dev \
+        libssl-dev libusb-1.0-0-dev zlib1g-dev
 
 Prerequisites for just 3D printing:
 
     sudo apt-get install build-essential autoconf avahi-daemon avahi-utils \
-        cura-engine libavahi-client-dev libgnutls28-dev libnss-mdns \
-        zlib1g-dev
+        cura-engine libavahi-client-dev libnss-mdns libpam-dev libssl-dev \
+        libusb-1.0-0-dev zlib1g-dev
 
 
 ## Building the IPP Sample Code
@@ -34,7 +32,7 @@ Prerequisites for just 3D printing:
 If you haven't already done so, you can download the latested IPP sample sources
 with Git using:
 
-    git clone https://github.com/istopwg/ippsample.git ippsample
+    git clone recurse-submodules https://github.com/istopwg/ippsample.git
 
 Then, from the ippsample source directory, run the following commands to
 build and install everything:
