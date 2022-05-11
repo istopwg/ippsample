@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.572
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30204.135
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "dnssdstub", "..\libcups\vcnet\dnssdstub.vcxproj", "{C0899B3A-43E7-4BC3-A785-659E1FD2EA83}"
 EndProject
@@ -14,9 +14,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ippfind", "..\libcups\vcnet
 		{C0899B3A-43E7-4BC3-A785-659E1FD2EA83} = {C0899B3A-43E7-4BC3-A785-659E1FD2EA83}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ippserver", "ippserver.vcxproj", "{82A03BC7-0746-4B85-8908-3C7A3FAA58A9}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ippserver", "ippserver.vcxproj", "{EF2E1F72-A637-42DD-AB0A-EED2F6CC3D56}"
 	ProjectSection(ProjectDependencies) = postProject
 		{18950A1B-D37A-40C7-B2DF-C12986C0526E} = {18950A1B-D37A-40C7-B2DF-C12986C0526E}
+		{98F2DE9E-2978-4387-AF71-82532BEDB29E} = {98F2DE9E-2978-4387-AF71-82532BEDB29E}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ipptool", "..\libcups\vcnet\ipptool.vcxproj", "{B246D91E-61F2-4433-BFD2-6C2A96FBD4D4}"
@@ -29,7 +30,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libcups3", "..\libcups\vcne
 		{C0899B3A-43E7-4BC3-A785-659E1FD2EA83} = {C0899B3A-43E7-4BC3-A785-659E1FD2EA83}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pdfio1", "pdfio.vcxproj", "{98F2DE9E-2978-4387-AF71-82532BEDB29E}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pdfio1", "..\pdfio\pdfio.vcxproj", "{98F2DE9E-2978-4387-AF71-82532BEDB29E}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "regex", "..\libcups\vcnet\regex.vcxproj", "{18950A1B-D37A-40C7-B2DF-C12986C0526E}"
 EndProject
@@ -51,10 +52,10 @@ Global
 		{B484DA0C-62C8-4C32-83B6-CCEB58968B85}.Debug|x64.Build.0 = Debug|x64
 		{B484DA0C-62C8-4C32-83B6-CCEB58968B85}.Release|x64.ActiveCfg = Release|x64
 		{B484DA0C-62C8-4C32-83B6-CCEB58968B85}.Release|x64.Build.0 = Release|x64
-		{82A03BC7-0746-4B85-8908-3C7A3FAA58A9}.Debug|x64.ActiveCfg = Debug|x64
-		{82A03BC7-0746-4B85-8908-3C7A3FAA58A9}.Debug|x64.Build.0 = Debug|x64
-		{82A03BC7-0746-4B85-8908-3C7A3FAA58A9}.Release|x64.ActiveCfg = Release|x64
-		{82A03BC7-0746-4B85-8908-3C7A3FAA58A9}.Release|x64.Build.0 = Release|x64
+		{EF2E1F72-A637-42DD-AB0A-EED2F6CC3D56}.Debug|x64.ActiveCfg = Debug|x64
+		{EF2E1F72-A637-42DD-AB0A-EED2F6CC3D56}.Debug|x64.Build.0 = Debug|x64
+		{EF2E1F72-A637-42DD-AB0A-EED2F6CC3D56}.Release|x64.ActiveCfg = Release|x64
+		{EF2E1F72-A637-42DD-AB0A-EED2F6CC3D56}.Release|x64.Build.0 = Release|x64
 		{B246D91E-61F2-4433-BFD2-6C2A96FBD4D4}.Debug|x64.ActiveCfg = Debug|x64
 		{B246D91E-61F2-4433-BFD2-6C2A96FBD4D4}.Debug|x64.Build.0 = Debug|x64
 		{B246D91E-61F2-4433-BFD2-6C2A96FBD4D4}.Release|x64.ActiveCfg = Release|x64
