@@ -83,7 +83,8 @@ serverAuthenticateClient(
     char	scheme[32],		/* Scheme */
 		*schemeptr;		/* Pointer into scheme */
 
-    strlcpy(scheme, authorization, sizeof(scheme));
+    strncpy(scheme, authorization, sizeof(scheme) - 1);
+    scheme[sizeof(scheme) - 1] = '\0';
     if ((schemeptr = strchr(scheme, ' ')) != NULL)
       *schemeptr = '\0';
 
@@ -212,7 +213,8 @@ serverAuthenticateClient(
 
     serverLogClient(SERVER_LOGLEVEL_INFO, client, "Authenticated as \"%s\".", data.username);
 
-    strlcpy(client->username, data.username, sizeof(client->username));
+    strncpy(client->username, data.username, sizeof(client->username) - 1);
+    client->username[sizeof(client->username) - 1] = '\0';
   }
 
   return (status);
@@ -404,7 +406,8 @@ serverMakeVCARD(const char *user,	/* I - User name or `NULL` for current user */
     *     NAME,LOCATION,PHONE
     */
 
-    strlcpy(gecos, pw->pw_gecos, sizeof(gecos));
+    strncpy(gecos, pw->pw_gecos, sizeof(gecos) - 1);
+    gecos[sizeof(gecos) - 1] = '\0';
     gecosptr = gecos;
 
     gecosval = strsep(&gecosptr, ",");

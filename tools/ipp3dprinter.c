@@ -410,7 +410,8 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-	      strlcpy(directory, argv[i], sizeof(directory));
+	      strncpy(directory, argv[i], sizeof(directory) - 1);
+	      directory[sizeof(directory) - 1] = '\0';
 	      break;
 
 	  case 'f' : /* -f type/subtype[,...] */
@@ -4877,7 +4878,7 @@ register_printer(
     if (ptr > formats && ptr < (formats + sizeof(formats) - 1))
       *ptr++ = ',';
 
-    strlcpy(ptr, value, sizeof(formats) - (size_t)(ptr - formats));
+    strncpy(ptr, value, sizeof(formats) - (size_t)(ptr - formats - 1));
     ptr += strlen(ptr);
 
     if (ptr >= (formats + sizeof(formats) - 1))
@@ -4932,7 +4933,7 @@ register_printer(
   if (subtypes && *subtypes)
     snprintf(regtype, sizeof(regtype), "_ipp-3d._tcp,%s", subtypes);
   else
-    strlcpy(regtype, "_ipp-3d._tcp", sizeof(regtype));
+    strncpy(regtype, "_ipp-3d._tcp", sizeof(regtype) - 1);
 
   if ((error = DNSServiceRegister(&(printer->ipp_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, regtype, NULL /* domain */, NULL /* host */, htons(printer->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
   {
@@ -4950,7 +4951,7 @@ register_printer(
   if (subtypes && *subtypes)
     snprintf(regtype, sizeof(regtype), "_ipps-3d._tcp,%s", subtypes);
   else
-    strlcpy(regtype, "_ipps-3d._tcp", sizeof(regtype));
+    strncpy(regtype, "_ipps-3d._tcp", sizeof(regtype) - 1);
 
   if ((error = DNSServiceRegister(&(printer->ipps_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, regtype, NULL /* domain */, NULL /* host */, htons(printer->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
   {

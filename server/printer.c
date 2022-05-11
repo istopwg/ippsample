@@ -1402,7 +1402,7 @@ serverCreatePrinter(
     if (printer->pinfo.make && printer->pinfo.model)
       snprintf(make_model, sizeof(make_model), "%s %s", printer->pinfo.make, printer->pinfo.model);
     else
-      strlcpy(make_model, "Unknown", sizeof(make_model));
+      strncpy(make_model, "Unknown", sizeof(make_model) - 1);
 
     ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-make-and-model", NULL, make_model);
   }
@@ -1950,14 +1950,14 @@ serverRegisterPrinter(
     if (ptr > formats && ptr < (formats + sizeof(formats) - 1))
       *ptr++ = ',';
 
-    strlcpy(ptr, value, sizeof(formats) - (size_t)(ptr - formats));
+    strncpy(ptr, value, sizeof(formats) - (size_t)(ptr - formats - 1));
     ptr += strlen(ptr);
 
     if (ptr >= (formats + sizeof(formats) - 1))
       break;
   }
 
-  kind[0] = '\0';
+  memset(kind, 0, sizeof(kind));
   for (i = 0, count = ippGetCount(printer_kind), ptr = kind; i < count; i ++)
   {
     value = ippGetString(printer_kind, i, NULL);
@@ -1965,14 +1965,14 @@ serverRegisterPrinter(
     if (ptr > kind && ptr < (kind + sizeof(kind) - 1))
       *ptr++ = ',';
 
-    strlcpy(ptr, value, sizeof(kind) - (size_t)(ptr - kind));
+    strncpy(ptr, value, sizeof(kind) - (size_t)(ptr - kind - 1));
     ptr += strlen(ptr);
 
     if (ptr >= (kind + sizeof(kind) - 1))
       break;
   }
 
-  urf[0] = '\0';
+  memset(urf, 0, sizeof(urf));
   for (i = 0, count = ippGetCount(urf_supported), ptr = urf; i < count; i ++)
   {
     value = ippGetString(urf_supported, i, NULL);
@@ -1980,7 +1980,7 @@ serverRegisterPrinter(
     if (ptr > urf && ptr < (urf + sizeof(urf) - 1))
       *ptr++ = ',';
 
-    strlcpy(ptr, value, sizeof(urf) - (size_t)(ptr - urf));
+    strncpy(ptr, value, sizeof(urf) - (size_t)(ptr - urf - 1));
     ptr += strlen(ptr);
 
     if (ptr >= (urf + sizeof(urf) - 1))
@@ -2044,7 +2044,7 @@ serverRegisterPrinter(
     if (DNSSDSubType && *DNSSDSubType)
       snprintf(regtype, sizeof(regtype), SERVER_IPP_TYPE ",%s", DNSSDSubType);
     else
-      strlcpy(regtype, SERVER_IPP_TYPE, sizeof(regtype));
+      strncpy(regtype, SERVER_IPP_TYPE, sizeof(regtype) - 1);
 
     if ((error = DNSServiceRegister(&(printer->ipp_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, regtype, NULL /* domain */, NULL /* host */, htons(lis->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
     {
@@ -2062,12 +2062,12 @@ serverRegisterPrinter(
       if (DNSSDSubType && *DNSSDSubType)
 	snprintf(regtype, sizeof(regtype), SERVER_IPPS_3D_TYPE ",%s", DNSSDSubType);
       else
-	strlcpy(regtype, SERVER_IPPS_3D_TYPE, sizeof(regtype));
+	strncpy(regtype, SERVER_IPPS_3D_TYPE, sizeof(regtype) - 1);
     }
     else if (DNSSDSubType && *DNSSDSubType)
       snprintf(regtype, sizeof(regtype), SERVER_IPPS_TYPE ",%s", DNSSDSubType);
     else
-      strlcpy(regtype, SERVER_IPPS_TYPE, sizeof(regtype));
+      strncpy(regtype, SERVER_IPPS_TYPE, sizeof(regtype) - 1);
 
     if ((error = DNSServiceRegister(&(printer->ipps_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, regtype, NULL /* domain */, NULL /* host */, htons(lis->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
     {

@@ -180,7 +180,8 @@ serverLogPrinter(
   * printf format specifiers.
   */
 
-  strlcpy(temp, "[Printer ", sizeof(temp));
+  strncpy(temp, "[Printer ", sizeof(temp) - 1);
+  temp[sizeof(temp) - 1] = '\0';
   for (tempptr = temp + 9, nameptr = printer->name; *nameptr && tempptr < (temp + 200); tempptr ++)
   {
     if (*nameptr == '%')
@@ -189,7 +190,7 @@ serverLogPrinter(
   }
   *tempptr++ = ']';
   *tempptr++ = ' ';
-  strlcpy(tempptr, format, sizeof(temp) - (size_t)(tempptr - temp));
+  strncpy(tempptr, format, sizeof(temp) - (size_t)(tempptr - temp - 1));
 
   va_start(ap, format);
   server_log_to_file(level, temp, ap);
@@ -374,7 +375,7 @@ safe_vsnprintf(
 
             if (bufptr)
 	    {
-	      strlcpy(bufptr, temp, (size_t)(bufend - bufptr));
+	      strncpy(bufptr, temp, (size_t)(bufend - bufptr - 1));
 	      bufptr += strlen(bufptr);
 	    }
 	    break;
@@ -404,7 +405,7 @@ safe_vsnprintf(
 
 	    if (bufptr)
 	    {
-	      strlcpy(bufptr, temp, (size_t)(bufend - bufptr));
+	      strncpy(bufptr, temp, (size_t)(bufend - bufptr - 1));
 	      bufptr += strlen(bufptr);
 	    }
 	    break;
@@ -419,7 +420,7 @@ safe_vsnprintf(
 
 	    if (bufptr)
 	    {
-	      strlcpy(bufptr, temp, (size_t)(bufend - bufptr));
+	      strncpy(bufptr, temp, (size_t)(bufend - bufptr - 1));
 	      bufptr += strlen(bufptr);
 	    }
 	    break;
