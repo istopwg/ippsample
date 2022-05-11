@@ -1,7 +1,7 @@
 /*
  * Client code for sample IPP server implementation.
  *
- * Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -120,14 +120,14 @@ serverCreateListeners(const char *host,	/* I - Hostname, IP address, or NULL for
     lis->port = port;
 
     if (!Listeners)
-      Listeners = cupsArrayNew(NULL, NULL);
+      Listeners = cupsArrayNew(NULL, NULL, NULL, 0, NULL, NULL);
 
     cupsArrayAdd(Listeners, lis);
   }
 
   httpAddrFreeList(addrlist);
 
-  return (cupsArrayCount(Listeners) > 0);
+  return (cupsArrayGetCount(Listeners) > 0);
 }
 
 
@@ -171,13 +171,10 @@ serverProcessClient(
   * Loop until we are out of requests or timeout (30 seconds)...
   */
 
-#ifdef HAVE_TLS
   int first_time = 1;			/* First time request? */
-#endif /* HAVE_TLS */
 
   while (httpWait(client->http, 30000))
   {
-#ifdef HAVE_TLS
     if (first_time && Encryption != HTTP_ENCRYPTION_NEVER)
     {
      /*
@@ -202,7 +199,6 @@ serverProcessClient(
 
       first_time = 0;
     }
-#endif /* HAVE_TLS */
 
     if (!serverProcessHTTP(client))
       break;
@@ -363,7 +359,6 @@ serverProcessHTTP(
   if (!strcasecmp(httpGetField(client->http, HTTP_FIELD_CONNECTION),
                         "Upgrade"))
   {
-#ifdef HAVE_TLS
     if (strstr(httpGetField(client->http, HTTP_FIELD_UPGRADE), "TLS/") != NULL && !httpIsEncrypted(client->http) && Encryption != HTTP_ENCRYPTION_NEVER)
     {
       if (!serverRespondHTTP(client, HTTP_STATUS_SWITCHING_PROTOCOLS, NULL, NULL, 0))
@@ -380,21 +375,16 @@ serverProcessHTTP(
 
       serverLogClient(SERVER_LOGLEVEL_INFO, client, "Connection now encrypted.");
     }
-    else
-#endif /* HAVE_TLS */
-
-    if (!serverRespondHTTP(client, HTTP_STATUS_NOT_IMPLEMENTED, NULL, NULL, 0))
+    else if (!serverRespondHTTP(client, HTTP_STATUS_NOT_IMPLEMENTED, NULL, NULL, 0))
       return (0);
   }
 
-#ifdef HAVE_TLS
   if (Encryption == HTTP_ENCRYPTION_REQUIRED && !httpIsEncrypted(client->http))
   {
     serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Forcing encryption of connection.");
     serverRespondHTTP(client, HTTP_STATUS_UPGRADE_REQUIRED, NULL, NULL, 0);
     return (0);
   }
-#endif /* HAVE_TLS */
 
  /*
   * Handle HTTP Expect...
@@ -474,7 +464,7 @@ serverProcessHTTP(
 	  server_printer_t *printer;	/* Printer */
 
           if ((printer = serverFindPrinter(client->uri)) == NULL)
-            printer = (server_printer_t *)cupsArrayFirst(Printers);
+            printer = (server_printer_t *)cupsArrayGetFirst(Printers);
 
           if (printer)
           {
@@ -520,7 +510,7 @@ serverProcessHTTP(
 	  server_printer_t *printer;	/* Printer */
 
           if ((printer = serverFindPrinter(client->uri)) == NULL)
-            printer = (server_printer_t *)cupsArrayFirst(Printers);
+            printer = (server_printer_t *)cupsArrayGetFirst(Printers);
 
           if (printer)
           {
@@ -552,7 +542,7 @@ serverProcessHTTP(
                   }
 
                   while ((bytes = read(fd, buffer, sizeof(buffer))) > 0)
-                    httpWrite2(client->http, buffer, (size_t)bytes);
+                    httpWrite(client->http, buffer, (size_t)bytes);
 
                   httpFlushWrite(client->http);
 
@@ -569,14 +559,14 @@ serverProcessHTTP(
                   if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", sizeof(printer3d_png)))
                     return (0);
 
-                  httpWrite2(client->http, (void *)printer3d_png, sizeof(printer3d_png));
+                  httpWrite(client->http, (void *)printer3d_png, sizeof(printer3d_png));
                 }
                 else
                 {
                   if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "image/png", sizeof(printer_png)))
                     return (0);
 
-                  httpWrite2(client->http, (void *)printer_png, sizeof(printer_png));
+                  httpWrite(client->http, (void *)printer_png, sizeof(printer_png));
                 }
                 httpFlushWrite(client->http);
 
@@ -623,7 +613,7 @@ serverProcessHTTP(
 	    }
 
 	    while ((bytes = read(fd, buffer, sizeof(buffer))) > 0)
-	      httpWrite2(client->http, buffer, (size_t)bytes);
+	      httpWrite(client->http, buffer, (size_t)bytes);
 
 	    httpFlushWrite(client->http);
 
@@ -694,7 +684,7 @@ serverRespondHTTP(
   char	message[1024];			/* Text message */
 
 
-  serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s", httpStatus(code));
+  serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s", httpStatusString(code));
 
   if (code == HTTP_STATUS_CONTINUE)
   {
@@ -711,7 +701,7 @@ serverRespondHTTP(
 
   if (!type && !length && code != HTTP_STATUS_OK && code != HTTP_STATUS_SWITCHING_PROTOCOLS)
   {
-    snprintf(message, sizeof(message), "%d - %s\n", code, httpStatus(code));
+    snprintf(message, sizeof(message), "%d - %s\n", code, httpStatusString(code));
 
     type   = "text/plain";
     length = strlen(message);
@@ -729,7 +719,7 @@ serverRespondHTTP(
   {
     char www_auth[HTTP_MAX_VALUE];	/* WWW-Authenicate header value */
 
-    if (!_cups_strcasecmp(AuthType, "Basic"))
+    if (!strcasecmp(AuthType, "Basic"))
       snprintf(www_auth, sizeof(www_auth), "Basic realm=\"%s\" charset=\"UTF-8\"", AuthName);
     else
       www_auth[0] = '\0';
@@ -795,7 +785,7 @@ serverRespondHTTP(
         httpSetField(client->http, HTTP_FIELD_CONTENT_ENCODING, "gzip");
 
       while ((bytes = read(client->fetch_file, buffer, sizeof(buffer))) > 0)
-        httpWrite2(client->http, buffer, (size_t)bytes);
+        httpWrite(client->http, buffer, (size_t)bytes);
 
       serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverRespondHTTP: Sent file.");
 
@@ -806,7 +796,7 @@ serverRespondHTTP(
     if (length == 0)
     {
       serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverRespondHTTP: Sending 0-length chunk.");
-      httpWrite2(client->http, "", 0);
+      httpWrite(client->http, "", 0);
     }
   }
 
@@ -835,8 +825,8 @@ serverRun(void)
   time_t                next_clean = 0; /* Next time to clean old jobs */
 
 
-  serverLog(SERVER_LOGLEVEL_DEBUG, "serverRun: %d printers configured.", cupsArrayCount(Printers));
-  serverLog(SERVER_LOGLEVEL_DEBUG, "serverRun: %d listeners configured.", cupsArrayCount(Listeners));
+  serverLog(SERVER_LOGLEVEL_DEBUG, "serverRun: %u printers configured.", (unsigned)cupsArrayGetCount(Printers));
+  serverLog(SERVER_LOGLEVEL_DEBUG, "serverRun: %u listeners configured.", (unsigned)cupsArrayGetCount(Listeners));
 
  /*
   * Loop until we are killed or have a hard error...
@@ -851,7 +841,7 @@ serverRun(void)
     FD_ZERO(&input);
     max_fd = 0;
 
-    for (lis = (server_listener_t *)cupsArrayFirst(Listeners); lis; lis = (server_listener_t *)cupsArrayNext(Listeners))
+    for (lis = (server_listener_t *)cupsArrayGetFirst(Listeners); lis; lis = (server_listener_t *)cupsArrayGetNext(Listeners))
     {
       FD_SET(lis->fd, &input);
       if (max_fd < lis->fd)
@@ -877,7 +867,7 @@ serverRun(void)
       break;
     }
 
-    for (lis = (server_listener_t *)cupsArrayFirst(Listeners); lis; lis = (server_listener_t *)cupsArrayNext(Listeners))
+    for (lis = (server_listener_t *)cupsArrayGetFirst(Listeners); lis; lis = (server_listener_t *)cupsArrayGetNext(Listeners))
     {
       if (FD_ISSET(lis->fd, &input))
       {
@@ -885,11 +875,11 @@ serverRun(void)
 
         if ((client = serverCreateClient(lis->fd)) != NULL)
         {
-          _cups_thread_t t = _cupsThreadCreate((_cups_thread_func_t)serverProcessClient, client);
+          cups_thread_t t = cupsThreadCreate((cups_thread_func_t)serverProcessClient, client);
 
           if (t)
           {
-            _cupsThreadDetach(t);
+            cupsThreadDetach(t);
           }
           else
           {
@@ -939,12 +929,12 @@ html_escape(server_client_t *client,	/* I - Client */
     if (*s == '&' || *s == '<')
     {
       if (s > start)
-        httpWrite2(client->http, start, (size_t)(s - start));
+        httpWrite(client->http, start, (size_t)(s - start));
 
       if (*s == '&')
-        httpWrite2(client->http, "&amp;", 5);
+        httpWrite(client->http, "&amp;", 5);
       else
-        httpWrite2(client->http, "&lt;", 4);
+        httpWrite(client->http, "&lt;", 4);
 
       start = s + 1;
     }
@@ -953,7 +943,7 @@ html_escape(server_client_t *client,	/* I - Client */
   }
 
   if (s > start)
-    httpWrite2(client->http, start, (size_t)(s - start));
+    httpWrite(client->http, start, (size_t)(s - start));
 }
 
 
@@ -970,7 +960,7 @@ html_footer(server_client_t *client)	/* I - Client */
 	      "</div>\n"
 	      "</body>\n"
 	      "</html>\n");
-  httpWrite2(client->http, "", 0);
+  httpWrite(client->http, "", 0);
 }
 
 
@@ -1019,7 +1009,7 @@ html_header(server_client_t *client,	/* I - Client */
 	      "</style>\n"
 	      "</head>\n"
 	      "<body>\n"
-	      "<div class=\"header\"><a href=\"/\">" CUPS_SVERSION "</a></div>\n"
+	      "<div class=\"header\"><a href=\"/\">" IPPSAMPLE_VERSION "</a></div>\n"
 	      "<div class=\"body\">\n");
 }
 
@@ -1057,14 +1047,14 @@ html_printf(server_client_t *client,	/* I - Client */
     if (*format == '%')
     {
       if (format > start)
-        httpWrite2(client->http, start, (size_t)(format - start));
+        httpWrite(client->http, start, (size_t)(format - start));
 
       tptr    = tformat;
       *tptr++ = *format++;
 
       if (*format == '%')
       {
-        httpWrite2(client->http, "%", 1);
+        httpWrite(client->http, "%", 1);
         format ++;
 	start = format;
 	continue;
@@ -1178,7 +1168,7 @@ html_printf(server_client_t *client,	/* I - Client */
 
 	    sprintf(temp, tformat, va_arg(ap, double));
 
-            httpWrite2(client->http, temp, strlen(temp));
+            httpWrite(client->http, temp, strlen(temp));
 	    break;
 
         case 'B' : /* Integer formats */
@@ -1202,7 +1192,7 @@ html_printf(server_client_t *client,	/* I - Client */
 	    else
 	      sprintf(temp, tformat, va_arg(ap, int));
 
-            httpWrite2(client->http, temp, strlen(temp));
+            httpWrite(client->http, temp, strlen(temp));
 	    break;
 
 	case 'p' : /* Pointer value */
@@ -1211,7 +1201,7 @@ html_printf(server_client_t *client,	/* I - Client */
 
 	    sprintf(temp, tformat, va_arg(ap, void *));
 
-            httpWrite2(client->http, temp, strlen(temp));
+            httpWrite(client->http, temp, strlen(temp));
 	    break;
 
         case 'c' : /* Character or character array */
@@ -1238,7 +1228,7 @@ html_printf(server_client_t *client,	/* I - Client */
   }
 
   if (format > start)
-    httpWrite2(client->http, start, (size_t)(format - start));
+    httpWrite(client->http, start, (size_t)(format - start));
 
   va_end(ap);
 }
@@ -1265,7 +1255,7 @@ parse_options(server_client_t *client,	/* I - Client */
 
   if (httpGetState(client->http) == HTTP_STATE_POST_RECV)
   {
-    off_t	post_len = httpGetLength2(client->http);
+    off_t	post_len = httpGetLength(client->http);
 					/* Length of POST form data */
 
     if (post_len == 0 || post_len > 65535)
@@ -1279,7 +1269,7 @@ parse_options(server_client_t *client,	/* I - Client */
       ssize_t	post_bytes;		/* Number of bytes read... */
 
 
-      while ((post_bytes = httpRead2(client->http, post_ptr, (size_t)(post_end - post_ptr))) > 0)
+      while ((post_bytes = httpRead(client->http, post_ptr, (size_t)(post_end - post_ptr))) > 0)
       {
         post_ptr += post_bytes;
       }
@@ -1351,20 +1341,20 @@ send_mobile_config(
   }
   else
   {
-    _cupsRWLockRead(&PrintersRWLock);
-    for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+    cupsRWLockRead(&PrintersRWLock);
+    for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
     {
       if (printer->type == SERVER_TYPE_PRINT)
         send_printer_payload(client, printer);
     }
-    _cupsRWUnlock(&PrintersRWLock);
+    cupsRWUnlock(&PrintersRWLock);
   }
 
   html_printf(client,
               "\t\t</array>\n"
               "\t</dict>\n"
               "</plist>\n");
-  httpWrite2(client->http, "", 0);
+  httpWrite(client->http, "", 0);
 
   return (1);
 }
@@ -1384,7 +1374,7 @@ send_printer_payload(
   const char	*make_and_model,	/* printer-make-and-model value */
 		*uuid;			/* printer-uuid value */
 
-  _cupsRWLockRead(&printer->rwlock);
+  cupsRWLockRead(&printer->rwlock);
 
   make_and_model = ippGetString(ippFindAttribute(printer->pinfo.attrs, "printer-make-and-model", IPP_TAG_TEXT), 0, NULL);
   uuid           = ippGetString(ippFindAttribute(printer->pinfo.attrs, "printer-uuid", IPP_TAG_URI), 0, NULL);
@@ -1423,7 +1413,7 @@ send_printer_payload(
               "\t\t\t\t</array>\n"
               "\t\t\t</dict>\n", ServerName, uuid, uuid, make_and_model ? make_and_model : "unknown", printer->dns_sd_name, ServerName, printer->resource, DefaultPort);
 
-  _cupsRWUnlock(&printer->rwlock);
+  cupsRWUnlock(&printer->rwlock);
 }
 
 
@@ -1507,7 +1497,7 @@ show_materials(
     char	name[255];		/* Form name */
     const char	*val;			/* Form value */
 
-    _cupsRWLockWrite(&printer->rwlock);
+    cupsRWLockWrite(&printer->rwlock);
 
     ippDeleteAttribute(printer->pinfo.attrs, materials_ready);
     materials_ready = NULL;
@@ -1537,7 +1527,7 @@ show_materials(
     if (!materials_ready)
       materials_ready = ippAddOutOfBand(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "materials-col-ready");
 
-    _cupsRWUnlock(&printer->rwlock);
+    cupsRWUnlock(&printer->rwlock);
   }
 
  /*
@@ -1639,7 +1629,7 @@ show_media(server_client_t  *client,	/* I - Client connection */
                         *ready_type;	/* media-col-ready media-type value */
   char			tray_str[1024],	/* printer-input-tray string value */
 			*tray_ptr;	/* Pointer into value */
-  int			tray_len;	/* Length of printer-input-tray value */
+  size_t		tray_len;	/* Length of printer-input-tray value */
   int			ready_sheets;	/* printer-input-tray sheets value */
   int			num_options = 0;/* Number of form options */
   cups_option_t		*options = NULL;/* Form options */
@@ -1731,7 +1721,7 @@ show_media(server_client_t  *client,	/* I - Client connection */
     const char	*val;			/* Form value */
     pwg_media_t	*media;			/* Media info */
 
-    _cupsRWLockWrite(&printer->rwlock);
+    cupsRWLockWrite(&printer->rwlock);
 
     ippDeleteAttribute(printer->pinfo.attrs, input_tray);
     input_tray = NULL;
@@ -1821,7 +1811,7 @@ show_media(server_client_t  *client,	/* I - Client connection */
     if (!media_ready)
       media_ready = ippAddOutOfBand(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "media-ready");
 
-    _cupsRWUnlock(&printer->rwlock);
+    cupsRWUnlock(&printer->rwlock);
   }
 
   if (printer->pinfo.web_forms)
@@ -1995,18 +1985,18 @@ show_status(server_client_t  *client,	/* I - Client connection */
       html_printf(client, "</p>\n");
     }
     html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Jobs</h1>\n", printer->resource, printer->dns_sd_name);
-    html_printf(client, "<p>%s, %d job(s).", printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
+    html_printf(client, "<p>%s, %u job(s).", printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", (unsigned)cupsArrayGetCount(printer->jobs));
     for (i = 0, reason = 1; i < (int)(sizeof(reasons) / sizeof(reasons[0])); i ++, reason <<= 1)
       if (printer->state_reasons & reason)
         html_printf(client, "\n<br>&nbsp;&nbsp;&nbsp;&nbsp;%s", reasons[i]);
     html_printf(client, "</p>\n");
 
-    if (cupsArrayCount(printer->jobs) > 0)
+    if (cupsArrayGetCount(printer->jobs) > 0)
     {
-      _cupsRWLockRead(&(printer->rwlock));
+      cupsRWLockRead(&(printer->rwlock));
 
       html_printf(client, "<table class=\"striped\" summary=\"Jobs\"><thead><tr><th>Job #</th><th>Name</th><th>Owner</th><th>When</th></tr></thead><tbody>\n");
-      for (job = (server_job_t *)cupsArrayFirst(printer->jobs); job; job = (server_job_t *)cupsArrayNext(printer->jobs))
+      for (job = (server_job_t *)cupsArrayGetFirst(printer->jobs); job; job = (server_job_t *)cupsArrayGetNext(printer->jobs))
       {
         char	when[256],		/* When job queued/started/finished */
                 hhmmss[64];		/* Time HH:MM:SS */
@@ -2036,17 +2026,17 @@ show_status(server_client_t  *client,	/* I - Client connection */
       }
       html_printf(client, "</tbody></table>\n");
 
-      _cupsRWUnlock(&(printer->rwlock));
+      cupsRWUnlock(&(printer->rwlock));
     }
   }
   else
   {
-    html_header(client, CUPS_SVERSION, 0);
-    for (i = 0, printer = (server_printer_t *)cupsArrayFirst(Printers); printer; i ++, printer = (server_printer_t *)cupsArrayNext(Printers))
+    html_header(client, IPPSAMPLE_VERSION, 0);
+    for (i = 0, printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; i ++, printer = (server_printer_t *)cupsArrayGetNext(Printers))
     {
       html_printf(client, "<div class=\"%s\">\n", (i & 1) ? "odd" : "even");
       html_printf(client, "  <h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s</h1>\n", printer->resource, printer->dns_sd_name);
-      html_printf(client, "  <p>%s, %d job(s).", printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
+      html_printf(client, "  <p>%s, %u job(s).", printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", (unsigned)cupsArrayGetCount(printer->jobs));
       for (j = 0, reason = 1; j < (int)(sizeof(reasons) / sizeof(reasons[0])); j ++, reason <<= 1)
         if (printer->state_reasons & reason)
           html_printf(client, "\n<br>&nbsp;&nbsp;&nbsp;&nbsp;%s", reasons[j]);
@@ -2087,8 +2077,8 @@ show_supplies(
 		*supply_desc;		/* printer-supply-description attribute */
   int		num_options = 0;	/* Number of form options */
   cups_option_t	*options = NULL;	/* Form options */
-  int		supply_len,		/* Length of supply value */
-		level;			/* Supply level */
+  size_t	supply_len;		/* Length of supply value */
+  int		level;			/* Supply level */
   const char	*supply_value;		/* Supply value */
   char		supply_text[1024],	/* Supply string */
 		*supply_ptr;		/* Pointer into supply string */
@@ -2170,7 +2160,7 @@ show_supplies(
     char	name[64];		/* Form field */
     const char	*val;			/* Form value */
 
-    _cupsRWLockWrite(&printer->rwlock);
+    cupsRWLockWrite(&printer->rwlock);
 
     ippDeleteAttribute(printer->pinfo.attrs, supply);
     supply = NULL;
@@ -2207,7 +2197,7 @@ show_supplies(
       }
     }
 
-    _cupsRWUnlock(&printer->rwlock);
+    cupsRWUnlock(&printer->rwlock);
   }
 
   if (printer->pinfo.web_forms)

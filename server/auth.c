@@ -1,7 +1,7 @@
 /*
  * Authentication code for sample IPP server implementation.
  *
- * Copyright © 2018-2019 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2018-2022 by the IEEE-ISTO Printer Working Group
  * Copyright © 2018 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -60,7 +60,7 @@ serverAuthenticateClient(
 					/* Returned status */
   const char	*authorization;		/* Authorization header */
   server_authdata_t data;		/* Authorization data */
-  int		userlen;		/* Username:password length */
+  size_t	userlen;		/* Username:password length */
   char		*password;		/* Pointer to password */
 
 
@@ -98,11 +98,11 @@ serverAuthenticateClient(
     */
 
     authorization += 5;
-    while (_cups_isspace(*authorization & 255))
+    while (isspace(*authorization & 255))
       authorization ++;
 
     userlen = sizeof(data.username);
-    httpDecode64_2(data.username, &userlen, authorization);
+    httpDecode64(data.username, &userlen, authorization);
 
     if ((password = strchr(data.username, ':')) == NULL)
     {
@@ -422,7 +422,7 @@ serverMakeVCARD(const char *user,	/* I - User name or `NULL` for current user */
 #endif /* !_WIN32 */
 
   if (!name || !*name)
-    name = cupsUser();
+    name = cupsGetUser();
 
   vcard_escape(name, nameval, sizeof(nameval));
 

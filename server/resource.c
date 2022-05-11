@@ -1,7 +1,7 @@
 /*
  * Resource object code for sample IPP server implementation.
  *
- * Copyright © 2018-2021 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2018-2022 by the IEEE-ISTO Printer Working Group
  * Copyright © 2018-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -30,19 +30,19 @@ serverAddResourceFile(
     const char        *filename,	/* I - File */
     const char        *format)		/* I - MIME media type */
 {
-  server_listener_t *lis = (server_listener_t *)cupsArrayFirst(Listeners);
+  server_listener_t *lis = (server_listener_t *)cupsArrayGetFirst(Listeners);
 					/* First listener */
   char		uri[1024];		/* resource-data-uri value */
   struct stat	resinfo;		/* Resource info */
 
 
-  _cupsRWLockWrite(&res->rwlock);
+  cupsRWLockWrite(&res->rwlock);
 
   res->filename = strdup(filename);
   res->format   = strdup(format);
   res->state    = IPP_RSTATE_AVAILABLE;
 
-  _cupsRWLockWrite(&ResourcesRWLock);
+  cupsRWLockWrite(&ResourcesRWLock);
 
   cupsArrayAdd(ResourcesByFilename, res);
 
@@ -56,13 +56,11 @@ serverAddResourceFile(
     cupsArrayAdd(ResourcesByPath, res);
   }
 
-  _cupsRWUnlock(&ResourcesRWLock);
+  cupsRWUnlock(&ResourcesRWLock);
 
-#ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
     httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "https", NULL, lis->host, lis->port, res->resource);
   else
-#endif /* HAVE_TLS */
     httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "http", NULL, lis->host, lis->port, res->resource);
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_URI, "resource-data-uri", NULL, uri);
 
@@ -75,7 +73,7 @@ serverAddResourceFile(
 
   serverAddEventNoLock(NULL, NULL, res, SERVER_EVENT_RESOURCE_STATE_CHANGED, "Resource %d now available.", res->id);
 
-  _cupsRWUnlock(&res->rwlock);
+  cupsRWUnlock(&res->rwlock);
 }
 
 
@@ -119,7 +117,7 @@ serverCreateResourceFilename(
     ext = "";
 
   for (nameptr = name; *res_name && nameptr < (name + sizeof(name) - 1); res_name ++)
-    if (!_cups_strcasecmp(res_name, ext))
+    if (!strcasecmp(res_name, ext))
       break;
     else if (isalnum(*res_name & 255) || *res_name == '-')
       *nameptr++ = (char)tolower(*res_name & 255);
@@ -146,7 +144,7 @@ serverCreateResource(
     const char *type,			/* I - Resource type */
     const char *language)		/* I - Resource language or `NULL` */
 {
-  server_listener_t *lis = (server_listener_t *)cupsArrayFirst(Listeners);
+  server_listener_t *lis = (server_listener_t *)cupsArrayGetFirst(Listeners);
 					/* First listener */
   server_resource_t	*res;		/* Resource */
   char			uuid[64];	/* resource-uuid value */
@@ -202,7 +200,7 @@ serverCreateResource(
     return (NULL);
   }
 
-  _cupsRWLockWrite(&ResourcesRWLock);
+  cupsRWLockWrite(&ResourcesRWLock);
 
   res->fd    = -1;
   res->attrs = ippNew();
@@ -213,8 +211,8 @@ serverCreateResource(
   if (resource)
     res->resource = strdup(resource);
 
-  _cupsRWInit(&res->rwlock);
-  _cupsRWLockWrite(&res->rwlock);
+  cupsRWInit(&res->rwlock);
+  cupsRWLockWrite(&res->rwlock);
 
  /*
   * Add resource attributes and add the object to the resources arrays...
@@ -259,21 +257,21 @@ serverCreateResource(
   ippAddOutOfBand(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_NOVALUE, "time-at-canceled");
 
   if (!ResourcesByFilename)
-    ResourcesByFilename = cupsArrayNew((cups_array_func_t)compare_filenames, NULL);
+    ResourcesByFilename = cupsArrayNew((cups_array_cb_t)compare_filenames, NULL, NULL, 0, NULL, NULL);
   if (!ResourcesById)
-    ResourcesById = cupsArrayNew((cups_array_func_t)compare_ids, NULL);
+    ResourcesById = cupsArrayNew((cups_array_cb_t)compare_ids, NULL, NULL, 0, NULL, NULL);
   if (!ResourcesByPath)
-    ResourcesByPath = cupsArrayNew((cups_array_func_t)compare_resources, NULL);
+    ResourcesByPath = cupsArrayNew((cups_array_cb_t)compare_resources, NULL, NULL, 0, NULL, NULL);
 
   cupsArrayAdd(ResourcesById, res);
   if (res->resource)
     cupsArrayAdd(ResourcesByPath, res);
 
-  _cupsRWUnlock(&ResourcesRWLock);
+  cupsRWUnlock(&ResourcesRWLock);
 
   serverAddEventNoLock(NULL, NULL, res, SERVER_EVENT_RESOURCE_CREATED | SERVER_EVENT_RESOURCE_STATE_CHANGED, "Resource %d created.", res->id);
 
-  _cupsRWUnlock(&res->rwlock);
+  cupsRWUnlock(&res->rwlock);
 
   if (filename)
     serverAddResourceFile(res, filename, format);
@@ -290,14 +288,14 @@ void
 serverDeleteResource(
     server_resource_t *res)		/* I - Resource */
 {
-  _cupsRWLockWrite(&ResourcesRWLock);
+  cupsRWLockWrite(&ResourcesRWLock);
 
   if (res->filename)
     cupsArrayRemove(ResourcesByFilename, res);
   cupsArrayRemove(ResourcesById, res);
   cupsArrayRemove(ResourcesByPath, res);
 
-  _cupsRWLockWrite(&res->rwlock);
+  cupsRWLockWrite(&res->rwlock);
 
   ippDelete(res->attrs);
 
@@ -306,12 +304,12 @@ serverDeleteResource(
   free(res->resource);
   free(res->type);
 
-  _cupsRWUnlock(&res->rwlock);
-  _cupsRWDeinit(&res->rwlock);
+  cupsRWUnlock(&res->rwlock);
+  cupsRWDestroy(&res->rwlock);
 
   free(res);
 
-  _cupsRWUnlock(&ResourcesRWLock);
+  cupsRWUnlock(&ResourcesRWLock);
 }
 
 
@@ -329,9 +327,9 @@ serverFindResourceByFilename(
 
   key.filename = (char *)filename;
 
-  _cupsRWLockRead(&ResourcesRWLock);
+  cupsRWLockRead(&ResourcesRWLock);
   res = (server_resource_t *)cupsArrayFind(ResourcesByFilename, &key);
-  _cupsRWUnlock(&ResourcesRWLock);
+  cupsRWUnlock(&ResourcesRWLock);
 
   return (res);
 }
@@ -350,9 +348,9 @@ serverFindResourceById(int id)		/* I - Resource ID */
 
   key.id = id;
 
-  _cupsRWLockRead(&ResourcesRWLock);
+  cupsRWLockRead(&ResourcesRWLock);
   res = (server_resource_t *)cupsArrayFind(ResourcesById, &key);
-  _cupsRWUnlock(&ResourcesRWLock);
+  cupsRWUnlock(&ResourcesRWLock);
 
   return (res);
 }
@@ -372,9 +370,9 @@ serverFindResourceByPath(
 
   key.resource = (char *)resource;
 
-  _cupsRWLockRead(&ResourcesRWLock);
+  cupsRWLockRead(&ResourcesRWLock);
   res = (server_resource_t *)cupsArrayFind(ResourcesByPath, &key);
-  _cupsRWUnlock(&ResourcesRWLock);
+  cupsRWUnlock(&ResourcesRWLock);
 
   return (res);
 }
@@ -394,7 +392,7 @@ serverSetResourceState(
   ipp_attribute_t	*attr;		/* Resource attribute */
 
 
-  _cupsRWLockWrite(&resource->rwlock);
+  cupsRWLockWrite(&resource->rwlock);
 
   resource->state = state;
 
@@ -429,7 +427,7 @@ serverSetResourceState(
     ippSetString(resource->attrs, &attr, 0, buffer);
   }
 
-  _cupsRWUnlock(&resource->rwlock);
+  cupsRWUnlock(&resource->rwlock);
 }
 
 

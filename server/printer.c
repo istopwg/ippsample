@@ -1,7 +1,7 @@
 /*
  * Printer object code for sample IPP server implementation.
  *
- * Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -59,7 +59,7 @@ serverAllocatePrinterResource(
   * Add the resource to the list...
   */
 
-  _cupsRWLockWrite(&resource->rwlock);
+  cupsRWLockWrite(&resource->rwlock);
 
   resource->use ++;
 
@@ -91,7 +91,7 @@ serverAllocatePrinterResource(
       serverAddStringsFile(printer, language, resource);
   }
 
-  _cupsRWUnlock(&resource->rwlock);
+  cupsRWUnlock(&resource->rwlock);
 }
 
 
@@ -149,13 +149,13 @@ serverCreatePrinter(
     server_pinfo_t *pinfo,		/* I - Printer information */
     int            dupe_pinfo)		/* I - Duplicate printer info strings? */
 {
-  int			i;		/* Looping var */
+  size_t		i;		/* Looping var */
   server_printer_t	*printer;	/* Printer */
   cups_array_t		*existing;	/* Existing attributes cache */
   char			title[256];	/* Title for attributes */
   server_listener_t	*lis;		/* Current listener */
   cups_array_t		*uris;		/* Array of URIs */
-  int			num_uris;	/* Number of URIs */
+  size_t		num_uris;	/* Number of URIs */
   int			is_print3d;	/* 3D printer? */
   char			uri[1024],	/* Printer URI */
 			*uriptr,	/* Current URI */
@@ -661,9 +661,7 @@ serverCreatePrinter(
   {					/* reference-uri-schemes-supported */
     "ftp",
     "http",
-#ifdef HAVE_TLS
     "https",
-#endif /* HAVE_TLS */
     "file"
   };
   static const char * const sides_supported[] =
@@ -745,9 +743,9 @@ serverCreatePrinter(
   printer->state          = IPP_PSTATE_STOPPED;
   printer->state_reasons  = SERVER_PREASON_PAUSED;
   printer->state_time     = printer->start_time;
-  printer->jobs           = cupsArrayNew3((cups_array_func_t)compare_jobs, NULL, NULL, 0, NULL, (cups_afree_func_t)serverDeleteJob);
-  printer->active_jobs    = cupsArrayNew((cups_array_func_t)compare_active_jobs, NULL);
-  printer->completed_jobs = cupsArrayNew((cups_array_func_t)compare_completed_jobs, NULL);
+  printer->jobs           = cupsArrayNew((cups_array_cb_t)compare_jobs, NULL, NULL, 0, NULL, (cups_afree_cb_t)serverDeleteJob);
+  printer->active_jobs    = cupsArrayNew((cups_array_cb_t)compare_active_jobs, NULL, NULL, 0, NULL, NULL);
+  printer->completed_jobs = cupsArrayNew((cups_array_cb_t)compare_completed_jobs, NULL, NULL, 0, NULL, NULL);
   printer->next_job_id    = 1;
   printer->pinfo          = *pinfo;
 
@@ -766,8 +764,8 @@ serverCreatePrinter(
     printer->pinfo.strings          = cupsArrayDup(pinfo->strings);
   }
 
-  uris = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
-  for (lis = cupsArrayFirst(Listeners); lis; lis = cupsArrayNext(Listeners))
+  uris = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
+  for (lis = cupsArrayGetFirst(Listeners); lis; lis = cupsArrayGetNext(Listeners))
   {
     httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPP_SCHEME, NULL, lis->host, lis->port, resource);
 
@@ -775,10 +773,10 @@ serverCreatePrinter(
       cupsArrayAdd(uris, uri);
   }
 
-  num_uris = cupsArrayCount(uris);
+  num_uris = cupsArrayGetCount(uris);
 
   uriptrs = calloc((size_t)num_uris, sizeof(char *));
-  for (i = 0, uriptr = cupsArrayFirst(uris); uriptr; i ++, uriptr = cupsArrayNext(uris))
+  for (i = 0, uriptr = cupsArrayGetFirst(uris); uriptr; i ++, uriptr = cupsArrayGetNext(uris))
     uriptrs[i] = uriptr;
 
   if (printer->pinfo.ppm == 0)
@@ -799,22 +797,20 @@ serverCreatePrinter(
     serverLog(SERVER_LOGLEVEL_DEBUG, "Using duplex=%d", printer->pinfo.duplex);
   }
 
-  _cupsRWInit(&(printer->rwlock));
+  cupsRWInit(&(printer->rwlock));
 
  /*
   * Prepare values for the printer attributes...
   */
 
-  lis = cupsArrayFirst(Listeners);
+  lis = cupsArrayGetFirst(Listeners);
 
-#ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
   {
     httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPPS_SCHEME, NULL, lis->host, lis->port, resource);
     webscheme = SERVER_HTTPS_SCHEME;
   }
   else
-#endif /* HAVE_TLS */
   {
     httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPP_SCHEME, NULL, lis->host, lis->port, resource);
     webscheme = SERVER_HTTP_SCHEME;
@@ -832,7 +828,7 @@ serverCreatePrinter(
   httpAssembleURI(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), webscheme, NULL, lis->host, lis->port, resource);
   httpAssembleURIf(HTTP_URI_CODING_ALL, supplyurl, sizeof(supplyurl), webscheme, NULL, lis->host, lis->port, "%s/supplies", resource);
 
-  serverLogPrinter(SERVER_LOGLEVEL_INFO, printer, "printer-uri=\"%s\"", (char *)cupsArrayFirst(uris));
+  serverLogPrinter(SERVER_LOGLEVEL_INFO, printer, "printer-uri=\"%s\"", (char *)cupsArrayGetFirst(uris));
   serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-more-info=\"%s\"", adminurl);
   serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-supply-info-uri=\"%s\"", supplyurl);
 
@@ -895,7 +891,7 @@ serverCreatePrinter(
   if (!printer->pinfo.attrs)
     printer->pinfo.attrs = ippNew();
 
-  existing = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  existing = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   for (attr = ippFirstAttribute(printer->pinfo.attrs); attr; attr = ippNextAttribute(printer->pinfo.attrs))
   {
     const char *attrname = ippGetName(attr);/* Attribute name */
@@ -1361,7 +1357,7 @@ serverCreatePrinter(
   {
     server_icc_t	*icc;		/* ICC profile */
 
-    for (attr = NULL, icc = (server_icc_t *)cupsArrayFirst(printer->pinfo.profiles); icc; icc = (server_icc_t *)cupsArrayNext(printer->pinfo.profiles))
+    for (attr = NULL, icc = (server_icc_t *)cupsArrayGetFirst(printer->pinfo.profiles); icc; icc = (server_icc_t *)cupsArrayGetNext(printer->pinfo.profiles))
     {
       serverAllocatePrinterResource(printer, icc->resource);
 
@@ -1478,7 +1474,7 @@ serverCreatePrinter(
   {
     server_lang_t *lang;
 
-    for (attr = NULL, lang = (server_lang_t *)cupsArrayFirst(printer->pinfo.strings); lang; lang = (server_lang_t *)cupsArrayNext(printer->pinfo.strings))
+    for (attr = NULL, lang = (server_lang_t *)cupsArrayGetFirst(printer->pinfo.strings); lang; lang = (server_lang_t *)cupsArrayGetNext(printer->pinfo.strings))
     {
       if (attr)
         ippSetString(printer->pinfo.attrs, &attr, ippGetCount(attr), lang->lang);
@@ -1528,11 +1524,9 @@ serverCreatePrinter(
 
     ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
 
-#ifdef HAVE_TLS
     if (Encryption != HTTP_ENCRYPTION_NEVER)
       ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "tls");
     else
-#endif /* HAVE_TLS */
       ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "none");
 
     ippAddString(xri_col, IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uriptrs[i]);
@@ -1584,7 +1578,6 @@ serverCreatePrinter(
     ippSetString(printer->pinfo.attrs, &attr, i, Authentication ? "basic"  : "none");
 
   /* uri-security-supported */
-#ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
   {
     attr = ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", num_uris, NULL, NULL);
@@ -1592,7 +1585,6 @@ serverCreatePrinter(
       ippSetString(printer->pinfo.attrs, &attr, i, "tls");
   }
   else
-#endif /* HAVE_TLS */
   {
     attr = ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", num_uris, NULL, NULL);
     for (i = 0; i < num_uris; i ++)
@@ -1609,19 +1601,15 @@ serverCreatePrinter(
   ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication-supported", NULL, Authentication ? "basic" : "none");
 
   /* xri-security-supported */
-#ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
     ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "tls");
   else
-#endif /* HAVE_TLS */
     ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "none");
 
   /* xri-uri-scheme-supported */
-#ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
     ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipps");
   else
-#endif /* HAVE_TLS */
     ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipp");
 
   if (num_formats > 0)
@@ -1690,7 +1678,7 @@ serverDeallocatePrinterResource(
   if (i < printer->num_resources)
     memmove(printer->resources + i, printer->resources + i + 1, (size_t)(printer->num_resources - i) * sizeof(int));
 
-  _cupsRWLockWrite(&resource->rwlock);
+  cupsRWLockWrite(&resource->rwlock);
 
   resource->use --;
 
@@ -1724,7 +1712,7 @@ serverDeallocatePrinterResource(
       cupsArrayRemove(printer->pinfo.strings, match);
   }
 
-  _cupsRWUnlock(&resource->rwlock);
+  cupsRWUnlock(&resource->rwlock);
 }
 
 
@@ -1740,7 +1728,7 @@ serverDeletePrinter(
   int			i;		/* Looping var */
   server_device_t	*device;	/* Current device */
 
-  _cupsRWLockWrite(&printer->rwlock);
+  cupsRWLockWrite(&printer->rwlock);
 
   serverUnregisterPrinter(printer);
 
@@ -1750,9 +1738,9 @@ serverDeletePrinter(
 
     if (resource)
     {
-      _cupsRWLockWrite(&resource->rwlock);
+      cupsRWLockWrite(&resource->rwlock);
       resource->use --;
-      _cupsRWUnlock(&resource->rwlock);
+      cupsRWUnlock(&resource->rwlock);
     }
   }
 
@@ -1774,7 +1762,7 @@ serverDeletePrinter(
   cupsArrayDelete(printer->pinfo.profiles);
   cupsArrayDelete(printer->pinfo.strings);
 
-  for (device = (server_device_t *)cupsArrayFirst(printer->pinfo.devices); device; device = (server_device_t *)cupsArrayNext(printer->pinfo.devices))
+  for (device = (server_device_t *)cupsArrayGetFirst(printer->pinfo.devices); device; device = (server_device_t *)cupsArrayGetNext(printer->pinfo.devices))
   {
     cupsArrayRemove(printer->pinfo.devices, device);
     serverDeleteDevice(device);
@@ -1790,7 +1778,7 @@ serverDeletePrinter(
   if (printer->identify_message)
     free(printer->identify_message);
 
-  _cupsRWDeinit(&printer->rwlock);
+  cupsRWDestroy(&printer->rwlock);
 
   free(printer);
 }
@@ -1804,13 +1792,13 @@ void
 serverDisablePrinter(
     server_printer_t *printer)		/* I - Printer */
 {
-  _cupsRWLockWrite(&printer->rwlock);
+  cupsRWLockWrite(&printer->rwlock);
 
   printer->is_accepting = 0;
 
   serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "No longer accepting jobs.");
 
-  _cupsRWUnlock(&printer->rwlock);
+  cupsRWUnlock(&printer->rwlock);
 }
 
 
@@ -1822,13 +1810,13 @@ void
 serverEnablePrinter(
     server_printer_t *printer)		/* I - Printer */
 {
-  _cupsRWLockWrite(&printer->rwlock);
+  cupsRWLockWrite(&printer->rwlock);
 
   printer->is_accepting = 1;
 
   serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Now accepting jobs.");
 
-  _cupsRWUnlock(&printer->rwlock);
+  cupsRWUnlock(&printer->rwlock);
 }
 
 
@@ -1875,7 +1863,7 @@ serverPausePrinter(
     server_printer_t *printer,		/* I - Printer */
     int              immediately)	/* I - Pause immediately? */
 {
-  _cupsRWLockWrite(&printer->rwlock);
+  cupsRWLockWrite(&printer->rwlock);
 
   if (printer->state != IPP_PSTATE_STOPPED)
   {
@@ -1897,7 +1885,7 @@ serverPausePrinter(
     }
   }
 
-  _cupsRWUnlock(&printer->rwlock);
+  cupsRWUnlock(&printer->rwlock);
 }
 
 
@@ -1928,7 +1916,7 @@ serverRegisterPrinter(
 			kind[251],	/* List of printer-kind values */
 			urf[252],	/* List of supported URF values */
 			*ptr;		/* Pointer into string */
-  server_listener_t	*lis = cupsArrayFirst(Listeners);
+  server_listener_t	*lis = cupsArrayGetFirst(Listeners);
 					/* Listen socket */
   char			regtype[256];	/* DNS-SD service type */
 #  ifdef HAVE_MDNSRESPONDER
@@ -2022,10 +2010,8 @@ serverRegisterPrinter(
     TXTRecordSetValue(&ipp_txt, "Duplex", 1, ippGetCount(sides_supported) > 1 ? "T" : "F");
   }
 
-#  ifdef HAVE_TLS
   if (!is_print3d && Encryption != HTTP_ENCRYPTION_NEVER)
     TXTRecordSetValue(&ipp_txt, "TLS", 3, "1.2");
-#  endif /* HAVE_TLS */
   if (urf[0])
     TXTRecordSetValue(&ipp_txt, "URF", (uint8_t)strlen(urf), urf);
   TXTRecordSetValue(&ipp_txt, "txtvers", 1, "1");
@@ -2065,7 +2051,6 @@ serverRegisterPrinter(
     }
   }
 
-#  ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
   {
     printer->ipps_ref = DNSSDMaster;
@@ -2088,7 +2073,6 @@ serverRegisterPrinter(
       return (0);
     }
   }
-#  endif /* HAVE_TLS */
 
  /*
   * Register the geolocation of the service...
@@ -2134,10 +2118,8 @@ serverRegisterPrinter(
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "Duplex=%s", ippGetCount(sides_supported) > 1 ? "T" : "F");
   }
 
-#  ifdef HAVE_TLS
   if (!is_print3d && Encryption != HTTP_ENCRYPTION_NEVER)
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "TLS=1.2");
-#  endif /* HAVE_TLS */
   if (urf[0])
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "URF=%s", urf);
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "txtvers=1");
@@ -2179,7 +2161,6 @@ serverRegisterPrinter(
     }
   }
 
-#  ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
   {
     if (is_print3d)
@@ -2225,7 +2206,6 @@ serverRegisterPrinter(
       }
     }
   }
-#  endif /* HAVE_TLS */
 
  /*
   * Register the geolocation of the service...
@@ -2266,7 +2246,7 @@ serverRestartPrinter(
 					/* Notification event */
 
 
-  _cupsRWLockWrite(&printer->rwlock);
+  cupsRWLockWrite(&printer->rwlock);
 
   if (!printer->is_accepting)
   {
@@ -2294,7 +2274,7 @@ serverRestartPrinter(
   if (printer->state != IPP_PSTATE_PROCESSING)
     printer->state_reasons &= (server_preason_t)~SERVER_PREASON_PRINTER_RESTARTED;
 
-  _cupsRWUnlock(&printer->rwlock);
+  cupsRWUnlock(&printer->rwlock);
 
   if (printer->state == IPP_PSTATE_IDLE)
     serverCheckJobs(printer);
@@ -2311,14 +2291,14 @@ serverResumePrinter(
 {
   if (printer->state == IPP_PSTATE_STOPPED)
   {
-    _cupsRWLockWrite(&printer->rwlock);
+    cupsRWLockWrite(&printer->rwlock);
 
     printer->state         = IPP_PSTATE_IDLE;
     printer->state_reasons &= (server_preason_t)~SERVER_PREASON_PAUSED;
 
     serverAddEventNoLock(printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Starting printer.");
 
-    _cupsRWUnlock(&printer->rwlock);
+    cupsRWUnlock(&printer->rwlock);
 
     serverCheckJobs(printer);
   }
@@ -2352,13 +2332,11 @@ serverUnregisterPrinter(
     DNSServiceRefDeallocate(printer->ipp_ref);
     printer->ipp_ref = NULL;
   }
-#  ifdef HAVE_TLS
   if (printer->ipps_ref)
   {
     DNSServiceRefDeallocate(printer->ipps_ref);
     printer->ipps_ref = NULL;
   }
-#  endif /* HAVE_TLS */
   if (printer->http_ref)
   {
     DNSServiceRefDeallocate(printer->http_ref);

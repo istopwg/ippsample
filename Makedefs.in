@@ -76,7 +76,6 @@ LIBS		=	../pdfio/libpdfio.a -L../libcups/cups `PKG_CONFIG_PATH=../libcups pkg-co
 LN		=	@LN@
 MKDIR           =       @MKDIR@ -p
 OPTIM		=	@OPTIM@
-PAMLIBS		=	@PAMLIBS@
 RM		=	@RM@ -f
 RMDIR		=	@RMDIR@
 SHELL		=	/bin/sh

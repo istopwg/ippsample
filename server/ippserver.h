@@ -1,7 +1,7 @@
 /*
  * Header file for sample IPP server implementation.
  *
- * Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -11,23 +11,17 @@
 #ifndef IPPSERVER_H
 #  define IPPSERVER_H
 
-/*
- * Disable deprecated stuff so we can verify that the public API is sufficient
- * to implement a server.
- */
-
-#  define _CUPS_NO_DEPRECATED 1		/* Disable deprecated stuff */
-
 
 /*
  * Include necessary headers...
  */
 
-#  include <config.h>			/* CUPS configuration header */
+#  include <config.h>			/* Configuration header */
 #  include <cups/cups.h>		/* Public API */
 #  include <cups/thread.h>		/* For multithreading functions */
 #  include <stdio.h>
 #  include <stdlib.h>
+#  include <stdbool.h>
 #  include <string.h>
 #  include <ctype.h>
 #  include <errno.h>
@@ -72,16 +66,6 @@ extern char **environ;
 #  ifdef HAVE_SYS_VFS_H
 #    include <sys/vfs.h>
 #  endif /* HAVE_SYS_VFS_H */
-
-#  ifdef HAVE_PTHREAD_H
-#    define _cupsCondDeinit(c)	pthread_cond_destroy(c)
-#    define _cupsMutexDeinit(m)	pthread_mutex_destroy(m)
-#    define _cupsRWDeinit(rw)	pthread_rwlock_destroy(rw)
-#  else
-#    define _cupsCondDeinit(c)
-#    define _cupsMutexDeinit(m)
-#    define _cupsRWDeinit(rw)
-#  endif /* HAVE_PTHREAD_H */
 
 #  ifndef O_BINARY			/* Windows "binary file" nonsense */
 #    define O_BINARY 0
@@ -435,7 +419,7 @@ typedef struct server_job_s server_job_t;
 
 typedef struct server_device_s		/**** Output Device data ****/
 {
-  _cups_rwlock_t	rwlock;		/* Printer lock */
+  cups_rwlock_t	rwlock;		/* Printer lock */
   char			*name,		/* printer-name (mapped to output-device) */
 			*uuid;		/* output-device-uuid */
   ipp_t			*attrs;		/* All printer attributes */
@@ -488,14 +472,12 @@ typedef struct server_printer_s		/**** Printer data ****/
 {
   int			id;		/* Printer ID */
   server_type_t		type;		/* Type of printer/service */
-  _cups_rwlock_t	rwlock;		/* Printer lock */
+  cups_rwlock_t	rwlock;		/* Printer lock */
 #ifdef HAVE_AVAHI
   server_srv_t		dnssd_ref;	/* DNS-SD registrations */
 #elif defined(HAVE_MDNSRESPONDER)
   server_srv_t		ipp_ref,	/* DNS-SD IPP service */
-#  ifdef HAVE_TLS
 			ipps_ref,	/* DNS-SD IPPS service */
-#  endif /* HAVE_TLS */
 			http_ref,	/* DNS-SD HTTP(S) service */
 			printer_ref;	/* DNS-SD LPD service */
 #endif /* HAVE_AVAHI */
@@ -535,7 +517,7 @@ typedef struct server_printer_s		/**** Printer data ****/
 struct server_job_s			/**** Job data ****/
 {
   int			id;		/* job-id */
-  _cups_rwlock_t	rwlock;		/* Job lock */
+  cups_rwlock_t	rwlock;		/* Job lock */
   const char		*name,		/* job-name */
 			*username,	/* job-originating-user-name */
 			*format;	/* document-format */
@@ -569,7 +551,7 @@ struct server_job_s			/**** Job data ****/
 struct server_resource_s		/**** Resource data ****/
 {
   int			id;		/* resource-id */
-  _cups_rwlock_t	rwlock;		/* Resource lock */
+  cups_rwlock_t	rwlock;		/* Resource lock */
   ipp_t			*attrs;		/* Resource attributes */
   ipp_rstate_t		state;		/* Resource state */
   char			*resource,	/* External resource path */
@@ -585,7 +567,7 @@ typedef struct server_subscription_s	/**** Subscription data ****/
 {
   int			id;		/* notify-subscription-id */
   const char		*uuid;		/* notify-subscription-uuid */
-  _cups_rwlock_t	rwlock;		/* Subscription lock */
+  cups_rwlock_t	rwlock;		/* Subscription lock */
   server_event_t	mask;		/* Event mask */
   server_printer_t	*printer;	/* Printer, if any */
   server_job_t		*job;		/* Job, if any */
@@ -661,7 +643,7 @@ VAR cups_array_t	*SubscriptionPrivacyArray VALUE(NULL);
 
 VAR ipp_t		*PrivacyAttributes VALUE(NULL);
 
-VAR _cups_rwlock_t	SystemRWLock	VALUE(_CUPS_RWLOCK_INITIALIZER);
+VAR cups_rwlock_t	SystemRWLock	VALUE(CUPS_RWLOCK_INITIALIZER);
 VAR ipp_t		*SystemAttributes VALUE(NULL);
 VAR time_t		SystemStartTime,
 			SystemConfigChangeTime;
@@ -678,9 +660,7 @@ VAR char		*DefaultSystemURI VALUE(NULL);
 VAR http_encryption_t	Encryption	VALUE(HTTP_ENCRYPTION_IF_REQUESTED);
 VAR cups_array_t	*FileDirectories VALUE(NULL);
 VAR int			KeepFiles	VALUE(0);
-#ifdef HAVE_TLS
 VAR char		*KeychainPath	VALUE(NULL);
-#endif /* HAVE_TLS */
 VAR cups_array_t	*Listeners	VALUE(NULL);
 VAR char		*LogFile	VALUE(NULL);
 VAR server_loglevel_t	LogLevel	VALUE(SERVER_LOGLEVEL_ERROR);
@@ -688,7 +668,7 @@ VAR int			MaxJobs		VALUE(100),
                         MaxCompletedJobs VALUE(100),
                         NextPrinterId	VALUE(1);
 VAR cups_array_t	*Printers	VALUE(NULL);
-VAR _cups_rwlock_t	PrintersRWLock	VALUE(_CUPS_RWLOCK_INITIALIZER);
+VAR cups_rwlock_t	PrintersRWLock	VALUE(CUPS_RWLOCK_INITIALIZER);
 VAR int			RelaxedConformance VALUE(0);
 VAR char		*ServerName	VALUE(NULL);
 VAR char		*SpoolDirectory	VALUE(NULL);
@@ -703,15 +683,15 @@ VAR AvahiClient		*DNSSDClient	VALUE(NULL);
 #endif /* HAVE_MDNSRESPONDER */
 VAR char		*DNSSDSubType	VALUE(NULL);
 
-VAR _cups_rwlock_t	ResourcesRWLock	VALUE(_CUPS_RWLOCK_INITIALIZER);
+VAR cups_rwlock_t	ResourcesRWLock	VALUE(CUPS_RWLOCK_INITIALIZER);
 VAR cups_array_t	*ResourcesByFilename VALUE(NULL);
 VAR cups_array_t	*ResourcesById	VALUE(NULL);
 VAR cups_array_t	*ResourcesByPath VALUE(NULL);
 VAR int			NextResourceId 	VALUE(1);
 
-VAR _cups_mutex_t	NotificationMutex VALUE(_CUPS_MUTEX_INITIALIZER);
-VAR _cups_cond_t	NotificationCondition VALUE(_CUPS_COND_INITIALIZER);
-VAR _cups_rwlock_t	SubscriptionsRWLock VALUE(_CUPS_RWLOCK_INITIALIZER);
+VAR cups_mutex_t	NotificationMutex VALUE(CUPS_MUTEX_INITIALIZER);
+VAR cups_cond_t		NotificationCondition VALUE(CUPS_COND_INITIALIZER);
+VAR cups_rwlock_t	SubscriptionsRWLock VALUE(CUPS_RWLOCK_INITIALIZER);
 VAR cups_array_t	*Subscriptions	VALUE(NULL);
 VAR int			NextSubscriptionId VALUE(1);
 

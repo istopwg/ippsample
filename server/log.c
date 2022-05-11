@@ -16,7 +16,7 @@
  * Local globals...
  */
 
-static _cups_mutex_t	log_mutex = _CUPS_MUTEX_INITIALIZER;
+static cups_mutex_t	log_mutex = CUPS_MUTEX_INITIALIZER;
 static int		log_fd = -1;
 
 
@@ -24,7 +24,8 @@ static int		log_fd = -1;
  * Local functions...
  */
 
-static void server_log_to_file(server_loglevel_t level, const char *format, va_list ap);
+static ssize_t	safe_vsnprintf(char *buffer, size_t bufsize, const char *format, va_list ap);
+static void	server_log_to_file(server_loglevel_t level, const char *format, va_list ap);
 
 
 /*
@@ -117,12 +118,10 @@ serverLogClient(
   va_start(ap, format);
   if (client)
   {
-#ifdef HAVE_TLS
     if (httpIsEncrypted(client->http))
       snprintf(temp, sizeof(temp), "[Client %dE] %s", client->number, format);
     else
-#endif /* HAVE_TLS */
-    snprintf(temp, sizeof(temp), "[Client %d] %s", client->number, format);
+      snprintf(temp, sizeof(temp), "[Client %d] %s", client->number, format);
     server_log_to_file(level, temp, ap);
   }
   else
@@ -218,6 +217,326 @@ serverTimeString(time_t tv,		/* I - Time value */
 
 
 /*
+ * 'safe_vsnprintf()' - Format a string into a fixed size buffer, quoting special characters.
+ */
+
+static ssize_t				/* O - Number of bytes formatted */
+safe_vsnprintf(
+    char       *buffer,			/* O - Output buffer */
+    size_t     bufsize,			/* O - Size of output buffer */
+    const char *format,			/* I - printf-style format string */
+    va_list    ap)			/* I - Pointer to additional arguments */
+{
+  char		*bufptr,		/* Pointer to position in buffer */
+		*bufend,		/* Pointer to end of buffer */
+		size,			/* Size character (h, l, L) */
+		type;			/* Format type character */
+  int		width,			/* Width of field */
+		prec;			/* Number of characters of precision */
+  char		tformat[100],		/* Temporary format string for snprintf() */
+		*tptr,			/* Pointer into temporary format */
+		temp[1024];		/* Buffer for formatted numbers */
+  char		*s;			/* Pointer to string */
+  ssize_t	bytes;			/* Total number of bytes needed */
+
+
+  if (!buffer || bufsize < 2 || !format)
+    return (-1);
+
+ /*
+  * Loop through the format string, formatting as needed...
+  */
+
+  bufptr = buffer;
+  bufend = buffer + bufsize - 1;
+  bytes  = 0;
+
+  while (*format)
+  {
+    if (*format == '%')
+    {
+      tptr = tformat;
+      *tptr++ = *format++;
+
+      if (*format == '%')
+      {
+        if (bufptr < bufend)
+	  *bufptr++ = *format;
+        bytes ++;
+        format ++;
+	continue;
+      }
+      else if (strchr(" -+#\'", *format))
+        *tptr++ = *format++;
+
+      if (*format == '*')
+      {
+       /*
+        * Get width from argument...
+	*/
+
+	format ++;
+	width = va_arg(ap, int);
+
+	snprintf(tptr, sizeof(tformat) - (size_t)(tptr - tformat), "%d", width);
+	tptr += strlen(tptr);
+      }
+      else
+      {
+	width = 0;
+
+	while (isdigit(*format & 255))
+	{
+	  if (tptr < (tformat + sizeof(tformat) - 1))
+	    *tptr++ = *format;
+
+	  width = width * 10 + *format++ - '0';
+	}
+      }
+
+      if (*format == '.')
+      {
+	if (tptr < (tformat + sizeof(tformat) - 1))
+	  *tptr++ = *format;
+
+        format ++;
+
+        if (*format == '*')
+	{
+         /*
+	  * Get precision from argument...
+	  */
+
+	  format ++;
+	  prec = va_arg(ap, int);
+
+	  snprintf(tptr, sizeof(tformat) - (size_t)(tptr - tformat), "%d", prec);
+	  tptr += strlen(tptr);
+	}
+	else
+	{
+	  prec = 0;
+
+	  while (isdigit(*format & 255))
+	  {
+	    if (tptr < (tformat + sizeof(tformat) - 1))
+	      *tptr++ = *format;
+
+	    prec = prec * 10 + *format++ - '0';
+	  }
+	}
+      }
+
+      if (*format == 'l' && format[1] == 'l')
+      {
+        size = 'L';
+
+	if (tptr < (tformat + sizeof(tformat) - 2))
+	{
+	  *tptr++ = 'l';
+	  *tptr++ = 'l';
+	}
+
+	format += 2;
+      }
+      else if (*format == 'h' || *format == 'l' || *format == 'L')
+      {
+	if (tptr < (tformat + sizeof(tformat) - 1))
+	  *tptr++ = *format;
+
+        size = *format++;
+      }
+      else
+        size = 0;
+
+      if (!*format)
+        break;
+
+      if (tptr < (tformat + sizeof(tformat) - 1))
+        *tptr++ = *format;
+
+      type  = *format++;
+      *tptr = '\0';
+
+      switch (type)
+      {
+	case 'E' : /* Floating point formats */
+	case 'G' :
+	case 'e' :
+	case 'f' :
+	case 'g' :
+	    if ((size_t)(width + 2) > sizeof(temp))
+	      break;
+
+	    snprintf(temp, sizeof(temp), tformat, va_arg(ap, double));
+
+            bytes += (int)strlen(temp);
+
+            if (bufptr)
+	    {
+	      strlcpy(bufptr, temp, (size_t)(bufend - bufptr));
+	      bufptr += strlen(bufptr);
+	    }
+	    break;
+
+        case 'B' : /* Integer formats */
+	case 'X' :
+	case 'b' :
+        case 'd' :
+	case 'i' :
+	case 'o' :
+	case 'u' :
+	case 'x' :
+	    if ((size_t)(width + 2) > sizeof(temp))
+	      break;
+
+#  ifdef HAVE_LONG_LONG
+            if (size == 'L')
+	      snprintf(temp, sizeof(temp), tformat, va_arg(ap, long long));
+	    else
+#  endif /* HAVE_LONG_LONG */
+            if (size == 'l')
+	      snprintf(temp, sizeof(temp), tformat, va_arg(ap, long));
+	    else
+	      snprintf(temp, sizeof(temp), tformat, va_arg(ap, int));
+
+            bytes += (int)strlen(temp);
+
+	    if (bufptr)
+	    {
+	      strlcpy(bufptr, temp, (size_t)(bufend - bufptr));
+	      bufptr += strlen(bufptr);
+	    }
+	    break;
+
+	case 'p' : /* Pointer value */
+	    if ((size_t)(width + 2) > sizeof(temp))
+	      break;
+
+	    snprintf(temp, sizeof(temp), tformat, va_arg(ap, void *));
+
+            bytes += (int)strlen(temp);
+
+	    if (bufptr)
+	    {
+	      strlcpy(bufptr, temp, (size_t)(bufend - bufptr));
+	      bufptr += strlen(bufptr);
+	    }
+	    break;
+
+        case 'c' : /* Character or character array */
+	    bytes += width;
+
+	    if (bufptr)
+	    {
+	      if (width <= 1)
+	        *bufptr++ = (char)va_arg(ap, int);
+	      else
+	      {
+		if ((bufptr + width) > bufend)
+		  width = (int)(bufend - bufptr);
+
+		memcpy(bufptr, va_arg(ap, char *), (size_t)width);
+		bufptr += width;
+	      }
+	    }
+	    break;
+
+	case 's' : /* String */
+	    if ((s = va_arg(ap, char *)) == NULL)
+	      s = "(null)";
+
+           /*
+	    * Copy the C string, replacing control chars and \ with
+	    * C character escapes...
+	    */
+
+            for (bufend --; *s && bufptr < bufend; s ++)
+	    {
+	      if (*s == '\n')
+	      {
+	        *bufptr++ = '\\';
+		*bufptr++ = 'n';
+		bytes += 2;
+	      }
+	      else if (*s == '\r')
+	      {
+	        *bufptr++ = '\\';
+		*bufptr++ = 'r';
+		bytes += 2;
+	      }
+	      else if (*s == '\t')
+	      {
+	        *bufptr++ = '\\';
+		*bufptr++ = 't';
+		bytes += 2;
+	      }
+	      else if (*s == '\\')
+	      {
+	        *bufptr++ = '\\';
+		*bufptr++ = '\\';
+		bytes += 2;
+	      }
+	      else if (*s == '\'')
+	      {
+	        *bufptr++ = '\\';
+		*bufptr++ = '\'';
+		bytes += 2;
+	      }
+	      else if (*s == '\"')
+	      {
+	        *bufptr++ = '\\';
+		*bufptr++ = '\"';
+		bytes += 2;
+	      }
+	      else if ((*s & 255) < ' ')
+	      {
+	        if ((bufptr + 2) >= bufend)
+	          break;
+
+	        *bufptr++ = '\\';
+		*bufptr++ = '0';
+		*bufptr++ = '0' + *s / 8;
+		*bufptr++ = '0' + (*s & 7);
+		bytes += 4;
+	      }
+	      else
+	      {
+	        *bufptr++ = *s;
+		bytes ++;
+	      }
+            }
+
+            bufend ++;
+	    break;
+
+	case 'n' : /* Output number of chars so far */
+	    *(va_arg(ap, int *)) = (int)bytes;
+	    break;
+      }
+    }
+    else
+    {
+      bytes ++;
+
+      if (bufptr < bufend)
+        *bufptr++ = *format;
+
+      format ++;
+    }
+  }
+
+ /*
+  * Nul-terminate the string and return the number of characters needed.
+  */
+
+  *bufptr = '\0';
+
+  return (bytes);
+}
+
+
+/*
  * 'server_log_to_file()' - Log a formatted message to a file.
  */
 
@@ -268,7 +587,7 @@ server_log_to_file(
 
   bufptr = buffer + strlen(buffer);
 
-  if ((bytes = _cups_safe_vsnprintf(bufptr, sizeof(buffer) - (size_t)(bufptr - buffer + 1), format, ap)) > 0)
+  if ((bytes = safe_vsnprintf(bufptr, sizeof(buffer) - (size_t)(bufptr - buffer + 1), format, ap)) > 0)
   {
     bufptr += bytes;
     if (bufptr > (buffer + sizeof(buffer) - 1))
@@ -279,7 +598,7 @@ server_log_to_file(
 
     if (log_fd < 0)
     {
-      _cupsMutexLock(&log_mutex);
+      cupsMutexLock(&log_mutex);
       if (log_fd < 0)
       {
         if (LogFile)
@@ -293,7 +612,7 @@ server_log_to_file(
         else
           log_fd = 2;
       }
-      _cupsMutexUnlock(&log_mutex);
+      cupsMutexUnlock(&log_mutex);
     }
 
     write(log_fd, buffer, (size_t)(bufptr - buffer));

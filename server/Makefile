@@ -81,7 +81,7 @@ test:
 
 ippserver:	$(OBJS) ../cups/libcups.a
 	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(PAMLIBS) $(LIBS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
 
 #
