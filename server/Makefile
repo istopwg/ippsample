@@ -1,8 +1,7 @@
 #
 # Makefile for sample IPP server implementation.
 #
-# Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group.
-# Copyright © 2015-2018 by Apple Inc.
+# Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
 # information.
@@ -57,7 +56,7 @@ clean:
 #
 
 depend:
-	$(CC) -MM $(ALL_CFLAGS) $(OBJS:.o=.c) >Dependencies
+	$(CC) -MM $(CPPFLAGS) $(OBJS:.o=.c) >Dependencies
 
 
 #
@@ -80,9 +79,9 @@ test:
 # ippserver
 #
 
-ippserver:	$(OBJS) ../cups/libcups.a
+ippserver:	$(OBJS) ../libcups/cups/libcups.a ../pdfio/libpdfio.a
 	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(PAMLIBS) $(LIBS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
 
 #

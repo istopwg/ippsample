@@ -1,7 +1,7 @@
 /*
  * Transform code for sample IPP server implementation.
  *
- * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group
  * Copyright © 2015-2018 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -40,7 +40,7 @@ serverStopJob(server_job_t *job)	/* I - Job to stop */
   if (job->state != IPP_JSTATE_PROCESSING)
     return;
 
-  _cupsRWLockWrite(&job->rwlock);
+  cupsRWLockWrite(&job->rwlock);
 
   job->state         = IPP_JSTATE_STOPPED;
   job->state_reasons |= SERVER_JREASON_JOB_STOPPED;
@@ -49,7 +49,7 @@ serverStopJob(server_job_t *job)	/* I - Job to stop */
   if (job->transform_pid)
     kill(job->transform_pid, SIGTERM);
 #endif /* !_WIN32 */
-  _cupsRWUnlock(&job->rwlock);
+  cupsRWUnlock(&job->rwlock);
 
   serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_STATE_CHANGED, "Job stopped.");
 }
@@ -424,7 +424,7 @@ serverTransformJob(
     {
       if ((bytes = read(mystdout[0], data, sizeof(data))) > 0)
       {
-	httpWrite2(client->http, data, (size_t)bytes);
+	httpWrite(client->http, data, (size_t)bytes);
 	total += (size_t)bytes;
       }
     }
@@ -547,7 +547,7 @@ process_attr_message(
     char               *message,	/* I - Message */
     server_transform_t mode)		/* I - Transform mode */
 {
-  int		i,			/* Looping var */
+  size_t	i,			/* Looping var */
 		num_options = 0;	/* Number of name=value pairs */
   cups_option_t	*options = NULL,	/* name=value pairs from message */
 		*option;		/* Current option */
@@ -562,7 +562,7 @@ process_attr_message(
 
   num_options = cupsParseOptions(message + 5, num_options, &options);
 
-  serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "num_options=%d", num_options);
+  serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "num_options=%u", (unsigned)num_options);
 
  /*
   * Loop through the options and record them in the printer or job objects...
@@ -570,7 +570,7 @@ process_attr_message(
 
   for (i = num_options, option = options; i > 0; i --, option ++)
   {
-    serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "options[%d].name=\"%s\", .value=\"%s\"", num_options - i, option->name, option->value);
+    serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "options[%u].name=\"%s\", .value=\"%s\"", (unsigned)(num_options - i), option->name, option->value);
 
     if (!strcmp(option->name, "job-impressions"))
     {
@@ -580,11 +580,11 @@ process_attr_message(
 
       serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Setting Job Status attribute \"%s\" to \"%s\".", option->name, option->value);
 
-      _cupsRWLockWrite(&job->rwlock);
+      cupsRWLockWrite(&job->rwlock);
 
       job->impressions = atoi(option->value);
 
-      _cupsRWUnlock(&job->rwlock);
+      cupsRWUnlock(&job->rwlock);
     }
     else if (mode == SERVER_TRANSFORM_COMMAND && !strcmp(option->name, "job-impressions-completed"))
     {
@@ -594,11 +594,11 @@ process_attr_message(
 
       serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Setting Job Status attribute \"%s\" to \"%s\".", option->name, option->value);
 
-      _cupsRWLockWrite(&job->rwlock);
+      cupsRWLockWrite(&job->rwlock);
 
       job->impcompleted = atoi(option->value);
 
-      _cupsRWUnlock(&job->rwlock);
+      cupsRWUnlock(&job->rwlock);
     }
     else if (!strcmp(option->name, "job-impressions-col") || !strcmp(option->name, "job-media-sheets") || !strcmp(option->name, "job-media-sheets-col") ||
         (mode == SERVER_TRANSFORM_COMMAND && (!strcmp(option->name, "job-impressions-completed-col") || !strcmp(option->name, "job-media-sheets-completed") || !strcmp(option->name, "job-media-sheets-completed-col"))))
@@ -609,14 +609,14 @@ process_attr_message(
 
       serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "Setting Job Status attribute \"%s\" to \"%s\".", option->name, option->value);
 
-      _cupsRWLockWrite(&job->rwlock);
+      cupsRWLockWrite(&job->rwlock);
 
       if ((attr = ippFindAttribute(job->attrs, option->name, IPP_TAG_ZERO)) != NULL)
         ippDeleteAttribute(job->attrs, attr);
 
       cupsEncodeOption(job->attrs, IPP_TAG_JOB, option->name, option->value);
 
-      _cupsRWUnlock(&job->rwlock);
+      cupsRWUnlock(&job->rwlock);
     }
     else if (!strncmp(option->name, "marker-", 7) || !strcmp(option->name, "printer-alert") || !strcmp(option->name, "printer-supply") || !strcmp(option->name, "printer-supply-description"))
     {
@@ -626,14 +626,14 @@ process_attr_message(
 
       serverLogPrinter(SERVER_LOGLEVEL_DEBUG, job->printer, "Setting Printer Status attribute \"%s\" to \"%s\".", option->name, option->value);
 
-      _cupsRWLockWrite(&job->printer->rwlock);
+      cupsRWLockWrite(&job->printer->rwlock);
 
       if ((attr = ippFindAttribute(job->printer->pinfo.attrs, option->name, IPP_TAG_ZERO)) != NULL)
         ippDeleteAttribute(job->printer->pinfo.attrs, attr);
 
       cupsEncodeOption(job->printer->pinfo.attrs, IPP_TAG_PRINTER, option->name, option->value);
 
-      _cupsRWUnlock(&job->printer->rwlock);
+      cupsRWUnlock(&job->printer->rwlock);
     }
     else
     {

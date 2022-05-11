@@ -1,9 +1,7 @@
 #
 # Top-level Makefile for IPP sample implementations.
 #
-# Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group.
-# Copyright © 2007-2019 by Apple Inc.
-# Copyright © 1997-2007 by Easy Software Products, all rights reserved.
+# Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
 # information.
@@ -14,7 +12,8 @@ include Makedefs
 
 # Source directories...
 DIRS	=	\
-		cups \
+		libcups \
+		pdfio \
 		server \
 		tools
 
@@ -48,6 +47,7 @@ clean:
 distclean:	clean
 	$(RM) Makedefs config.h config.log config.status
 	-$(RM) -r autom4te*.cache
+	(cd libcups; make distclean)
 
 
 #
@@ -55,7 +55,7 @@ distclean:	clean
 #
 
 depend:
-	for dir in $(DIRS); do \
+	for dir in server tools; do \
 		echo Updating dependencies in $$dir...; \
 		(cd $$dir; $(MAKE) $(MFLAGS) depend) || exit 1; \
 	done

@@ -1,9 +1,7 @@
 #
-# IPP tools makefile.
+# Tools makefile.
 #
-# Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group.
-# Copyright © 2007-2019 by Apple Inc.
-# Copyright © 1997-2006 by Easy Software Products, all rights reserved.
+# Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
 # information.
@@ -15,10 +13,7 @@ include ../Makedefs
 OBJS		=	\
 			ipp3dprinter.o \
 			ippdoclint.o \
-			ippeveprinter.o \
-			ippfind.o \
 			ippproxy.o \
-			ipptool.o \
 			ipptransform.o \
 			ipptransform3d.o
 TARGETS         =       \
@@ -30,10 +25,7 @@ COMMAND_TARGETS	=	\
 			$(IPPTRANSFORM_BIN) \
 			$(IPPTRANSFORM3D_BIN)
 BIN_TARGETS	=	\
-			ipp3dprinter \
-			ippeveprinter \
-			$(IPPFIND_BIN) \
-			ipptool
+			ipp3dprinter
 SBIN_TARGETS	=	\
 			ippproxy
 
@@ -58,7 +50,7 @@ clean:
 #
 
 depend:
-	$(CC) -MM $(ALL_CFLAGS) $(OBJS:.o=.c) >Dependencies
+	$(CC) -MM $(CPPFLAGS) $(OBJS:.o=.c) >Dependencies
 
 
 #
@@ -92,25 +84,10 @@ test:
 
 
 #
-# Make icon resource headers...
-#
-
-resheaders:
-	for file in printer printer-sm printer-lg; do \
-		var="`echo $$file | sed -e '1,$$s/-/_/g'`"; \
-		echo "Generating $$file-png.h from $$file.png..."; \
-		echo "static const unsigned char $${var}_png[] =" >$${file}-png.h; \
-		echo "{" >>$${file}-png.h; \
-		od -t x1 -A n -v $$file.png | awk '{printf("  "); for (i = 1; i <= NF; i ++) printf("0x%s,", $$i); print "";}' >>$${file}-png.h; \
-		echo "};" >>$${file}-png.h; \
-	done
-
-
-#
 # ipp3dprinter
 #
 
-ipp3dprinter:	ipp3dprinter.o ../cups/libcups.a
+ipp3dprinter:	ipp3dprinter.o ../libcups/cups/libcups.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ipp3dprinter.o $(LIBS)
 
@@ -119,52 +96,25 @@ ipp3dprinter:	ipp3dprinter.o ../cups/libcups.a
 # ippdoclint
 #
 
-ippdoclint:	ippdoclint.o ../cups/libcups.a
+ippdoclint:	ippdoclint.o ../libcups/cups/libcups.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ippdoclint.o $(LIBS)
-
-
-#
-# ippeveprinter
-#
-
-ippeveprinter:	ippeveprinter.o ../cups/libcups.a
-	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ ippeveprinter.o $(PAMLIBS) $(LIBS)
-
-
-#
-# ippfind
-#
-
-ippfind:	ippfind.o ../cups/libcups.a
-	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ ippfind.o $(LIBS)
 
 
 #
 # ippproxy
 #
 
-ippproxy:	ippproxy.o ../cups/libcups.a
+ippproxy:	ippproxy.o ../libcups/cups/libcups.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ippproxy.o $(LIBS)
-
-
-#
-# ipptool
-#
-
-ipptool:	ipptool.o ../cups/libcups.a
-	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ ipptool.o $(LIBS)
 
 
 #
 # ipptransform
 #
 
-ipptransform:	ipptransform.o ../cups/libcups.a
+ipptransform:	ipptransform.o ../libcups/cups/libcups.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ipptransform.o $(LIBS)
 
@@ -173,7 +123,7 @@ ipptransform:	ipptransform.o ../cups/libcups.a
 # ipptransform3d
 #
 
-ipptransform3d:	ipptransform3d.o ../cups/libcups.a
+ipptransform3d:	ipptransform3d.o ../libcups/cups/libcups.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ipptransform3d.o $(LIBS)
 

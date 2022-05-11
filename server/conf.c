@@ -1,7 +1,7 @@
 /*
  * Configuration file support for sample IPP server implementation.
  *
- * Copyright © 2015-2021 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2015-2022 by the IEEE-ISTO Printer Working Group
  * Copyright © 2015-2018 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -51,7 +51,7 @@ static void		free_icc(server_icc_t *a);
 static void		free_lang(server_lang_t *a);
 static int		load_system(const char *conf);
 static ipp_t		*parse_collection(_ipp_file_t *f, _ipp_vars_t *v, void *user_data);
-static int		parse_value(_ipp_file_t *f, _ipp_vars_t *v, void *user_data, ipp_t *ipp, ipp_attribute_t **attr, int element);
+static int		parse_value(_ipp_file_t *f, _ipp_vars_t *v, void *user_data, ipp_t *ipp, ipp_attribute_t **attr, size_t element);
 static void		print_escaped_string(cups_file_t *fp, const char *s, size_t len);
 static void		print_ipp_attr(cups_file_t *fp, ipp_attribute_t *attr, int indent);
 static void		save_printer(server_printer_t *printer, const char *directory);
@@ -66,14 +66,14 @@ void
 serverAddPrinter(
     server_printer_t *printer)		/* I - Printer to add */
 {
-  _cupsRWLockWrite(&SystemRWLock);
+  cupsRWLockWrite(&SystemRWLock);
 
   if (!Printers)
-    Printers = cupsArrayNew((cups_array_func_t)compare_printers, NULL);
+    Printers = cupsArrayNew((cups_array_cb_t)compare_printers, NULL, NULL, 0, NULL, NULL);
 
   cupsArrayAdd(Printers, printer);
 
-  _cupsRWUnlock(&SystemRWLock);
+  cupsRWUnlock(&SystemRWLock);
 }
 
 
@@ -92,15 +92,15 @@ serverAddStringsFile(
   lang.lang     = (char *)language;
   lang.resource = resource;
 
-  _cupsRWLockWrite(&printer->rwlock);
+  cupsRWLockWrite(&printer->rwlock);
 
   if (!printer->pinfo.strings)
-    printer->pinfo.strings = cupsArrayNew3((cups_array_func_t)compare_lang, NULL, NULL, 0, (cups_acopy_func_t)copy_lang, (cups_afree_func_t)free_lang);
+    printer->pinfo.strings = cupsArrayNew((cups_array_cb_t)compare_lang, NULL, NULL, 0, (cups_acopy_cb_t)copy_lang, (cups_afree_cb_t)free_lang);
 
   if (!cupsArrayFind(printer->pinfo.strings, &lang))
     cupsArrayAdd(printer->pinfo.strings, &lang);
 
-  _cupsRWUnlock(&printer->rwlock);
+  cupsRWUnlock(&printer->rwlock);
 }
 
 
@@ -116,12 +116,12 @@ serverCleanAllJobs(void)
 
   serverLog(SERVER_LOGLEVEL_DEBUG, "Cleaning old jobs.");
 
-  _cupsRWLockRead(&PrintersRWLock);
+  cupsRWLockRead(&PrintersRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
     serverCleanJobs(printer);
 
-  _cupsRWUnlock(&PrintersRWLock);
+  cupsRWUnlock(&PrintersRWLock);
 }
 
 
@@ -329,7 +329,7 @@ serverCreateSystem(
 
   if (default_printer)
   {
-    for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+    for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
       if (!strcmp(printer->name, default_printer))
         break;
 
@@ -355,17 +355,17 @@ serverFindPrinter(const char *resource)	/* I - Resource path */
 			*match = NULL;	/* Matching printer */
 
 
-  if (cupsArrayCount(Printers) == 0)
+  if (cupsArrayGetCount(Printers) == 0)
     return (NULL);
 
-  _cupsRWLockRead(&PrintersRWLock);
-  if (cupsArrayCount(Printers) == 1 || !strcmp(resource, "/ipp/print"))
+  cupsRWLockRead(&PrintersRWLock);
+  if (cupsArrayGetCount(Printers) == 1 || !strcmp(resource, "/ipp/print"))
   {
    /*
     * Just use the first printer...
     */
 
-    match = cupsArrayFirst(Printers);
+    match = cupsArrayGetFirst(Printers);
     if (strcmp(match->resource, resource) && strcmp(resource, "/ipp/print"))
       match = NULL;
   }
@@ -374,7 +374,7 @@ serverFindPrinter(const char *resource)	/* I - Resource path */
     key.resource = (char *)resource;
     match        = (server_printer_t *)cupsArrayFind(Printers, &key);
   }
-  _cupsRWUnlock(&PrintersRWLock);
+  cupsRWUnlock(&PrintersRWLock);
 
   return (match);
 }
@@ -456,9 +456,9 @@ serverSaveSystem(void)
 
   serverLog(SERVER_LOGLEVEL_INFO, "Saving system state to \"%s\".", StateDirectory);
 
-  _cupsRWLockRead(&PrintersRWLock);
+  cupsRWLockRead(&PrintersRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
   {
     if (!strncmp(printer->resource, "/ipp/print/", 11))
       snprintf(filename, sizeof(filename), "%s/print", StateDirectory);
@@ -471,7 +471,7 @@ serverSaveSystem(void)
     save_printer(printer, filename);
   }
 
-  _cupsRWUnlock(&PrintersRWLock);
+  cupsRWUnlock(&PrintersRWLock);
 }
 
 
@@ -640,7 +640,7 @@ add_document_privacy(void)
   {
     ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "document-privacy-attributes", NULL, "all");
 
-    DocumentPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+    DocumentPrivacyArray = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
     for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
       cupsArrayAdd(DocumentPrivacyArray, (void *)description[i]);
     for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
@@ -648,7 +648,7 @@ add_document_privacy(void)
   }
   else
   {
-    DocumentPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+    DocumentPrivacyArray = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
 
     strlcpy(temp, DocumentPrivacyAttributes, sizeof(temp));
 
@@ -918,7 +918,7 @@ add_job_privacy(void)
   {
     ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-privacy-attributes", NULL, "all");
 
-    JobPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+    JobPrivacyArray = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
     for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
       cupsArrayAdd(JobPrivacyArray, (void *)description[i]);
     for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
@@ -926,7 +926,7 @@ add_job_privacy(void)
   }
   else
   {
-    JobPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+    JobPrivacyArray = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
 
     strlcpy(temp, JobPrivacyAttributes, sizeof(temp));
 
@@ -1015,7 +1015,7 @@ add_subscription_privacy(void)
   {
     ippAddString(PrivacyAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "subscription-privacy-attributes", NULL, "all");
 
-    SubscriptionPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+    SubscriptionPrivacyArray = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
     for (i = 0; i < (int)(sizeof(description) / sizeof(description[0])); i ++)
       cupsArrayAdd(SubscriptionPrivacyArray, (void *)description[i]);
     for (i = 0; i < (int)(sizeof(template) / sizeof(template[0])); i ++)
@@ -1023,7 +1023,7 @@ add_subscription_privacy(void)
   }
   else
   {
-    SubscriptionPrivacyArray = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+    SubscriptionPrivacyArray = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
 
     strlcpy(temp, SubscriptionPrivacyAttributes, sizeof(temp));
 
@@ -1239,17 +1239,17 @@ copy_lang(server_lang_t *a)		/* I - Localization to copy */
 static void
 create_system_attributes(void)
 {
-  int			i;		/* Looping var */
+  size_t		i;		/* Looping var */
   ipp_t			*col;		/* Collection value */
   const char		*setting;	/* System setting value */
   char			vcard[1024];	/* VCARD value */
   server_listener_t	*lis;		/* Current listener */
   cups_array_t		*uris;		/* Array of URIs */
   char			uri[1024];	/* URI */
-  int			num_values = 0;	/* Number of values */
+  size_t		num_values = 0;	/* Number of values */
   ipp_t			*values[32];	/* Collection values */
 #ifndef _WIN32
-  int			alloc_groups,	/* Allocated groups */
+  size_t		alloc_groups,	/* Allocated groups */
 			num_groups;	/* Number of groups */
   char			**groups;	/* Group names */
   struct group		*grp;		/* Current group */
@@ -1265,6 +1265,7 @@ create_system_attributes(void)
     "application/pdf",
     "application/postscript",
     "application/vnd.hp-pcl",
+    "application/vnd.hp-pclxl",
     "application/vnd.pwg-safe-gcode",
     "image/jpeg",
     "image/png",
@@ -1751,7 +1752,7 @@ create_system_attributes(void)
       "wheel"
     };
 
-    for (i = 0; i < (int)(sizeof(defgroups) / sizeof(defgroups[0])); i ++)
+    for (i = 0; i < (sizeof(defgroups) / sizeof(defgroups[0])); i ++)
     {
       if (getgrnam(defgroups[i]))
         groups[num_groups ++] = strdup(defgroups[i]);
@@ -1769,13 +1770,13 @@ create_system_attributes(void)
 #endif /* !_WIN32 */
 
   /* smi2699-device-command-supported */
-  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_NAME), "smi2699-device-command-supported", (int)(sizeof(smi2699_device_command_supported) / sizeof(smi2699_device_command_supported[0])), NULL, smi2699_device_command_supported);
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_NAME), "smi2699-device-command-supported", sizeof(smi2699_device_command_supported) / sizeof(smi2699_device_command_supported[0]), NULL, smi2699_device_command_supported);
 
   /* smi2699-device-format-supported */
-  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "smi2699-device-format-supported", (int)(sizeof(smi2699_device_format_supported) / sizeof(smi2699_device_format_supported[0])), NULL, smi2699_device_format_supported);
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "smi2699-device-format-supported", sizeof(smi2699_device_format_supported) / sizeof(smi2699_device_format_supported[0]), NULL, smi2699_device_format_supported);
 
   /* smi2699-device-uri-schemes-supported */
-  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "smi2699-device-uri-schemes-supported", (int)(sizeof(smi2699_device_uri_schemes_supported) / sizeof(smi2699_device_uri_schemes_supported[0])), NULL, smi2699_device_uri_schemes_supported);
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "smi2699-device-uri-schemes-supported", sizeof(smi2699_device_uri_schemes_supported) / sizeof(smi2699_device_uri_schemes_supported[0]), NULL, smi2699_device_uri_schemes_supported);
 
   /* system-device-id, TODO: maybe remove this, it has no purpose */
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-device-id", NULL, "MANU:None;MODEL:None;");
@@ -1814,7 +1815,7 @@ create_system_attributes(void)
   ippAddString(col, IPP_TAG_ZERO, IPP_TAG_URI, "owner-uri", NULL, uri);
 
   setting = cupsGetOption("OwnerName", SystemNumSettings, SystemSettings);
-  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_NAME, "owner-name", NULL, setting ? setting : cupsUser());
+  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_NAME, "owner-name", NULL, setting ? setting : cupsGetUser());
 
   serverMakeVCARD(NULL, cupsGetOption("OwnerName", SystemNumSettings, SystemSettings), cupsGetOption("OwnerLocation", SystemNumSettings, SystemSettings), cupsGetOption("OwnerEmail", SystemNumSettings, SystemSettings), cupsGetOption("OwnerPhone", SystemNumSettings, SystemSettings), vcard, sizeof(vcard));
   ippAddString(col, IPP_TAG_ZERO, IPP_TAG_TEXT, "owner-vcard", NULL, vcard);
@@ -1823,7 +1824,7 @@ create_system_attributes(void)
   ippDelete(col);
 
   /* system-settable-attributes-supported */
-  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "system-settable-attributes-supported", (int)(sizeof(system_settable_attributes_supported) / sizeof(system_settable_attributes_supported[0])), NULL, system_settable_attributes_supported);
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "system-settable-attributes-supported", sizeof(system_settable_attributes_supported) / sizeof(system_settable_attributes_supported[0]), NULL, system_settable_attributes_supported);
 
 #if 0
   /* TODO: Support system-strings-languages-supported */
@@ -1831,7 +1832,7 @@ create_system_attributes(void)
   {
     server_lang_t *lang;
 
-    for (attr = NULL, lang = (server_lang_t *)cupsArrayFirst(SystemStrings); lang; lang = (server_lang_t *)cupsArrayNext(SystemStrings))
+    for (attr = NULL, lang = (server_lang_t *)cupsArrayGetFirst(SystemStrings); lang; lang = (server_lang_t *)cupsArrayGetNext(SystemStrings))
     {
       if (attr)
         ippSetString(printer->pinfo.attrs, &attr, ippGetCount(attr), lang->lang);
@@ -1844,7 +1845,7 @@ create_system_attributes(void)
   /* system-uuid */
   if ((setting = cupsGetOption("UUID", SystemNumSettings, SystemSettings)) == NULL)
   {
-    lis = cupsArrayFirst(Listeners);
+    lis = cupsArrayGetFirst(Listeners);
     httpAssembleUUID(lis->host, lis->port, "", 0, uuid, sizeof(uuid));
     setting = uuid;
   }
@@ -1857,8 +1858,8 @@ create_system_attributes(void)
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_URI, "system-uuid", NULL, setting);
 
   /* system-xri-supported */
-  uris = cupsArrayNew3((cups_array_func_t)strcmp, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
-  for (lis = cupsArrayFirst(Listeners); lis && num_values < (int)(sizeof(values) / sizeof(values[0])); lis = cupsArrayNext(Listeners))
+  uris = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
+  for (lis = cupsArrayGetFirst(Listeners); lis && num_values < (int)(sizeof(values) / sizeof(values[0])); lis = cupsArrayGetNext(Listeners))
   {
     httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPP_SCHEME, NULL, lis->host, lis->port, "/ipp/system");
 
@@ -1873,11 +1874,9 @@ create_system_attributes(void)
 
       ippAddString(col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
 
-#ifdef HAVE_TLS
       if (Encryption != HTTP_ENCRYPTION_NEVER)
         ippAddString(col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "tls");
       else
-#endif /* HAVE_TLS */
         ippAddString(col, IPP_TAG_ZERO, IPP_TAG_KEYWORD, "xri-security", NULL, "none");
 
       ippAddString(col, IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uri);
@@ -1900,19 +1899,15 @@ create_system_attributes(void)
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication-supported", NULL, Authentication ? "basic" : "none");
 
   /* xri-security-supported */
-#ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
     ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "tls");
   else
-#endif /* HAVE_TLS */
     ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "none");
 
   /* xri-uri-scheme-supported */
-#ifdef HAVE_TLS
   if (Encryption != HTTP_ENCRYPTION_NEVER)
     ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipps");
   else
-#endif /* HAVE_TLS */
     ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipp");
 }
 
@@ -2048,7 +2043,16 @@ finalize_system(void)
       * Use the compiled-in defaults...
       */
 
-      BinDir = strdup(CUPS_SERVERBIN "/command");
+      if (!access("/usr/local/lib/cups/command", 0))
+        BinDir = strdup("/usr/local/lib/cups/command");
+      else if (!access("/usr/local/libexec/cups/command", 0))
+        BinDir = strdup("/usr/local/libexec/cups/command");
+      else if (!access("/usr/lib/cups/command", 0))
+        BinDir = strdup("/usr/lib/cups/command");
+      else if (!access("/usr/libexec/cups/command", 0))
+        BinDir = strdup("/usr/libexec/cups/command");
+      else
+        BinDir = strdup("command");
     }
   }
 
@@ -2062,13 +2066,11 @@ finalize_system(void)
   if (!ServerName)
     ServerName = strdup("localhost");
 
-#ifdef HAVE_TLS
  /*
   * Setup TLS certificate for server...
   */
 
   cupsSetServerCredentials(KeychainPath, ServerName, 1);
-#endif /* HAVE_TLS */
 
  /*
   * Default directories...
@@ -2323,7 +2325,7 @@ load_system(const char *conf)		/* I - Configuration file */
     }
 
     for (i = 0; i < (int)(sizeof(settings) / sizeof(settings[0])); i ++)
-      if (!_cups_strcasecmp(line, settings[i]))
+      if (!strcasecmp(line, settings[i]))
         break;
 
     if (i >= (int)(sizeof(settings) / sizeof(settings[0])))
@@ -2338,7 +2340,7 @@ load_system(const char *conf)		/* I - Configuration file */
       * Already have this setting, check whether this is OK...
       */
 
-      if (!_cups_strcasecmp(line, "FileDirectory") || !_cups_strcasecmp(line, "Listen"))
+      if (!strcasecmp(line, "FileDirectory") || !strcasecmp(line, "Listen"))
       {
        /*
         * Listen allows multiple values, others do not...
@@ -2362,13 +2364,13 @@ load_system(const char *conf)		/* I - Configuration file */
       SystemNumSettings = cupsAddOption(line, value, SystemNumSettings, &SystemSettings);
     }
 
-    if (!_cups_strcasecmp(line, "Authentication"))
+    if (!strcasecmp(line, "Authentication"))
     {
-      if (!_cups_strcasecmp(value, "on") || !_cups_strcasecmp(value, "yes"))
+      if (!strcasecmp(value, "on") || !strcasecmp(value, "yes"))
       {
         Authentication = 1;
       }
-      else if (!_cups_strcasecmp(value, "off") || !_cups_strcasecmp(value, "no"))
+      else if (!strcasecmp(value, "off") || !strcasecmp(value, "no"))
       {
         Authentication = 0;
       }
@@ -2380,7 +2382,7 @@ load_system(const char *conf)		/* I - Configuration file */
       }
     }
 #ifndef _WIN32
-    else if (!_cups_strcasecmp(line, "AuthAdminGroup"))
+    else if (!strcasecmp(line, "AuthAdminGroup"))
     {
       if (!strcasecmp(value, "@system"))
       {
@@ -2398,12 +2400,12 @@ load_system(const char *conf)		/* I - Configuration file */
       }
     }
 #endif /* !_WIN32 */
-    else if (!_cups_strcasecmp(line, "AuthName"))
+    else if (!strcasecmp(line, "AuthName"))
     {
       AuthName = strdup(value);
     }
 #ifndef _WIN32
-    else if (!_cups_strcasecmp(line, "AuthOperatorGroup"))
+    else if (!strcasecmp(line, "AuthOperatorGroup"))
     {
       if (!strcasecmp(value, "@system"))
       {
@@ -2420,7 +2422,7 @@ load_system(const char *conf)		/* I - Configuration file */
 	AuthOperatorGroup = group->gr_gid;
       }
     }
-    else if (!_cups_strcasecmp(line, "AuthProxyGroup"))
+    else if (!strcasecmp(line, "AuthProxyGroup"))
     {
       if (!strcasecmp(value, "@system"))
       {
@@ -2438,19 +2440,19 @@ load_system(const char *conf)		/* I - Configuration file */
       }
     }
 #endif /* !_WIN32 */
-    else if (!_cups_strcasecmp(line, "AuthService"))
+    else if (!strcasecmp(line, "AuthService"))
     {
       AuthService = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "AuthTestPassword"))
+    else if (!strcasecmp(line, "AuthTestPassword"))
     {
       AuthTestPassword = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "AuthType"))
+    else if (!strcasecmp(line, "AuthType"))
     {
       AuthType = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "BinDir"))
+    else if (!strcasecmp(line, "BinDir"))
     {
       if (access(value, X_OK))
       {
@@ -2461,7 +2463,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       BinDir = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "DataDir"))
+    else if (!strcasecmp(line, "DataDir"))
     {
       if (access(value, R_OK))
       {
@@ -2472,7 +2474,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       DataDirectory = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "DefaultPrinter"))
+    else if (!strcasecmp(line, "DefaultPrinter"))
     {
       if (default_printer)
       {
@@ -2483,7 +2485,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       default_printer = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "DocumentPrivacyAttributes"))
+    else if (!strcasecmp(line, "DocumentPrivacyAttributes"))
     {
       if (DocumentPrivacyAttributes)
       {
@@ -2494,7 +2496,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       DocumentPrivacyAttributes = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "DocumentPrivacyScope"))
+    else if (!strcasecmp(line, "DocumentPrivacyScope"))
     {
       if (DocumentPrivacyScope)
       {
@@ -2505,15 +2507,15 @@ load_system(const char *conf)		/* I - Configuration file */
 
       DocumentPrivacyScope = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "Encryption"))
+    else if (!strcasecmp(line, "Encryption"))
     {
-      if (!_cups_strcasecmp(value, "always"))
+      if (!strcasecmp(value, "always"))
         Encryption = HTTP_ENCRYPTION_ALWAYS;
-      else if (!_cups_strcasecmp(value, "ifrequested"))
+      else if (!strcasecmp(value, "ifrequested"))
         Encryption = HTTP_ENCRYPTION_IF_REQUESTED;
-      else if (!_cups_strcasecmp(value, "never"))
+      else if (!strcasecmp(value, "never"))
         Encryption = HTTP_ENCRYPTION_NEVER;
-      else if (!_cups_strcasecmp(value, "required"))
+      else if (!strcasecmp(value, "required"))
         Encryption = HTTP_ENCRYPTION_REQUIRED;
       else
       {
@@ -2522,7 +2524,7 @@ load_system(const char *conf)		/* I - Configuration file */
         break;
       }
     }
-    else if (!_cups_strcasecmp(line, "FileDirectory"))
+    else if (!strcasecmp(line, "FileDirectory"))
     {
       char	*dir,			/* Directory value */
 		dirabs[PATH_MAX];	/* Absolute directory path */
@@ -2563,7 +2565,7 @@ load_system(const char *conf)		/* I - Configuration file */
 	}
 
         if (!FileDirectories)
-          FileDirectories = cupsArrayNew3(NULL, NULL, NULL, 0, (cups_acopy_func_t)strdup, (cups_afree_func_t)free);
+          FileDirectories = cupsArrayNew(NULL, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
 
 #ifndef _WIN32 /* TODO: Update this for Windows */
         if (dir[0] != '/')
@@ -2580,7 +2582,7 @@ load_system(const char *conf)		/* I - Configuration file */
         cupsArrayAdd(FileDirectories, dir);
       }
     }
-    else if (!_cups_strcasecmp(line, "JobPrivacyAttributes"))
+    else if (!strcasecmp(line, "JobPrivacyAttributes"))
     {
       if (JobPrivacyAttributes)
       {
@@ -2591,7 +2593,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       JobPrivacyAttributes = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "JobPrivacyScope"))
+    else if (!strcasecmp(line, "JobPrivacyScope"))
     {
       if (JobPrivacyScope)
       {
@@ -2602,11 +2604,11 @@ load_system(const char *conf)		/* I - Configuration file */
 
       JobPrivacyScope = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "KeepFiles"))
+    else if (!strcasecmp(line, "KeepFiles"))
     {
       KeepFiles = !strcasecmp(value, "yes") || !strcasecmp(value, "true") || !strcasecmp(value, "on");
     }
-    else if (!_cups_strcasecmp(line, "Listen"))
+    else if (!strcasecmp(line, "Listen"))
     {
       char	*host,			/* Host value */
 		*ptr;			/* Pointer into host value */
@@ -2662,20 +2664,20 @@ load_system(const char *conf)		/* I - Configuration file */
       if (!status)
         break;
     }
-    else if (!_cups_strcasecmp(line, "LogFile"))
+    else if (!strcasecmp(line, "LogFile"))
     {
-      if (!_cups_strcasecmp(value, "stderr"))
+      if (!strcasecmp(value, "stderr"))
         LogFile = NULL;
       else
         LogFile = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "LogLevel"))
+    else if (!strcasecmp(line, "LogLevel"))
     {
-      if (!_cups_strcasecmp(value, "error"))
+      if (!strcasecmp(value, "error"))
         LogLevel = SERVER_LOGLEVEL_ERROR;
-      else if (!_cups_strcasecmp(value, "info"))
+      else if (!strcasecmp(value, "info"))
         LogLevel = SERVER_LOGLEVEL_INFO;
-      else if (!_cups_strcasecmp(value, "debug"))
+      else if (!strcasecmp(value, "debug"))
         LogLevel = SERVER_LOGLEVEL_DEBUG;
       else
       {
@@ -2684,7 +2686,7 @@ load_system(const char *conf)		/* I - Configuration file */
         break;
       }
     }
-    else if (!_cups_strcasecmp(line, "MaxCompletedJobs"))
+    else if (!strcasecmp(line, "MaxCompletedJobs"))
     {
       if (!isdigit(*value & 255))
       {
@@ -2695,7 +2697,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       MaxCompletedJobs = atoi(value);
     }
-    else if (!_cups_strcasecmp(line, "MaxJobs"))
+    else if (!strcasecmp(line, "MaxJobs"))
     {
       if (!isdigit(*value & 255))
       {
@@ -2706,7 +2708,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       MaxJobs = atoi(value);
     }
-    else if (!_cups_strcasecmp(line, "SpoolDir"))
+    else if (!strcasecmp(line, "SpoolDir"))
     {
       if (access(value, R_OK))
       {
@@ -2717,7 +2719,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       SpoolDirectory = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "StateDir"))
+    else if (!strcasecmp(line, "StateDir"))
     {
       if (access(value, R_OK) && mkdir(value, 0700))
       {
@@ -2728,7 +2730,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       StateDirectory = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "SubscriptionPrivacyAttributes"))
+    else if (!strcasecmp(line, "SubscriptionPrivacyAttributes"))
     {
       if (SubscriptionPrivacyAttributes)
       {
@@ -2739,7 +2741,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       SubscriptionPrivacyAttributes = strdup(value);
     }
-    else if (!_cups_strcasecmp(line, "SubscriptionPrivacyScope"))
+    else if (!strcasecmp(line, "SubscriptionPrivacyScope"))
     {
       if (SubscriptionPrivacyScope)
       {
@@ -2803,7 +2805,7 @@ parse_collection(
 
   while (_ippFileReadToken(f, token, sizeof(token)))
   {
-    if (!_cups_strcasecmp(token, "}"))
+    if (!strcasecmp(token, "}"))
     {
      /*
       * End of collection value...
@@ -2811,7 +2813,7 @@ parse_collection(
 
       break;
     }
-    else if (!_cups_strcasecmp(token, "MEMBER"))
+    else if (!strcasecmp(token, "MEMBER"))
     {
      /*
       * Member attribute definition...
@@ -2871,7 +2873,7 @@ parse_collection(
       }
 
     }
-    else if (attr && !_cups_strcasecmp(token, ","))
+    else if (attr && !strcasecmp(token, ","))
     {
      /*
       * Additional value...
@@ -2912,7 +2914,7 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
             void             *user_data,/* I  - User data pointer */
             ipp_t            *ipp,	/* I  - IPP message */
             ipp_attribute_t  **attr,	/* IO - IPP attribute */
-            int              element)	/* I  - Element number */
+            size_t           element)	/* I  - Element number */
 {
   char		value[2049],		/* Value string */
 		*valueptr,		/* Pointer into value string */
@@ -2932,7 +2934,7 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
   switch (ippGetValueTag(*attr))
   {
     case IPP_TAG_BOOLEAN :
-        return (ippSetBoolean(ipp, attr, element, !_cups_strcasecmp(value, "true")));
+        return (ippSetBoolean(ipp, attr, element, !strcasecmp(value, "true")));
         break;
 
     case IPP_TAG_ENUM :
@@ -3067,15 +3069,15 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
 	      yres = (int)strtol(ptr + 1, (char **)&ptr, 10);
 	  }
 
-	  if (ptr <= value || xres <= 0 || yres <= 0 || !ptr || (_cups_strcasecmp(ptr, "dpi") && _cups_strcasecmp(ptr, "dpc") && _cups_strcasecmp(ptr, "dpcm") && _cups_strcasecmp(ptr, "other")))
+	  if (ptr <= value || xres <= 0 || yres <= 0 || !ptr || (strcasecmp(ptr, "dpi") && strcasecmp(ptr, "dpc") && strcasecmp(ptr, "dpcm") && strcasecmp(ptr, "other")))
 	  {
 	    fprintf(stderr, "ippserver: Bad resolution value \"%s\" on line %d of \"%s\".\n", value, f->linenum, f->filename);
 	    return (0);
 	  }
 
-	  if (!_cups_strcasecmp(ptr, "dpi"))
+	  if (!strcasecmp(ptr, "dpi"))
 	    return (ippSetResolution(ipp, attr, element, IPP_RES_PER_INCH, xres, yres));
-	  else if (!_cups_strcasecmp(ptr, "dpc") || !_cups_strcasecmp(ptr, "dpcm"))
+	  else if (!strcasecmp(ptr, "dpc") || !strcasecmp(ptr, "dpcm"))
 	    return (ippSetResolution(ipp, attr, element, IPP_RES_PER_CM, xres, yres));
 	  else
 	    return (ippSetResolution(ipp, attr, element, (ipp_res_t)0, xres, yres));
@@ -3132,10 +3134,10 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
             tempptr ++;
           }
 
-          return (ippSetOctetString(ipp, attr, element, temp, (int)(tempptr - temp)));
+          return (ippSetOctetString(ipp, attr, element, temp, (size_t)(tempptr - temp)));
         }
         else
-          return (ippSetOctetString(ipp, attr, element, value, (int)valuelen));
+          return (ippSetOctetString(ipp, attr, element, value, valuelen));
         break;
 
     case IPP_TAG_TEXTLANG :
@@ -3215,7 +3217,7 @@ print_ipp_attr(
     ipp_attribute_t *attr,		/* I - Attribute to print */
     int             indent)		/* I - Indentation level */
 {
-  int			i,		/* Looping var */
+  size_t		i,		/* Looping var */
 			count = ippGetCount(attr);
 					/* Number of values */
   ipp_attribute_t	*colattr;	/* Collection attribute */
@@ -3268,11 +3270,11 @@ print_ipp_attr(
     case IPP_TAG_STRING :
 	for (i = 0; i < count; i ++)
 	{
-	  int len;
+	  size_t len;
 	  const char *s = (const char *)ippGetOctetString(attr, i, &len);
 
 	  cupsFilePuts(fp, i ? "," : " ");
-	  print_escaped_string(fp, s, (size_t)len);
+	  print_escaped_string(fp, s, len);
 	}
 	break;
 
@@ -3335,14 +3337,15 @@ save_printer(
   server_icc_t	*icc;			/* Current ICC profile */
   server_lang_t	*lang;			/* Current language */
   server_device_t *device;		/* Current device */
+  char		datestr[256];		// Date string
 
 
-  _cupsRWLockRead(&printer->rwlock);
+  cupsRWLockRead(&printer->rwlock);
 
   snprintf(filename, sizeof(filename), "%s/%s.conf", directory, printer->name);
   if ((fp = cupsFileOpen(filename, "w")) != NULL)
   {
-    cupsFilePrintf(fp, "# Written by ippserver on %s\n", httpGetDateString(time(NULL)));
+    cupsFilePrintf(fp, "# Written by ippserver on %s\n", httpGetDateString(time(NULL), datestr, sizeof(datestr)));
 
 #ifndef _WIN32
     if (printer->pinfo.print_group != SERVER_GROUP_NONE && (grp = getgrgid(printer->pinfo.print_group)) != NULL)
@@ -3363,7 +3366,7 @@ save_printer(
     if (printer->pinfo.output_format)
       cupsFilePutConf(fp, "OutputFormat", printer->pinfo.output_format);
 
-    for (icc = (server_icc_t *)cupsArrayFirst(printer->pinfo.profiles); icc; icc = (server_icc_t *)cupsArrayNext(printer->pinfo.profiles))
+    for (icc = (server_icc_t *)cupsArrayGetFirst(printer->pinfo.profiles); icc; icc = (server_icc_t *)cupsArrayGetNext(printer->pinfo.profiles))
     {
       const char *name = ippGetString(ippFindAttribute(icc->attrs, "profile-name", IPP_TAG_NAME), 0, NULL);
 					/* Name string */
@@ -3384,12 +3387,12 @@ save_printer(
       cupsFilePuts(fp, "}\n");
     }
 
-    for (lang = (server_lang_t *)cupsArrayFirst(printer->pinfo.strings); lang; lang = (server_lang_t *)cupsArrayNext(printer->pinfo.strings))
+    for (lang = (server_lang_t *)cupsArrayGetFirst(printer->pinfo.strings); lang; lang = (server_lang_t *)cupsArrayGetNext(printer->pinfo.strings))
       cupsFilePrintf(fp, "Strings %s %s\n", lang->lang, lang->resource->filename);
 
     if (printer->pinfo.max_devices)
       cupsFilePrintf(fp, "MaxOutputDevices %d\n", printer->pinfo.max_devices);
-    for (device = (server_device_t *)cupsArrayFirst(printer->pinfo.devices); device; device = (server_device_t *)cupsArrayNext(printer->pinfo.devices))
+    for (device = (server_device_t *)cupsArrayGetFirst(printer->pinfo.devices); device; device = (server_device_t *)cupsArrayGetNext(printer->pinfo.devices))
       cupsFilePutConf(fp, "OutputDevice", device->uuid);
 
     cupsFilePutConf(fp, "WebForms", printer->pinfo.web_forms ? "Yes" : "No");
@@ -3405,7 +3408,7 @@ save_printer(
     cupsFileClose(fp);
   }
 
-  _cupsRWUnlock(&printer->rwlock);
+  cupsRWUnlock(&printer->rwlock);
 }
 
 
@@ -3436,7 +3439,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
     return (1);
   }
 #ifndef _WIN32
-  else if (!_cups_strcasecmp(token, "AuthPrintGroup"))
+  else if (!strcasecmp(token, "AuthPrintGroup"))
   {
     struct group	*group;		/* Group information */
 
@@ -3462,7 +3465,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
       pinfo->print_group = group->gr_gid;
     }
   }
-  else if (!_cups_strcasecmp(token, "AuthProxyGroup"))
+  else if (!strcasecmp(token, "AuthProxyGroup"))
   {
     struct group	*group;		/* Group information */
 
@@ -3489,7 +3492,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
     }
   }
 #endif /* !_WIN32 */
-  else if (!_cups_strcasecmp(token, "Command"))
+  else if (!strcasecmp(token, "Command"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
@@ -3501,7 +3504,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->command = strdup(value);
   }
-  else if (!_cups_strcasecmp(token, "DeviceURI"))
+  else if (!strcasecmp(token, "DeviceURI"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
@@ -3513,7 +3516,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->device_uri = strdup(value);
   }
-  else if (!_cups_strcasecmp(token, "InitialState"))
+  else if (!strcasecmp(token, "InitialState"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
@@ -3539,7 +3542,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->initial_reasons = (server_preason_t)strtol(temp, NULL, 10);
   }
-  else if (!_cups_strcasecmp(token, "Make"))
+  else if (!strcasecmp(token, "Make"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
@@ -3551,7 +3554,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->make = strdup(value);
   }
-  else if (!_cups_strcasecmp(token, "MaxOutputDevices"))
+  else if (!strcasecmp(token, "MaxOutputDevices"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
@@ -3561,7 +3564,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->max_devices = atoi(temp);
   }
-  else if (!_cups_strcasecmp(token, "Model"))
+  else if (!strcasecmp(token, "Model"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
@@ -3573,7 +3576,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->model = strdup(value);
   }
-  else if (!_cups_strcasecmp(token, "OutputDevice"))
+  else if (!strcasecmp(token, "OutputDevice"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
@@ -3583,7 +3586,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     serverCreateDevicePinfo(pinfo, temp);
   }
-  else if (!_cups_strcasecmp(token, "OutputFormat"))
+  else if (!strcasecmp(token, "OutputFormat"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
@@ -3595,7 +3598,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 
     pinfo->output_format = strdup(value);
   }
-  else if (!_cups_strcasecmp(token, "Profile"))
+  else if (!strcasecmp(token, "Profile"))
   {
     server_icc_t	icc;		/* ICC profile data */
     char		filename[1024];	/* ICC file */
@@ -3629,23 +3632,17 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
       icc.resource = serverCreateResource(NULL, filename, "application/icc", value, value, "static-icc-profile", NULL);
 
     ippAddString(icc.attrs, IPP_TAG_PRINTER, IPP_TAG_NAME, "profile-name", NULL, value);
-    httpAssembleURI(HTTP_URI_CODING_ALL, temp, sizeof(temp),
-#ifdef HAVE_TLS
-                    Encryption != HTTP_ENCRYPTION_NEVER ? SERVER_HTTPS_SCHEME : SERVER_HTTP_SCHEME,
-#else
-                    SERVER_HTTP_SCHEME,
-#endif /* HAVE_TLS */
-                    NULL, ServerName, DefaultPort, icc.resource->resource);
+    httpAssembleURI(HTTP_URI_CODING_ALL, temp, sizeof(temp), Encryption != HTTP_ENCRYPTION_NEVER ? SERVER_HTTPS_SCHEME : SERVER_HTTP_SCHEME, NULL, ServerName, DefaultPort, icc.resource->resource);
     ippAddString(icc.attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "profile-uri", NULL, temp);
 
     if (!pinfo->profiles)
-      pinfo->profiles = cupsArrayNew3(NULL, NULL, NULL, 0, (cups_acopy_func_t)copy_icc, (cups_afree_func_t)free_icc);
+      pinfo->profiles = cupsArrayNew(NULL, NULL, NULL, 0, (cups_acopy_cb_t)copy_icc, (cups_afree_cb_t)free_icc);
 
     cupsArrayAdd(pinfo->profiles, &icc);
 
     serverLog(SERVER_LOGLEVEL_DEBUG, "Added ICC profile \"%s\".", filename);
   }
-  else if (!_cups_strcasecmp(token, "Strings"))
+  else if (!strcasecmp(token, "Strings"))
   {
     server_lang_t lang;			/* New localization */
     char	stringsfile[1024];	/* Strings filename */
@@ -3671,13 +3668,13 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
       lang.resource = serverCreateResource(NULL, stringsfile, "text/strings", value, value, "static-strings", value);
 
     if (!pinfo->strings)
-      pinfo->strings = cupsArrayNew3((cups_array_func_t)compare_lang, NULL, NULL, 0, (cups_acopy_func_t)copy_lang, (cups_afree_func_t)free_lang);
+      pinfo->strings = cupsArrayNew((cups_array_cb_t)compare_lang, NULL, NULL, 0, (cups_acopy_cb_t)copy_lang, (cups_afree_cb_t)free_lang);
 
     cupsArrayAdd(pinfo->strings, &lang);
 
     serverLog(SERVER_LOGLEVEL_DEBUG, "Added strings file \"%s\" for language \"%s\".", stringsfile, value);
   }
-  else if (!_cups_strcasecmp(token, "WebForms"))
+  else if (!strcasecmp(token, "WebForms"))
   {
     if (!_ippFileReadToken(f, temp, sizeof(temp)))
     {
@@ -3685,7 +3682,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
       return (0);
     }
 
-    pinfo->web_forms = !_cups_strcasecmp(temp, "yes") || !_cups_strcasecmp(temp, "on") || !_cups_strcasecmp(temp, "true");
+    pinfo->web_forms = !strcasecmp(temp, "yes") || !strcasecmp(temp, "on") || !strcasecmp(temp, "true");
   }
   else
   {

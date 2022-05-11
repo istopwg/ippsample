@@ -1,7 +1,7 @@
 /*
  * Subscription object code for sample IPP server implementation.
  *
- * Copyright © 2014-2018 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group
  * Copyright © 2010-2018 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -51,15 +51,15 @@ serverAddEventNoLock(
 
   serverLog(SERVER_LOGLEVEL_DEBUG, "serverAddEventNoLock(printer=%p(%s), job=%p(%d), event=0x%x, message=\"%s\")", (void *)printer, printer ? printer->name : "(null)", (void *)job, job ? job->id : -1, event, text);
 
-  _cupsRWLockRead(&SubscriptionsRWLock);
+  cupsRWLockRead(&SubscriptionsRWLock);
 
-  for (sub = (server_subscription_t *)cupsArrayFirst(Subscriptions); sub; sub = (server_subscription_t *)cupsArrayNext(Subscriptions))
+  for (sub = (server_subscription_t *)cupsArrayGetFirst(Subscriptions); sub; sub = (server_subscription_t *)cupsArrayGetNext(Subscriptions))
   {
     serverLog(SERVER_LOGLEVEL_DEBUG, "serverAddEvent: sub->id=%d, sub->mask=0x%x, sub->job=%p(%d)", sub->id, sub->mask, (void *)sub->job, sub->job ? sub->job->id : -1);
 
     if (sub->mask & event && (!sub->job || job == sub->job) && (!sub->printer || printer == sub->printer) && (!sub->resource || res == sub->resource))
     {
-      _cupsRWLockWrite(&sub->rwlock);
+      cupsRWLockWrite(&sub->rwlock);
 
       n = ippNew();
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_CHARSET, "notify-charset", NULL, sub->charset);
@@ -105,22 +105,22 @@ serverAddEventNoLock(
 	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "system-up-time", (int)(time(NULL) - SystemStartTime));
 
       cupsArrayAdd(sub->events, n);
-      if (cupsArrayCount(sub->events) > 100)
+      if (cupsArrayGetCount(sub->events) > 100)
       {
-        n = (ipp_t *)cupsArrayFirst(sub->events);
+        n = (ipp_t *)cupsArrayGetFirst(sub->events);
 	cupsArrayRemove(sub->events, n);
 	ippDelete(n);
 	sub->first_sequence ++;
       }
 
-      _cupsRWUnlock(&sub->rwlock);
+      cupsRWUnlock(&sub->rwlock);
 
       serverLog(SERVER_LOGLEVEL_DEBUG, "Broadcasting new event.");
-      _cupsCondBroadcast(&NotificationCondition);
+      cupsCondBroadcast(&NotificationCondition);
     }
   }
 
-  _cupsRWUnlock(&SubscriptionsRWLock);
+  cupsRWUnlock(&SubscriptionsRWLock);
 }
 
 
@@ -143,7 +143,7 @@ serverCreateSubscription(
     ipp_attribute_t *notify_attributes,	/* I - Attributes to report */
     ipp_attribute_t *notify_user_data)	/* I - User data, if any */
 {
-  server_listener_t *lis = (server_listener_t *)cupsArrayFirst(Listeners);
+  server_listener_t *lis = (server_listener_t *)cupsArrayGetFirst(Listeners);
 					/* First listener */
   server_subscription_t	*sub;		/* Subscription */
   ipp_attribute_t	*attr;		/* Subscription attribute */
@@ -160,7 +160,7 @@ serverCreateSubscription(
     return (NULL);
   }
 
-  _cupsRWLockWrite(&SubscriptionsRWLock);
+  cupsRWLockWrite(&SubscriptionsRWLock);
 
   sub->id       = NextSubscriptionId ++;
   sub->mask     = notify_events ? serverGetNotifyEventsBits(notify_events) : SERVER_EVENT_DEFAULT;
@@ -178,7 +178,7 @@ serverCreateSubscription(
   else
     sub->expire = INT_MAX;
 
-  _cupsRWInit(&(sub->rwlock));
+  cupsRWInit(&(sub->rwlock));
 
  /*
   * Add subscription description attributes and add to the subscriptions
@@ -219,7 +219,7 @@ serverCreateSubscription(
 
     ippCopyAttribute(sub->attrs, notify_events, 0);
 
-    serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreateSubscription: notify-events has %d values.", ippGetCount(notify_events));
+    serverLog(SERVER_LOGLEVEL_DEBUG, "serverCreateSubscription: notify-events has %u values.", (unsigned)ippGetCount(notify_events));
 
     for (i = 0, mask = SERVER_EVENT_DOCUMENT_COMPLETED; i < (int)(sizeof(server_events) / sizeof(server_events[0])); i ++, mask *= 2)
     {
@@ -246,14 +246,14 @@ serverCreateSubscription(
   if (notify_user_data)
     sub->userdata = ippCopyAttribute(sub->attrs, notify_user_data, 0);
 
-  sub->events = cupsArrayNew3(NULL, NULL, NULL, 0, NULL, (cups_afree_func_t)ippDelete);
+  sub->events = cupsArrayNew(NULL, NULL, NULL, 0, NULL, (cups_afree_cb_t)ippDelete);
 
   if (!Subscriptions)
-    Subscriptions = cupsArrayNew((cups_array_func_t)compare_subscriptions, NULL);
+    Subscriptions = cupsArrayNew((cups_array_cb_t)compare_subscriptions, NULL, NULL, 0, NULL, NULL);
 
   cupsArrayAdd(Subscriptions, sub);
 
-  _cupsRWUnlock(&SubscriptionsRWLock);
+  cupsRWUnlock(&SubscriptionsRWLock);
 
   return (sub);
 }
@@ -270,14 +270,14 @@ serverDeleteSubscription(
   sub->pending_delete = 1;
 
   serverLog(SERVER_LOGLEVEL_DEBUG, "Broadcasting deleted subscription.");
-  _cupsCondBroadcast(&NotificationCondition);
+  cupsCondBroadcast(&NotificationCondition);
 
-  _cupsRWLockWrite(&sub->rwlock);
+  cupsRWLockWrite(&sub->rwlock);
 
   ippDelete(sub->attrs);
   cupsArrayDelete(sub->events);
 
-  _cupsRWDeinit(&sub->rwlock);
+  cupsRWDestroy(&sub->rwlock);
 
   free(sub);
 }
@@ -307,9 +307,9 @@ serverFindSubscription(
   else
     key.id = ippGetInteger(notify_subscription_id, 0);
 
-  _cupsRWLockRead(&SubscriptionsRWLock);
+  cupsRWLockRead(&SubscriptionsRWLock);
   sub = (server_subscription_t *)cupsArrayFind(Subscriptions, &key);
-  _cupsRWUnlock(&SubscriptionsRWLock);
+  cupsRWUnlock(&SubscriptionsRWLock);
 
   serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverFindSubscription: sub=%p", (void *)sub);
 
@@ -325,7 +325,7 @@ server_event_t				/* O - Bits */
 serverGetNotifyEventsBits(
     ipp_attribute_t *attr)		/* I - "notify-events" attribute */
 {
-  int		i, j,			/* Looping vars */
+  size_t	i, j,			/* Looping vars */
 		count;			/* Number of "notify-events" values */
   const char	*keyword;		/* "notify-events" value */
   server_event_t events = SERVER_EVENT_NONE;
@@ -337,7 +337,7 @@ serverGetNotifyEventsBits(
   {
     keyword = ippGetString(attr, i, NULL);
 
-    for (j = 0; j < (int)(sizeof(server_events) / sizeof(server_events[0])); j ++)
+    for (j = 0; j < (sizeof(server_events) / sizeof(server_events[0])); j ++)
     {
       if (!strcmp(keyword, server_events[j]))
       {

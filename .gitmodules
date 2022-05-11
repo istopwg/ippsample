@@ -1,0 +1,6 @@
+[submodule "libcups"]
+	path = libcups
+	url = git@github.com:michaelrsweet/libcups.git
+[submodule "pdfio"]
+	path = pdfio
+	url = git@github.com:michaelrsweet/pdfio.git

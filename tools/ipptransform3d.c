@@ -8,10 +8,14 @@
  */
 
 #include <config.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include <ctype.h>
+#include <errno.h>
 #include <cups/cups.h>
-#include <cups/array-private.h>
-#include <cups/string-private.h>
-#include <cups/thread-private.h>
+#include <cups/thread.h>
 #include <fcntl.h>
 #include <termios.h>
 #include <sys/select.h>
@@ -71,10 +75,10 @@ static int	Verbosity = 0;		/* Log level */
 static int	gcode_fill(gcode_buffer_t *buf, int device_fd, int wait_secs);
 static char	*gcode_gets(gcode_buffer_t *buf);
 static int	gcode_puts(gcode_buffer_t *buf, int device_fd, char *line, int linenum);
-static int	load_env_options(cups_option_t **options);
+static size_t	load_env_options(cups_option_t **options);
 static int	open_device(const char *device_uri);
 static void	usage(int status) _CUPS_NORETURN;
-static int	xform_document(const char *filename, const char *outformat, int num_options, cups_option_t *options, gcode_buffer_t *buf, int device_fd);
+static int	xform_document(const char *filename, const char *outformat, size_t num_options, cups_option_t *options, gcode_buffer_t *buf, int device_fd);
 
 
 /*
@@ -91,7 +95,7 @@ main(int  argc,				/* I - Number of command-line args */
 		*device_uri,		/* Destination URI */
 		*output_type,		/* Destination content type */
 		*opt;			/* Option character */
-  int		num_options;		/* Number of options */
+  size_t	num_options;		/* Number of options */
   cups_option_t	*options;		/* Options */
   int		fd = 1;			/* Output file/socket */
   int		status = 0;		/* Exit status */
@@ -474,15 +478,15 @@ gcode_puts(gcode_buffer_t *buf,		/* I - G-code buffer */
 
 extern char **environ;
 
-static int				/* O - Number of options */
+static size_t				/* O - Number of options */
 load_env_options(
     cups_option_t **options)		/* I - Options */
 {
-  int	i;				/* Looping var */
-  char	name[256],			/* Option name */
-	*nameptr,			/* Pointer into name */
-	*envptr;			/* Pointer into environment variable */
-  int	num_options = 0;		/* Number of options */
+  int		i;			/* Looping var */
+  char		name[256],		/* Option name */
+		*nameptr,		/* Pointer into name */
+		*envptr;		/* Pointer into environment variable */
+  size_t	num_options = 0;	/* Number of options */
 
 
   *options = NULL;
@@ -506,7 +510,7 @@ load_env_options(
       if (*envptr == '_')
         *nameptr++ = '-';
       else
-        *nameptr++ = (char)_cups_tolower(*envptr);
+        *nameptr++ = (char)tolower(*envptr);
     }
 
     *nameptr = '\0';
@@ -667,7 +671,7 @@ static int				/* O - 0 on success, 1 on failure */
 xform_document(
     const char     *filename,		/* I - Input file */
     const char     *outformat,		/* I - Output format */
-    int            num_options,		/* I - Number of options */
+    size_t         num_options,		/* I - Number of options */
     cups_option_t  *options,		/* I - Options */
     gcode_buffer_t *buf,		/* I - G-code response buffer */
     int            device_fd)		/* I - Device file */

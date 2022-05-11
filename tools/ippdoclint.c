@@ -1,7 +1,7 @@
 /*
  * ippdoclint utility for checking common print file formats.
  *
- * Copyright © 2018-2019 by the IEEE-ISTO Printer Working Group.
+ * Copyright © 2018-2022 by the IEEE-ISTO Printer Working Group.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -9,15 +9,14 @@
 
 #include <config.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
 #include <limits.h>
 #include <cups/cups.h>
 #include <cups/raster.h>
-#include <cups/string-private.h>
 
 #ifdef HAVE_COREGRAPHICS
 #  include <CoreGraphics/CoreGraphics.h>
-#elif defined(HAVE_MUPDF)
-#  include <mupdf/fitz.h>
 #endif /* HAVE_COREGRAPHICS */
 
 
@@ -52,14 +51,14 @@ static int		Warnings = 0;		/* Number of warnings found */
  * Local functions...
  */
 
-static int	lint_jpeg(const char *filename, int num_options, cups_option_t *options);
-static int	lint_pdf(const char *filename, int num_options, cups_option_t *options);
+static int	lint_jpeg(const char *filename, size_t num_options, cups_option_t *options);
+static int	lint_pdf(const char *filename, size_t num_options, cups_option_t *options);
 static int	lint_raster(const char *filename, const char *content_type);
-static int	load_env_options(cups_option_t **options);
-static int	read_apple_raster_header(cups_file_t *fp, cups_page_header2_t *header);
-static int	read_pwg_raster_header(cups_file_t *fp, unsigned syncword, cups_page_header2_t *header);
-static int	read_raster_image(cups_file_t *fp, cups_page_header2_t *header, unsigned page);
-static void	usage(int status) _CUPS_NORETURN;
+static size_t	load_env_options(cups_option_t **options);
+static int	read_apple_raster_header(cups_file_t *fp, cups_page_header_t *header);
+static int	read_pwg_raster_header(cups_file_t *fp, unsigned syncword, cups_page_header_t *header);
+static int	read_raster_image(cups_file_t *fp, cups_page_header_t *header, unsigned page);
+static void	usage(int status);
 
 
 /*
@@ -74,7 +73,7 @@ main(int  argc,				/* I - Number of command-line arguments */
   const char	*opt,			/* Current option */
 		*content_type,		/* Content type of file */
 		*filename;		/* File to check */
-  int		num_options;		/* Number of options */
+  size_t	num_options;		/* Number of options */
   cups_option_t	*options;		/* Options */
 
 
@@ -104,7 +103,7 @@ main(int  argc,				/* I - Number of command-line arguments */
       }
       else if (!strcmp(argv[i], "--version"))
       {
-        puts(CUPS_SVERSION);
+        puts(IPPSAMPLE_VERSION);
       }
       else
       {
@@ -244,7 +243,7 @@ main(int  argc,				/* I - Number of command-line arguments */
 
 static int				/* O - 1 on success, 0 on failure */
 lint_jpeg(const char    *filename,	/* I - File to check */
-          int           num_options,	/* I - Number of options */
+          size_t        num_options,	/* I - Number of options */
           cups_option_t *options)	/* I - Options */
 {
   const char	*value;			/* Option value */
@@ -405,7 +404,7 @@ lint_jpeg(const char    *filename,	/* I - File to check */
 
 static int				/* O - 1 on success, 0 on failure */
 lint_pdf(const char    *filename,	/* I - File to check */
-	 int           num_options,	/* I - Number of options */
+	 size_t        num_options,	/* I - Number of options */
 	 cups_option_t *options)	/* I - Options */
 {
   const char		*value;		/* Option value */
@@ -646,7 +645,7 @@ lint_raster(const char *filename,	/* I - File to check */
 	    const char *content_type)	/* I - Content type */
 {
   cups_file_t		*fp;		/* File pointer */
-  cups_page_header2_t	header;		/* Page header */
+  cups_page_header_t	header;		/* Page header */
   unsigned		page = 0;	/* Page number */
 
 
@@ -658,7 +657,7 @@ lint_raster(const char *filename,	/* I - File to check */
     return (0);
   }
 
-  if (!_cups_strcasecmp(content_type, "image/pwg-raster"))
+  if (!strcasecmp(content_type, "image/pwg-raster"))
   {
     unsigned		syncword;	/* Sync word */
 
@@ -728,15 +727,15 @@ lint_raster(const char *filename,	/* I - File to check */
 
 extern char **environ;
 
-static int				/* O - Number of options */
+static size_t				/* O - Number of options */
 load_env_options(
     cups_option_t **options)		/* I - Options */
 {
-  int	i;				/* Looping var */
-  char	name[256],			/* Option name */
-	*nameptr,			/* Pointer into name */
-	*envptr;			/* Pointer into environment variable */
-  int	num_options = 0;		/* Number of options */
+  int		i;			/* Looping var */
+  char		name[256],		/* Option name */
+		*nameptr,		/* Pointer into name */
+		*envptr;		/* Pointer into environment variable */
+  size_t	num_options = 0;	/* Number of options */
 
 
   *options = NULL;
@@ -762,7 +761,7 @@ load_env_options(
       else if (*envptr == '_')
         *nameptr++ = '-';
       else
-        *nameptr++ = (char)_cups_tolower(*envptr);
+        *nameptr++ = (char)tolower(*envptr);
     }
 
     *nameptr = '\0';
@@ -795,12 +794,12 @@ load_env_options(
 static int				/* O - 1 on success, 0 on error */
 read_apple_raster_header(
     cups_file_t         *fp,		/* I - File pointer */
-    cups_page_header2_t *header)	/* O - Raster header */
+    cups_page_header_t *header)	/* O - Raster header */
 {
   unsigned char	pheader[32];		/* Page header */
 
 
-  memset(header, 0, sizeof(cups_page_header2_t));
+  memset(header, 0, sizeof(cups_page_header_t));
 
   if (cupsFileRead(fp, (char *)pheader, sizeof(pheader)) != sizeof(pheader))
     return (0);
@@ -870,7 +869,7 @@ static int				/* O - 1 on success, 0 on error */
 read_pwg_raster_header(
     cups_file_t         *fp,		/* I - File pointer */
     unsigned            syncword,	/* I - Sync word from the file */
-    cups_page_header2_t *header)	/* O - Raster header */
+    cups_page_header_t *header)	/* O - Raster header */
 {
   int		i;			/* Looping/temp var */
   unsigned	num_colors,		/* Number of colors */
@@ -1020,7 +1019,7 @@ read_pwg_raster_header(
   };
 
 
-  if (cupsFileRead(fp, (char *)header, sizeof(cups_page_header2_t)) != sizeof(cups_page_header2_t))
+  if (cupsFileRead(fp, (char *)header, sizeof(cups_page_header_t)) != sizeof(cups_page_header_t))
     return (0);
 
   if (syncword == CUPS_RASTER_REVSYNCv2)
@@ -1377,7 +1376,7 @@ read_pwg_raster_header(
 static int				/* O - 1 on success, 0 on error */
 read_raster_image(
     cups_file_t         *fp,		/* I - File to read from */
-    cups_page_header2_t *header,	/* I - Page header */
+    cups_page_header_t *header,	/* I - Page header */
     unsigned            page)		/* I - Page number */
 {
   int		ch;			/* Character from file */

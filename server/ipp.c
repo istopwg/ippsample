@@ -1,7 +1,7 @@
 /*
  * IPP processing code for sample IPP server implementation.
  *
- * Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -36,7 +36,7 @@ typedef struct server_value_s		/**** Value Validation ****/
  * Local functions...
  */
 
-static int		apply_template_attributes(ipp_t *to, ipp_tag_t to_group_tag, server_resource_t *resource, ipp_attribute_t *supported, size_t num_values, server_value_t *values);
+static bool		apply_template_attributes(ipp_t *to, ipp_tag_t to_group_tag, server_resource_t *resource, ipp_attribute_t *supported, size_t num_values, server_value_t *values);
 static inline int	check_attribute(const char *name, cups_array_t *ra, cups_array_t *pa)
 {
   return ((!pa || !cupsArrayFind(pa, (void *)name)) && (!ra || cupsArrayFind(ra, (void *)name)));
@@ -126,10 +126,10 @@ static void		ipp_update_output_device_attributes(server_client_t *client);
 static void		ipp_validate_document(server_client_t *client);
 static void		ipp_validate_job(server_client_t *client);
 static void		respond_unsettable(server_client_t *client, ipp_attribute_t *attr);
-static int		valid_doc_attributes(server_client_t *client);
-static int		valid_filename(const char *filename);
-static int		valid_job_attributes(server_client_t *client);
-static int		valid_values(server_client_t *client, ipp_tag_t group_tag, ipp_attribute_t *supported, size_t num_values, server_value_t *values);
+static bool		valid_doc_attributes(server_client_t *client);
+static bool		valid_filename(const char *filename);
+static bool		valid_job_attributes(server_client_t *client);
+static bool		valid_values(server_client_t *client, ipp_tag_t group_tag, ipp_attribute_t *supported, size_t num_values, server_value_t *values);
 static float		wgs84_distance(const char *a, const char *b);
 
 
@@ -448,7 +448,7 @@ serverCopyAttributes(
  * 'apply_template_attributes()' - Apply attributes from a template resource.
  */
 
-static int				/* O - 1 on success, 0 on failure */
+static bool				/* O - `true` if valid, `false` if not */
 apply_template_attributes(
     ipp_t             *to,		/* I - Destination attributes */
     ipp_tag_t         to_group_tag,	/* I - Destination group */
@@ -474,7 +474,7 @@ apply_template_attributes(
   if ((fd = open(template->filename, O_RDONLY | O_BINARY)) < 0)
   {
     serverLog(SERVER_LOGLEVEL_ERROR, "Unable to open resource %d file \"%s\": %s", template->id, template->filename, strerror(errno));
-    return (0);
+    return (false);
   }
 
   from = ippNew();
@@ -484,7 +484,7 @@ apply_template_attributes(
     serverLog(SERVER_LOGLEVEL_ERROR, "Unable to read resource %d file \"%s\": %s", template->id, template->filename, cupsLastErrorString());
     close(fd);
     ippDelete(from);
-    return (0);
+    return (false);
   }
 
   close(fd);
@@ -518,7 +518,7 @@ apply_template_attributes(
 
   ippDelete(from);
 
-  return (1);
+  return (true);
 }
 
 
@@ -704,11 +704,11 @@ copy_document_uri(
 
       if (read(infile, buffer, 8) > 0 && (content_type = detect_format((unsigned char *)buffer)) != NULL)
       {
-	_cupsRWLockWrite(&job->rwlock);
+	cupsRWLockWrite(&job->rwlock);
 
 	attr = ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_MIMETYPE, "document-format-detected", NULL, content_type);
 
-	_cupsRWUnlock(&job->rwlock);
+	cupsRWUnlock(&job->rwlock);
 
 	job->format = ippGetString(attr, 0, NULL);
       }
@@ -777,14 +777,12 @@ copy_document_uri(
   {
     serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "GET %s", uri);
 
-#ifdef HAVE_TLS
     if (port == 443 || !strcmp(scheme, "https"))
       encryption = HTTP_ENCRYPTION_ALWAYS;
     else
-#endif /* HAVE_TLS */
-    encryption = HTTP_ENCRYPTION_IF_REQUESTED;
+      encryption = HTTP_ENCRYPTION_IF_REQUESTED;
 
-    if ((http = httpConnect2(hostname, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
+    if ((http = httpConnect(hostname, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to connect to %s: %s", hostname, cupsLastErrorString());
       job->state = IPP_JSTATE_ABORTED;
@@ -827,11 +825,7 @@ copy_document_uri(
 	return (0);
       }
 
-#ifdef HAVE_TLS
       if (strcmp(scheme, "http") && strcmp(scheme, "https"))
-#else
-      if (strcmp(scheme, "http"))
-#endif /* HAVE_TLS */
       {
 	serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Redirected to unsupported URI scheme \"%s\".", scheme);
 
@@ -846,7 +840,7 @@ copy_document_uri(
     }
     else if (status != HTTP_STATUS_OK)
     {
-      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to GET URI: %s", httpStatus(status));
+      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to GET URI: %s", httpStatusString(status));
 
       job->state = IPP_JSTATE_ABORTED;
 
@@ -864,11 +858,11 @@ copy_document_uri(
     {
       serverLogJob(SERVER_LOGLEVEL_INFO, job, "URI Content-Type=\"%s\"", content_type);
 
-      _cupsRWLockWrite(&job->rwlock);
+      cupsRWLockWrite(&job->rwlock);
 
       attr = ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_MIMETYPE, "document-format-detected", NULL, content_type);
 
-      _cupsRWUnlock(&job->rwlock);
+      cupsRWUnlock(&job->rwlock);
 
       job->format = ippGetString(attr, 0, NULL);
     }
@@ -888,7 +882,7 @@ copy_document_uri(
       return (0);
     }
 
-    while ((bytes = httpRead2(http, buffer, sizeof(buffer))) > 0)
+    while ((bytes = httpRead(http, buffer, sizeof(buffer))) > 0)
     {
       if (write(job->fd, buffer, (size_t)bytes) < bytes)
       {
@@ -1112,15 +1106,13 @@ copy_printer_attributes(
     if (match)
     {
       char		uri[1024];	/* printer-strings-uri value */
-      server_listener_t	*lis = cupsArrayFirst(Listeners);
+      server_listener_t	*lis = cupsArrayGetFirst(Listeners);
 					/* Default listener */
       const char	*scheme = "http";
 					/* URL scheme */
 
-#ifdef HAVE_TLS
       if (Encryption != HTTP_ENCRYPTION_NEVER)
         scheme = "https";
-#endif /* HAVE_TLS */
 
       httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), scheme, NULL, lis->host, lis->port, match->resource->resource);
       ippAddString(client->response, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-strings-uri", NULL, uri);
@@ -1131,7 +1123,7 @@ copy_printer_attributes(
     ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "printer-up-time", (int)(time(NULL) - printer->start_time));
 
   if (!ra || cupsArrayFind(ra, "queued-job-count"))
-    ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "queued-job-count", cupsArrayCount(printer->active_jobs));
+    ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "queued-job-count", (int)cupsArrayGetCount(printer->active_jobs));
 }
 
 
@@ -1246,9 +1238,9 @@ copy_system_state(ipp_t        *ipp,	/* I - IPP message */
 
   if (!ra || cupsArrayFind(ra, "system-state") || cupsArrayFind(ra, "system-state-change-date-time") || cupsArrayFind(ra, "system-state-change-time") || cupsArrayFind(ra, "system-state-message") || cupsArrayFind(ra, "system-state-reasons"))
   {
-    _cupsRWLockRead(&PrintersRWLock);
+    cupsRWLockRead(&PrintersRWLock);
 
-    for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+    for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
     {
       if (printer->state == IPP_PSTATE_PROCESSING)
         state = IPP_PSTATE_PROCESSING;
@@ -1261,7 +1253,7 @@ copy_system_state(ipp_t        *ipp,	/* I - IPP message */
         state_time = printer->state_time;
     }
 
-    _cupsRWUnlock(&PrintersRWLock);
+    cupsRWUnlock(&PrintersRWLock);
   }
 
   if (!ra || cupsArrayFind(ra, "system-state"))
@@ -1291,12 +1283,12 @@ copy_system_state(ipp_t        *ipp,	/* I - IPP message */
     }
     else
     {
-      int		i,		/* Looping var */
+      size_t		i,		/* Looping var */
 			num_reasons = 0;/* Number of reasons */
       server_preason_t	reason;		/* Current reason */
       const char	*reasons[32];	/* Reason strings */
 
-      for (i = 0, reason = 1; i < (int)(sizeof(server_preasons) / sizeof(server_preasons[0])); i ++, reason <<= 1)
+      for (i = 0, reason = 1; i < (sizeof(server_preasons) / sizeof(server_preasons[0])); i ++, reason <<= 1)
       {
 	if (state_reasons & reason)
 	  reasons[num_reasons ++] = server_preasons[i];
@@ -1403,11 +1395,7 @@ get_document_uri(
     return (NULL);
   }
 
-  if (strcmp(scheme, "file") &&
-#ifdef HAVE_TLS
-      strcmp(scheme, "https") &&
-#endif /* HAVE_TLS */
-      strcmp(scheme, "http"))
+  if (strcmp(scheme, "file") && strcmp(scheme, "https") && strcmp(scheme, "http"))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_URI_SCHEME, "URI scheme \"%s\" not supported.", scheme);
     serverRespondUnsupported(client, uri);
@@ -1517,7 +1505,7 @@ ipp_acknowledge_identify_printer(
     }
   }
 
-  _cupsRWLockWrite(&client->printer->rwlock);
+  cupsRWLockWrite(&client->printer->rwlock);
 
   if (client->printer->identify_actions)
   {
@@ -1551,7 +1539,7 @@ ipp_acknowledge_identify_printer(
   else
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_POSSIBLE, "No pending Identify-Printer request.");
 
-  _cupsRWUnlock(&client->printer->rwlock);
+  cupsRWUnlock(&client->printer->rwlock);
 }
 
 
@@ -1632,9 +1620,9 @@ ipp_allocate_printer_resources(
   server_printer_t	*printer = client->printer;
 					/* Printer */
   ipp_attribute_t	*resource_ids;	/* resource-ids attribute */
-  int			i,		/* Looping var */
-			count,		/* Number of values */
-			resource_id;	/* Current resource ID */
+  size_t		i,		/* Looping var */
+			count;		/* Number of values */
+  int			resource_id;	/* Current resource ID */
   server_resource_t	*resource;	/* Current resource */
 
 
@@ -1678,7 +1666,7 @@ ipp_allocate_printer_resources(
     return;
   }
 
-  _cupsRWLockWrite(&printer->rwlock);
+  cupsRWLockWrite(&printer->rwlock);
 
   for (i = 0, count = ippGetCount(resource_ids); i < count; i ++)
   {
@@ -1689,21 +1677,21 @@ ipp_allocate_printer_resources(
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d does not exist.", resource_id);
       serverRespondUnsupported(client, resource_ids);
-      _cupsRWUnlock(&printer->rwlock);
+      cupsRWUnlock(&printer->rwlock);
       return;
     }
     else if (resource->state != IPP_RSTATE_INSTALLED)
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d is not installed.", resource_id);
       serverRespondUnsupported(client, resource_ids);
-      _cupsRWUnlock(&printer->rwlock);
+      cupsRWUnlock(&printer->rwlock);
       return;
     }
     else if (strncmp(resource->type, "static-", 7))
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d of type '%s' cannot be allocated.", resource_id, resource->type);
       serverRespondUnsupported(client, resource_ids);
-      _cupsRWUnlock(&printer->rwlock);
+      cupsRWUnlock(&printer->rwlock);
       return;
     }
   }
@@ -1720,7 +1708,7 @@ ipp_allocate_printer_resources(
     serverAllocatePrinterResource(printer, resource);
   }
 
-  _cupsRWUnlock(&printer->rwlock);
+  cupsRWUnlock(&printer->rwlock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -1751,18 +1739,18 @@ ipp_cancel_current_job(
   * Get the current job, if any...
   */
 
-  _cupsRWLockWrite(&(client->printer->rwlock));
+  cupsRWLockWrite(&(client->printer->rwlock));
 
   if ((job = client->printer->processing_job) == NULL)
   {
-    _cupsRWUnlock(&client->printer->rwlock);
+    cupsRWUnlock(&client->printer->rwlock);
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "No job being processed.");
     return;
   }
 
   if (Authentication && !serverAuthorizeUser(client, job->username, SERVER_GROUP_NONE, JobPrivacyScope))
   {
-    _cupsRWUnlock(&client->printer->rwlock);
+    cupsRWUnlock(&client->printer->rwlock);
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this job.");
     return;
   }
@@ -1780,7 +1768,7 @@ ipp_cancel_current_job(
     job->completed = time(NULL);
   }
 
-  _cupsRWUnlock(&(client->printer->rwlock));
+  cupsRWUnlock(&(client->printer->rwlock));
 
   serverAddEventNoLock(client->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, NULL);
 
@@ -1862,7 +1850,7 @@ ipp_cancel_document(
         * Cancel the job...
 	*/
 
-	_cupsRWLockWrite(&(client->printer->rwlock));
+	cupsRWLockWrite(&(client->printer->rwlock));
 
 	if (job->state == IPP_JSTATE_PROCESSING ||
 	    (job->state == IPP_JSTATE_HELD && job->fd >= 0))
@@ -1878,7 +1866,7 @@ ipp_cancel_document(
 	  job->completed = time(NULL);
 	}
 
-	_cupsRWUnlock(&(client->printer->rwlock));
+	cupsRWUnlock(&(client->printer->rwlock));
 
         serverAddEventNoLock(client->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, NULL);
 
@@ -1947,7 +1935,7 @@ ipp_cancel_job(server_client_t *client)	/* I - Client */
         * Cancel the job...
 	*/
 
-	_cupsRWLockWrite(&(client->printer->rwlock));
+	cupsRWLockWrite(&(client->printer->rwlock));
 
 	if (job->state == IPP_JSTATE_PROCESSING ||
 	    (job->state == IPP_JSTATE_HELD && job->fd >= 0))
@@ -1963,7 +1951,7 @@ ipp_cancel_job(server_client_t *client)	/* I - Client */
 	  job->completed = time(NULL);
 	}
 
-	_cupsRWUnlock(&(client->printer->rwlock));
+	cupsRWUnlock(&(client->printer->rwlock));
 
         serverAddEventNoLock(client->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, NULL);
 
@@ -2052,9 +2040,9 @@ ipp_cancel_jobs(
   * OK, cancel jobs on this printer...
   */
 
-  _cupsRWLockRead(&(client->printer->rwlock));
+  cupsRWLockRead(&(client->printer->rwlock));
 
-  to_cancel = cupsArrayNew(NULL, NULL);
+  to_cancel = cupsArrayNew(NULL, NULL, NULL, 0, NULL, NULL);
 
   if (job_ids)
   {
@@ -2062,7 +2050,7 @@ ipp_cancel_jobs(
     * Look for the specified jobs...
     */
 
-    int			i,		/* Looping var */
+    size_t		i,		/* Looping var */
 			count;		/* Number of job-ids values */
     server_job_t	key;		/* Search key for jobs */
 
@@ -2076,7 +2064,7 @@ ipp_cancel_jobs(
 	* Validate this job...
 	*/
 
-	if (username && _cups_strcasecmp(username, job->username))
+	if (username && strcasecmp(username, job->username))
 	{
 	  if (!bad_job_ids)
 	  {
@@ -2117,9 +2105,9 @@ ipp_cancel_jobs(
     * Look for jobs belonging to the requesting user...
     */
 
-    for (job = (server_job_t *)cupsArrayFirst(client->printer->jobs); job; job = (server_job_t *)cupsArrayNext(client->printer->jobs))
+    for (job = (server_job_t *)cupsArrayGetFirst(client->printer->jobs); job; job = (server_job_t *)cupsArrayGetNext(client->printer->jobs))
     {
-      if (job->state < IPP_JSTATE_CANCELED && (op == IPP_OP_CANCEL_JOBS || (username && !_cups_strcasecmp(username, job->username))))
+      if (job->state < IPP_JSTATE_CANCELED && (op == IPP_OP_CANCEL_JOBS || (username && !strcasecmp(username, job->username))))
         cupsArrayAdd(to_cancel, job);
     }
   }
@@ -2130,7 +2118,7 @@ ipp_cancel_jobs(
     * If we got this far then we have a valid list of jobs to cancel...
     */
 
-    for (job = (server_job_t *)cupsArrayFirst(to_cancel); job; job = (server_job_t *)cupsArrayNext(to_cancel))
+    for (job = (server_job_t *)cupsArrayGetFirst(to_cancel); job; job = (server_job_t *)cupsArrayGetNext(to_cancel))
     {
       if (job->state == IPP_JSTATE_PROCESSING || (job->state == IPP_JSTATE_HELD && job->fd >= 0))
       {
@@ -2152,7 +2140,7 @@ ipp_cancel_jobs(
 
   cupsArrayDelete(to_cancel);
 
-  _cupsRWUnlock(&(client->printer->rwlock));
+  cupsRWUnlock(&(client->printer->rwlock));
 }
 
 
@@ -2272,10 +2260,10 @@ ipp_cancel_subscription(
     return;
   }
 
-  _cupsRWLockWrite(&SubscriptionsRWLock);
+  cupsRWLockWrite(&SubscriptionsRWLock);
   cupsArrayRemove(Subscriptions, sub);
   serverDeleteSubscription(sub);
-  _cupsRWUnlock(&SubscriptionsRWLock);
+  cupsRWUnlock(&SubscriptionsRWLock);
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
 
@@ -2418,7 +2406,7 @@ ipp_create_job(server_client_t *client)	/* I - Client */
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  ra = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   cupsArrayAdd(ra, "job-id");
   cupsArrayAdd(ra, "job-state");
   cupsArrayAdd(ra, "job-state-message");
@@ -2445,7 +2433,7 @@ static void
 ipp_create_printer(
     server_client_t *client)		/* I - Client connection */
 {
-  int			i,		/* Looping var */
+  size_t		i,		/* Looping var */
 			count;		/* Number of values */
   ipp_attribute_t	*attr,		/* Request attribute */
 			*resource_ids,	/* resources-ids attribute */
@@ -2495,7 +2483,7 @@ ipp_create_printer(
     }
     else if ((count = ippGetCount(resource_ids)) > SERVER_RESOURCES_MAX)
     {
-      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Too many resources (%d) specified.", count);
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Too many resources (%u) specified.", (unsigned)count);
       serverRespondUnsupported(client, resource_ids);
       return;
     }
@@ -2518,9 +2506,9 @@ ipp_create_printer(
       }
       else if (!strcmp(resource->type, "template-printer"))
       {
-	_cupsRWLockRead(&SystemRWLock);
+	cupsRWLockRead(&SystemRWLock);
 	supported = ippFindAttribute(SystemAttributes, "printer-creation-attributes-supported", IPP_TAG_KEYWORD);
-	_cupsRWUnlock(&SystemRWLock);
+	cupsRWUnlock(&SystemRWLock);
 
         if (!apply_template_attributes(client->request, IPP_TAG_PRINTER, resource, supported, sizeof(printer_values) / sizeof(printer_values[0]), printer_values))
         {
@@ -2588,9 +2576,9 @@ ipp_create_printer(
 
   if ((attr = ippFindAttribute(client->request, "smi2699-device-command", IPP_TAG_NAME)) != NULL)
   {
-    _cupsRWLockRead(&SystemRWLock);
+    cupsRWLockRead(&SystemRWLock);
     supported = ippFindAttribute(SystemAttributes, "smi2699-device-command-supported", IPP_TAG_NAME);
-    _cupsRWUnlock(&SystemRWLock);
+    cupsRWUnlock(&SystemRWLock);
 
     if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
     {
@@ -2601,9 +2589,9 @@ ipp_create_printer(
 
   if ((attr = ippFindAttribute(client->request, "smi2699-device-format", IPP_TAG_MIMETYPE)) != NULL)
   {
-    _cupsRWLockRead(&SystemRWLock);
+    cupsRWLockRead(&SystemRWLock);
     supported = ippFindAttribute(SystemAttributes, "smi2699-device-format-supported", IPP_TAG_MIMETYPE);
-    _cupsRWUnlock(&SystemRWLock);
+    cupsRWUnlock(&SystemRWLock);
 
     if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
     {
@@ -2621,9 +2609,9 @@ ipp_create_printer(
 		dpath[256];		/* URI resource path */
     int		dport;			/* URI port */
 
-    _cupsRWLockRead(&SystemRWLock);
+    cupsRWLockRead(&SystemRWLock);
     supported = ippFindAttribute(SystemAttributes, "smi2699-device-uri-schemes-supported", IPP_TAG_URISCHEME);
-    _cupsRWUnlock(&SystemRWLock);
+    cupsRWUnlock(&SystemRWLock);
 
     if ((uri_status = httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(attr, 0, NULL), dscheme, sizeof(dscheme), duserpass, sizeof(duserpass), dhost, sizeof(dhost), &dport, dpath, sizeof(dpath))) < HTTP_URI_STATUS_OK)
     {
@@ -2718,9 +2706,9 @@ ipp_create_printer(
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  _cupsRWLockRead(&client->printer->rwlock);
+  cupsRWLockRead(&client->printer->rwlock);
 
-  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  ra = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   cupsArrayAdd(ra, "printer-id");
   cupsArrayAdd(ra, "printer-is-accepting-jobs");
   cupsArrayAdd(ra, "printer-state");
@@ -2733,7 +2721,7 @@ ipp_create_printer(
   serverCopyAttributes(client->response, client->printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
   copy_printer_state(client->response, client->printer, ra);
 
-  _cupsRWUnlock(&client->printer->rwlock);
+  cupsRWUnlock(&client->printer->rwlock);
 
  /*
   * Add any subscriptions...
@@ -2804,9 +2792,9 @@ ipp_create_resource(
   {
     ipp_attribute_t	*supported;	/* Supported values */
 
-    _cupsRWLockRead(&SystemRWLock);
+    cupsRWLockRead(&SystemRWLock);
     supported = ippFindAttribute(SystemAttributes, "resource-type-supported", IPP_TAG_KEYWORD);
-    _cupsRWUnlock(&SystemRWLock);
+    cupsRWUnlock(&SystemRWLock);
 
     if (!ippContainsString(supported, type))
     {
@@ -2874,7 +2862,7 @@ ipp_create_resource(
     ippAddString(client->response, IPP_TAG_OPERATION, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "resource-format-accepted", NULL, "application/ipp");
   }
 
-  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  ra = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   cupsArrayAdd(ra, "resource-id");
   cupsArrayAdd(ra, "resource-state");
   cupsArrayAdd(ra, "resource-state-reasons");
@@ -3077,7 +3065,7 @@ ipp_create_xxx_subscriptions(
       }
       else if (!strcmp(attrname, "notify-user-data"))
       {
-        int	datalen;		/* Length of data */
+        size_t	datalen;		/* Length of data */
 
         if (ippGetValueTag(attr) != IPP_TAG_STRING || ippGetCount(attr) != 1 || !ippGetOctetString(attr, 0, &datalen) || datalen > 63)
 	{
@@ -3159,9 +3147,9 @@ ipp_deallocate_printer_resources(
   server_printer_t	*printer = client->printer;
 					/* Printer */
   ipp_attribute_t	*resource_ids;	/* resource-ids attribute */
-  int			i, j,		/* Looping vars */
-			count,		/* Number of values */
-			resource_id;	/* Current resource ID */
+  size_t		i, j,		/* Looping vars */
+			count;		/* Number of values */
+  int			resource_id;	/* Current resource ID */
   server_resource_t	*resource;	/* Current resource */
 
 
@@ -3205,7 +3193,7 @@ ipp_deallocate_printer_resources(
     return;
   }
 
-  _cupsRWLockWrite(&printer->rwlock);
+  cupsRWLockWrite(&printer->rwlock);
 
   for (i = 0, count = ippGetCount(resource_ids); i < count; i ++)
   {
@@ -3222,7 +3210,7 @@ ipp_deallocate_printer_resources(
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d is not allocated to the printer.", resource_id);
       serverRespondUnsupported(client, resource_ids);
-      _cupsRWUnlock(&printer->rwlock);
+      cupsRWUnlock(&printer->rwlock);
       return;
     }
   }
@@ -3239,7 +3227,7 @@ ipp_deallocate_printer_resources(
     serverDeallocatePrinterResource(printer, resource);
   }
 
-  _cupsRWUnlock(&printer->rwlock);
+  cupsRWUnlock(&printer->rwlock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -3276,7 +3264,7 @@ ipp_delete_printer(
     }
   }
 
-  _cupsRWLockWrite(&PrintersRWLock);
+  cupsRWLockWrite(&PrintersRWLock);
 
   serverLogPrinter(SERVER_LOGLEVEL_DEBUG, client->printer, "Removing printer %d from printers list.", client->printer->id);
 
@@ -3288,9 +3276,9 @@ ipp_delete_printer(
   * Abort all jobs for this printer...
   */
 
-  _cupsRWLockWrite(&client->printer->rwlock);
+  cupsRWLockWrite(&client->printer->rwlock);
 
-  for (job = (server_job_t *)cupsArrayFirst(client->printer->active_jobs); job; job = (server_job_t *)cupsArrayNext(client->printer->active_jobs))
+  for (job = (server_job_t *)cupsArrayGetFirst(client->printer->active_jobs); job; job = (server_job_t *)cupsArrayGetNext(client->printer->active_jobs))
   {
     if (job->state == IPP_JSTATE_PENDING || job->state == IPP_JSTATE_HELD)
     {
@@ -3299,15 +3287,15 @@ ipp_delete_printer(
     }
   }
 
-  _cupsRWUnlock(&client->printer->rwlock);
+  cupsRWUnlock(&client->printer->rwlock);
 
  /*
   * Mark all subscriptions for this printer to expire in 30 seconds...
   */
 
-  _cupsRWLockRead(&SubscriptionsRWLock);
+  cupsRWLockRead(&SubscriptionsRWLock);
 
-  for (sub = (server_subscription_t *)cupsArrayFirst(Subscriptions); sub; sub = (server_subscription_t *)cupsArrayNext(Subscriptions))
+  for (sub = (server_subscription_t *)cupsArrayGetFirst(Subscriptions); sub; sub = (server_subscription_t *)cupsArrayGetNext(Subscriptions))
   {
     if (sub->printer == client->printer || (sub->job && sub->job->printer == client->printer))
     {
@@ -3317,7 +3305,7 @@ ipp_delete_printer(
     }
   }
 
-  _cupsRWUnlock(&SubscriptionsRWLock);
+  cupsRWUnlock(&SubscriptionsRWLock);
 
   if (client->printer->processing_job)
   {
@@ -3342,7 +3330,7 @@ ipp_delete_printer(
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  _cupsRWUnlock(&PrintersRWLock);
+  cupsRWUnlock(&PrintersRWLock);
 }
 
 
@@ -3390,14 +3378,14 @@ ipp_deregister_output_device(
   * Remove the device from the printer...
   */
 
-  _cupsRWLockWrite(&client->printer->rwlock);
+  cupsRWLockWrite(&client->printer->rwlock);
 
   cupsArrayRemove(client->printer->pinfo.devices, device);
 
   serverUpdateDeviceAttributesNoLock(client->printer);
   serverUpdateDeviceStateNoLock(client->printer);
 
-  _cupsRWUnlock(&client->printer->rwlock);
+  cupsRWUnlock(&client->printer->rwlock);
 
  /*
   * Delete the device...
@@ -3439,12 +3427,12 @@ ipp_disable_all_printers(
     }
   }
 
-  _cupsRWLockRead(&SystemRWLock);
+  cupsRWLockRead(&SystemRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
     serverDisablePrinter(printer);
 
-  _cupsRWUnlock(&SystemRWLock);
+  cupsRWUnlock(&SystemRWLock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -3513,12 +3501,12 @@ ipp_enable_all_printers(
     }
   }
 
-  _cupsRWLockRead(&SystemRWLock);
+  cupsRWLockRead(&SystemRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
     serverEnablePrinter(printer);
 
-  _cupsRWUnlock(&SystemRWLock);
+  cupsRWUnlock(&SystemRWLock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -3650,7 +3638,7 @@ ipp_fetch_document(
 
       serverLogAttributes(client, "Response:", client->response, 2);
 
-      serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s", httpStatus(HTTP_STATUS_OK));
+      serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s", httpStatusString(HTTP_STATUS_OK));
 
       httpClearFields(client->http);
       httpSetField(client->http, HTTP_FIELD_CONTENT_TYPE, "application/ipp");
@@ -3678,7 +3666,7 @@ ipp_fetch_document(
       serverTransformJob(client, job, "ipptransform", format, SERVER_TRANSFORM_TO_CLIENT);
 
       serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sending 0-length chunk.");
-      httpWrite2(client->http, "", 0);
+      httpWrite(client->http, "", 0);
 
       serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Flushing write buffer.");
       httpFlushWrite(client->http);
@@ -4088,11 +4076,11 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  _cupsRWLockRead(&(client->printer->rwlock));
+  cupsRWLockRead(&(client->printer->rwlock));
 
-  for (count = 0, job = (server_job_t *)cupsArrayFirst(client->printer->jobs);
+  for (count = 0, job = (server_job_t *)cupsArrayGetFirst(client->printer->jobs);
        (limit <= 0 || count < limit) && job;
-       job = (server_job_t *)cupsArrayNext(client->printer->jobs))
+       job = (server_job_t *)cupsArrayGetNext(client->printer->jobs))
   {
    /*
     * Filter out jobs that don't match...
@@ -4133,7 +4121,7 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
 
   cupsArrayDelete(ra);
 
-  _cupsRWUnlock(&(client->printer->rwlock));
+  cupsRWUnlock(&(client->printer->rwlock));
 }
 
 
@@ -4147,10 +4135,10 @@ ipp_get_notifications(
 {
   ipp_attribute_t	*sub_ids,	/* notify-subscription-ids */
 			*seq_nums;	/* notify-sequence-numbers */
-  int			notify_wait;	/* Wait for events? */
-  int			i,		/* Looping vars */
-			count,		/* Number of IDs */
-			seq_num;	/* Sequence number */
+  bool			notify_wait;	/* Wait for events? */
+  size_t		i,		/* Looping vars */
+			count;		/* Number of IDs */
+  int			seq_num;	/* Sequence number */
   server_subscription_t	*sub;		/* Current subscription */
   ipp_t			*event;		/* Current event */
   int			num_events = 0;	/* Number of events returned */
@@ -4200,7 +4188,7 @@ ipp_get_notifications(
 	break;
       }
 
-      _cupsRWLockRead(&sub->rwlock);
+      cupsRWLockRead(&sub->rwlock);
 
       seq_num = ippGetInteger(seq_nums, i);
       if (seq_num < sub->first_sequence)
@@ -4208,13 +4196,11 @@ ipp_get_notifications(
 
       if (seq_num > sub->last_sequence)
       {
-        _cupsRWUnlock(&sub->rwlock);
+        cupsRWUnlock(&sub->rwlock);
 	continue;
       }
 
-      for (event = (ipp_t *)cupsArrayIndex(sub->events, seq_num - sub->first_sequence);
-	   event;
-	   event = (ipp_t *)cupsArrayNext(sub->events))
+      for (event = (ipp_t *)cupsArrayGetElement(sub->events, (size_t)(seq_num - sub->first_sequence)); event; event = (ipp_t *)cupsArrayGetNext(sub->events))
       {
 	if (num_events == 0)
 	{
@@ -4232,7 +4218,7 @@ ipp_get_notifications(
 	num_events ++;
       }
 
-      _cupsRWUnlock(&sub->rwlock);
+      cupsRWUnlock(&sub->rwlock);
     }
 
     if (i < count)
@@ -4247,9 +4233,9 @@ ipp_get_notifications(
 
         serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Waiting for events.");
 
-	_cupsMutexLock(&NotificationMutex);
-	_cupsCondWait(&NotificationCondition, &NotificationMutex, 30.0);
-	_cupsMutexUnlock(&NotificationMutex);
+	cupsMutexLock(&NotificationMutex);
+	cupsCondWait(&NotificationCondition, &NotificationMutex, 30.0);
+	cupsMutexUnlock(&NotificationMutex);
 
         serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Done waiting for events.");
 
@@ -4299,12 +4285,12 @@ ipp_get_output_device_attributes(
 
   ra = ippCreateRequestedArray(client->request);
 
-  _cupsRWLockRead(&device->rwlock);
+  cupsRWLockRead(&device->rwlock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
   serverCopyAttributes(client->response, device->attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
 
-  _cupsRWUnlock(&device->rwlock);
+  cupsRWUnlock(&device->rwlock);
 
   cupsArrayDelete(ra);
 }
@@ -4331,11 +4317,11 @@ ipp_get_printer_attributes(
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  _cupsRWLockRead(&(printer->rwlock));
+  cupsRWLockRead(&(printer->rwlock));
 
   copy_printer_attributes(client, printer, ra);
 
-  _cupsRWUnlock(&(printer->rwlock));
+  cupsRWUnlock(&(printer->rwlock));
 
   cupsArrayDelete(ra);
 }
@@ -4353,7 +4339,7 @@ ipp_get_printer_supported_values(
   cups_array_t		*ra;		/* Requested attributes */
   ipp_attribute_t	*settable,	/* Settable attributes */
 			*supported;	/* Supported attributes */
-  int			i,		/* Looping var */
+  size_t		i,		/* Looping var */
 			count;		/* Number of settable attributes */
 
 
@@ -4467,23 +4453,23 @@ ipp_get_printers(
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  _cupsRWLockRead(&PrintersRWLock);
+  cupsRWLockRead(&PrintersRWLock);
 
-  for (i = 0, count = 0, printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  for (i = 0, count = 0, printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
   {
     const char	*printer_geo_location;	/* Printer's geo-location value */
 
-    _cupsRWLockRead(&printer->rwlock);
+    cupsRWLockRead(&printer->rwlock);
 
     if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
     {
-      _cupsRWUnlock(&printer->rwlock);
+      cupsRWUnlock(&printer->rwlock);
       continue;
     }
 
     if (printer_ids && !ippContainsInteger(printer_ids, printer->id))
     {
-      _cupsRWUnlock(&printer->rwlock);
+      cupsRWUnlock(&printer->rwlock);
       continue;
     }
 
@@ -4491,25 +4477,25 @@ ipp_get_printers(
 
     if (geo_location && (!printer_geo_location || wgs84_distance(printer_geo_location, geo_location) > geo_distance))
     {
-      _cupsRWUnlock(&printer->rwlock);
+      cupsRWUnlock(&printer->rwlock);
       continue;
     }
 
     if (location && (!printer->pinfo.location || strcmp(printer->pinfo.location, location)))
     {
-      _cupsRWUnlock(&printer->rwlock);
+      cupsRWUnlock(&printer->rwlock);
       continue;
     }
 
     if (document_format && !ippContainsString(ippFindAttribute(printer->pinfo.attrs, "document-format-supported", IPP_TAG_MIMETYPE), document_format))
     {
-      _cupsRWUnlock(&printer->rwlock);
+      cupsRWUnlock(&printer->rwlock);
       continue;
     }
 
     if (service_type && ((!strcmp(service_type, "print") && printer->type != SERVER_TYPE_PRINT) || (!strcmp(service_type, "print3d") && printer->type != SERVER_TYPE_PRINT3D) || (strcmp(service_type, "print") && strcmp(service_type, "print3d"))))
     {
-      _cupsRWUnlock(&printer->rwlock);
+      cupsRWUnlock(&printer->rwlock);
       continue;
     }
 
@@ -4527,7 +4513,7 @@ ipp_get_printers(
           (!strcmp(which_printers, "processing") && printer->state != IPP_PSTATE_PROCESSING) ||
           (!strcmp(which_printers, "stopped") && printer->state != IPP_PSTATE_STOPPED))
       {
-	_cupsRWUnlock(&printer->rwlock);
+	cupsRWUnlock(&printer->rwlock);
 	continue;
       }
     }
@@ -4548,13 +4534,13 @@ ipp_get_printers(
 
     count ++;
 
-    _cupsRWUnlock(&printer->rwlock);
+    cupsRWUnlock(&printer->rwlock);
 
     if (limit > 0 && count >= limit)
       break;
   }
 
-  _cupsRWUnlock(&PrintersRWLock);
+  cupsRWUnlock(&PrintersRWLock);
 
   cupsArrayDelete(ra);
 }
@@ -4621,9 +4607,9 @@ ipp_get_resource_attributes(
 
   ra = ippCreateRequestedArray(client->request);
 
-  _cupsRWLockRead(&resource->rwlock);
+  cupsRWLockRead(&resource->rwlock);
   copy_resource_attributes(client, resource, ra);
-  _cupsRWUnlock(&resource->rwlock);
+  cupsRWUnlock(&resource->rwlock);
 
   cupsArrayDelete(ra);
 }
@@ -4741,11 +4727,11 @@ ipp_get_resources(
 
   ra = ippCreateRequestedArray(client->request);
 
-  _cupsRWLockRead(&ResourcesRWLock);
+  cupsRWLockRead(&ResourcesRWLock);
 
-  for (resource = (server_resource_t *)cupsArrayFirst(ResourcesById), count = 0, idx = 0; (limit <= 0 || count < limit) && resource; resource = (server_resource_t *)cupsArrayNext(ResourcesById))
+  for (resource = (server_resource_t *)cupsArrayGetFirst(ResourcesById), count = 0, idx = 0; (limit <= 0 || count < limit) && resource; resource = (server_resource_t *)cupsArrayGetNext(ResourcesById))
   {
-    _cupsRWLockRead(&resource->rwlock);
+    cupsRWLockRead(&resource->rwlock);
 
     if ((!resource_formats || ippContainsString(resource_formats, resource->format)) &&
         (!resource_ids || ippContainsInteger(resource_ids, resource->id)) &&
@@ -4760,10 +4746,10 @@ ipp_get_resources(
       }
     }
 
-    _cupsRWUnlock(&resource->rwlock);
+    cupsRWUnlock(&resource->rwlock);
   }
 
-  _cupsRWUnlock(&ResourcesRWLock);
+  cupsRWUnlock(&ResourcesRWLock);
 
   cupsArrayDelete(ra);
 }
@@ -4874,8 +4860,8 @@ ipp_get_subscriptions(
     username = "anonymous";
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
-  _cupsRWLockRead(&SubscriptionsRWLock);
-  for (sub = (server_subscription_t *)cupsArrayFirst(Subscriptions); sub; sub = (server_subscription_t *)cupsArrayNext(Subscriptions))
+  cupsRWLockRead(&SubscriptionsRWLock);
+  for (sub = (server_subscription_t *)cupsArrayGetFirst(Subscriptions); sub; sub = (server_subscription_t *)cupsArrayGetNext(Subscriptions))
   {
     if ((job_id > 0 && (!sub->job || sub->job->id != job_id)) || (job_id <= 0 && sub->job))
       continue;
@@ -4900,7 +4886,7 @@ ipp_get_subscriptions(
     if (limit > 0 && count >= limit)
       break;
   }
-  _cupsRWUnlock(&SubscriptionsRWLock);
+  cupsRWUnlock(&SubscriptionsRWLock);
 
   cupsArrayDelete(ra);
 }
@@ -4945,7 +4931,7 @@ ipp_get_system_attributes(
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  _cupsRWLockRead(&SystemRWLock);
+  cupsRWLockRead(&SystemRWLock);
 
   serverCopyAttributes(client->response, SystemAttributes, ra, NULL, IPP_TAG_ZERO, IPP_TAG_CUPS_CONST);
 //  serverCopyAttributes(client->response, PrivacyAttributes, ra, NULL, IPP_TAG_ZERO, IPP_TAG_CUPS_CONST);
@@ -4961,7 +4947,7 @@ ipp_get_system_attributes(
 
   if (!ra || cupsArrayFind(ra, "system-configured-printers"))
   {
-    int			i,		/* Looping var */
+    size_t		i,		/* Looping var */
   			count;		/* Number of printers */
     ipp_t		*col;		/* Collection value */
     ipp_attribute_t	*printers;	/* system-configured-printers attribute */
@@ -4971,9 +4957,9 @@ ipp_get_system_attributes(
       "print3d"
     };
 
-    _cupsRWLockRead(&PrintersRWLock);
+    cupsRWLockRead(&PrintersRWLock);
 
-    if ((count = cupsArrayCount(Printers)) == 0)
+    if ((count = cupsArrayGetCount(Printers)) == 0)
     {
       ippAddOutOfBand(client->response, IPP_TAG_SYSTEM, IPP_TAG_NOVALUE, "system-configured-printers");
     }
@@ -4981,9 +4967,9 @@ ipp_get_system_attributes(
     {
       printers = ippAddCollections(client->response, IPP_TAG_SYSTEM, "system-configured-printers", count, NULL);
 
-      for (i = 0, printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers), i ++)
+      for (i = 0, printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers), i ++)
       {
-        _cupsRWLockRead(&printer->rwlock);
+        cupsRWLockRead(&printer->rwlock);
 
         col = ippNew();
         ippAddInteger(col, IPP_TAG_ZERO, IPP_TAG_INTEGER, "printer-id", printer->id);
@@ -4998,11 +4984,11 @@ ipp_get_system_attributes(
         ippSetCollection(client->response, &printers, i, col);
         ippDelete(col);
 
-        _cupsRWUnlock(&printer->rwlock);
+        cupsRWUnlock(&printer->rwlock);
       }
     }
 
-    _cupsRWUnlock(&PrintersRWLock);
+    cupsRWUnlock(&PrintersRWLock);
   }
 
   /* TODO: Update when resources are implemented */
@@ -5053,15 +5039,13 @@ ipp_get_system_attributes(
     if (match)
     {
       char		uri[1024];	/* printer-strings-uri value */
-      server_listener_t	*lis = cupsArrayFirst(Listeners);
+      server_listener_t	*lis = cupsArrayGetFirst(Listeners);
 					/* Default listener */
       const char	*scheme = "http";
 					/* URL scheme */
 
-#ifdef HAVE_TLS
       if (Encryption != HTTP_ENCRYPTION_NEVER)
         scheme = "https";
-#endif /* HAVE_TLS */
 
       httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), scheme, NULL, lis->host, lis->port, "%s/%s.strings", printer->resource, match->lang);
       ippAddString(client->response, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-strings-uri", NULL, uri);
@@ -5071,7 +5055,7 @@ ipp_get_system_attributes(
 
   cupsArrayDelete(ra);
 
-  _cupsRWUnlock(&SystemRWLock);
+  cupsRWUnlock(&SystemRWLock);
 }
 
 
@@ -5116,20 +5100,20 @@ ipp_get_system_supported_values(
   /* system-default-printer-id (1setOf integer(1:65535)) */
   if (!ra || cupsArrayFind(ra, "system-default-printer-id"))
   {
-    int			*values,	/* printer-id values */
-  			num_values,	/* Number of printer-id values */
+    int			*values;	/* printer-id values */
+    size_t		num_values,	/* Number of printer-id values */
   			count;		/* Number of printers */
     server_printer_t	*printer;	/* Current printer */
 
-    _cupsRWLockRead(&PrintersRWLock);
+    cupsRWLockRead(&PrintersRWLock);
 
-    if ((count = cupsArrayCount(Printers)) == 0)
+    if ((count = cupsArrayGetCount(Printers)) == 0)
     {
       ippAddOutOfBand(client->response, IPP_TAG_SYSTEM, IPP_TAG_NOVALUE, "system-default-printer-id");
     }
     else if ((values = (int *)calloc((size_t)count, sizeof(int))) != NULL)
     {
-      for (num_values = 0, printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+      for (num_values = 0, printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
       {
         if (printer->id && printer->id <= 65535)
           values[num_values ++] = printer->id;
@@ -5143,7 +5127,7 @@ ipp_get_system_supported_values(
       free(values);
     }
 
-    _cupsRWUnlock(&PrintersRWLock);
+    cupsRWUnlock(&PrintersRWLock);
   }
 
   cupsArrayDelete(ra);
@@ -5228,11 +5212,11 @@ ipp_hold_new_jobs(
   * Set the 'hold-new-jobs' reason...
   */
 
-  _cupsRWLockWrite(&client->printer->rwlock);
+  cupsRWLockWrite(&client->printer->rwlock);
 
   client->printer->state_reasons |= SERVER_PREASON_HOLD_NEW_JOBS;
 
-  _cupsRWUnlock(&client->printer->rwlock);
+  cupsRWUnlock(&client->printer->rwlock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -5281,7 +5265,7 @@ ipp_identify_printer(
     * Save this notification in the printer for the proxy to acknowledge...
     */
 
-    _cupsRWLockWrite(&client->printer->rwlock);
+    cupsRWLockWrite(&client->printer->rwlock);
 
     client->printer->identify_actions = SERVER_IDENTIFY_NONE;
     if (ippContainsString(actions, "display"))
@@ -5300,7 +5284,7 @@ ipp_identify_printer(
 
     client->printer->state_reasons |= SERVER_PREASON_IDENTIFY_PRINTER_REQUESTED;
 
-    _cupsRWUnlock(&client->printer->rwlock);
+    cupsRWUnlock(&client->printer->rwlock);
 
     serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Identify-Printer request received.");
   }
@@ -5381,9 +5365,9 @@ ipp_install_resource(
 
   ra = ippCreateRequestedArray(client->request);
 
-  _cupsRWLockRead(&resource->rwlock);
+  cupsRWLockRead(&resource->rwlock);
   copy_resource_attributes(client, resource, ra);
-  _cupsRWUnlock(&resource->rwlock);
+  cupsRWUnlock(&resource->rwlock);
 
   cupsArrayDelete(ra);
 }
@@ -5419,12 +5403,12 @@ ipp_pause_all_printers(
     }
   }
 
-  _cupsRWLockRead(&SystemRWLock);
+  cupsRWLockRead(&SystemRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
     serverPausePrinter(printer, ippGetOperation(client->request) == IPP_OP_PAUSE_ALL_PRINTERS);
 
-  _cupsRWUnlock(&SystemRWLock);
+  cupsRWUnlock(&SystemRWLock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -5561,7 +5545,7 @@ ipp_print_job(server_client_t *client)	/* I - Client */
     return;
   }
 
-  while ((bytes = httpRead2(client->http, buffer, sizeof(buffer))) > 0)
+  while ((bytes = httpRead(client->http, buffer, sizeof(buffer))) > 0)
   {
     if (write(job->fd, buffer, (size_t)bytes) < bytes)
     {
@@ -5628,7 +5612,7 @@ ipp_print_job(server_client_t *client)	/* I - Client */
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  ra = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   cupsArrayAdd(ra, "job-id");
   cupsArrayAdd(ra, "job-state");
   cupsArrayAdd(ra, "job-state-message");
@@ -5750,7 +5734,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  ra = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   cupsArrayAdd(ra, "job-id");
   cupsArrayAdd(ra, "job-state");
   cupsArrayAdd(ra, "job-state-reasons");
@@ -5828,28 +5812,28 @@ ipp_register_output_device(
   * Look for a matching printer...
   */
 
-  _cupsRWLockRead(&PrintersRWLock);
+  cupsRWLockRead(&PrintersRWLock);
 
   key.uuid = (char *)uuid;
 
-  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
   {
     if (printer->pinfo.proxy_group == SERVER_GROUP_NONE || printer->pinfo.max_devices == 0)
       continue;
 
-    _cupsRWLockRead(&printer->rwlock);
+    cupsRWLockRead(&printer->rwlock);
     device = (server_device_t *)cupsArrayFind(printer->pinfo.devices, &key);
 
-    if (!avail && !device && cupsArrayCount(printer->pinfo.devices) < printer->pinfo.max_devices)
+    if (!avail && !device && cupsArrayGetCount(printer->pinfo.devices) < printer->pinfo.max_devices)
       avail = printer;
 
-    _cupsRWUnlock(&printer->rwlock);
+    cupsRWUnlock(&printer->rwlock);
 
     if (device)
       break;
   }
 
-  _cupsRWUnlock(&PrintersRWLock);
+  cupsRWUnlock(&PrintersRWLock);
 
   if (!printer)
   {
@@ -5884,9 +5868,9 @@ ipp_register_output_device(
 
   serverCreateDevice(client);
 
-  _cupsRWLockRead(&client->printer->rwlock);
+  cupsRWLockRead(&client->printer->rwlock);
 
-  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  ra = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   cupsArrayAdd(ra, "printer-id");
   cupsArrayAdd(ra, "printer-is-accepting-jobs");
   cupsArrayAdd(ra, "printer-state");
@@ -5899,7 +5883,7 @@ ipp_register_output_device(
   serverCopyAttributes(client->response, printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
   copy_printer_state(client->response, printer, ra);
 
-  _cupsRWUnlock(&client->printer->rwlock);
+  cupsRWUnlock(&client->printer->rwlock);
 }
 
 
@@ -5937,27 +5921,27 @@ ipp_release_held_new_jobs(
   * Clear the 'hold-new-jobs' reason and release any held jobs...
   */
 
-  _cupsRWLockWrite(&client->printer->rwlock);
+  cupsRWLockWrite(&client->printer->rwlock);
 
   client->printer->state_reasons &= (server_preason_t)~SERVER_PREASON_HOLD_NEW_JOBS;
 
-  for (job = (server_job_t *)cupsArrayFirst(client->printer->active_jobs); job; job = (server_job_t *)cupsArrayNext(client->printer->active_jobs))
+  for (job = (server_job_t *)cupsArrayGetFirst(client->printer->active_jobs); job; job = (server_job_t *)cupsArrayGetNext(client->printer->active_jobs))
   {
     if (job->state == IPP_JSTATE_HELD)
     {
       const char	*hold_until;	/* job-hold-until attribute, if any */
       int		resume;		/* Do we need to resume the job? */
 
-      _cupsRWLockRead(&job->rwlock);
+      cupsRWLockRead(&job->rwlock);
       resume = (hold_until = ippGetString(ippFindAttribute(job->attrs, "job-hold-until", IPP_TAG_ZERO), 0, NULL)) != NULL && !strcmp(hold_until, "none");
-      _cupsRWUnlock(&job->rwlock);
+      cupsRWUnlock(&job->rwlock);
 
       if (resume)
         serverReleaseJob(job);
     }
   }
 
-  _cupsRWUnlock(&client->printer->rwlock);
+  cupsRWUnlock(&client->printer->rwlock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -6141,12 +6125,12 @@ ipp_restart_system(
   /* TODO: Actually do a full restart of the system... */
   serverSaveSystem();
 
-  _cupsRWLockRead(&SystemRWLock);
+  cupsRWLockRead(&SystemRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
     serverRestartPrinter(printer);
 
-  _cupsRWUnlock(&SystemRWLock);
+  cupsRWUnlock(&SystemRWLock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -6182,12 +6166,12 @@ ipp_resume_all_printers(
     }
   }
 
-  _cupsRWLockRead(&SystemRWLock);
+  cupsRWLockRead(&SystemRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
     serverResumePrinter(printer);
 
-  _cupsRWUnlock(&SystemRWLock);
+  cupsRWUnlock(&SystemRWLock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -6325,7 +6309,7 @@ ipp_send_document(server_client_t *client)/* I - Client */
   * Get the document format for the job...
   */
 
-  _cupsRWLockWrite(&(client->printer->rwlock));
+  cupsRWLockWrite(&(client->printer->rwlock));
 
   if ((attr = ippFindAttribute(job->attrs, "document-format-detected", IPP_TAG_MIMETYPE)) != NULL)
     job->format = ippGetString(attr, 0, NULL);
@@ -6344,7 +6328,7 @@ ipp_send_document(server_client_t *client)/* I - Client */
 
   job->fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0600);
 
-  _cupsRWUnlock(&(client->printer->rwlock));
+  cupsRWUnlock(&(client->printer->rwlock));
 
   if (job->fd < 0)
   {
@@ -6355,7 +6339,7 @@ ipp_send_document(server_client_t *client)/* I - Client */
     return;
   }
 
-  while ((bytes = httpRead2(client->http, buffer, sizeof(buffer))) > 0)
+  while ((bytes = httpRead(client->http, buffer, sizeof(buffer))) > 0)
   {
     if (write(job->fd, buffer, (size_t)bytes) < bytes)
     {
@@ -6406,7 +6390,7 @@ ipp_send_document(server_client_t *client)/* I - Client */
     return;
   }
 
-  _cupsRWLockWrite(&(client->printer->rwlock));
+  cupsRWLockWrite(&(client->printer->rwlock));
 
   job->fd       = -1;
   job->filename = strdup(filename);
@@ -6414,7 +6398,7 @@ ipp_send_document(server_client_t *client)/* I - Client */
   if (job->hold_until == 0)
     job->state = IPP_JSTATE_PENDING;
 
-  _cupsRWUnlock(&(client->printer->rwlock));
+  cupsRWUnlock(&(client->printer->rwlock));
 
  /*
   * Process the job, if possible...
@@ -6428,7 +6412,7 @@ ipp_send_document(server_client_t *client)/* I - Client */
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  ra = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   cupsArrayAdd(ra, "job-id");
   cupsArrayAdd(ra, "job-state");
   cupsArrayAdd(ra, "job-state-reasons");
@@ -6550,7 +6534,7 @@ ipp_send_resource_data(
     return;
   }
 
-  while ((bytes = httpRead2(client->http, buffer, sizeof(buffer))) > 0)
+  while ((bytes = httpRead(client->http, buffer, sizeof(buffer))) > 0)
   {
     if (write(resource->fd, buffer, (size_t)bytes) < bytes)
     {
@@ -6600,12 +6584,12 @@ ipp_send_resource_data(
 
   if (signature)
   {
-    _cupsRWLockWrite(&(resource->rwlock));
+    cupsRWLockWrite(&(resource->rwlock));
 
     if ((attr = ippCopyAttribute(resource->attrs, signature, 0)) != NULL)
       ippSetGroupTag(resource->attrs, &attr, IPP_TAG_RESOURCE);
 
-    _cupsRWUnlock(&(resource->rwlock));
+    cupsRWUnlock(&(resource->rwlock));
   }
 
  /*
@@ -6614,7 +6598,7 @@ ipp_send_resource_data(
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  ra = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   cupsArrayAdd(ra, "resource-id");
   cupsArrayAdd(ra, "resource-state");
   cupsArrayAdd(ra, "resource-state-reasons");
@@ -6741,13 +6725,13 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
 
   if ((attr = ippFindAttribute(client->request, "document-format", IPP_TAG_MIMETYPE)) != NULL)
   {
-    _cupsRWLockWrite(&job->rwlock);
+    cupsRWLockWrite(&job->rwlock);
 
     attr = ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_MIMETYPE, "document-format-supplied", NULL, ippGetString(attr, 0, NULL));
 
     job->format = ippGetString(attr, 0, NULL);
 
-    _cupsRWUnlock(&job->rwlock);
+    cupsRWUnlock(&job->rwlock);
   }
   else
     job->format = "application/octet-stream";
@@ -6768,7 +6752,7 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 
-  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  ra = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   cupsArrayAdd(ra, "job-id");
   cupsArrayAdd(ra, "job-state");
   cupsArrayAdd(ra, "job-state-reasons");
@@ -6847,7 +6831,7 @@ ipp_set_document_attributes(
   * Set the values...
   */
 
-  _cupsRWLockWrite(&job->rwlock);
+  cupsRWLockWrite(&job->rwlock);
 
   for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
   {
@@ -6867,7 +6851,7 @@ ipp_set_document_attributes(
     ippCopyAttribute(job->doc_attrs, attr, 0);
   }
 
-  _cupsRWUnlock(&job->rwlock);
+  cupsRWUnlock(&job->rwlock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -6952,7 +6936,7 @@ ipp_set_job_attributes(
     }
     else if (!strcmp(name, "job-priority"))
     {
-      _cupsRWLockWrite(&job->printer->rwlock);
+      cupsRWLockWrite(&job->printer->rwlock);
 
       cupsArrayRemove(job->printer->active_jobs, job);
 
@@ -6960,20 +6944,20 @@ ipp_set_job_attributes(
 
       cupsArrayAdd(job->printer->active_jobs, job);
 
-      _cupsRWUnlock(&job->printer->rwlock);
+      cupsRWUnlock(&job->printer->rwlock);
     }
     else
     {
       ipp_attribute_t	*old_attr;	/* Old attribute value */
 
-      _cupsRWLockWrite(&job->rwlock);
+      cupsRWLockWrite(&job->rwlock);
 
       if ((old_attr = ippFindAttribute(job->attrs, name, IPP_TAG_ZERO)) != NULL)
         ippDeleteAttribute(job->attrs, old_attr);
 
       ippCopyAttribute(job->attrs, attr, 0);
 
-      _cupsRWUnlock(&job->rwlock);
+      cupsRWUnlock(&job->rwlock);
     }
   }
 
@@ -6991,7 +6975,7 @@ ipp_set_printer_attributes(
 {
   server_printer_t	*printer;	/* Printer */
   const char		*name;		/* Name of attribute */
-  int			count;		/* Number of values */
+  size_t		count;		/* Number of values */
   ipp_attribute_t	*attr,		/* Current attribute */
 			*settable;	/* Settable values */
   const char		*value;		/* Attribute value */
@@ -7022,27 +7006,27 @@ ipp_set_printer_attributes(
 
   printer = client->printer;
 
-  _cupsRWLockWrite(&printer->rwlock);
+  cupsRWLockWrite(&printer->rwlock);
 
   settable = ippFindAttribute(printer->pinfo.attrs, "printer-settable-attributes-supported", IPP_TAG_KEYWORD);
 
   if (!valid_values(client, IPP_TAG_PRINTER, settable, sizeof(printer_values) / sizeof(printer_values[0]), printer_values))
   {
-    _cupsRWUnlock(&printer->rwlock);
+    cupsRWUnlock(&printer->rwlock);
     return;
   }
 
   if ((attr = ippFindAttribute(client->request, "printer-geo-location", IPP_TAG_URI)) != NULL && ((value = ippGetString(attr, 0, NULL)) == NULL || strncmp(value, "geo:", 4)))
   {
     serverRespondUnsupported(client, attr);
-    _cupsRWUnlock(&printer->rwlock);
+    cupsRWUnlock(&printer->rwlock);
     return;
   }
 
   if ((attr = ippFindAttribute(client->request, "printer-icc-profiles", IPP_TAG_BEGIN_COLLECTION)) != NULL)
   {
-    int			i,		/* Looping var */
-			bad_col = 0;	/* Bad collection value? */
+    size_t		i;		/* Looping var */
+    bool		bad_col = false;/* Bad collection value? */
     ipp_t		*col;		/* Collection value */
     ipp_attribute_t	*colattr;	/* Collection attribute */
     const char		*colname;	/* Collection attribute name */
@@ -7050,8 +7034,8 @@ ipp_set_printer_attributes(
 
     for (i = 0, count = ippGetCount(attr); i < count && !bad_col; i ++)
     {
-      int	saw_name = 0,		/* Saw profile-name? */
-		saw_uri = 0;		/* Saw profile-uri? */
+      bool	saw_name = false,	/* Saw profile-name? */
+		saw_uri = false;	/* Saw profile-uri? */
 
       col = ippGetCollection(attr, i);
 
@@ -7062,32 +7046,32 @@ ipp_set_printer_attributes(
 
 	if (!colname || !ippValidateAttribute(colattr))
 	{
-	  bad_col = 1;
+	  bad_col = true;
 	}
 	else if (!strcmp(colname, "profile-name"))
 	{
 	  if ((coltag != IPP_TAG_NAME && coltag != IPP_TAG_NAMELANG) || ippGetCount(colattr) != 1)
-	    bad_col = 1;
+	    bad_col = true;
 	  else
-	    saw_name = 1;
+	    saw_name = true;
 	}
 	else if (!strcmp(colname, "profile-uri"))
 	{
 	  if (coltag != IPP_TAG_URI || ippGetCount(colattr) != 1)
-	    bad_col = 1;
+	    bad_col = true;
 	  else
-	    saw_uri = 1;
+	    saw_uri = true;
 	}
       }
 
       if (!saw_name || !saw_uri)
-	bad_col = 1;
+	bad_col = true;
     }
 
     if (bad_col)
     {
       serverRespondUnsupported(client, attr);
-      _cupsRWUnlock(&printer->rwlock);
+      cupsRWUnlock(&printer->rwlock);
       return;
     }
   }
@@ -7155,7 +7139,7 @@ ipp_set_printer_attributes(
     }
   }
 
-  _cupsRWUnlock(&printer->rwlock);
+  cupsRWUnlock(&printer->rwlock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -7215,7 +7199,7 @@ ipp_set_system_attributes(
     }
   }
 
-  _cupsRWLockWrite(&SystemRWLock);
+  cupsRWLockWrite(&SystemRWLock);
 
  /*
   * Validate request before setting attributes so that the Set operation is
@@ -7307,7 +7291,7 @@ ipp_set_system_attributes(
 
   unlock_system:
 
-  _cupsRWUnlock(&SystemRWLock);
+  cupsRWUnlock(&SystemRWLock);
 }
 
 
@@ -7341,11 +7325,11 @@ ipp_shutdown_all_printers(
     }
   }
 
-  _cupsRWLockRead(&PrintersRWLock);
+  cupsRWLockRead(&PrintersRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
   {
-    _cupsRWLockWrite(&printer->rwlock);
+    cupsRWLockWrite(&printer->rwlock);
 
     printer->is_shutdown = 1;
     printer->state_reasons |= SERVER_PREASON_PRINTER_SHUTDOWN;
@@ -7355,10 +7339,10 @@ ipp_shutdown_all_printers(
     else
       printer->state = IPP_PSTATE_STOPPED;
 
-    _cupsRWUnlock(&printer->rwlock);
+    cupsRWUnlock(&printer->rwlock);
   }
 
-  _cupsRWUnlock(&PrintersRWLock);
+  cupsRWUnlock(&PrintersRWLock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -7391,7 +7375,7 @@ ipp_shutdown_printer(
     }
   }
 
-  _cupsRWLockWrite(&client->printer->rwlock);
+  cupsRWLockWrite(&client->printer->rwlock);
 
   client->printer->is_shutdown = 1;
   client->printer->state_reasons |= SERVER_PREASON_PRINTER_SHUTDOWN;
@@ -7401,7 +7385,7 @@ ipp_shutdown_printer(
   else
     client->printer->state = IPP_PSTATE_STOPPED;
 
-  _cupsRWUnlock(&client->printer->rwlock);
+  cupsRWUnlock(&client->printer->rwlock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -7437,11 +7421,11 @@ ipp_startup_all_printers(
     }
   }
 
-  _cupsRWLockRead(&PrintersRWLock);
+  cupsRWLockRead(&PrintersRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
   {
-    _cupsRWLockWrite(&printer->rwlock);
+    cupsRWLockWrite(&printer->rwlock);
 
     if (printer->is_shutdown)
     {
@@ -7465,10 +7449,10 @@ ipp_startup_all_printers(
       }
     }
 
-    _cupsRWUnlock(&printer->rwlock);
+    cupsRWUnlock(&printer->rwlock);
   }
 
-  _cupsRWUnlock(&PrintersRWLock);
+  cupsRWUnlock(&PrintersRWLock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -7501,7 +7485,7 @@ ipp_startup_printer(
     }
   }
 
-  _cupsRWLockWrite(&client->printer->rwlock);
+  cupsRWLockWrite(&client->printer->rwlock);
 
   if (client->printer->is_shutdown)
   {
@@ -7525,7 +7509,7 @@ ipp_startup_printer(
     }
   }
 
-  _cupsRWUnlock(&client->printer->rwlock);
+  cupsRWUnlock(&client->printer->rwlock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
@@ -7543,13 +7527,13 @@ ipp_update_active_jobs(
   server_job_t		*job;		/* Job */
   ipp_attribute_t	*job_ids,	/* job-ids */
 			*job_states;	/* output-device-job-states */
-  int			i,		/* Looping var */
+  size_t		i,		/* Looping var */
 			count,		/* Number of values */
 			num_different = 0,
 					/* Number of jobs with different states */
-			different[1000],/* Jobs with different states */
-			num_unsupported = 0,
+			num_unsupported = 0;
 					/* Number of unsupported job-ids */
+  int			different[1000],/* Jobs with different states */
 			unsupported[1000];
 					/* Unsupported job-ids */
   ipp_jstate_t		states[1000];	/* Different job state values */
@@ -7631,9 +7615,9 @@ ipp_update_active_jobs(
   * Then look for jobs assigned to the device but not listed...
   */
 
-  for (job = (server_job_t *)cupsArrayFirst(client->printer->jobs);
+  for (job = (server_job_t *)cupsArrayGetFirst(client->printer->jobs);
        job && num_different < 1000;
-       job = (server_job_t *)cupsArrayNext(client->printer->jobs))
+       job = (server_job_t *)cupsArrayGetNext(client->printer->jobs))
   {
     if (job->dev_uuid && !strcmp(job->dev_uuid, device->uuid) && !ippContainsInteger(job_ids, job->id))
     {
@@ -7843,7 +7827,7 @@ ipp_update_output_device_attributes(
     }
   }
 
-  _cupsRWLockWrite(&device->rwlock);
+  cupsRWLockWrite(&device->rwlock);
 
   attr = ippFirstAttribute(client->request);
   while (attr && ippGetGroupTag(attr) != IPP_TAG_PRINTER)
@@ -7884,11 +7868,11 @@ ipp_update_output_device_attributes(
 
       char	temp[256],		/* Temporary name string */
 		*tempptr;		/* Pointer into temporary string */
-      int	low, high;		/* Low and high numbers in range */
+      size_t	low, high;		/* Low and high numbers in range */
 
-      low = (int)strtol(dotptr + 1, (char **)&dotptr, 10);
+      low = (size_t)strtol(dotptr + 1, (char **)&dotptr, 10);
       if (dotptr && *dotptr == '-')
-        high = (int)strtol(dotptr + 1, NULL, 10);
+        high = (size_t)strtol(dotptr + 1, NULL, 10);
       else
         high = low;
 
@@ -7898,7 +7882,7 @@ ipp_update_output_device_attributes(
 
       if (low >= 1 && low <= high && (dev_attr = ippFindAttribute(device->attrs, temp, IPP_TAG_ZERO)) != NULL)
       {
-        int	i,			/* Looping var */
+        size_t	i,			/* Looping var */
         	count = ippGetCount(attr),
         				/* New number of values */
         	dev_count = ippGetCount(dev_attr);
@@ -7925,7 +7909,7 @@ ipp_update_output_device_attributes(
 	    * Insert one or more values...
 	    */
 
-	    int offset = count - high + low - 1;
+	    size_t offset = count - high + low - 1;
 					  /* Number of values to insert */
 
 	    switch (ippGetValueTag(dev_attr))
@@ -7947,7 +7931,7 @@ ipp_update_output_device_attributes(
 	      case IPP_TAG_STRING :
 	          for (i = dev_count; i >= high; i --)
 	          {
-	            int datalen;
+	            size_t datalen;
 	            void *data = ippGetOctetString(dev_attr, i - 1, &datalen);
 
 	            ippSetOctetString(device->attrs, &dev_attr, i + offset - 1, data, datalen);
@@ -8036,7 +8020,7 @@ ipp_update_output_device_attributes(
           case IPP_TAG_STRING :
 	      for (i = high; i >= low; i --)
 	      {
-	        int datalen;
+	        size_t datalen;
 	        void *data = ippGetOctetString(attr, i - low, &datalen);
 
 	        ippSetOctetString(device->attrs, &dev_attr, i, data, datalen);
@@ -8107,16 +8091,16 @@ ipp_update_output_device_attributes(
     }
   }
 
-  _cupsRWUnlock(&device->rwlock);
+  cupsRWUnlock(&device->rwlock);
 
   if (events)
   {
-    _cupsRWLockWrite(&client->printer->rwlock);
+    cupsRWLockWrite(&client->printer->rwlock);
     if (events & SERVER_EVENT_PRINTER_CONFIG_CHANGED)
       serverUpdateDeviceAttributesNoLock(client->printer);
     if (events & SERVER_EVENT_PRINTER_STATE_CHANGED)
       serverUpdateDeviceStateNoLock(client->printer);
-    _cupsRWUnlock(&client->printer->rwlock);
+    cupsRWUnlock(&client->printer->rwlock);
 
     serverAddEventNoLock(client->printer, NULL, NULL, events, NULL);
   }
@@ -8630,8 +8614,8 @@ serverProcessIPP(
 	    goto send_response;
 	  }
 
-	  _cupsRWLockRead(&PrintersRWLock);
-	  for (printer = (server_printer_t *)cupsArrayFirst(Printers); printer; printer = (server_printer_t *)cupsArrayNext(Printers))
+	  cupsRWLockRead(&PrintersRWLock);
+	  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
 	  {
 	    if (printer->id == printer_id)
 	    {
@@ -8639,7 +8623,7 @@ serverProcessIPP(
 	      break;
 	    }
 	  }
-	  _cupsRWUnlock(&PrintersRWLock);
+	  cupsRWUnlock(&PrintersRWLock);
 
 	  if (!client->printer)
 	  {
@@ -8908,11 +8892,11 @@ respond_unsettable(
  * suitable response and attributes to the unsupported group.
  */
 
-static int				/* O - 1 if valid, 0 if not */
+static bool				/* O - `true` if valid, `false` if not */
 valid_doc_attributes(
     server_client_t *client)		/* I - Client */
 {
-  int			valid = 1;	/* Valid attributes? */
+  bool			valid = true;	/* Valid attributes? */
   ipp_op_t		op = ippGetOperation(client->request);
 					/* IPP operation */
   const char		*op_name = ippOpString(op);
@@ -8946,7 +8930,7 @@ valid_doc_attributes(
         !ippContainsString(supported, compression))
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
     else
     {
@@ -8969,7 +8953,7 @@ valid_doc_attributes(
         ippGetGroupTag(attr) != IPP_TAG_OPERATION)
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
     else
     {
@@ -9011,7 +8995,7 @@ valid_doc_attributes(
   if ((op == IPP_OP_PRINT_JOB || op == IPP_OP_SEND_DOCUMENT) && (supported = ippFindAttribute(client->printer->pinfo.attrs, "document-format-supported", IPP_TAG_MIMETYPE)) != NULL && !ippContainsString(supported, format) && attr && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
   {
     serverRespondUnsupported(client, attr);
-    valid = 0;
+    valid = false;
   }
 
   return (valid);
@@ -9022,11 +9006,11 @@ valid_doc_attributes(
  * 'valid_filename()' - Make sure the filename in a file: URI is allowed.
  */
 
-static int				/* O - 1 if OK, 0 otherwise */
+static bool				/* O - `true` if valid, `false` if not */
 valid_filename(const char *filename)	/* I - Filename to validate */
 {
-  int		i,			/* Looping var */
-		count = cupsArrayCount(FileDirectories);
+  size_t	i,			/* Looping var */
+		count = cupsArrayGetCount(FileDirectories);
 					/* Number of directories */
   char		*dir;			/* Current directory */
   size_t	filelen = strlen(filename),
@@ -9040,7 +9024,7 @@ valid_filename(const char *filename)	/* I - Filename to validate */
   */
 
   if (strstr(filename, "/../") || strstr(filename, "/./"))
-    return (0);
+    return (false);
 
  /*
   * Check for prefix matches on any of the directories...
@@ -9048,14 +9032,14 @@ valid_filename(const char *filename)	/* I - Filename to validate */
 
   for (i = 0; i < count; i ++)
   {
-    dir    = (char *)cupsArrayIndex(FileDirectories, i);
+    dir    = (char *)cupsArrayGetElement(FileDirectories, i);
     dirlen = strlen(dir);
 
     if (filelen >= dirlen && strncmp(filename, dir, dirlen) && (filename[dirlen] == '/' || !filename[dirlen]))
-      return (1);
+      return (true);
   }
 
-  return (0);
+  return (false);
 }
 
 
@@ -9066,13 +9050,13 @@ valid_filename(const char *filename)	/* I - Filename to validate */
  * response and attributes to the unsupported group.
  */
 
-static int				/* O - 1 if valid, 0 if not */
+static bool				/* O - `true` if valid, `false` if not */
 valid_job_attributes(
     server_client_t *client)		/* I - Client */
 {
-  int			i,		/* Looping var */
-			count,		/* Number of values */
-			valid = 1;	/* Valid attributes? */
+  size_t		i,		/* Looping var */
+			count;		/* Number of values */
+  bool			valid = true;	/* Valid attributes? */
   ipp_attribute_t	*attr,		/* Request attribute */
 			*resource_ids,	/* resources-ids attribute */
 			*supported;	/* Supported attribute */
@@ -9086,7 +9070,7 @@ valid_job_attributes(
   * Check attributes in request...
   */
 
-  _cupsRWLockRead(&client->printer->rwlock);
+  cupsRWLockRead(&client->printer->rwlock);
 
   supported = ippFindAttribute(client->printer->pinfo.attrs, "job-creation-attributes-suppored", IPP_TAG_KEYWORD);
 
@@ -9096,15 +9080,15 @@ valid_job_attributes(
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "The 'resource-ids' attribute is not in the operation group.");
       serverRespondUnsupported(client, resource_ids);
-      _cupsRWUnlock(&client->printer->rwlock);
-      return (0);
+      cupsRWUnlock(&client->printer->rwlock);
+      return (false);
     }
     else if ((count = ippGetCount(resource_ids)) > SERVER_RESOURCES_MAX)
     {
-      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Too many resources (%d) specified.", count);
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Too many resources (%u) specified.", (unsigned)count);
       serverRespondUnsupported(client, resource_ids);
-      _cupsRWUnlock(&client->printer->rwlock);
-      return (0);
+      cupsRWUnlock(&client->printer->rwlock);
+      return (false);
     }
 
     for (i = 0; i < count; i ++)
@@ -9115,42 +9099,42 @@ valid_job_attributes(
       {
 	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d not found.", resource_id);
 	serverRespondUnsupported(client, resource_ids);
-	_cupsRWUnlock(&client->printer->rwlock);
-	return (0);
+	cupsRWUnlock(&client->printer->rwlock);
+	return (false);
       }
       else if (resource->state != IPP_RSTATE_INSTALLED)
       {
 	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d is not installed (%s).", resource_id, ippEnumString("resource-state", (int)resource->state));
 	serverRespondUnsupported(client, resource_ids);
-	_cupsRWUnlock(&client->printer->rwlock);
-	return (0);
+	cupsRWUnlock(&client->printer->rwlock);
+	return (false);
       }
       else if (!strcmp(resource->type, "template-job"))
       {
         if (!apply_template_attributes(client->request, IPP_TAG_JOB, resource, supported, sizeof(job_values) / sizeof(job_values[0]), job_values))
         {
           serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to apply template-job resource #%d: %s", resource_id, cupsLastErrorString());
-	  _cupsRWUnlock(&client->printer->rwlock);
-	  return (0);
+	  cupsRWUnlock(&client->printer->rwlock);
+	  return (false);
         }
       }
       else
       {
 	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d is the wrong type (%s).", resource_id, resource->type);
 	serverRespondUnsupported(client, resource_ids);
-	_cupsRWUnlock(&client->printer->rwlock);
-	return (0);
+	cupsRWUnlock(&client->printer->rwlock);
+	return (false);
       }
     }
   }
 
   if (!valid_values(client, IPP_TAG_JOB, supported, sizeof(job_values) / sizeof(job_values[0]), job_values))
   {
-    _cupsRWUnlock(&client->printer->rwlock);
-    return (0);
+    cupsRWUnlock(&client->printer->rwlock);
+    return (false);
   }
 
-  _cupsRWUnlock(&client->printer->rwlock);
+  cupsRWUnlock(&client->printer->rwlock);
 
  /*
   * Check operation attributes...
@@ -9168,7 +9152,7 @@ valid_job_attributes(
         ippGetInteger(attr, 0) < 1 || ippGetInteger(attr, 0) > 999)
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9177,7 +9161,7 @@ valid_job_attributes(
     if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_BOOLEAN)
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9188,7 +9172,7 @@ valid_job_attributes(
     if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9197,7 +9181,7 @@ valid_job_attributes(
     if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetInteger(attr, 0) < 0)
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9208,7 +9192,7 @@ valid_job_attributes(
 	 ippGetValueTag(attr) != IPP_TAG_NAMELANG))
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
 
     ippSetGroupTag(client->request, &attr, IPP_TAG_JOB);
@@ -9222,7 +9206,7 @@ valid_job_attributes(
         ippGetInteger(attr, 0) < 1 || ippGetInteger(attr, 0) > 100)
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9233,7 +9217,7 @@ valid_job_attributes(
     if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9245,7 +9229,7 @@ valid_job_attributes(
     if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9269,7 +9253,7 @@ valid_job_attributes(
 	   ippGetValueTag(member) != IPP_TAG_KEYWORD))
       {
 	serverRespondUnsupported(client, attr);
-	valid = 0;
+	valid = false;
       }
       else
       {
@@ -9279,7 +9263,7 @@ valid_job_attributes(
 	if (!ippContainsString(supported, ippGetString(member, 0, NULL)))
 	{
 	  serverRespondUnsupported(client, attr);
-	  valid = 0;
+	  valid = false;
 	}
       }
     }
@@ -9288,7 +9272,7 @@ valid_job_attributes(
       if (ippGetCount(member) != 1)
       {
 	serverRespondUnsupported(client, attr);
-	valid = 0;
+	valid = false;
       }
       else
       {
@@ -9301,7 +9285,7 @@ valid_job_attributes(
 	    (y_dim = ippFindAttribute(size, "y-dimension", IPP_TAG_INTEGER)) == NULL || ippGetCount(y_dim) != 1)
 	{
 	  serverRespondUnsupported(client, attr);
-	  valid = 0;
+	  valid = false;
 	}
 	else if (supported)
 	{
@@ -9322,7 +9306,7 @@ valid_job_attributes(
 	  if (i >= count)
 	  {
 	    serverRespondUnsupported(client, attr);
-	    valid = 0;
+	    valid = false;
 	  }
 	}
       }
@@ -9336,7 +9320,7 @@ valid_job_attributes(
     if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9347,7 +9331,7 @@ valid_job_attributes(
     if (!ippContainsInteger(supported, ippGetInteger(attr, 0)))
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9356,7 +9340,7 @@ valid_job_attributes(
     if (ippGetInteger(attr, 0) < IPP_QUALITY_DRAFT || ippGetInteger(attr, 0) > IPP_QUALITY_HIGH)
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9368,7 +9352,7 @@ valid_job_attributes(
     if (!supported)
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
     else
     {
@@ -9390,7 +9374,7 @@ valid_job_attributes(
       if (i >= count)
       {
 	serverRespondUnsupported(client, attr);
-	valid = 0;
+	valid = false;
       }
     }
   }
@@ -9408,7 +9392,7 @@ valid_job_attributes(
       if (!ippContainsString(supported, sides))
       {
 	serverRespondUnsupported(client, attr);
-	valid = 0;
+	valid = false;
       }
     }
   }
@@ -9421,7 +9405,7 @@ valid_job_attributes(
  * 'valid_values()' - Check whether attributes in the specified group are valid.
  */
 
-static int				/* O - 1 if valid, 0 otherwise */
+static bool				/* O - `true` if valid, `false` if not */
 valid_values(
     server_client_t *client,		/* I - Client connection */
     ipp_tag_t       group_tag,		/* I - Group to check */
@@ -9455,7 +9439,7 @@ valid_values(
 	  respond_unsettable(client, attr);
 	else
 	  serverRespondUnsupported(client, attr);
-        return (0);
+        return (false);
       }
     }
   }
@@ -9468,7 +9452,7 @@ valid_values(
       {
         serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "'%s' attribute in the wrong group.", values->name);
         serverRespondUnsupported(client, attr);
-        return (0);
+        return (false);
       }
 
       value_tag = ippGetValueTag(attr);
@@ -9476,13 +9460,13 @@ valid_values(
       if (value_tag != values->value_tag && value_tag != values->alt_tag && (value_tag != IPP_TAG_NAMELANG || values->value_tag != IPP_TAG_NAME) && (value_tag != IPP_TAG_TEXTLANG || values->value_tag != IPP_TAG_TEXT))
       {
         serverRespondUnsupported(client, attr);
-        return (0);
+        return (false);
       }
 
       if (ippGetCount(attr) > 1 && !(values->flags & VALUE_1SETOF))
       {
         serverRespondUnsupported(client, attr);
-        return (0);
+        return (false);
       }
     }
 
@@ -9490,8 +9474,9 @@ valid_values(
     num_values --;
   }
 
-  return (1);
+  return (true);
 }
+
 
 /*
  * 'wgs84_distance()' - Approximate the distance between two geo: values.

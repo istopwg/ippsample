@@ -2,9 +2,9 @@ IPP Sample Implementations
 ==========================
 
 This code provides sample implementations of IPP Clients, Printers, Proxies, and
-Systems.  It is largely based upon the [CUPS](https://www.cups.org/) software,
-with substantial changes to the original `ippproxy` and `ippserver` sample code
-to make them more general-purpose and configurable.
+Systems.  It is largely based upon the [CUPS][1] software, with substantial
+changes to the original `ippproxy` and `ippserver` sample code to make them more
+general-purpose and configurable.
 
 ![Version](https://img.shields.io/github/v/release/istopwg/ippsample?include_prereleases)
 ![Apache 2.0](https://img.shields.io/github/license/istopwg/ippsample)
@@ -31,31 +31,6 @@ ippdoclint
 
 The `ippdoclint` program verifies and reports on document data.  It is primarily
 used for testing IPP Clients with the `ippeveprinter` and `ippserver` programs.
-
-
-ippeveprinter
--------------
-
-The `ippeveprinter` program implements a single IPP Everywhere printer and can
-be configured to use a print command to do processing of document data.  It is
-included with the IPP Everywhere™ Printer Self-Certification tools.
-
-
-ippfind
--------
-
-The `ippfind` program implements mDNS+DNS-SD discovery of IPP printers and can
-be used to find and test specific printers.  Among other things, it is used as
-part of the IPP Everywhere™ Printer Self-Certification tools.
-
-
-ipptool
--------
-
-The `ipptool` program implements a generic IPP Client interface that allows a
-user to send different IPP requests and act based on the response from the
-Printer.  Among other things, it is used as part of the IPP Everywhere™ Printer
-Self-Certification tools.
 
 
 ippproxy
@@ -94,7 +69,7 @@ printers.
 Legal Stuff
 -----------
 
-Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group.
+Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group.
 Copyright © 2007-2019 by Apple Inc.
 Copyright © 1997-2007 by Easy Software Products.
 
@@ -106,3 +81,6 @@ Unless required by applicable law or agreed to in writing, software distributed
 under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 CONDITIONS OF ANY KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations under the License.
+
+
+[1]: https://openprinting.github.io/cups

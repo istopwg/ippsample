@@ -1,48 +1,61 @@
-auth.o: auth.c ippserver.h ../config.h ../cups/cups.h ../cups/file.h \
-  ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
-  ../cups/language.h ../cups/pwg.h ../cups/string-private.h \
-  ../cups/thread-private.h
-client.o: client.c ippserver.h ../config.h ../cups/cups.h ../cups/file.h \
-  ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
-  ../cups/language.h ../cups/pwg.h ../cups/string-private.h \
-  ../cups/thread-private.h printer-png.h printer3d-png.h
-conf.o: conf.c ippserver.h ../config.h ../cups/cups.h ../cups/file.h \
-  ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
-  ../cups/language.h ../cups/pwg.h ../cups/string-private.h \
-  ../cups/thread-private.h ../cups/dir.h ../cups/ipp-private.h
-device.o: device.c ippserver.h ../config.h ../cups/cups.h ../cups/file.h \
-  ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
-  ../cups/language.h ../cups/pwg.h ../cups/string-private.h \
-  ../cups/thread-private.h
-ipp.o: ipp.c ippserver.h ../config.h ../cups/cups.h ../cups/file.h \
-  ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
-  ../cups/language.h ../cups/pwg.h ../cups/string-private.h \
-  ../cups/thread-private.h
-job.o: job.c ippserver.h ../config.h ../cups/cups.h ../cups/file.h \
-  ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
-  ../cups/language.h ../cups/pwg.h ../cups/string-private.h \
-  ../cups/thread-private.h
-log.o: log.c ippserver.h ../config.h ../cups/cups.h ../cups/file.h \
-  ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
-  ../cups/language.h ../cups/pwg.h ../cups/string-private.h \
-  ../cups/thread-private.h
-main.o: main.c ippserver.h ../config.h ../cups/cups.h ../cups/file.h \
-  ../cups/versioning.h ../cups/ipp.h ../cups/http.h ../cups/array.h \
-  ../cups/language.h ../cups/pwg.h ../cups/string-private.h \
-  ../cups/thread-private.h
-printer.o: printer.c ippserver.h ../config.h ../cups/cups.h \
-  ../cups/file.h ../cups/versioning.h ../cups/ipp.h ../cups/http.h \
-  ../cups/array.h ../cups/language.h ../cups/pwg.h \
-  ../cups/string-private.h ../cups/thread-private.h
-resource.o: resource.c ippserver.h ../config.h ../cups/cups.h \
-  ../cups/file.h ../cups/versioning.h ../cups/ipp.h ../cups/http.h \
-  ../cups/array.h ../cups/language.h ../cups/pwg.h \
-  ../cups/string-private.h ../cups/thread-private.h
-subscription.o: subscription.c ippserver.h ../config.h ../cups/cups.h \
-  ../cups/file.h ../cups/versioning.h ../cups/ipp.h ../cups/http.h \
-  ../cups/array.h ../cups/language.h ../cups/pwg.h \
-  ../cups/string-private.h ../cups/thread-private.h
-transform.o: transform.c ippserver.h ../config.h ../cups/cups.h \
-  ../cups/file.h ../cups/versioning.h ../cups/ipp.h ../cups/http.h \
-  ../cups/array.h ../cups/language.h ../cups/pwg.h \
-  ../cups/string-private.h ../cups/thread-private.h
+auth.o: auth.c ippserver.h ../config.h ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
+  ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/thread.h
+client.o: client.c ippserver.h ../config.h ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
+  ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/thread.h printer-png.h printer3d-png.h
+conf.o: conf.c ippserver.h ../config.h ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
+  ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/thread.h ../libcups/cups/dir.h \
+  ../libcups/cups/ipp-private.h
+device.o: device.c ippserver.h ../config.h ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
+  ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/thread.h
+ipp.o: ipp.c ippserver.h ../config.h ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
+  ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/thread.h
+job.o: job.c ippserver.h ../config.h ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
+  ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/thread.h
+log.o: log.c ippserver.h ../config.h ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
+  ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/thread.h
+main.o: main.c ippserver.h ../config.h ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
+  ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/thread.h
+printer.o: printer.c ippserver.h ../config.h ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
+  ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/thread.h
+resource.o: resource.c ippserver.h ../config.h ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
+  ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/thread.h
+subscription.o: subscription.c ippserver.h ../config.h \
+  ../libcups/cups/cups.h ../libcups/cups/file.h ../libcups/cups/base.h \
+  ../libcups/cups/ipp.h ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/thread.h
+transform.o: transform.c ippserver.h ../config.h ../libcups/cups/cups.h \
+  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
+  ../libcups/cups/http.h ../libcups/cups/array.h \
+  ../libcups/cups/language.h ../libcups/cups/pwg.h \
+  ../libcups/cups/thread.h

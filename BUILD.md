@@ -21,21 +21,19 @@ support "include".
 
 Besides these tools you'll want the following libraries:
 
-- Avahi (Linux) or mDNSResponder (all others) for Bonjour (DNS-SD) support
+- Avahi or mDNSResponder for Bonjour (DNS-SD) support
 - CuraEngine for 3D support
-- GNU TLS for encryption support on platforms other than iOS, macOS, or Windows
+- GNU TLS, LibreSSL, or OpenSSL for encryption support
 - LIBJPEG for JPEG support
 - LIBPNG for PNG support
-- MuPDF (1.11 or later) for PDF support on Linux and Windows
 - ZLIB for compression support
 
 On a stock Debian/Ubuntu install, the following command will install most of the
 required prerequisites:
 
     sudo apt-get install build-essential autoconf avahi-daemon avahi-utils \
-        cura-engine libavahi-client-dev libfreetype6-dev libgnutls28-dev \
-        libharfbuzz-dev libjbig2dec0-dev libjpeg-dev liblcms2-dev libmupdf-dev \
-        libnss-mdns libopenjp2-7-dev libpng-dev zlib1g-dev
+        cura-engine libavahi-client-dev libjpeg-dev libnss-mdns libpam-dev \
+        libpng-dev libssl-dev libusb-1.0-0-dev zlib1g-dev
 
 
 Configuration
@@ -68,7 +66,9 @@ configure:
     LDFLAGS="-L/some/directory" \
     ./configure ...
 
-On BSD, you may want to compile with `gcc` instead of `clang` by first installing `gcc`, and then specifying its path in the `CC` environment variable when configuring:
+On BSD, you may want to compile with `gcc` instead of `clang` by first
+installing `gcc`, and then specifying its path in the `CC` environment variable
+when configuring:
 
     CC=/usr/local/bin/gcc9 ./configure
 
@@ -103,8 +103,9 @@ Use the BUILDROOT variable to install to an alternate root directory:
 Getting Debug Logging
 ---------------------
 
-The following environment variables are used to enable and control debug
-logging:
+Pass the `--enable-debug` option to the configure script to enable debug logging
+support.  The following environment variables are used to enable and control
+debug logging at run-time:
 
 - `CUPS_DEBUG_FILTER`: Specifies a POSIX regular expression to control which
   messages are logged.
