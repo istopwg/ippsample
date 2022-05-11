@@ -173,12 +173,12 @@ serverCopyJobStateReasons(
   }
   else
   {
-    int			i,		/* Looping var */
+    size_t		i,		/* Looping var */
 			num_reasons = 0;/* Number of reasons */
     server_jreason_t	reason;		/* Current reason */
     const char		*reasons[32];	/* Reason strings */
 
-    for (i = 0, reason = 1; i < (int)(sizeof(server_jreasons) / sizeof(server_jreasons[0])); i ++, reason <<= 1)
+    for (i = 0, reason = 1; i < (sizeof(server_jreasons) / sizeof(server_jreasons[0])); i ++, reason <<= 1)
     {
       if (creasons & reason)
         reasons[num_reasons ++] = server_jreasons[i];
@@ -466,7 +466,7 @@ server_jreason_t			/* O - Bits */
 serverGetJobStateReasonsBits(
     ipp_attribute_t *attr)		/* I - "job-state-reasons" attribute */
 {
-  int			i, j,		/* Looping vars */
+  size_t		i, j,		/* Looping vars */
 			count;		/* Number of "job-state-reasons" values */
   const char		*keyword;	/* "job-state-reasons" value */
   server_jreason_t	jreasons = SERVER_JREASON_NONE;
@@ -478,7 +478,7 @@ serverGetJobStateReasonsBits(
   {
     keyword = ippGetString(attr, i, NULL);
 
-    for (j = 0; j < (int)(sizeof(server_jreasons) / sizeof(server_jreasons[0])); j ++)
+    for (j = 0; j < (sizeof(server_jreasons) / sizeof(server_jreasons[0])); j ++)
     {
       if (!strcmp(keyword, server_jreasons[j]))
       {

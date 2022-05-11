@@ -54,7 +54,7 @@ typedef struct xform_raster_s xform_raster_t;
 struct xform_raster_s
 {
   const char		*format;	/* Output format */
-  int			num_options;	/* Number of job options */
+  size_t		num_options;	/* Number of job options */
   cups_option_t		*options;	/* Job options */
   unsigned		copies;		/* Number of copies */
   cups_page_header_t	header;		/* Page header */
@@ -97,7 +97,7 @@ static int	Verbosity = 0;		/* Log level */
  * Local functions...
  */
 
-static int	load_env_options(cups_option_t **options);
+static size_t	load_env_options(cups_option_t **options);
 static void	*monitor_ipp(const char *device_uri);
 #ifdef HAVE_COREGRAPHICS
 static void	pack_rgba(unsigned char *row, size_t num_pixels);
@@ -118,8 +118,8 @@ static void	raster_start_page(xform_raster_t *ras, unsigned page, xform_write_cb
 static void	raster_write_line(xform_raster_t *ras, unsigned y, const unsigned char *line, xform_write_cb_t cb, void *ctx);
 static void	usage(int status) _CUPS_NORETURN;
 static ssize_t	write_fd(int *fd, const unsigned char *buffer, size_t bytes);
-static int	xform_document(const char *filename, const char *informat, const char *outformat, const char *resolutions, const char *sheet_back, const char *types, int num_options, cups_option_t *options, xform_write_cb_t cb, void *ctx);
-static int	xform_setup(xform_raster_t *ras, const char *outformat, const char *resolutions, const char *types, const char *sheet_back, int color, unsigned pages, int num_options, cups_option_t *options);
+static int	xform_document(const char *filename, const char *informat, const char *outformat, const char *resolutions, const char *sheet_back, const char *types, size_t num_options, cups_option_t *options, xform_write_cb_t cb, void *ctx);
+static int	xform_setup(xform_raster_t *ras, const char *outformat, const char *resolutions, const char *types, const char *sheet_back, bool color, unsigned pages, size_t num_options, cups_option_t *options);
 
 
 /*
@@ -139,7 +139,7 @@ main(int  argc,				/* I - Number of command-line args */
 		*sheet_back,		/* pwg-raster-document-sheet-back */
 		*types,			/* pwg-raster-document-type-supported */
 		*opt;			/* Option character */
-  int		num_options;		/* Number of options */
+  size_t	num_options;		/* Number of options */
   cups_option_t	*options;		/* Options */
   int		fd = 1;			/* Output file/socket */
   http_t	*http = NULL;		/* Output HTTP connection */
@@ -569,15 +569,15 @@ main(int  argc,				/* I - Number of command-line args */
 
 extern char **environ;
 
-static int				/* O - Number of options */
+static size_t				/* O - Number of options */
 load_env_options(
     cups_option_t **options)		/* I - Options */
 {
-  int	i;				/* Looping var */
-  char	name[256],			/* Option name */
-	*nameptr,			/* Pointer into name */
-	*envptr;			/* Pointer into environment variable */
-  int	num_options = 0;		/* Number of options */
+  int		i;			/* Looping var */
+  char		name[256],		/* Option name */
+		*nameptr,		/* Pointer into name */
+		*envptr;		/* Pointer into environment variable */
+  size_t	num_options = 0;	/* Number of options */
 
 
   *options = NULL;
@@ -1470,7 +1470,7 @@ xform_document(
     const char       *resolutions,	/* I - Supported resolutions */
     const char       *sheet_back,	/* I - Back side transform */
     const char       *types,		/* I - Supported types */
-    int              num_options,	/* I - Number of options */
+    size_t           num_options,	/* I - Number of options */
     cups_option_t    *options,		/* I - Options */
     xform_write_cb_t cb,		/* I - Write callback */
     void             *ctx)		/* I - Write context */
@@ -1493,7 +1493,7 @@ xform_document(
 			back_transform;	/* Transform for back side */
   CGRect		dest;		/* Destination rectangle */
   unsigned		pages = 1;	/* Number of pages */
-  int			color = 1;	/* Does the PDF have color? */
+  bool			color = true;	/* Does the PDF have color? */
   const char		*page_ranges;	/* "page-ranges" option */
   unsigned		first = 1,	/* First page of range */
 			last = 1;	/* Last page of range */
@@ -2075,7 +2075,7 @@ xform_document(
     const char       *resolutions,	/* I - Supported resolutions */
     const char       *sheet_back,	/* I - Back side transform */
     const char       *types,		/* I - Supported types */
-    int              num_options,	/* I - Number of options */
+    size_t           num_options,	/* I - Number of options */
     cups_option_t    *options,		/* I - Options */
     xform_write_cb_t cb,		/* I - Write callback */
     void             *ctx)		/* I - Write context */
@@ -2106,9 +2106,9 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
 	    const char     *resolutions,/* I - Supported resolutions */
 	    const char     *sheet_back,	/* I - Back side transform */
 	    const char     *types,	/* I - Supported types */
-	    int            color,	/* I - Document contains color? */
+	    bool           color,	/* I - Document contains color? */
             unsigned       pages,	/* I - Number of pages */
-            int            num_options,	/* I - Number of options */
+            size_t         num_options,	/* I - Number of options */
             cups_option_t  *options)	/* I - Options */
 {
   const char	*copies,		/* "copies" option */
@@ -2177,7 +2177,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   }
   else if ((media_col = cupsGetOption("media-col", num_options, options)) != NULL)
   {
-    int			num_cols;	/* Number of collection values */
+    size_t		num_cols;	/* Number of collection values */
     cups_option_t	*cols;		/* Collection values */
     const char		*media_size_name,
 			*media_size,	/* Collection attributes */
@@ -2198,7 +2198,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     }
     else if ((media_size = cupsGetOption("media-size", num_cols, cols)) != NULL)
     {
-      int		num_sizes;	/* Number of collection values */
+      size_t		num_sizes;	/* Number of collection values */
       cups_option_t	*sizes;		/* Collection values */
       const char	*x_dim,		/* Collection attributes */
 			*y_dim;

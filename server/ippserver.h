@@ -419,7 +419,7 @@ typedef struct server_job_s server_job_t;
 
 typedef struct server_device_s		/**** Output Device data ****/
 {
-  cups_rwlock_t	rwlock;		/* Printer lock */
+  cups_rwlock_t		rwlock;		/* Printer lock */
   char			*name,		/* printer-name (mapped to output-device) */
 			*uuid;		/* output-device-uuid */
   ipp_t			*attrs;		/* All printer attributes */
@@ -443,36 +443,38 @@ typedef struct server_icc_s		/**** ICC color profile data ****/
 
 typedef struct server_pinfo_s		/**** Printer information ****/
 {
-  char		*icon,			/* Icon file */
-		*location,		/* Location of printer */
-		*make,			/* Manufacturer */
-		*model,			/* Model */
-		*document_formats,	/* Supported input formats */
-		*command,		/* Command to run with job files */
-		*device_uri,		/* Device URI */
-		*output_format;		/* Output format */
-  gid_t		print_group,		/* Print group, if any */
-		proxy_group;		/* Proxy group, if any */
-  char		duplex,			/* Duplex mode */
-		pin,			/* PIN printing mode? */
-		web_forms;		/* Enable web interface forms? */
-  int		ppm,			/* Pages per minute for mono */
-		ppm_color;		/* Pages per minute for color */
-  ipp_t		*attrs;			/* Printer attributes */
-  cups_array_t	*strings;		/* Strings files */
-  cups_array_t	*profiles;		/* ICC color profiles */
-  int		max_devices;		/* Maximum number of devices */
-  cups_array_t	*devices;		/* Associated devices */
-  char		initial_accepting;	/* Initial printer-is-accepting-jobs */
-  ipp_pstate_t	initial_state;		/* Initial printer-state */
-  server_preason_t initial_reasons;	/* Initial printer-state-reasons */
+  char			*icon,		/* Icon file */
+			*location,	/* Location of printer */
+			*make,		/* Manufacturer */
+			*model,		/* Model */
+			*document_formats,
+					/* Supported input formats */
+			*command,	/* Command to run with job files */
+			*device_uri,	/* Device URI */
+			*output_format;	/* Output format */
+  gid_t			print_group,	/* Print group, if any */
+			proxy_group;	/* Proxy group, if any */
+  char			duplex,		/* Duplex mode */
+			pin,		/* PIN printing mode? */
+			web_forms;	/* Enable web interface forms? */
+  int			ppm,		/* Pages per minute for mono */
+			ppm_color;	/* Pages per minute for color */
+  ipp_t			*attrs;		/* Printer attributes */
+  cups_array_t		*strings;	/* Strings files */
+  cups_array_t		*profiles;	/* ICC color profiles */
+  int			max_devices;	/* Maximum number of devices */
+  cups_array_t		*devices;	/* Associated devices */
+  char			initial_accepting;
+					/* Initial printer-is-accepting-jobs */
+  ipp_pstate_t		initial_state;	/* Initial printer-state */
+  server_preason_t	initial_reasons;/* Initial printer-state-reasons */
 } server_pinfo_t;
 
 typedef struct server_printer_s		/**** Printer data ****/
 {
   int			id;		/* Printer ID */
   server_type_t		type;		/* Type of printer/service */
-  cups_rwlock_t	rwlock;		/* Printer lock */
+  cups_rwlock_t		rwlock;		/* Printer lock */
 #ifdef HAVE_AVAHI
   server_srv_t		dnssd_ref;	/* DNS-SD registrations */
 #elif defined(HAVE_MDNSRESPONDER)
@@ -509,15 +511,15 @@ typedef struct server_printer_s		/**** Printer data ****/
 					/* identify-actions value, if any */
   char			*identify_message;
 					/* Identify-Printer message value, if any */
-  int			num_resources,	/* Number of printer resources */
-			resources[SERVER_RESOURCES_MAX];
+  size_t		num_resources;	/* Number of printer resources */
+  int			resources[SERVER_RESOURCES_MAX];
 					/* Printer resource IDs */
 } server_printer_t;
 
 struct server_job_s			/**** Job data ****/
 {
   int			id;		/* job-id */
-  cups_rwlock_t	rwlock;		/* Job lock */
+  cups_rwlock_t		rwlock;		/* Job lock */
   const char		*name,		/* job-name */
 			*username,	/* job-originating-user-name */
 			*format;	/* document-format */
@@ -551,7 +553,7 @@ struct server_job_s			/**** Job data ****/
 struct server_resource_s		/**** Resource data ****/
 {
   int			id;		/* resource-id */
-  cups_rwlock_t	rwlock;		/* Resource lock */
+  cups_rwlock_t		rwlock;		/* Resource lock */
   ipp_t			*attrs;		/* Resource attributes */
   ipp_rstate_t		state;		/* Resource state */
   char			*resource,	/* External resource path */
@@ -567,7 +569,7 @@ typedef struct server_subscription_s	/**** Subscription data ****/
 {
   int			id;		/* notify-subscription-id */
   const char		*uuid;		/* notify-subscription-uuid */
-  cups_rwlock_t	rwlock;		/* Subscription lock */
+  cups_rwlock_t		rwlock;		/* Subscription lock */
   server_event_t	mask;		/* Event mask */
   server_printer_t	*printer;	/* Printer, if any */
   server_job_t		*job;		/* Job, if any */
@@ -648,7 +650,7 @@ VAR ipp_t		*SystemAttributes VALUE(NULL);
 VAR time_t		SystemStartTime,
 			SystemConfigChangeTime;
 VAR int			SystemConfigChanges VALUE(0);
-VAR int			SystemNumSettings VALUE(0);
+VAR size_t		SystemNumSettings VALUE(0);
 VAR cups_option_t	*SystemSettings	VALUE(NULL);
 
 VAR char		*BinDir		VALUE(NULL);

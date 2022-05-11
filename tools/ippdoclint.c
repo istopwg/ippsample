@@ -51,10 +51,10 @@ static int		Warnings = 0;		/* Number of warnings found */
  * Local functions...
  */
 
-static int	lint_jpeg(const char *filename, int num_options, cups_option_t *options);
-static int	lint_pdf(const char *filename, int num_options, cups_option_t *options);
+static int	lint_jpeg(const char *filename, size_t num_options, cups_option_t *options);
+static int	lint_pdf(const char *filename, size_t num_options, cups_option_t *options);
 static int	lint_raster(const char *filename, const char *content_type);
-static int	load_env_options(cups_option_t **options);
+static size_t	load_env_options(cups_option_t **options);
 static int	read_apple_raster_header(cups_file_t *fp, cups_page_header_t *header);
 static int	read_pwg_raster_header(cups_file_t *fp, unsigned syncword, cups_page_header_t *header);
 static int	read_raster_image(cups_file_t *fp, cups_page_header_t *header, unsigned page);
@@ -73,7 +73,7 @@ main(int  argc,				/* I - Number of command-line arguments */
   const char	*opt,			/* Current option */
 		*content_type,		/* Content type of file */
 		*filename;		/* File to check */
-  int		num_options;		/* Number of options */
+  size_t	num_options;		/* Number of options */
   cups_option_t	*options;		/* Options */
 
 
@@ -243,7 +243,7 @@ main(int  argc,				/* I - Number of command-line arguments */
 
 static int				/* O - 1 on success, 0 on failure */
 lint_jpeg(const char    *filename,	/* I - File to check */
-          int           num_options,	/* I - Number of options */
+          size_t        num_options,	/* I - Number of options */
           cups_option_t *options)	/* I - Options */
 {
   const char	*value;			/* Option value */
@@ -404,7 +404,7 @@ lint_jpeg(const char    *filename,	/* I - File to check */
 
 static int				/* O - 1 on success, 0 on failure */
 lint_pdf(const char    *filename,	/* I - File to check */
-	 int           num_options,	/* I - Number of options */
+	 size_t        num_options,	/* I - Number of options */
 	 cups_option_t *options)	/* I - Options */
 {
   const char		*value;		/* Option value */
@@ -727,15 +727,15 @@ lint_raster(const char *filename,	/* I - File to check */
 
 extern char **environ;
 
-static int				/* O - Number of options */
+static size_t				/* O - Number of options */
 load_env_options(
     cups_option_t **options)		/* I - Options */
 {
-  int	i;				/* Looping var */
-  char	name[256],			/* Option name */
-	*nameptr,			/* Pointer into name */
-	*envptr;			/* Pointer into environment variable */
-  int	num_options = 0;		/* Number of options */
+  int		i;			/* Looping var */
+  char		name[256],		/* Option name */
+		*nameptr,		/* Pointer into name */
+		*envptr;		/* Pointer into environment variable */
+  size_t	num_options = 0;	/* Number of options */
 
 
   *options = NULL;

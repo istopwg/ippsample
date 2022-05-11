@@ -103,7 +103,7 @@ static int	verbosity = 0;
  */
 
 static void	acknowledge_identify_printer(http_t *http, const char *printer_uri, const char *resource, const char *device_uuid);
-static int	attrs_are_equal(ipp_attribute_t *a, ipp_attribute_t *b);
+static bool	attrs_are_equal(ipp_attribute_t *a, ipp_attribute_t *b);
 static int	compare_jobs(proxy_job_t *a, proxy_job_t *b);
 static ipp_t	*create_media_col(const char *media, const char *source, const char *type, int width, int length, int margins);
 static ipp_t	*create_media_size(int width, int length);
@@ -348,11 +348,11 @@ acknowledge_identify_printer(
  * 'attrs_are_equal()' - Compare two attributes for equality.
  */
 
-static int				/* O - 1 if equal, 0 otherwise */
+static bool				/* O - `true` if equal, `false` otherwise */
 attrs_are_equal(ipp_attribute_t *a,	/* I - First attribute */
                 ipp_attribute_t *b)	/* I - Second attribute */
 {
-  int		i,			/* Looping var */
+  size_t	i,			/* Looping var */
 		count;			/* Number of values */
   ipp_tag_t	tag;			/* Type of value */
 
@@ -362,10 +362,10 @@ attrs_are_equal(ipp_attribute_t *a,	/* I - First attribute */
   */
 
   if ((a != NULL) != (b != NULL))
-    return (0);
+    return (false);
 
   if (a == NULL && b == NULL)
-    return (1);
+    return (true);
 
  /*
   * Check that 'a' and 'b' are of the same type with the same number
@@ -373,10 +373,10 @@ attrs_are_equal(ipp_attribute_t *a,	/* I - First attribute */
   */
 
   if ((tag = ippGetValueTag(a)) != ippGetValueTag(b))
-    return (0);
+    return (false);
 
   if ((count = ippGetCount(a)) != ippGetCount(b))
-    return (0);
+    return (false);
 
  /*
   * Compare values...
@@ -387,31 +387,37 @@ attrs_are_equal(ipp_attribute_t *a,	/* I - First attribute */
     case IPP_TAG_INTEGER :
     case IPP_TAG_ENUM :
         for (i = 0; i < count; i ++)
+        {
 	  if (ippGetInteger(a, i) != ippGetInteger(b, i))
-	    return (0);
+	    return (false);
+	}
 	break;
 
     case IPP_TAG_BOOLEAN :
         for (i = 0; i < count; i ++)
+	{
 	  if (ippGetBoolean(a, i) != ippGetBoolean(b, i))
-	    return (0);
+	    return (false);
+	}
 	break;
 
     case IPP_TAG_KEYWORD :
         for (i = 0; i < count; i ++)
+        {
 	  if (strcmp(ippGetString(a, i, NULL), ippGetString(b, i, NULL)))
-	    return (0);
+	    return (false);
+	}
 	break;
 
     default :
-        return (0);
+	return (false);
   }
 
  /*
   * If we get this far we must be the same...
   */
 
-  return (1);
+  return (true);
 }
 
 
@@ -573,7 +579,7 @@ get_device_attrs(const char *device_uri)/* I - Device URI */
     * Query the IPP printer...
     */
 
-    int		i,			/* Looping var */
+    size_t	i,			/* Looping var */
 		count;			/* Number of values */
     cups_dest_t	*dest;			/* Destination for printer URI */
     http_t	*http;			/* Connection to printer */
@@ -708,7 +714,7 @@ get_device_attrs(const char *device_uri)/* I - Device URI */
     * information...
     */
 
-    int			i;		/* Looping var */
+    size_t		i;		/* Looping var */
     ipp_attribute_t	*media_col_database,
 					/* media-col-database value */
 			*media_size_supported;
@@ -760,7 +766,7 @@ get_device_attrs(const char *device_uri)/* I - Device URI */
     ippAddInteger(response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "media-bottom-margin-supported", 635);
 
     media_col_database = ippAddCollections(response, IPP_TAG_PRINTER, "media-col-database", (int)(sizeof(media_col_sizes) / sizeof(media_col_sizes[0])), NULL);
-    for (i = 0; i < (int)(sizeof(media_col_sizes) / sizeof(media_col_sizes[0])); i ++)
+    for (i = 0; i < (sizeof(media_col_sizes) / sizeof(media_col_sizes[0])); i ++)
     {
       media_col = create_media_col(media_supported[i], NULL, NULL, media_col_sizes[i][0], media_col_sizes[i][1], 635);
 
@@ -777,16 +783,14 @@ get_device_attrs(const char *device_uri)/* I - Device URI */
     ippAddCollection(response, IPP_TAG_PRINTER, "media-col-ready", media_col);
     ippDelete(media_col);
 
-    ippAddStrings(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-col-supported", (int)(sizeof(media_col_supported) / sizeof(media_col_supported[0])), NULL, media_col_supported);
+    ippAddStrings(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-col-supported", sizeof(media_col_supported) / sizeof(media_col_supported[0]), NULL, media_col_supported);
     ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-default", NULL, media_supported[0]);
     ippAddInteger(response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "media-left-margin-supported", 635);
     ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "media-ready", NULL, media_supported[0]);
     ippAddInteger(response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "media-right-margin-supported", 635);
 
-    media_size_supported = ippAddCollections(response, IPP_TAG_PRINTER, "media-size-supported", (int)(sizeof(media_col_sizes) / sizeof(media_col_sizes[0])), NULL);
-    for (i = 0;
-	 i < (int)(sizeof(media_col_sizes) / sizeof(media_col_sizes[0]));
-	 i ++)
+    media_size_supported = ippAddCollections(response, IPP_TAG_PRINTER, "media-size-supported", sizeof(media_col_sizes) / sizeof(media_col_sizes[0]), NULL);
+    for (i = 0; i < (sizeof(media_col_sizes) / sizeof(media_col_sizes[0])); i ++)
     {
       ipp_t *size = create_media_size(media_col_sizes[i][0], media_col_sizes[i][1]);
 
@@ -801,11 +805,11 @@ get_device_attrs(const char *device_uri)/* I - Device URI */
     ippAddInteger(response, IPP_TAG_PRINTER, IPP_TAG_ENUM, "print-quality-default", IPP_QUALITY_NORMAL);
     ippAddIntegers(response, IPP_TAG_PRINTER, IPP_TAG_ENUM, "print-quality-supported", (int)(sizeof(quality_supported) / sizeof(quality_supported[0])), quality_supported);
     ippAddResolution(response, IPP_TAG_PRINTER, "printer-resolution-default", IPP_RES_PER_INCH, 300, 300);
-    ippAddResolutions(response, IPP_TAG_PRINTER, "printer-resolution-supported", (int)(sizeof(resolution_supported) / sizeof(resolution_supported[0])), IPP_RES_PER_INCH, resolution_supported, resolution_supported);
+    ippAddResolutions(response, IPP_TAG_PRINTER, "printer-resolution-supported", sizeof(resolution_supported) / sizeof(resolution_supported[0]), IPP_RES_PER_INCH, resolution_supported, resolution_supported);
     ippAddInteger(response, IPP_TAG_PRINTER, IPP_TAG_ENUM, "printer-state", IPP_PSTATE_IDLE);
     ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "printer-state-reasons", NULL, "none");
     ippAddString(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "sides-default", NULL, "two-sided-long-edge");
-    ippAddStrings(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "sides-supported", (int)(sizeof(sides_supported) / sizeof(sides_supported[0])), NULL, sides_supported);
+    ippAddStrings(response, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "sides-supported", sizeof(sides_supported) / sizeof(sides_supported[0]), NULL, sides_supported);
   }
 
   return (response);

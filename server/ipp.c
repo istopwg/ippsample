@@ -36,7 +36,7 @@ typedef struct server_value_s		/**** Value Validation ****/
  * Local functions...
  */
 
-static int		apply_template_attributes(ipp_t *to, ipp_tag_t to_group_tag, server_resource_t *resource, ipp_attribute_t *supported, size_t num_values, server_value_t *values);
+static bool		apply_template_attributes(ipp_t *to, ipp_tag_t to_group_tag, server_resource_t *resource, ipp_attribute_t *supported, size_t num_values, server_value_t *values);
 static inline int	check_attribute(const char *name, cups_array_t *ra, cups_array_t *pa)
 {
   return ((!pa || !cupsArrayFind(pa, (void *)name)) && (!ra || cupsArrayFind(ra, (void *)name)));
@@ -126,10 +126,10 @@ static void		ipp_update_output_device_attributes(server_client_t *client);
 static void		ipp_validate_document(server_client_t *client);
 static void		ipp_validate_job(server_client_t *client);
 static void		respond_unsettable(server_client_t *client, ipp_attribute_t *attr);
-static int		valid_doc_attributes(server_client_t *client);
-static int		valid_filename(const char *filename);
-static int		valid_job_attributes(server_client_t *client);
-static int		valid_values(server_client_t *client, ipp_tag_t group_tag, ipp_attribute_t *supported, size_t num_values, server_value_t *values);
+static bool		valid_doc_attributes(server_client_t *client);
+static bool		valid_filename(const char *filename);
+static bool		valid_job_attributes(server_client_t *client);
+static bool		valid_values(server_client_t *client, ipp_tag_t group_tag, ipp_attribute_t *supported, size_t num_values, server_value_t *values);
 static float		wgs84_distance(const char *a, const char *b);
 
 
@@ -448,7 +448,7 @@ serverCopyAttributes(
  * 'apply_template_attributes()' - Apply attributes from a template resource.
  */
 
-static int				/* O - 1 on success, 0 on failure */
+static bool				/* O - `true` if valid, `false` if not */
 apply_template_attributes(
     ipp_t             *to,		/* I - Destination attributes */
     ipp_tag_t         to_group_tag,	/* I - Destination group */
@@ -474,7 +474,7 @@ apply_template_attributes(
   if ((fd = open(template->filename, O_RDONLY | O_BINARY)) < 0)
   {
     serverLog(SERVER_LOGLEVEL_ERROR, "Unable to open resource %d file \"%s\": %s", template->id, template->filename, strerror(errno));
-    return (0);
+    return (false);
   }
 
   from = ippNew();
@@ -484,7 +484,7 @@ apply_template_attributes(
     serverLog(SERVER_LOGLEVEL_ERROR, "Unable to read resource %d file \"%s\": %s", template->id, template->filename, cupsLastErrorString());
     close(fd);
     ippDelete(from);
-    return (0);
+    return (false);
   }
 
   close(fd);
@@ -518,7 +518,7 @@ apply_template_attributes(
 
   ippDelete(from);
 
-  return (1);
+  return (true);
 }
 
 
@@ -1123,7 +1123,7 @@ copy_printer_attributes(
     ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "printer-up-time", (int)(time(NULL) - printer->start_time));
 
   if (!ra || cupsArrayFind(ra, "queued-job-count"))
-    ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "queued-job-count", cupsArrayGetCount(printer->active_jobs));
+    ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "queued-job-count", (int)cupsArrayGetCount(printer->active_jobs));
 }
 
 
@@ -1283,12 +1283,12 @@ copy_system_state(ipp_t        *ipp,	/* I - IPP message */
     }
     else
     {
-      int		i,		/* Looping var */
+      size_t		i,		/* Looping var */
 			num_reasons = 0;/* Number of reasons */
       server_preason_t	reason;		/* Current reason */
       const char	*reasons[32];	/* Reason strings */
 
-      for (i = 0, reason = 1; i < (int)(sizeof(server_preasons) / sizeof(server_preasons[0])); i ++, reason <<= 1)
+      for (i = 0, reason = 1; i < (sizeof(server_preasons) / sizeof(server_preasons[0])); i ++, reason <<= 1)
       {
 	if (state_reasons & reason)
 	  reasons[num_reasons ++] = server_preasons[i];
@@ -1620,9 +1620,9 @@ ipp_allocate_printer_resources(
   server_printer_t	*printer = client->printer;
 					/* Printer */
   ipp_attribute_t	*resource_ids;	/* resource-ids attribute */
-  int			i,		/* Looping var */
-			count,		/* Number of values */
-			resource_id;	/* Current resource ID */
+  size_t		i,		/* Looping var */
+			count;		/* Number of values */
+  int			resource_id;	/* Current resource ID */
   server_resource_t	*resource;	/* Current resource */
 
 
@@ -2050,7 +2050,7 @@ ipp_cancel_jobs(
     * Look for the specified jobs...
     */
 
-    int			i,		/* Looping var */
+    size_t		i,		/* Looping var */
 			count;		/* Number of job-ids values */
     server_job_t	key;		/* Search key for jobs */
 
@@ -2433,7 +2433,7 @@ static void
 ipp_create_printer(
     server_client_t *client)		/* I - Client connection */
 {
-  int			i,		/* Looping var */
+  size_t		i,		/* Looping var */
 			count;		/* Number of values */
   ipp_attribute_t	*attr,		/* Request attribute */
 			*resource_ids,	/* resources-ids attribute */
@@ -2483,7 +2483,7 @@ ipp_create_printer(
     }
     else if ((count = ippGetCount(resource_ids)) > SERVER_RESOURCES_MAX)
     {
-      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Too many resources (%d) specified.", count);
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Too many resources (%u) specified.", (unsigned)count);
       serverRespondUnsupported(client, resource_ids);
       return;
     }
@@ -3147,9 +3147,9 @@ ipp_deallocate_printer_resources(
   server_printer_t	*printer = client->printer;
 					/* Printer */
   ipp_attribute_t	*resource_ids;	/* resource-ids attribute */
-  int			i, j,		/* Looping vars */
-			count,		/* Number of values */
-			resource_id;	/* Current resource ID */
+  size_t		i, j,		/* Looping vars */
+			count;		/* Number of values */
+  int			resource_id;	/* Current resource ID */
   server_resource_t	*resource;	/* Current resource */
 
 
@@ -4135,10 +4135,10 @@ ipp_get_notifications(
 {
   ipp_attribute_t	*sub_ids,	/* notify-subscription-ids */
 			*seq_nums;	/* notify-sequence-numbers */
-  int			notify_wait;	/* Wait for events? */
-  int			i,		/* Looping vars */
-			count,		/* Number of IDs */
-			seq_num;	/* Sequence number */
+  bool			notify_wait;	/* Wait for events? */
+  size_t		i,		/* Looping vars */
+			count;		/* Number of IDs */
+  int			seq_num;	/* Sequence number */
   server_subscription_t	*sub;		/* Current subscription */
   ipp_t			*event;		/* Current event */
   int			num_events = 0;	/* Number of events returned */
@@ -4200,9 +4200,7 @@ ipp_get_notifications(
 	continue;
       }
 
-      for (event = (ipp_t *)cupsArrayGetElement(sub->events, seq_num - sub->first_sequence);
-	   event;
-	   event = (ipp_t *)cupsArrayGetNext(sub->events))
+      for (event = (ipp_t *)cupsArrayGetElement(sub->events, (size_t)(seq_num - sub->first_sequence)); event; event = (ipp_t *)cupsArrayGetNext(sub->events))
       {
 	if (num_events == 0)
 	{
@@ -4341,7 +4339,7 @@ ipp_get_printer_supported_values(
   cups_array_t		*ra;		/* Requested attributes */
   ipp_attribute_t	*settable,	/* Settable attributes */
 			*supported;	/* Supported attributes */
-  int			i,		/* Looping var */
+  size_t		i,		/* Looping var */
 			count;		/* Number of settable attributes */
 
 
@@ -4949,7 +4947,7 @@ ipp_get_system_attributes(
 
   if (!ra || cupsArrayFind(ra, "system-configured-printers"))
   {
-    int			i,		/* Looping var */
+    size_t		i,		/* Looping var */
   			count;		/* Number of printers */
     ipp_t		*col;		/* Collection value */
     ipp_attribute_t	*printers;	/* system-configured-printers attribute */
@@ -5102,8 +5100,8 @@ ipp_get_system_supported_values(
   /* system-default-printer-id (1setOf integer(1:65535)) */
   if (!ra || cupsArrayFind(ra, "system-default-printer-id"))
   {
-    int			*values,	/* printer-id values */
-  			num_values,	/* Number of printer-id values */
+    int			*values;	/* printer-id values */
+    size_t		num_values,	/* Number of printer-id values */
   			count;		/* Number of printers */
     server_printer_t	*printer;	/* Current printer */
 
@@ -6977,7 +6975,7 @@ ipp_set_printer_attributes(
 {
   server_printer_t	*printer;	/* Printer */
   const char		*name;		/* Name of attribute */
-  int			count;		/* Number of values */
+  size_t		count;		/* Number of values */
   ipp_attribute_t	*attr,		/* Current attribute */
 			*settable;	/* Settable values */
   const char		*value;		/* Attribute value */
@@ -7027,8 +7025,8 @@ ipp_set_printer_attributes(
 
   if ((attr = ippFindAttribute(client->request, "printer-icc-profiles", IPP_TAG_BEGIN_COLLECTION)) != NULL)
   {
-    int			i,		/* Looping var */
-			bad_col = 0;	/* Bad collection value? */
+    size_t		i;		/* Looping var */
+    bool		bad_col = false;/* Bad collection value? */
     ipp_t		*col;		/* Collection value */
     ipp_attribute_t	*colattr;	/* Collection attribute */
     const char		*colname;	/* Collection attribute name */
@@ -7036,8 +7034,8 @@ ipp_set_printer_attributes(
 
     for (i = 0, count = ippGetCount(attr); i < count && !bad_col; i ++)
     {
-      int	saw_name = 0,		/* Saw profile-name? */
-		saw_uri = 0;		/* Saw profile-uri? */
+      bool	saw_name = false,	/* Saw profile-name? */
+		saw_uri = false;	/* Saw profile-uri? */
 
       col = ippGetCollection(attr, i);
 
@@ -7048,26 +7046,26 @@ ipp_set_printer_attributes(
 
 	if (!colname || !ippValidateAttribute(colattr))
 	{
-	  bad_col = 1;
+	  bad_col = true;
 	}
 	else if (!strcmp(colname, "profile-name"))
 	{
 	  if ((coltag != IPP_TAG_NAME && coltag != IPP_TAG_NAMELANG) || ippGetCount(colattr) != 1)
-	    bad_col = 1;
+	    bad_col = true;
 	  else
-	    saw_name = 1;
+	    saw_name = true;
 	}
 	else if (!strcmp(colname, "profile-uri"))
 	{
 	  if (coltag != IPP_TAG_URI || ippGetCount(colattr) != 1)
-	    bad_col = 1;
+	    bad_col = true;
 	  else
-	    saw_uri = 1;
+	    saw_uri = true;
 	}
       }
 
       if (!saw_name || !saw_uri)
-	bad_col = 1;
+	bad_col = true;
     }
 
     if (bad_col)
@@ -7529,13 +7527,13 @@ ipp_update_active_jobs(
   server_job_t		*job;		/* Job */
   ipp_attribute_t	*job_ids,	/* job-ids */
 			*job_states;	/* output-device-job-states */
-  int			i,		/* Looping var */
+  size_t		i,		/* Looping var */
 			count,		/* Number of values */
 			num_different = 0,
 					/* Number of jobs with different states */
-			different[1000],/* Jobs with different states */
-			num_unsupported = 0,
+			num_unsupported = 0;
 					/* Number of unsupported job-ids */
+  int			different[1000],/* Jobs with different states */
 			unsupported[1000];
 					/* Unsupported job-ids */
   ipp_jstate_t		states[1000];	/* Different job state values */
@@ -7870,11 +7868,11 @@ ipp_update_output_device_attributes(
 
       char	temp[256],		/* Temporary name string */
 		*tempptr;		/* Pointer into temporary string */
-      int	low, high;		/* Low and high numbers in range */
+      size_t	low, high;		/* Low and high numbers in range */
 
-      low = (int)strtol(dotptr + 1, (char **)&dotptr, 10);
+      low = (size_t)strtol(dotptr + 1, (char **)&dotptr, 10);
       if (dotptr && *dotptr == '-')
-        high = (int)strtol(dotptr + 1, NULL, 10);
+        high = (size_t)strtol(dotptr + 1, NULL, 10);
       else
         high = low;
 
@@ -7884,7 +7882,7 @@ ipp_update_output_device_attributes(
 
       if (low >= 1 && low <= high && (dev_attr = ippFindAttribute(device->attrs, temp, IPP_TAG_ZERO)) != NULL)
       {
-        int	i,			/* Looping var */
+        size_t	i,			/* Looping var */
         	count = ippGetCount(attr),
         				/* New number of values */
         	dev_count = ippGetCount(dev_attr);
@@ -7911,7 +7909,7 @@ ipp_update_output_device_attributes(
 	    * Insert one or more values...
 	    */
 
-	    int offset = count - high + low - 1;
+	    size_t offset = count - high + low - 1;
 					  /* Number of values to insert */
 
 	    switch (ippGetValueTag(dev_attr))
@@ -8894,11 +8892,11 @@ respond_unsettable(
  * suitable response and attributes to the unsupported group.
  */
 
-static int				/* O - 1 if valid, 0 if not */
+static bool				/* O - `true` if valid, `false` if not */
 valid_doc_attributes(
     server_client_t *client)		/* I - Client */
 {
-  int			valid = 1;	/* Valid attributes? */
+  bool			valid = true;	/* Valid attributes? */
   ipp_op_t		op = ippGetOperation(client->request);
 					/* IPP operation */
   const char		*op_name = ippOpString(op);
@@ -8932,7 +8930,7 @@ valid_doc_attributes(
         !ippContainsString(supported, compression))
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
     else
     {
@@ -8955,7 +8953,7 @@ valid_doc_attributes(
         ippGetGroupTag(attr) != IPP_TAG_OPERATION)
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
     else
     {
@@ -8997,7 +8995,7 @@ valid_doc_attributes(
   if ((op == IPP_OP_PRINT_JOB || op == IPP_OP_SEND_DOCUMENT) && (supported = ippFindAttribute(client->printer->pinfo.attrs, "document-format-supported", IPP_TAG_MIMETYPE)) != NULL && !ippContainsString(supported, format) && attr && ippGetGroupTag(attr) == IPP_TAG_OPERATION)
   {
     serverRespondUnsupported(client, attr);
-    valid = 0;
+    valid = false;
   }
 
   return (valid);
@@ -9008,10 +9006,10 @@ valid_doc_attributes(
  * 'valid_filename()' - Make sure the filename in a file: URI is allowed.
  */
 
-static int				/* O - 1 if OK, 0 otherwise */
+static bool				/* O - `true` if valid, `false` if not */
 valid_filename(const char *filename)	/* I - Filename to validate */
 {
-  int		i,			/* Looping var */
+  size_t	i,			/* Looping var */
 		count = cupsArrayGetCount(FileDirectories);
 					/* Number of directories */
   char		*dir;			/* Current directory */
@@ -9026,7 +9024,7 @@ valid_filename(const char *filename)	/* I - Filename to validate */
   */
 
   if (strstr(filename, "/../") || strstr(filename, "/./"))
-    return (0);
+    return (false);
 
  /*
   * Check for prefix matches on any of the directories...
@@ -9038,10 +9036,10 @@ valid_filename(const char *filename)	/* I - Filename to validate */
     dirlen = strlen(dir);
 
     if (filelen >= dirlen && strncmp(filename, dir, dirlen) && (filename[dirlen] == '/' || !filename[dirlen]))
-      return (1);
+      return (true);
   }
 
-  return (0);
+  return (false);
 }
 
 
@@ -9052,13 +9050,13 @@ valid_filename(const char *filename)	/* I - Filename to validate */
  * response and attributes to the unsupported group.
  */
 
-static int				/* O - 1 if valid, 0 if not */
+static bool				/* O - `true` if valid, `false` if not */
 valid_job_attributes(
     server_client_t *client)		/* I - Client */
 {
-  int			i,		/* Looping var */
-			count,		/* Number of values */
-			valid = 1;	/* Valid attributes? */
+  size_t		i,		/* Looping var */
+			count;		/* Number of values */
+  bool			valid = true;	/* Valid attributes? */
   ipp_attribute_t	*attr,		/* Request attribute */
 			*resource_ids,	/* resources-ids attribute */
 			*supported;	/* Supported attribute */
@@ -9083,14 +9081,14 @@ valid_job_attributes(
       serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "The 'resource-ids' attribute is not in the operation group.");
       serverRespondUnsupported(client, resource_ids);
       cupsRWUnlock(&client->printer->rwlock);
-      return (0);
+      return (false);
     }
     else if ((count = ippGetCount(resource_ids)) > SERVER_RESOURCES_MAX)
     {
-      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Too many resources (%d) specified.", count);
+      serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Too many resources (%u) specified.", (unsigned)count);
       serverRespondUnsupported(client, resource_ids);
       cupsRWUnlock(&client->printer->rwlock);
-      return (0);
+      return (false);
     }
 
     for (i = 0; i < count; i ++)
@@ -9102,14 +9100,14 @@ valid_job_attributes(
 	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d not found.", resource_id);
 	serverRespondUnsupported(client, resource_ids);
 	cupsRWUnlock(&client->printer->rwlock);
-	return (0);
+	return (false);
       }
       else if (resource->state != IPP_RSTATE_INSTALLED)
       {
 	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d is not installed (%s).", resource_id, ippEnumString("resource-state", (int)resource->state));
 	serverRespondUnsupported(client, resource_ids);
 	cupsRWUnlock(&client->printer->rwlock);
-	return (0);
+	return (false);
       }
       else if (!strcmp(resource->type, "template-job"))
       {
@@ -9117,7 +9115,7 @@ valid_job_attributes(
         {
           serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to apply template-job resource #%d: %s", resource_id, cupsLastErrorString());
 	  cupsRWUnlock(&client->printer->rwlock);
-	  return (0);
+	  return (false);
         }
       }
       else
@@ -9125,7 +9123,7 @@ valid_job_attributes(
 	serverRespondIPP(client, IPP_STATUS_ERROR_ATTRIBUTES_OR_VALUES, "Resource #%d is the wrong type (%s).", resource_id, resource->type);
 	serverRespondUnsupported(client, resource_ids);
 	cupsRWUnlock(&client->printer->rwlock);
-	return (0);
+	return (false);
       }
     }
   }
@@ -9133,7 +9131,7 @@ valid_job_attributes(
   if (!valid_values(client, IPP_TAG_JOB, supported, sizeof(job_values) / sizeof(job_values[0]), job_values))
   {
     cupsRWUnlock(&client->printer->rwlock);
-    return (0);
+    return (false);
   }
 
   cupsRWUnlock(&client->printer->rwlock);
@@ -9154,7 +9152,7 @@ valid_job_attributes(
         ippGetInteger(attr, 0) < 1 || ippGetInteger(attr, 0) > 999)
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9163,7 +9161,7 @@ valid_job_attributes(
     if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_BOOLEAN)
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9174,7 +9172,7 @@ valid_job_attributes(
     if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9183,7 +9181,7 @@ valid_job_attributes(
     if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetInteger(attr, 0) < 0)
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9194,7 +9192,7 @@ valid_job_attributes(
 	 ippGetValueTag(attr) != IPP_TAG_NAMELANG))
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
 
     ippSetGroupTag(client->request, &attr, IPP_TAG_JOB);
@@ -9208,7 +9206,7 @@ valid_job_attributes(
         ippGetInteger(attr, 0) < 1 || ippGetInteger(attr, 0) > 100)
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9219,7 +9217,7 @@ valid_job_attributes(
     if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9231,7 +9229,7 @@ valid_job_attributes(
     if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9255,7 +9253,7 @@ valid_job_attributes(
 	   ippGetValueTag(member) != IPP_TAG_KEYWORD))
       {
 	serverRespondUnsupported(client, attr);
-	valid = 0;
+	valid = false;
       }
       else
       {
@@ -9265,7 +9263,7 @@ valid_job_attributes(
 	if (!ippContainsString(supported, ippGetString(member, 0, NULL)))
 	{
 	  serverRespondUnsupported(client, attr);
-	  valid = 0;
+	  valid = false;
 	}
       }
     }
@@ -9274,7 +9272,7 @@ valid_job_attributes(
       if (ippGetCount(member) != 1)
       {
 	serverRespondUnsupported(client, attr);
-	valid = 0;
+	valid = false;
       }
       else
       {
@@ -9287,7 +9285,7 @@ valid_job_attributes(
 	    (y_dim = ippFindAttribute(size, "y-dimension", IPP_TAG_INTEGER)) == NULL || ippGetCount(y_dim) != 1)
 	{
 	  serverRespondUnsupported(client, attr);
-	  valid = 0;
+	  valid = false;
 	}
 	else if (supported)
 	{
@@ -9308,7 +9306,7 @@ valid_job_attributes(
 	  if (i >= count)
 	  {
 	    serverRespondUnsupported(client, attr);
-	    valid = 0;
+	    valid = false;
 	  }
 	}
       }
@@ -9322,7 +9320,7 @@ valid_job_attributes(
     if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9333,7 +9331,7 @@ valid_job_attributes(
     if (!ippContainsInteger(supported, ippGetInteger(attr, 0)))
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9342,7 +9340,7 @@ valid_job_attributes(
     if (ippGetInteger(attr, 0) < IPP_QUALITY_DRAFT || ippGetInteger(attr, 0) > IPP_QUALITY_HIGH)
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -9354,7 +9352,7 @@ valid_job_attributes(
     if (!supported)
     {
       serverRespondUnsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
     else
     {
@@ -9376,7 +9374,7 @@ valid_job_attributes(
       if (i >= count)
       {
 	serverRespondUnsupported(client, attr);
-	valid = 0;
+	valid = false;
       }
     }
   }
@@ -9394,7 +9392,7 @@ valid_job_attributes(
       if (!ippContainsString(supported, sides))
       {
 	serverRespondUnsupported(client, attr);
-	valid = 0;
+	valid = false;
       }
     }
   }
@@ -9407,7 +9405,7 @@ valid_job_attributes(
  * 'valid_values()' - Check whether attributes in the specified group are valid.
  */
 
-static int				/* O - 1 if valid, 0 otherwise */
+static bool				/* O - `true` if valid, `false` if not */
 valid_values(
     server_client_t *client,		/* I - Client connection */
     ipp_tag_t       group_tag,		/* I - Group to check */
@@ -9441,7 +9439,7 @@ valid_values(
 	  respond_unsettable(client, attr);
 	else
 	  serverRespondUnsupported(client, attr);
-        return (0);
+        return (false);
       }
     }
   }
@@ -9454,7 +9452,7 @@ valid_values(
       {
         serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "'%s' attribute in the wrong group.", values->name);
         serverRespondUnsupported(client, attr);
-        return (0);
+        return (false);
       }
 
       value_tag = ippGetValueTag(attr);
@@ -9462,13 +9460,13 @@ valid_values(
       if (value_tag != values->value_tag && value_tag != values->alt_tag && (value_tag != IPP_TAG_NAMELANG || values->value_tag != IPP_TAG_NAME) && (value_tag != IPP_TAG_TEXTLANG || values->value_tag != IPP_TAG_TEXT))
       {
         serverRespondUnsupported(client, attr);
-        return (0);
+        return (false);
       }
 
       if (ippGetCount(attr) > 1 && !(values->flags & VALUE_1SETOF))
       {
         serverRespondUnsupported(client, attr);
-        return (0);
+        return (false);
       }
     }
 
@@ -9476,8 +9474,9 @@ valid_values(
     num_values --;
   }
 
-  return (1);
+  return (true);
 }
+
 
 /*
  * 'wgs84_distance()' - Approximate the distance between two geo: values.

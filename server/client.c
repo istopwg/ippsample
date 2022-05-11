@@ -21,7 +21,7 @@ static void		html_escape(server_client_t *client, const char *s, size_t slen);
 static void		html_footer(server_client_t *client);
 static void		html_header(server_client_t *client, const char *title, int refresh);
 static void		html_printf(server_client_t *client, const char *format, ...) _CUPS_FORMAT(2, 3);
-static int		parse_options(server_client_t *client, cups_option_t **options);
+static size_t		parse_options(server_client_t *client, cups_option_t **options);
 static int		send_mobile_config(server_client_t *client, server_printer_t *printer);
 static void		send_printer_payload(server_client_t *client, server_printer_t *printer);
 static int		show_materials(server_client_t *client, server_printer_t *printer, const char *encoding);
@@ -1240,15 +1240,15 @@ html_printf(server_client_t *client,	/* I - Client */
  * The client->options string is destroyed by this function.
  */
 
-static int				/* O - Number of options */
+static size_t				/* O - Number of options */
 parse_options(server_client_t *client,	/* I - Client */
               cups_option_t   **options)/* O - Options */
 {
-  char	*post_data = NULL,		/* POST form data */
-	*name,				/* Name */
-      	*value,				/* Value */
-	*next;				/* Next name=value pair */
-  int	num_options = 0;		/* Number of options */
+  char		*post_data = NULL,	/* POST form data */
+		*name,			/* Name */
+      		*value,			/* Value */
+		*next;			/* Next name=value pair */
+  size_t	num_options = 0;	/* Number of options */
 
 
   *options = NULL;
@@ -1427,7 +1427,7 @@ show_materials(
     server_printer_t *printer,		/* I - Printer to show */
     const char       *encoding)		/* I - Content-Encoding */
 {
-  int			i, j,		/* Looping vars */
+  size_t		i, j,		/* Looping vars */
 			count;		/* Number of values */
   ipp_attribute_t	*materials_db,	/* materials-col-database attribute */
 			*materials_ready,/* materials-col-ready attribute */
@@ -1438,7 +1438,7 @@ show_materials(
                         *ready_key,	/* materials-col-ready material-key value */
                         *ready_name;	/* materials-col-ready marterial-name value */
   int			max_materials;	/* max-materials-col-supported value */
-  int			num_options = 0;/* Number of form options */
+  size_t		num_options = 0;/* Number of form options */
   cups_option_t		*options = NULL;/* Form options */
 
 
@@ -1504,7 +1504,7 @@ show_materials(
 
     for (i = 0; i < max_materials; i ++)
     {
-      snprintf(name, sizeof(name), "material%d", i);
+      snprintf(name, sizeof(name), "material%u", (unsigned)i);
       if ((val = cupsGetOption(name, num_options, options)) == NULL || !*val)
         continue;
 
@@ -1544,10 +1544,10 @@ show_materials(
     materials_col = ippGetCollection(materials_ready, i);
     ready_key     = ippGetString(ippFindAttribute(materials_col, "material-key", IPP_TAG_ZERO), 0, NULL);
 
-    html_printf(client, "<tr><th>Material %d:</th>", i + 1);
+    html_printf(client, "<tr><th>Material %u:</th>", (unsigned)i + 1);
     if (printer->pinfo.web_forms)
     {
-      html_printf(client, "<td><select name=\"material%d\"><option value=\"\">None</option>", i);
+      html_printf(client, "<td><select name=\"material%u\"><option value=\"\">None</option>", (unsigned)i);
       for (j = 0, count = ippGetCount(materials_db); j < count; j ++)
       {
 	materials_col = ippGetCollection(materials_db, j);
@@ -1561,7 +1561,7 @@ show_materials(
 	else if (material_name)
 	  html_printf(client, "<!-- Error: no material-key for material-name=\"%s\" -->", material_name);
 	else
-	  html_printf(client, "<!-- Error: no material-key or material-name for materials-col-database[%d] -->", j + 1);
+	  html_printf(client, "<!-- Error: no material-key or material-name for materials-col-database[%u] -->", (unsigned)j + 1);
       }
       html_printf(client, "</select></td></tr>\n");
     }
@@ -1607,7 +1607,7 @@ show_media(server_client_t  *client,	/* I - Client connection */
            server_printer_t *printer,	/* I - Printer to show */
            const char       *encoding)	/* I - Content-Encoding */
 {
-  int			i, j,		/* Looping vars */
+  size_t		i, j,		/* Looping vars */
                         num_ready,	/* Number of ready media */
                         num_sizes,	/* Number of media sizes */
 			num_sources,	/* Number of media sources */
@@ -1631,7 +1631,7 @@ show_media(server_client_t  *client,	/* I - Client connection */
 			*tray_ptr;	/* Pointer into value */
   size_t		tray_len;	/* Length of printer-input-tray value */
   int			ready_sheets;	/* printer-input-tray sheets value */
-  int			num_options = 0;/* Number of form options */
+  size_t		num_options = 0;/* Number of form options */
   cups_option_t		*options = NULL;/* Form options */
   static const int	sheets[] =	/* Number of sheets */
   {
@@ -1741,13 +1741,13 @@ show_media(server_client_t  *client,	/* I - Client connection */
     {
       media_source = ippGetString(media_sources, i, NULL);
 
-      snprintf(name, sizeof(name), "size%d", i);
+      snprintf(name, sizeof(name), "size%u", (unsigned)i);
       if ((media_size = cupsGetOption(name, num_options, options)) != NULL && (media = pwgMediaForPWG(media_size)) != NULL)
       {
         char	media_key[128];		/* media-key value */
         ipp_t	*media_size_col;	/* media-size collection */
 
-        snprintf(name, sizeof(name), "type%d", i);
+        snprintf(name, sizeof(name), "type%u", (unsigned)i);
         media_type = cupsGetOption(name, num_options, options);
 
         if (media_ready)
@@ -1782,7 +1782,7 @@ show_media(server_client_t  *client,	/* I - Client connection */
       else
         media = NULL;
 
-      snprintf(name, sizeof(name), "level%d", i);
+      snprintf(name, sizeof(name), "level%u", (unsigned)i);
       if ((val = cupsGetOption(name, num_options, options)) != NULL)
         ready_sheets = atoi(val);
       else
@@ -1791,9 +1791,9 @@ show_media(server_client_t  *client,	/* I - Client connection */
       snprintf(tray_str, sizeof(tray_str), "type=sheetFeedAutoRemovableTray;mediafeed=%d;mediaxfeed=%d;maxcapacity=250;level=%d;status=0;name=%s;", media ? media->length : 0, media ? media->width : 0, ready_sheets, media_source);
 
       if (input_tray)
-        ippSetOctetString(printer->pinfo.attrs, &input_tray, ippGetCount(input_tray), tray_str, (int)strlen(tray_str));
+        ippSetOctetString(printer->pinfo.attrs, &input_tray, ippGetCount(input_tray), tray_str, strlen(tray_str));
       else
-        input_tray = ippAddOctetString(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-input-tray", tray_str, (int)strlen(tray_str));
+        input_tray = ippAddOctetString(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-input-tray", tray_str, strlen(tray_str));
 
       if (ready_sheets == 0)
       {
@@ -1844,7 +1844,7 @@ show_media(server_client_t  *client,	/* I - Client connection */
     html_printf(client, "<tr><th>%s:</th>", media_source);
     if (printer->pinfo.web_forms)
     {
-      html_printf(client, "<td><select name=\"size%d\"><option value=\"\">None</option>", i);
+      html_printf(client, "<td><select name=\"size%u\"><option value=\"\">None</option>", (unsigned)i);
       for (j = 0; j < num_sizes; j ++)
       {
         media_size = ippGetString(media_sizes, j, NULL);
@@ -1862,7 +1862,7 @@ show_media(server_client_t  *client,	/* I - Client connection */
 
     if (printer->pinfo.web_forms)
     {
-      html_printf(client, "<select name=\"type%d\"><option value=\"\">None</option>", i);
+      html_printf(client, "<select name=\"type%u\"><option value=\"\">None</option>", (unsigned)i);
       for (j = 0; j < num_types; j ++)
       {
 	media_type = ippGetString(media_types, j, NULL);
@@ -1895,7 +1895,7 @@ show_media(server_client_t  *client,	/* I - Client connection */
 
     if (printer->pinfo.web_forms)
     {
-      html_printf(client, "<select name=\"level%d\">", i);
+      html_printf(client, "<select name=\"level%u\">", (unsigned)i);
       for (j = 0; j < (int)(sizeof(sheets) / sizeof(sheets[0])); j ++)
 	html_printf(client, "<option value=\"%d\"%s>%d sheets</option>", sheets[j], sheets[j] == ready_sheets ? " selected" : "", sheets[j]);
       html_printf(client, "</select></td></tr>\n");
@@ -2071,11 +2071,11 @@ show_supplies(
     server_printer_t *printer,		/* I - Printer to show */
     const char       *encoding)		/* I - Content-Encoding to use */
 {
-  int		i,			/* Looping var */
+  size_t	i,			/* Looping var */
 		num_supply;		/* Number of supplies */
   ipp_attribute_t *supply,		/* printer-supply attribute */
 		*supply_desc;		/* printer-supply-description attribute */
-  int		num_options = 0;	/* Number of form options */
+  size_t	num_options = 0;	/* Number of form options */
   cups_option_t	*options = NULL;	/* Form options */
   size_t	supply_len;		/* Length of supply value */
   int		level;			/* Supply level */
@@ -2169,16 +2169,16 @@ show_supplies(
 
     for (i = 0; i < num_supply; i ++)
     {
-      snprintf(name, sizeof(name), "supply%d", i);
+      snprintf(name, sizeof(name), "supply%u", (unsigned)i);
       if ((val = cupsGetOption(name, num_options, options)) != NULL)
       {
         level = atoi(val);      /* New level */
 
         snprintf(supply_text, sizeof(supply_text), printer_supply[i], level);
         if (supply)
-          ippSetOctetString(printer->pinfo.attrs, &supply, ippGetCount(supply), supply_text, (int)strlen(supply_text));
+          ippSetOctetString(printer->pinfo.attrs, &supply, ippGetCount(supply), supply_text, strlen(supply_text));
         else
-          supply = ippAddOctetString(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-supply", supply_text, (int)strlen(supply_text));
+          supply = ippAddOctetString(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-supply", supply_text, strlen(supply_text));
 
         if (i == 0)
         {
@@ -2219,7 +2219,7 @@ show_supplies(
       level = 50;
 
     if (printer->pinfo.web_forms)
-      html_printf(client, "<tr><th>%s:</th><td><input name=\"supply%d\" size=\"3\" value=\"%d\"></td>", ippGetString(supply_desc, i, NULL), i, level);
+      html_printf(client, "<tr><th>%s:</th><td><input name=\"supply%u\" size=\"3\" value=\"%d\"></td>", ippGetString(supply_desc, i, NULL), (unsigned)i, level);
     else
       html_printf(client, "<tr><th>%s:</th>", ippGetString(supply_desc, i, NULL));
 

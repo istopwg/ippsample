@@ -112,7 +112,7 @@ serverCopyPrinterStateReasons(
   if (printer->state == IPP_PSTATE_STOPPED)
     creasons |= SERVER_PREASON_PAUSED;
   else
-    creasons &= ~SERVER_PREASON_PAUSED;
+    creasons &= (server_preason_t)~SERVER_PREASON_PAUSED;
 
   if (creasons == SERVER_PREASON_NONE)
   {
@@ -120,12 +120,12 @@ serverCopyPrinterStateReasons(
   }
   else
   {
-    int			i,		/* Looping var */
+    size_t		i,		/* Looping var */
 			num_reasons = 0;/* Number of reasons */
     server_preason_t	reason;		/* Current reason */
     const char		*reasons[32];	/* Reason strings */
 
-    for (i = 0, reason = 1; i < (int)(sizeof(server_preasons) / sizeof(server_preasons[0])); i ++, reason <<= 1)
+    for (i = 0, reason = 1; i < (sizeof(server_preasons) / sizeof(server_preasons[0])); i ++, reason <<= 1)
     {
       if (creasons & reason)
 	reasons[num_reasons ++] = server_preasons[i];
@@ -167,13 +167,13 @@ serverCreatePrinter(
 			make_model[128],/* printer-make-and-model */
 			uuid[128],	/* printer-uuid */
 			spooldir[1024];	/* Per-printer spool directory */
-  int			num_formats = 0;/* Number of document-format-supported values */
+  size_t		num_formats = 0;/* Number of document-format-supported values */
   char			*defformat = NULL,
 					/* document-format-default value */
 			*formats[100],	/* document-format-supported values */
 			*ptr;		/* Pointer into string */
   const char		*prefix;	/* Prefix string */
-  int			num_sup_attrs;	/* Number of supported attributes */
+  size_t		num_sup_attrs;	/* Number of supported attributes */
   const char		*sup_attrs[200];/* Supported attributes */
   char			xxx_supported[256];
 					/* Name of -supported attribute */
@@ -1308,7 +1308,7 @@ serverCreatePrinter(
   /* printer-device-id */
   if (!is_print3d && !cupsArrayFind(existing, (void *)"printer-device-id"))
   {
-    int count = ippGetCount(format_sup);/* Number of supported formats */
+    size_t count = ippGetCount(format_sup);/* Number of supported formats */
 
     snprintf(device_id, sizeof(device_id), "MFG:%s;MDL:%s;", printer->pinfo.make, printer->pinfo.model);
     ptr    = device_id + strlen(device_id);
@@ -1324,6 +1324,8 @@ serverCreatePrinter(
 	snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%sPS", prefix);
       else if (!strcasecmp(format, "application/vnd.hp-PCL"))
 	snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%sPCL", prefix);
+      else if (!strcasecmp(format, "application/vnd.hp-PCLXL"))
+	snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%sPCLXL", prefix);
       else if (!strcasecmp(format, "image/jpeg"))
 	snprintf(ptr, sizeof(device_id) - (size_t)(ptr - device_id), "%sJPEG", prefix);
       else if (!strcasecmp(format, "image/png"))
@@ -1382,7 +1384,7 @@ serverCreatePrinter(
     {
       const char *tray = "type=sheetFeedAutoRemovableTray;mediafeed=0;mediaxfeed=0;maxcapacity=250;level=100;status=0;name=main;";
 
-      ippAddOctetString(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-input-tray", tray, (int)strlen(tray));
+      ippAddOctetString(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-input-tray", tray, strlen(tray));
     }
   }
 
@@ -1493,9 +1495,9 @@ serverCreatePrinter(
       int count = printer->pinfo.ppm_color > 0 ? 5 : 2;
 					/* Number of values */
 
-      attr = ippAddOctetString(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-supply", printer_supply[0], (int)strlen(printer_supply[0]));
+      attr = ippAddOctetString(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-supply", printer_supply[0], strlen(printer_supply[0]));
       for (i = 1; i < count; i ++)
-        ippSetOctetString(printer->pinfo.attrs, &attr, i, printer_supply[i], (int)strlen(printer_supply[i]));
+        ippSetOctetString(printer->pinfo.attrs, &attr, i, printer_supply[i], strlen(printer_supply[i]));
     }
 
     /* printer-supply-description */
@@ -1654,7 +1656,7 @@ serverDeallocatePrinterResource(
     server_printer_t  *printer,		/* I - Printer */
     server_resource_t *resource)	/* I - Resource to allocate */
 {
-  int	i;				/* Looping var */
+  size_t	i;			/* Looping var */
 
 
  /*
@@ -1676,7 +1678,7 @@ serverDeallocatePrinterResource(
 
   printer->num_resources --;
   if (i < printer->num_resources)
-    memmove(printer->resources + i, printer->resources + i + 1, (size_t)(printer->num_resources - i) * sizeof(int));
+    memmove(printer->resources + i, printer->resources + i + 1, (printer->num_resources - i) * sizeof(int));
 
   cupsRWLockWrite(&resource->rwlock);
 
@@ -1828,7 +1830,7 @@ server_preason_t			/* O - Bits */
 serverGetPrinterStateReasonsBits(
     ipp_attribute_t *attr)		/* I - "printer-state-reasons" bits */
 {
-  int			i, j,		/* Looping vars */
+  size_t		i, j,		/* Looping vars */
 			count;		/* Number of "printer-state-reasons" values */
   const char		*keyword;	/* "printer-state-reasons" value */
   server_preason_t	preasons = SERVER_PREASON_NONE;
@@ -1900,7 +1902,7 @@ serverRegisterPrinter(
 #ifdef HAVE_DNSSD
   int			is_print3d;	/* 3D printer? */
   server_txt_t		ipp_txt;	/* Bonjour IPP TXT record */
-  int			i,		/* Looping var */
+  size_t		i,		/* Looping var */
 			count;		/* Number of values */
   ipp_attribute_t	*color_supported,
 			*document_format_supported,

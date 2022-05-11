@@ -51,7 +51,7 @@ static void		free_icc(server_icc_t *a);
 static void		free_lang(server_lang_t *a);
 static int		load_system(const char *conf);
 static ipp_t		*parse_collection(_ipp_file_t *f, _ipp_vars_t *v, void *user_data);
-static int		parse_value(_ipp_file_t *f, _ipp_vars_t *v, void *user_data, ipp_t *ipp, ipp_attribute_t **attr, int element);
+static int		parse_value(_ipp_file_t *f, _ipp_vars_t *v, void *user_data, ipp_t *ipp, ipp_attribute_t **attr, size_t element);
 static void		print_escaped_string(cups_file_t *fp, const char *s, size_t len);
 static void		print_ipp_attr(cups_file_t *fp, ipp_attribute_t *attr, int indent);
 static void		save_printer(server_printer_t *printer, const char *directory);
@@ -1239,17 +1239,17 @@ copy_lang(server_lang_t *a)		/* I - Localization to copy */
 static void
 create_system_attributes(void)
 {
-  int			i;		/* Looping var */
+  size_t		i;		/* Looping var */
   ipp_t			*col;		/* Collection value */
   const char		*setting;	/* System setting value */
   char			vcard[1024];	/* VCARD value */
   server_listener_t	*lis;		/* Current listener */
   cups_array_t		*uris;		/* Array of URIs */
   char			uri[1024];	/* URI */
-  int			num_values = 0;	/* Number of values */
+  size_t		num_values = 0;	/* Number of values */
   ipp_t			*values[32];	/* Collection values */
 #ifndef _WIN32
-  int			alloc_groups,	/* Allocated groups */
+  size_t		alloc_groups,	/* Allocated groups */
 			num_groups;	/* Number of groups */
   char			**groups;	/* Group names */
   struct group		*grp;		/* Current group */
@@ -1265,6 +1265,7 @@ create_system_attributes(void)
     "application/pdf",
     "application/postscript",
     "application/vnd.hp-pcl",
+    "application/vnd.hp-pclxl",
     "application/vnd.pwg-safe-gcode",
     "image/jpeg",
     "image/png",
@@ -1751,7 +1752,7 @@ create_system_attributes(void)
       "wheel"
     };
 
-    for (i = 0; i < (int)(sizeof(defgroups) / sizeof(defgroups[0])); i ++)
+    for (i = 0; i < (sizeof(defgroups) / sizeof(defgroups[0])); i ++)
     {
       if (getgrnam(defgroups[i]))
         groups[num_groups ++] = strdup(defgroups[i]);
@@ -1769,13 +1770,13 @@ create_system_attributes(void)
 #endif /* !_WIN32 */
 
   /* smi2699-device-command-supported */
-  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_NAME), "smi2699-device-command-supported", (int)(sizeof(smi2699_device_command_supported) / sizeof(smi2699_device_command_supported[0])), NULL, smi2699_device_command_supported);
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_NAME), "smi2699-device-command-supported", sizeof(smi2699_device_command_supported) / sizeof(smi2699_device_command_supported[0]), NULL, smi2699_device_command_supported);
 
   /* smi2699-device-format-supported */
-  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "smi2699-device-format-supported", (int)(sizeof(smi2699_device_format_supported) / sizeof(smi2699_device_format_supported[0])), NULL, smi2699_device_format_supported);
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "smi2699-device-format-supported", sizeof(smi2699_device_format_supported) / sizeof(smi2699_device_format_supported[0]), NULL, smi2699_device_format_supported);
 
   /* smi2699-device-uri-schemes-supported */
-  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "smi2699-device-uri-schemes-supported", (int)(sizeof(smi2699_device_uri_schemes_supported) / sizeof(smi2699_device_uri_schemes_supported[0])), NULL, smi2699_device_uri_schemes_supported);
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "smi2699-device-uri-schemes-supported", sizeof(smi2699_device_uri_schemes_supported) / sizeof(smi2699_device_uri_schemes_supported[0]), NULL, smi2699_device_uri_schemes_supported);
 
   /* system-device-id, TODO: maybe remove this, it has no purpose */
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-device-id", NULL, "MANU:None;MODEL:None;");
@@ -1823,7 +1824,7 @@ create_system_attributes(void)
   ippDelete(col);
 
   /* system-settable-attributes-supported */
-  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "system-settable-attributes-supported", (int)(sizeof(system_settable_attributes_supported) / sizeof(system_settable_attributes_supported[0])), NULL, system_settable_attributes_supported);
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "system-settable-attributes-supported", sizeof(system_settable_attributes_supported) / sizeof(system_settable_attributes_supported[0]), NULL, system_settable_attributes_supported);
 
 #if 0
   /* TODO: Support system-strings-languages-supported */
@@ -2913,7 +2914,7 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
             void             *user_data,/* I  - User data pointer */
             ipp_t            *ipp,	/* I  - IPP message */
             ipp_attribute_t  **attr,	/* IO - IPP attribute */
-            int              element)	/* I  - Element number */
+            size_t           element)	/* I  - Element number */
 {
   char		value[2049],		/* Value string */
 		*valueptr,		/* Pointer into value string */
@@ -3133,10 +3134,10 @@ parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
             tempptr ++;
           }
 
-          return (ippSetOctetString(ipp, attr, element, temp, (int)(tempptr - temp)));
+          return (ippSetOctetString(ipp, attr, element, temp, (size_t)(tempptr - temp)));
         }
         else
-          return (ippSetOctetString(ipp, attr, element, value, (int)valuelen));
+          return (ippSetOctetString(ipp, attr, element, value, valuelen));
         break;
 
     case IPP_TAG_TEXTLANG :
@@ -3216,7 +3217,7 @@ print_ipp_attr(
     ipp_attribute_t *attr,		/* I - Attribute to print */
     int             indent)		/* I - Indentation level */
 {
-  int			i,		/* Looping var */
+  size_t		i,		/* Looping var */
 			count = ippGetCount(attr);
 					/* Number of values */
   ipp_attribute_t	*colattr;	/* Collection attribute */

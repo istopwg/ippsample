@@ -325,7 +325,7 @@ server_event_t				/* O - Bits */
 serverGetNotifyEventsBits(
     ipp_attribute_t *attr)		/* I - "notify-events" attribute */
 {
-  int		i, j,			/* Looping vars */
+  size_t	i, j,			/* Looping vars */
 		count;			/* Number of "notify-events" values */
   const char	*keyword;		/* "notify-events" value */
   server_event_t events = SERVER_EVENT_NONE;
@@ -337,7 +337,7 @@ serverGetNotifyEventsBits(
   {
     keyword = ippGetString(attr, i, NULL);
 
-    for (j = 0; j < (int)(sizeof(server_events) / sizeof(server_events[0])); j ++)
+    for (j = 0; j < (sizeof(server_events) / sizeof(server_events[0])); j ++)
     {
       if (!strcmp(keyword, server_events[j]))
       {

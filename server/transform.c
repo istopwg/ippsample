@@ -547,7 +547,7 @@ process_attr_message(
     char               *message,	/* I - Message */
     server_transform_t mode)		/* I - Transform mode */
 {
-  int		i,			/* Looping var */
+  size_t	i,			/* Looping var */
 		num_options = 0;	/* Number of name=value pairs */
   cups_option_t	*options = NULL,	/* name=value pairs from message */
 		*option;		/* Current option */
@@ -562,7 +562,7 @@ process_attr_message(
 
   num_options = cupsParseOptions(message + 5, num_options, &options);
 
-  serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "num_options=%d", num_options);
+  serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "num_options=%u", (unsigned)num_options);
 
  /*
   * Loop through the options and record them in the printer or job objects...
@@ -570,7 +570,7 @@ process_attr_message(
 
   for (i = num_options, option = options; i > 0; i --, option ++)
   {
-    serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "options[%d].name=\"%s\", .value=\"%s\"", num_options - i, option->name, option->value);
+    serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "options[%u].name=\"%s\", .value=\"%s\"", (unsigned)(num_options - i), option->name, option->value);
 
     if (!strcmp(option->name, "job-impressions"))
     {
