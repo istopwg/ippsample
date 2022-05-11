@@ -1,7 +1,7 @@
 /*
  * IPP 3D printer application.
  *
- * Copyright © 2019-2021 by the IEEE-ISTO Printer Working Group.
+ * Copyright © 2019-2022 by the IEEE-ISTO Printer Working Group.
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -19,8 +19,19 @@
  * Include necessary headers...
  */
 
-#include <cups/cups-private.h>
-#include <cups/debug-private.h>
+#include <config.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include <ctype.h>
+#include <errno.h>
+#include <cups/cups.h>
+#include <cups/thread.h>
+
+// TODO: Remove dependency on private APIs!
+#include <cups/array-private.h>
+#include <cups/ipp-private.h>
 
 #include <limits.h>
 #include <sys/stat.h>
@@ -116,11 +127,7 @@ static const char * const ipp3d_preason_strings[] =
  * URL scheme for web resources...
  */
 
-#ifdef HAVE_TLS
-#  define WEB_SCHEME "https"
-#else
-#  define WEB_SCHEME "http"
-#endif /* HAVE_TLS */
+#define WEB_SCHEME "https"
 
 
 /*
@@ -177,7 +184,7 @@ typedef struct ipp3d_printer_s		/**** Printer data ****/
   cups_array_t		*jobs;		/* Jobs */
   ipp3d_job_t		*active_job;	/* Current active/pending job */
   int			next_job_id;	/* Next job-id value */
-  _cups_rwlock_t	rwlock;		/* Printer lock */
+  cups_rwlock_t	rwlock;		/* Printer lock */
 } ipp3d_printer_t;
 
 struct ipp3d_job_s			/**** Job data ****/
@@ -311,12 +318,10 @@ main(int  argc,				/* I - Number of command-line args */
 		*command = NULL,	/* Command to run with job files */
 		*device_uri = NULL,	/* Device URI */
 		*icon = NULL,		/* Icon file */
-#ifdef HAVE_TLS
 		*keypath = NULL,	/* Keychain path */
-#endif /* HAVE_TLS */
 		*location = "",		/* Location of printer */
-		*make = "Example",	/* Manufacturer */
-		*model = "Printer",	/* Model */
+//		*make = "Example",	/* Manufacturer */
+//		*model = "Printer",	/* Model */
 		*name = NULL,		/* Printer name */
 		*subtypes = "_print";	/* DNS-SD service subtype */
   int		web_forms = 1;		/* Enable web site forms? */
@@ -344,12 +349,12 @@ main(int  argc,				/* I - Number of command-line args */
     }
     else if (!strcmp(argv[i], "--version"))
     {
-      puts(CUPS_SVERSION);
+      puts(IPPSAMPLE_VERSION);
       return (0);
     }
     else if (!strncmp(argv[i], "--", 2))
     {
-      _cupsLangPrintf(stderr, _("%s: Unknown option \"%s\"."), argv[0], argv[i]);
+      fprintf(stderr, "%s: Unknown option \"%s\".", argv[0], argv[i]);
       usage(1);
     }
     else if (argv[i][0] == '-')
@@ -366,7 +371,6 @@ main(int  argc,				/* I - Number of command-line args */
 	      device_uri = argv[i];
 	      break;
 
-#ifdef HAVE_TLS
 	  case 'K' : /* -K keypath */
 	      i ++;
 	      if (i >= argc)
@@ -374,8 +378,8 @@ main(int  argc,				/* I - Number of command-line args */
 
 	      keypath = argv[i];
 	      break;
-#endif /* HAVE_TLS */
 
+#if 0
 	  case 'M' : /* -M manufacturer */
 	      i ++;
 	      if (i >= argc)
@@ -383,6 +387,7 @@ main(int  argc,				/* I - Number of command-line args */
 
 	      make = argv[i];
 	      break;
+#endif // 0
 
 	  case 'a' : /* -a attributes-file */
 	      i ++;
@@ -436,6 +441,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      location = argv[i];
 	      break;
 
+#if 0
 	  case 'm' : /* -m model */
 	      i ++;
 	      if (i >= argc)
@@ -443,6 +449,7 @@ main(int  argc,				/* I - Number of command-line args */
 
 	      model = argv[i];
 	      break;
+#endif // 0
 
 	  case 'n' : /* -n hostname */
 	      i ++;
@@ -473,7 +480,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      break;
 
           default : /* Unknown */
-	      _cupsLangPrintf(stderr, _("%s: Unknown option \"-%c\"."), argv[0], *opt);
+	      fprintf(stderr, "%s: Unknown option \"-%c\".", argv[0], *opt);
 	      usage(1);
 	}
       }
@@ -484,7 +491,7 @@ main(int  argc,				/* I - Number of command-line args */
     }
     else
     {
-      _cupsLangPrintf(stderr, _("%s: Unknown option \"%s\"."), argv[0], argv[i]);
+      fprintf(stderr, "%s: Unknown option \"%s\".", argv[0], argv[i]);
       usage(1);
     }
   }
@@ -514,7 +521,7 @@ main(int  argc,				/* I - Number of command-line args */
     serverport = 8000 + ((int)getuid() % 1000);
 #endif /* _WIN32 */
 
-    _cupsLangPrintf(stderr, _("Listening on port %d."), serverport);
+    fprintf(stderr, "Listening on port %d.", serverport);
   }
 
   if (!directory[0])
@@ -536,12 +543,12 @@ main(int  argc,				/* I - Number of command-line args */
 
     if (mkdir(directory, 0755) && errno != EEXIST)
     {
-      _cupsLangPrintf(stderr, _("Unable to create spool directory \"%s\": %s"), directory, strerror(errno));
+      fprintf(stderr, "Unable to create spool directory \"%s\": %s", directory, strerror(errno));
       usage(1);
     }
 
     if (Verbosity)
-      _cupsLangPrintf(stderr, _("Using spool directory \"%s\"."), directory);
+      fprintf(stderr, "Using spool directory \"%s\".", directory);
   }
 
  /*
@@ -565,9 +572,7 @@ main(int  argc,				/* I - Number of command-line args */
 
   printer->web_forms = web_forms;
 
-#ifdef HAVE_TLS
   cupsSetServerCredentials(keypath, printer->hostname, 1);
-#endif /* HAVE_TLS */
 
  /*
   * Run the print service...
@@ -596,15 +601,15 @@ clean_jobs(ipp3d_printer_t *printer)	/* I - Printer */
   time_t	cleantime;		/* Clean time */
 
 
-  if (cupsArrayCount(printer->jobs) == 0)
+  if (cupsArrayGetCount(printer->jobs) == 0)
     return;
 
   cleantime = time(NULL) - 60;
 
-  _cupsRWLockWrite(&(printer->rwlock));
-  for (job = (ipp3d_job_t *)cupsArrayFirst(printer->jobs);
+  cupsRWLockWrite(&(printer->rwlock));
+  for (job = (ipp3d_job_t *)cupsArrayGetFirst(printer->jobs);
        job;
-       job = (ipp3d_job_t *)cupsArrayNext(printer->jobs))
+       job = (ipp3d_job_t *)cupsArrayGetNext(printer->jobs))
     if (job->completed && job->completed < cleantime)
     {
       cupsArrayRemove(printer->jobs, job);
@@ -612,7 +617,7 @@ clean_jobs(ipp3d_printer_t *printer)	/* I - Printer */
     }
     else
       break;
-  _cupsRWUnlock(&(printer->rwlock));
+  cupsRWUnlock(&(printer->rwlock));
 }
 
 
@@ -868,7 +873,7 @@ create_job(ipp3d_client_t *client)	/* I - Client */
 			uuid[64];	/* job-uuid value */
 
 
-  _cupsRWLockWrite(&(client->printer->rwlock));
+  cupsRWLockWrite(&(client->printer->rwlock));
   if (client->printer->active_job &&
       client->printer->active_job->state < IPP_JSTATE_CANCELED)
   {
@@ -876,7 +881,7 @@ create_job(ipp3d_client_t *client)	/* I - Client */
     * Only accept a single job at a time...
     */
 
-    _cupsRWUnlock(&(client->printer->rwlock));
+    cupsRWUnlock(&(client->printer->rwlock));
     return (NULL);
   }
 
@@ -950,7 +955,7 @@ create_job(ipp3d_client_t *client)	/* I - Client */
   cupsArrayAdd(client->printer->jobs, job);
   client->printer->active_job = job;
 
-  _cupsRWUnlock(&(client->printer->rwlock));
+  cupsRWUnlock(&(client->printer->rwlock));
 
   return (job);
 }
@@ -1082,10 +1087,8 @@ create_printer(
   char			path[1024];	/* Full path to command */
 #endif /* !_WIN32 */
   char			uri[1024],	/* Printer URI */
-#ifdef HAVE_TLS
 			securi[1024],	/* Secure printer URI */
 			*uris[2],	/* All URIs */
-#endif /* HAVE_TLS */
 			icons[1024],	/* printer-icons URI */
 			adminurl[1024],	/* printer-more-info URI */
 			uuid[128];	/* printer-uuid */
@@ -1097,8 +1100,6 @@ create_printer(
   const char		*sup_attrs[100];/* Supported attributes */
   char			xxx_supported[256];
 					/* Name of -supported attribute */
-  _cups_globals_t	*cg = _cupsGlobals();
-					/* Global path values */
 #ifdef HAVE_STATVFS
   struct statvfs	spoolinfo;	/* FS info for spool directory */
   double		spoolsize;	/* FS size */
@@ -1232,12 +1233,9 @@ create_printer(
   {					/* reference-uri-schemes-supported */
     "file",
     "ftp",
-    "http"
-#ifdef HAVE_TLS
-    , "https"
-#endif /* HAVE_TLS */
+    "http",
+    "https"
   };
-#ifdef HAVE_TLS
   static const char * const uri_authentication_supported[] =
   {					/* uri-authentication-supported values */
     "none",
@@ -1248,7 +1246,6 @@ create_printer(
     "none",
     "tls"
   };
-#endif /* HAVE_TLS */
   static const char * const which_jobs[] =
   {					/* which-jobs-supported values */
     "completed",
@@ -1274,17 +1271,18 @@ create_printer(
     {
       if (access(command, X_OK))
       {
-        _cupsLangPrintf(stderr, _("Unable to execute command \"%s\": %s"), command, strerror(errno));
+        fprintf(stderr, "Unable to execute command \"%s\": %s", command, strerror(errno));
 	return (NULL);
       }
     }
     else
     {
-      snprintf(path, sizeof(path), "%s/command/%s", cg->cups_serverbin, command);
+      // TODO: Fix me
+      snprintf(path, sizeof(path), "%s/command/%s", "/usr/libexec/cups", command);
 
       if (access(command, X_OK))
       {
-        _cupsLangPrintf(stderr, _("Unable to execute command \"%s\": %s"), command, strerror(errno));
+        fprintf(stderr, "Unable to execute command \"%s\": %s", command, strerror(errno));
 	return (NULL);
       }
 
@@ -1299,7 +1297,7 @@ create_printer(
 
   if ((printer = calloc(1, sizeof(ipp3d_printer_t))) == NULL)
   {
-    _cupsLangPrintError(NULL, _("Unable to allocate memory for printer"));
+    perror("Unable to allocate memory for printer");
     return (NULL);
   }
 
@@ -1317,7 +1315,7 @@ create_printer(
   printer->state         = IPP_PSTATE_IDLE;
   printer->state_reasons = IPP3D_PREASON_NONE;
   printer->state_time    = printer->start_time;
-  printer->jobs          = cupsArrayNew((cups_array_func_t)compare_jobs, NULL);
+  printer->jobs          = cupsArrayNew((cups_array_cb_t)compare_jobs, NULL, NULL, 0, NULL, NULL);
   printer->next_job_id   = 1;
 
   if (servername)
@@ -1331,7 +1329,7 @@ create_printer(
     printer->hostname = strdup(httpGetHostname(NULL, temp, sizeof(temp)));
   }
 
-  _cupsRWInit(&(printer->rwlock));
+  cupsRWInit(&(printer->rwlock));
 
  /*
   * Create the listener sockets...
@@ -1357,9 +1355,7 @@ create_printer(
   printer->uri    = strdup(uri);
   printer->urilen = strlen(uri);
 
-#ifdef HAVE_TLS
   httpAssembleURI(HTTP_URI_CODING_ALL, securi, sizeof(securi), "ipps", NULL, printer->hostname, printer->port, "/ipp/print3d");
-#endif /* HAVE_TLS */
 
   httpAssembleURI(HTTP_URI_CODING_ALL, icons, sizeof(icons), WEB_SCHEME, NULL, printer->hostname, printer->port, "/icon.png");
   httpAssembleURI(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), WEB_SCHEME, NULL, printer->hostname, printer->port, "/");
@@ -1368,11 +1364,7 @@ create_printer(
   if (Verbosity)
   {
     fprintf(stderr, "printer-more-info=\"%s\"\n", adminurl);
-#ifdef HAVE_TLS
     fprintf(stderr, "printer-uri=\"%s\",\"%s\"\n", uri, securi);
-#else
-    fprintf(stderr, "printer-uri=\"%s\"\n", uri);
-#endif /* HAVE_TLS */
   }
 
  /*
@@ -1410,7 +1402,7 @@ create_printer(
   if (!cupsArrayFind(docformats, (void *)"application/octet-stream"))
     cupsArrayAdd(docformats, (void *)"application/octet-stream");
 
-  for (num_formats = 0, format = (const char *)cupsArrayFirst(docformats); format && num_formats < (int)(sizeof(formats) / sizeof(formats[0])); format = (const char *)cupsArrayNext(docformats))
+  for (num_formats = 0, format = (const char *)cupsArrayGetFirst(docformats); format && num_formats < (int)(sizeof(formats) / sizeof(formats[0])); format = (const char *)cupsArrayGetNext(docformats))
     formats[num_formats ++] = format;
 
  /*
@@ -1555,15 +1547,10 @@ create_printer(
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_TEXT), "printer-organizational-unit", NULL, "");
 
   /* printer-uri-supported */
-#ifdef HAVE_TLS
   uris[0] = uri;
   uris[1] = securi;
 
   ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uri-supported", 2, NULL, (const char **)uris);
-
-#else
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uri-supported", NULL, uri);
-#endif /* HAVE_TLS */
 
   /* printer-uuid */
   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uuid", NULL, uuid);
@@ -1572,18 +1559,10 @@ create_printer(
   ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_URISCHEME), "reference-uri-schemes-supported", (int)(sizeof(reference_uri_schemes_supported) / sizeof(reference_uri_schemes_supported[0])), NULL, reference_uri_schemes_supported);
 
   /* uri-authentication-supported */
-#ifdef HAVE_TLS
   ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-authentication-supported", 2, NULL, uri_authentication_supported);
-#else
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-authentication-supported", NULL, "none");
-#endif /* HAVE_TLS */
 
   /* uri-security-supported */
-#ifdef HAVE_TLS
   ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", 2, NULL, uri_security_supported);
-#else
-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", NULL, "none");
-#endif /* HAVE_TLS */
 
   /* which-jobs-supported */
   ippAddStrings(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "which-jobs-supported", sizeof(which_jobs) / sizeof(which_jobs[0]), NULL, which_jobs);
@@ -1960,9 +1939,9 @@ find_job(ipp3d_client_t *client)		/* I - Client */
   else if ((attr = ippFindAttribute(client->request, "job-id", IPP_TAG_INTEGER)) != NULL)
     key.id = ippGetInteger(attr, 0);
 
-  _cupsRWLockRead(&(client->printer->rwlock));
+  cupsRWLockRead(&(client->printer->rwlock));
   job = (ipp3d_job_t *)cupsArrayFind(client->printer->jobs, &key);
-  _cupsRWUnlock(&(client->printer->rwlock));
+  cupsRWUnlock(&(client->printer->rwlock));
 
   return (job);
 }
@@ -1981,7 +1960,7 @@ finish_document_data(
 			buffer[4096];	/* Copy buffer */
   ssize_t		bytes;		/* Bytes read */
   cups_array_t		*ra;		/* Attributes to send in response */
-  _cups_thread_t        t;              /* Thread */
+  cups_thread_t        t;              /* Thread */
 
 
  /*
@@ -2000,7 +1979,7 @@ finish_document_data(
   if (Verbosity)
     fprintf(stderr, "Created job file \"%s\", format \"%s\".\n", filename, job->format);
 
-  while ((bytes = httpRead2(client->http, buffer, sizeof(buffer))) > 0)
+  while ((bytes = httpRead(client->http, buffer, sizeof(buffer))) > 0)
   {
     if (write(job->fd, buffer, (size_t)bytes) < bytes)
     {
@@ -2054,11 +2033,11 @@ finish_document_data(
   * Process the job...
   */
 
-  t = _cupsThreadCreate((_cups_thread_func_t)process_job, job);
+  t = cupsThreadCreate((cups_thread_func_t)process_job, job);
 
   if (t)
   {
-    _cupsThreadDetach(t);
+    cupsThreadDetach(t);
   }
   else
   {
@@ -2072,7 +2051,7 @@ finish_document_data(
 
   respond_ipp(client, IPP_STATUS_OK, NULL);
 
-  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  ra = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   cupsArrayAdd(ra, "job-id");
   cupsArrayAdd(ra, "job-state");
   cupsArrayAdd(ra, "job-state-message");
@@ -2092,7 +2071,7 @@ finish_document_data(
   job->state     = IPP_JSTATE_ABORTED;
   job->completed = time(NULL);
 
-  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  ra = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   cupsArrayAdd(ra, "job-id");
   cupsArrayAdd(ra, "job-state");
   cupsArrayAdd(ra, "job-state-reasons");
@@ -2170,11 +2149,7 @@ finish_document_uri(
     goto abort_job;
   }
 
-  if (strcmp(scheme, "file") &&
-#ifdef HAVE_TLS
-      strcmp(scheme, "https") &&
-#endif /* HAVE_TLS */
-      strcmp(scheme, "http"))
+  if (strcmp(scheme, "file") && strcmp(scheme, "https") && strcmp(scheme, "http"))
   {
     respond_ipp(client, IPP_STATUS_ERROR_URI_SCHEME, "URI scheme \"%s\" not supported.", scheme);
 
@@ -2192,7 +2167,7 @@ finish_document_uri(
   * Get the document format for the job...
   */
 
-  _cupsRWLockWrite(&(client->printer->rwlock));
+  cupsRWLockWrite(&(client->printer->rwlock));
 
   if ((attr = ippFindAttribute(job->attrs, "document-format", IPP_TAG_MIMETYPE)) != NULL)
     job->format = ippGetString(attr, 0, NULL);
@@ -2205,14 +2180,14 @@ finish_document_uri(
 
   if ((job->fd = create_job_file(job, filename, sizeof(filename), client->printer->directory, NULL)) < 0)
   {
-    _cupsRWUnlock(&(client->printer->rwlock));
+    cupsRWUnlock(&(client->printer->rwlock));
 
     respond_ipp(client, IPP_STATUS_ERROR_INTERNAL, "Unable to create print file: %s", strerror(errno));
 
     goto abort_job;
   }
 
-  _cupsRWUnlock(&(client->printer->rwlock));
+  cupsRWUnlock(&(client->printer->rwlock));
 
   if (!strcmp(scheme, "file"))
   {
@@ -2251,14 +2226,12 @@ finish_document_uri(
   }
   else
   {
-#ifdef HAVE_TLS
     if (port == 443 || !strcmp(scheme, "https"))
       encryption = HTTP_ENCRYPTION_ALWAYS;
     else
-#endif /* HAVE_TLS */
-    encryption = HTTP_ENCRYPTION_IF_REQUESTED;
+      encryption = HTTP_ENCRYPTION_IF_REQUESTED;
 
-    if ((http = httpConnect2(hostname, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
+    if ((http = httpConnect(hostname, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
     {
       respond_ipp(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to connect to %s: %s", hostname, cupsLastErrorString());
 
@@ -2289,7 +2262,7 @@ finish_document_uri(
 
     if (status != HTTP_STATUS_OK)
     {
-      respond_ipp(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to GET URI: %s", httpStatus(status));
+      respond_ipp(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to GET URI: %s", httpStatusString(status));
 
       close(job->fd);
       job->fd = -1;
@@ -2300,7 +2273,7 @@ finish_document_uri(
       goto abort_job;
     }
 
-    while ((bytes = httpRead2(http, buffer, sizeof(buffer))) > 0)
+    while ((bytes = httpRead(http, buffer, sizeof(buffer))) > 0)
     {
       if (write(job->fd, buffer, (size_t)bytes) < bytes)
       {
@@ -2335,13 +2308,13 @@ finish_document_uri(
     goto abort_job;
   }
 
-  _cupsRWLockWrite(&(client->printer->rwlock));
+  cupsRWLockWrite(&(client->printer->rwlock));
 
   job->fd       = -1;
   job->filename = strdup(filename);
   job->state    = IPP_JSTATE_PENDING;
 
-  _cupsRWUnlock(&(client->printer->rwlock));
+  cupsRWUnlock(&(client->printer->rwlock));
 
  /*
   * Process the job...
@@ -2355,7 +2328,7 @@ finish_document_uri(
 
   respond_ipp(client, IPP_STATUS_OK, NULL);
 
-  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  ra = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   cupsArrayAdd(ra, "job-id");
   cupsArrayAdd(ra, "job-state");
   cupsArrayAdd(ra, "job-state-reasons");
@@ -2374,7 +2347,7 @@ finish_document_uri(
   job->state     = IPP_JSTATE_ABORTED;
   job->completed = time(NULL);
 
-  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  ra = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   cupsArrayAdd(ra, "job-id");
   cupsArrayAdd(ra, "job-state");
   cupsArrayAdd(ra, "job-state-reasons");
@@ -2406,12 +2379,12 @@ html_escape(ipp3d_client_t *client,	/* I - Client */
     if (*s == '&' || *s == '<')
     {
       if (s > start)
-        httpWrite2(client->http, start, (size_t)(s - start));
+        httpWrite(client->http, start, (size_t)(s - start));
 
       if (*s == '&')
-        httpWrite2(client->http, "&amp;", 5);
+        httpWrite(client->http, "&amp;", 5);
       else
-        httpWrite2(client->http, "&lt;", 4);
+        httpWrite(client->http, "&lt;", 4);
 
       start = s + 1;
     }
@@ -2420,7 +2393,7 @@ html_escape(ipp3d_client_t *client,	/* I - Client */
   }
 
   if (s > start)
-    httpWrite2(client->http, start, (size_t)(s - start));
+    httpWrite(client->http, start, (size_t)(s - start));
 }
 
 
@@ -2437,7 +2410,7 @@ html_footer(ipp3d_client_t *client)	/* I - Client */
 	      "</div>\n"
 	      "</body>\n"
 	      "</html>\n");
-  httpWrite2(client->http, "", 0);
+  httpWrite(client->http, "", 0);
 }
 
 
@@ -2527,14 +2500,14 @@ html_printf(ipp3d_client_t *client,	/* I - Client */
     if (*format == '%')
     {
       if (format > start)
-        httpWrite2(client->http, start, (size_t)(format - start));
+        httpWrite(client->http, start, (size_t)(format - start));
 
       tptr    = tformat;
       *tptr++ = *format++;
 
       if (*format == '%')
       {
-        httpWrite2(client->http, "%", 1);
+        httpWrite(client->http, "%", 1);
         format ++;
 	start = format;
 	continue;
@@ -2648,7 +2621,7 @@ html_printf(ipp3d_client_t *client,	/* I - Client */
 
 	    sprintf(temp, tformat, va_arg(ap, double));
 
-            httpWrite2(client->http, temp, strlen(temp));
+            httpWrite(client->http, temp, strlen(temp));
 	    break;
 
         case 'B' : /* Integer formats */
@@ -2672,7 +2645,7 @@ html_printf(ipp3d_client_t *client,	/* I - Client */
 	    else
 	      sprintf(temp, tformat, va_arg(ap, int));
 
-            httpWrite2(client->http, temp, strlen(temp));
+            httpWrite(client->http, temp, strlen(temp));
 	    break;
 
 	case 'p' : /* Pointer value */
@@ -2681,7 +2654,7 @@ html_printf(ipp3d_client_t *client,	/* I - Client */
 
 	    sprintf(temp, tformat, va_arg(ap, void *));
 
-            httpWrite2(client->http, temp, strlen(temp));
+            httpWrite(client->http, temp, strlen(temp));
 	    break;
 
         case 'c' : /* Character or character array */
@@ -2708,7 +2681,7 @@ html_printf(ipp3d_client_t *client,	/* I - Client */
   }
 
   if (format > start)
-    httpWrite2(client->http, start, (size_t)(format - start));
+    httpWrite(client->http, start, (size_t)(format - start));
 
   va_end(ap);
 }
@@ -2761,7 +2734,7 @@ ipp_cancel_job(ipp3d_client_t *client)	/* I - Client */
         * Cancel the job...
 	*/
 
-	_cupsRWLockWrite(&(client->printer->rwlock));
+	cupsRWLockWrite(&(client->printer->rwlock));
 
 	if (job->state == IPP_JSTATE_PROCESSING ||
 	    (job->state == IPP_JSTATE_HELD && job->fd >= 0))
@@ -2772,7 +2745,7 @@ ipp_cancel_job(ipp3d_client_t *client)	/* I - Client */
 	  job->completed = time(NULL);
 	}
 
-	_cupsRWUnlock(&(client->printer->rwlock));
+	cupsRWUnlock(&(client->printer->rwlock));
 
 	respond_ipp(client, IPP_STATUS_OK, NULL);
         break;
@@ -2884,7 +2857,7 @@ ipp_create_job(ipp3d_client_t *client)	/* I - Client */
 
   respond_ipp(client, IPP_STATUS_OK, NULL);
 
-  ra = cupsArrayNew((cups_array_func_t)strcmp, NULL);
+  ra = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   cupsArrayAdd(ra, "job-id");
   cupsArrayAdd(ra, "job-state");
   cupsArrayAdd(ra, "job-state-message");
@@ -3068,11 +3041,11 @@ ipp_get_jobs(ipp3d_client_t *client)	/* I - Client */
 
   respond_ipp(client, IPP_STATUS_OK, NULL);
 
-  _cupsRWLockRead(&(client->printer->rwlock));
+  cupsRWLockRead(&(client->printer->rwlock));
 
-  for (count = 0, job = (ipp3d_job_t *)cupsArrayFirst(client->printer->jobs);
+  for (count = 0, job = (ipp3d_job_t *)cupsArrayGetFirst(client->printer->jobs);
        (limit <= 0 || count < limit) && job;
-       job = (ipp3d_job_t *)cupsArrayNext(client->printer->jobs))
+       job = (ipp3d_job_t *)cupsArrayGetNext(client->printer->jobs))
   {
    /*
     * Filter out jobs that don't match...
@@ -3095,7 +3068,7 @@ ipp_get_jobs(ipp3d_client_t *client)	/* I - Client */
 
   cupsArrayDelete(ra);
 
-  _cupsRWUnlock(&(client->printer->rwlock));
+  cupsRWUnlock(&(client->printer->rwlock));
 }
 
 
@@ -3120,7 +3093,7 @@ ipp_get_printer_attributes(
 
   respond_ipp(client, IPP_STATUS_OK, NULL);
 
-  _cupsRWLockRead(&(printer->rwlock));
+  cupsRWLockRead(&(printer->rwlock));
 
   copy_attributes(client->response, printer->attrs, ra, IPP_TAG_ZERO,
 		  IPP_TAG_CUPS_CONST);
@@ -3184,7 +3157,7 @@ ipp_get_printer_attributes(
   if (!ra || cupsArrayFind(ra, "queued-job-count"))
     ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "queued-job-count", printer->active_job && printer->active_job->state < IPP_JSTATE_CANCELED);
 
-  _cupsRWUnlock(&(printer->rwlock));
+  cupsRWUnlock(&(printer->rwlock));
 
   cupsArrayDelete(ra);
 }
@@ -3297,7 +3270,7 @@ ipp_send_document(
   * Then finish getting the document data and process things...
   */
 
-  _cupsRWLockWrite(&(client->printer->rwlock));
+  cupsRWLockWrite(&(client->printer->rwlock));
 
   copy_attributes(job->attrs, client->request, NULL, IPP_TAG_JOB, 0);
 
@@ -3308,7 +3281,7 @@ ipp_send_document(
   else
     job->format = "application/octet-stream";
 
-  _cupsRWUnlock(&(client->printer->rwlock));
+  cupsRWUnlock(&(client->printer->rwlock));
 
   finish_document_data(client, job);
 }
@@ -3388,7 +3361,7 @@ ipp_send_uri(ipp3d_client_t *client)	/* I - Client */
   * Then finish getting the document data and process things...
   */
 
-  _cupsRWLockWrite(&(client->printer->rwlock));
+  cupsRWLockWrite(&(client->printer->rwlock));
 
   copy_attributes(job->attrs, client->request, NULL, IPP_TAG_JOB, 0);
 
@@ -3399,7 +3372,7 @@ ipp_send_uri(ipp3d_client_t *client)	/* I - Client */
   else
     job->format = "application/octet-stream";
 
-  _cupsRWUnlock(&(client->printer->rwlock));
+  cupsRWUnlock(&(client->printer->rwlock));
 
   finish_document_uri(client, job);
 }
@@ -3532,7 +3505,7 @@ ippserver_error_cb(
   (void)f;
   (void)user_data;
 
-  _cupsLangPrintf(stderr, "%s\n", error);
+  fprintf(stderr, "%s\n", error);
 
   return (1);
 }
@@ -3564,7 +3537,7 @@ ippserver_token_cb(
   }
   else
   {
-    _cupsLangPrintf(stderr, _("Unknown directive \"%s\" on line %d of \"%s\" ignored."), token, f->linenum, f->filename);
+    fprintf(stderr, "Unknown directive \"%s\" on line %d of \"%s\" ignored.", token, f->linenum, f->filename);
   }
 
   return (1);
@@ -3713,14 +3686,14 @@ process_attr_message(
       * Update Printer Status attribute...
       */
 
-      _cupsRWLockWrite(&job->printer->rwlock);
+      cupsRWLockWrite(&job->printer->rwlock);
 
       if ((attr = ippFindAttribute(job->printer->attrs, option->name, IPP_TAG_ZERO)) != NULL)
         ippDeleteAttribute(job->printer->attrs, attr);
 
       cupsEncodeOption(job->printer->attrs, IPP_TAG_PRINTER, option->name, option->value);
 
-      _cupsRWUnlock(&job->printer->rwlock);
+      cupsRWUnlock(&job->printer->rwlock);
     }
     else
     {
@@ -3747,13 +3720,10 @@ process_client(ipp3d_client_t *client)	/* I - Client */
   * Loop until we are out of requests or timeout (30 seconds)...
   */
 
-#ifdef HAVE_TLS
   int first_time = 1;			/* First time request? */
-#endif /* HAVE_TLS */
 
   while (httpWait(client->http, 30000))
   {
-#ifdef HAVE_TLS
     if (first_time)
     {
      /*
@@ -3777,7 +3747,6 @@ process_client(ipp3d_client_t *client)	/* I - Client */
 
       first_time = 0;
     }
-#endif /* HAVE_TLS */
 
     if (!process_http(client))
       break;
@@ -3932,7 +3901,6 @@ process_http(ipp3d_client_t *client)	/* I - Client connection */
   if (!strcasecmp(httpGetField(client->http, HTTP_FIELD_CONNECTION),
                         "Upgrade"))
   {
-#ifdef HAVE_TLS
     if (strstr(httpGetField(client->http, HTTP_FIELD_UPGRADE), "TLS/") != NULL && !httpIsEncrypted(client->http))
     {
       if (!respond_http(client, HTTP_STATUS_SWITCHING_PROTOCOLS, NULL, NULL, 0))
@@ -3948,10 +3916,7 @@ process_http(ipp3d_client_t *client)	/* I - Client connection */
 
       fprintf(stderr, "%s Connection now encrypted.\n", client->hostname);
     }
-    else
-#endif /* HAVE_TLS */
-
-    if (!respond_http(client, HTTP_STATUS_NOT_IMPLEMENTED, NULL, NULL, 0))
+    else if (!respond_http(client, HTTP_STATUS_NOT_IMPLEMENTED, NULL, NULL, 0))
       return (0);
   }
 
@@ -4029,7 +3994,7 @@ process_http(ipp3d_client_t *client)	/* I - Client connection */
 	      }
 
 	      while ((bytes = read(fd, buffer, sizeof(buffer))) > 0)
-		httpWrite2(client->http, buffer, (size_t)bytes);
+		httpWrite(client->http, buffer, (size_t)bytes);
 
 	      httpFlushWrite(client->http);
 
@@ -4045,7 +4010,7 @@ process_http(ipp3d_client_t *client)	/* I - Client connection */
 	    if (!respond_http(client, HTTP_STATUS_OK, NULL, "image/png", sizeof(printer3d_png)))
 	      return (0);
 
-            httpWrite2(client->http, (const char *)printer3d_png, sizeof(printer3d_png));
+            httpWrite(client->http, (const char *)printer3d_png, sizeof(printer3d_png));
 	    httpFlushWrite(client->http);
 	  }
 	}
@@ -4565,7 +4530,7 @@ process_job(ipp3d_job_t *job)		/* I - Job */
 
         if ((addrlist = httpAddrGetList(host, AF_UNSPEC, service)) == NULL)
           fprintf(stderr, "[Job %d] Unable to find \"%s\": %s\n", job->id, host, cupsLastErrorString());
-        else if (!httpAddrConnect2(addrlist, &mystdout, 30000, &(job->cancel)))
+        else if (!httpAddrConnect(addrlist, &mystdout, 30000, &(job->cancel)))
           fprintf(stderr, "[Job %d] Unable to connect to \"%s\": %s\n", job->id, host, cupsLastErrorString());
 
         httpAddrFreeList(addrlist);
@@ -4767,7 +4732,7 @@ process_job(ipp3d_job_t *job)		/* I - Job */
     * Sleep for a random amount of time to simulate job processing.
     */
 
-    sleep((unsigned)(5 + (CUPS_RAND() % 11)));
+    sleep((unsigned)(5 + (rand() % 11)));
   }
 
   if (job->cancel)
@@ -4940,9 +4905,7 @@ register_printer(
   TXTRecordSetValue(&ipp_txt, "pdl", (uint8_t)strlen(formats), formats);
   if ((value = ippGetString(printer_uuid, 0, NULL)) != NULL)
     TXTRecordSetValue(&ipp_txt, "UUID", (uint8_t)strlen(value) - 9, value + 9);
-#  ifdef HAVE_TLS
   TXTRecordSetValue(&ipp_txt, "TLS", 3, "1.2");
-#  endif /* HAVE_TLS */
   TXTRecordSetValue(&ipp_txt, "txtvers", 1, "1");
   TXTRecordSetValue(&ipp_txt, "qtotal", 1, "1");
 
@@ -4955,7 +4918,7 @@ register_printer(
 
   if ((error = DNSServiceRegister(&(printer->printer_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, "_printer._tcp", NULL /* domain */, NULL /* host */, 0 /* port */, 0 /* txtLen */, NULL /* txtRecord */, (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
   {
-    _cupsLangPrintf(stderr, _("Unable to register \"%s.%s\": %d"), printer->dns_sd_name, "_printer._tcp", error);
+    fprintf(stderr, "Unable to register \"%s.%s\": %d", printer->dns_sd_name, "_printer._tcp", error);
     return (0);
   }
 
@@ -4973,11 +4936,10 @@ register_printer(
 
   if ((error = DNSServiceRegister(&(printer->ipp_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, regtype, NULL /* domain */, NULL /* host */, htons(printer->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
   {
-    _cupsLangPrintf(stderr, _("Unable to register \"%s.%s\": %d"), printer->dns_sd_name, regtype, error);
+    fprintf(stderr, "Unable to register \"%s.%s\": %d", printer->dns_sd_name, regtype, error);
     return (0);
   }
 
-#  ifdef HAVE_TLS
  /*
   * Then register the _ipps._tcp (IPP) service type with the real port number to
   * advertise our IPPS printer...
@@ -4992,10 +4954,9 @@ register_printer(
 
   if ((error = DNSServiceRegister(&(printer->ipps_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, regtype, NULL /* domain */, NULL /* host */, htons(printer->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
   {
-    _cupsLangPrintf(stderr, _("Unable to register \"%s.%s\": %d"), printer->dns_sd_name, regtype, error);
+    fprintf(stderr, "Unable to register \"%s.%s\": %d", printer->dns_sd_name, regtype, error);
     return (0);
   }
-#  endif /* HAVE_TLS */
 
  /*
   * Similarly, register the _http._tcp,_printer (HTTP) service type with the
@@ -5006,7 +4967,7 @@ register_printer(
 
   if ((error = DNSServiceRegister(&(printer->http_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, "_http._tcp,_printer", NULL /* domain */, NULL /* host */, htons(printer->port), 0 /* txtLen */, NULL /* txtRecord */, (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
   {
-    _cupsLangPrintf(stderr, _("Unable to register \"%s.%s\": %d"), printer->dns_sd_name, "_http._tcp,_printer", error);
+    fprintf(stderr, "Unable to register \"%s.%s\": %d", printer->dns_sd_name, "_http._tcp,_printer", error);
     return (0);
   }
 
@@ -5030,9 +4991,7 @@ register_printer(
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "pdl=%s", formats);
   if ((value = ippGetString(printer_uuid, 0, NULL)) != NULL)
     ipp_txt = avahi_string_list_add_printf(ipp_txt, "UUID=%s", value + 9);
-#  ifdef HAVE_TLS
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "TLS=1.2");
-#  endif /* HAVE_TLS */
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "txtvers=1");
   ipp_txt = avahi_string_list_add_printf(ipp_txt, "qtotal=1");
 
@@ -5069,7 +5028,6 @@ register_printer(
     free(temptypes);
   }
 
-#ifdef HAVE_TLS
  /*
   * _ipps-3d._tcp (IPPS) for secure printing...
   */
@@ -5092,7 +5050,6 @@ register_printer(
 
     free(temptypes);
   }
-#endif /* HAVE_TLS */
 
  /*
   * Finally _http.tcp (HTTP) for the web interface...
@@ -5130,7 +5087,7 @@ respond_http(
   char	message[1024];			/* Text message */
 
 
-  fprintf(stderr, "%s %s\n", client->hostname, httpStatus(code));
+  fprintf(stderr, "%s %s\n", client->hostname, httpStatusString(code));
 
   if (code == HTTP_STATUS_CONTINUE)
   {
@@ -5147,7 +5104,7 @@ respond_http(
 
   if (!type && !length && code != HTTP_STATUS_OK && code != HTTP_STATUS_SWITCHING_PROTOCOLS)
   {
-    snprintf(message, sizeof(message), "%d - %s\n", code, httpStatus(code));
+    snprintf(message, sizeof(message), "%d - %s\n", code, httpStatusString(code));
 
     type   = "text/plain";
     length = strlen(message);
@@ -5195,7 +5152,7 @@ respond_http(
     if (httpPrintf(client->http, "%s", message) < 0)
       return (0);
 
-    if (httpWrite2(client->http, "", 0) < 0)
+    if (httpWrite(client->http, "", 0) < 0)
       return (0);
   }
   else if (client->response)
@@ -5308,7 +5265,7 @@ run_printer(ipp3d_printer_t *printer)	/* I - Printer */
 
   for (;;)
   {
-    if (cupsArrayCount(printer->jobs))
+    if (cupsArrayGetCount(printer->jobs))
       timeout = 10;
     else
       timeout = -1;
@@ -5323,11 +5280,11 @@ run_printer(ipp3d_printer_t *printer)	/* I - Printer */
     {
       if ((client = create_client(printer, printer->ipv4)) != NULL)
       {
-        _cups_thread_t t = _cupsThreadCreate((_cups_thread_func_t)process_client, client);
+        cups_thread_t t = cupsThreadCreate((cups_thread_func_t)process_client, client);
 
         if (t)
         {
-          _cupsThreadDetach(t);
+          cupsThreadDetach(t);
         }
         else
 	{
@@ -5341,11 +5298,11 @@ run_printer(ipp3d_printer_t *printer)	/* I - Printer */
     {
       if ((client = create_client(printer, printer->ipv6)) != NULL)
       {
-        _cups_thread_t t = _cupsThreadCreate((_cups_thread_func_t)process_client, client);
+        cups_thread_t t = cupsThreadCreate((cups_thread_func_t)process_client, client);
 
         if (t)
         {
-          _cupsThreadDetach(t);
+          cupsThreadDetach(t);
         }
         else
 	{
@@ -5448,7 +5405,7 @@ show_materials(ipp3d_client_t  *client)	/* I - Client connection */
     char	name[255];		/* Form name */
     const char	*val;			/* Form value */
 
-    _cupsRWLockWrite(&printer->rwlock);
+    cupsRWLockWrite(&printer->rwlock);
 
     ippDeleteAttribute(printer->attrs, materials_ready);
     materials_ready = NULL;
@@ -5478,7 +5435,7 @@ show_materials(ipp3d_client_t  *client)	/* I - Client connection */
     if (!materials_ready)
       materials_ready = ippAddOutOfBand(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "materials-col-ready");
 
-    _cupsRWUnlock(&printer->rwlock);
+    cupsRWUnlock(&printer->rwlock);
   }
 
  /*
@@ -5590,18 +5547,18 @@ show_status(ipp3d_client_t  *client)	/* I - Client connection */
 
   html_header(client, printer->name, printer->state == IPP_PSTATE_PROCESSING ? 5 : 15);
   html_printf(client, "<h1><img style=\"background: %s; border-radius: 10px; float: left; margin-right: 10px; padding: 10px;\" src=\"/icon.png\" width=\"64\" height=\"64\">%s Jobs</h1>\n", state_colors[printer->state - IPP_PSTATE_IDLE], printer->name);
-  html_printf(client, "<p>%s, %d job(s).", printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", cupsArrayCount(printer->jobs));
+  html_printf(client, "<p>%s, %u job(s).", printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", (unsigned)cupsArrayGetCount(printer->jobs));
   for (i = 0, reason = 1; i < (int)(sizeof(reasons) / sizeof(reasons[0])); i ++, reason <<= 1)
     if (printer->state_reasons & reason)
       html_printf(client, "\n<br>&nbsp;&nbsp;&nbsp;&nbsp;%s", reasons[i]);
   html_printf(client, "</p>\n");
 
-  if (cupsArrayCount(printer->jobs) > 0)
+  if (cupsArrayGetCount(printer->jobs) > 0)
   {
-    _cupsRWLockRead(&(printer->rwlock));
+    cupsRWLockRead(&(printer->rwlock));
 
     html_printf(client, "<table class=\"striped\" summary=\"Jobs\"><thead><tr><th>Job #</th><th>Name</th><th>Owner</th><th>Status</th></tr></thead><tbody>\n");
-    for (job = (ipp3d_job_t *)cupsArrayFirst(printer->jobs); job; job = (ipp3d_job_t *)cupsArrayNext(printer->jobs))
+    for (job = (ipp3d_job_t *)cupsArrayGetFirst(printer->jobs); job; job = (ipp3d_job_t *)cupsArrayGetNext(printer->jobs))
     {
       char	when[256],		/* When job queued/started/finished */
 	      hhmmss[64];		/* Time HH:MM:SS */
@@ -5631,7 +5588,7 @@ show_status(ipp3d_client_t  *client)	/* I - Client connection */
     }
     html_printf(client, "</tbody></table>\n");
 
-    _cupsRWUnlock(&(printer->rwlock));
+    cupsRWUnlock(&(printer->rwlock));
   }
 
   html_footer(client);
@@ -5667,28 +5624,26 @@ time_string(time_t tv,			/* I - Time value */
 static void
 usage(int status)			/* O - Exit status */
 {
-  _cupsLangPuts(stdout, _("Usage: ipp3dprinter [options] \"name\""));
-  _cupsLangPuts(stdout, _("Options:"));
-  _cupsLangPuts(stderr, _("--help                  Show program help"));
-  _cupsLangPuts(stderr, _("--no-web-forms          Disable web forms for media and supplies"));
-  _cupsLangPuts(stderr, _("--version               Show program version"));
-  _cupsLangPuts(stdout, _("-D device-uri           Set the device URI for the printer"));
-#ifdef HAVE_TLS
-  _cupsLangPuts(stdout, _("-K keypath              Set location of server X.509 certificates and keys."));
-#endif /* HAVE_TLS */
-  _cupsLangPuts(stdout, _("-M manufacturer         Set manufacturer name (default=Test)"));
-  _cupsLangPuts(stdout, _("-a filename.conf        Load printer attributes from conf file"));
-  _cupsLangPuts(stdout, _("-c command              Set print command"));
-  _cupsLangPuts(stdout, _("-d spool-directory      Set spool directory"));
-  _cupsLangPuts(stdout, _("-f type/subtype[,...]   Set supported file types"));
-  _cupsLangPuts(stdout, _("-i iconfile.png         Set icon file"));
-  _cupsLangPuts(stdout, _("-k                      Keep job spool files"));
-  _cupsLangPuts(stdout, _("-l location             Set location of printer"));
-  _cupsLangPuts(stdout, _("-m model                Set model name (default=Printer)"));
-  _cupsLangPuts(stdout, _("-n hostname             Set hostname for printer"));
-  _cupsLangPuts(stdout, _("-p port                 Set port number for printer"));
-  _cupsLangPuts(stdout, _("-r subtype,[subtype]    Set DNS-SD service subtype"));
-  _cupsLangPuts(stderr, _("-v                      Be verbose"));
+  puts("Usage: ipp3dprinter [options] \"name\"");
+  puts("Options:");
+  puts("--help                  Show program help");
+  puts("--no-web-forms          Disable web forms for media and supplies");
+  puts("--version               Show program version");
+  puts("-D device-uri           Set the device URI for the printer");
+  puts("-K keypath              Set location of server X.509 certificates and keys.");
+  puts("-M manufacturer         Set manufacturer name (default=Test)");
+  puts("-a filename.conf        Load printer attributes from conf file");
+  puts("-c command              Set print command");
+  puts("-d spool-directory      Set spool directory");
+  puts("-f type/subtype[,...]   Set supported file types");
+  puts("-i iconfile.png         Set icon file");
+  puts("-k                      Keep job spool files");
+  puts("-l location             Set location of printer");
+  puts("-m model                Set model name (default=Printer)");
+  puts("-n hostname             Set hostname for printer");
+  puts("-p port                 Set port number for printer");
+  puts("-r subtype,[subtype]    Set DNS-SD service subtype");
+  puts("-v                      Be verbose");
 
   exit(status);
 }

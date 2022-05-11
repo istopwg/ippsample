@@ -79,7 +79,7 @@ test:
 # ippserver
 #
 
-ippserver:	$(OBJS) ../cups/libcups.a
+ippserver:	$(OBJS) ../libcups/cups/libcups.a ../pdfio/libpdfio.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 

@@ -1,28 +1,29 @@
 /*
  * Utility for converting PDF and JPEG files to raster data or HP PCL.
  *
- * Copyright © 2016-2021 by the IEEE-ISTO Printer Working Group.
+ * Copyright © 2016-2022 by the IEEE-ISTO Printer Working Group.
  * Copyright © 2016-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
  */
 
+#include <config.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
 #include <cups/cups.h>
 #include <cups/raster.h>
 #include <cups/thread.h>
+
+// TODO: Eliminate private APIs
+#include <cups/array-private.h>
 
 #ifdef HAVE_COREGRAPHICS
 #  include <CoreGraphics/CoreGraphics.h>
 #  include <ImageIO/ImageIO.h>
 
 extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
-#elif defined(HAVE_MUPDF)
-#  include <mupdf/fitz.h>
-static inline fz_matrix make_matrix(float a, float b, float c, float d, float e, float f) {
-  fz_matrix ret = { a, b, c, d, e, f };
-  return (ret);
-}
 #endif /* HAVE_COREGRAPHICS */
 
 #include "dither.h"
@@ -56,8 +57,8 @@ struct xform_raster_s
   int			num_options;	/* Number of job options */
   cups_option_t		*options;	/* Job options */
   unsigned		copies;		/* Number of copies */
-  cups_page_header2_t	header;		/* Page header */
-  cups_page_header2_t	back_header;	/* Page header for back side */
+  cups_page_header_t	header;		/* Page header */
+  cups_page_header_t	back_header;	/* Page header for back side */
   int			borderless;	/* Borderless media? */
   unsigned char		*band_buffer;	/* Band buffer */
   unsigned		band_height;	/* Band height */
@@ -96,9 +97,6 @@ static int	Verbosity = 0;		/* Log level */
  * Local functions...
  */
 
-#ifdef HAVE_MUPDF
-static void	invert_gray(unsigned char *row, size_t num_pixels);
-#endif /* HAVE_MUPDF */
 static int	load_env_options(cups_option_t **options);
 static void	*monitor_ipp(const char *device_uri);
 #ifdef HAVE_COREGRAPHICS
@@ -150,7 +148,7 @@ main(int  argc,				/* I - Number of command-line args */
   xform_write_cb_t write_cb = (xform_write_cb_t)write_fd;
 					/* Write callback */
   int		status = 0;		/* Exit status */
-  _cups_thread_t monitor = 0;		/* Monitoring thread ID */
+  cups_thread_t monitor = 0;		/* Monitoring thread ID */
 
 
  /*
@@ -183,7 +181,7 @@ main(int  argc,				/* I - Number of command-line args */
       }
       else if (!strcmp(argv[i], "--version"))
       {
-        puts(CUPS_SVERSION);
+        puts(IPPSAMPLE_VERSION);
       }
       else
       {
@@ -390,7 +388,7 @@ main(int  argc,				/* I - Number of command-line args */
       * AppSocket connection...
       */
 
-      if (!httpAddrConnect2(list, &fd, 30000, NULL))
+      if (!httpAddrConnect(list, &fd, 30000, NULL))
       {
 	fprintf(stderr, "ERROR: Unable to connect to \"%s\" on port %d: %s\n", host, port, cupsLastErrorString());
 	return (1);
@@ -422,7 +420,7 @@ main(int  argc,				/* I - Number of command-line args */
       else
         encryption = HTTP_ENCRYPTION_IF_REQUESTED;
 
-      if ((http = httpConnect2(host, port, list, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
+      if ((http = httpConnect(host, port, list, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
       {
 	fprintf(stderr, "ERROR: Unable to connect to \"%s\" on port %d: %s\n", host, port, cupsLastErrorString());
 	return (1);
@@ -434,7 +432,7 @@ main(int  argc,				/* I - Number of command-line args */
 
       request = ippNewRequest(IPP_OP_GET_PRINTER_ATTRIBUTES);
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
-      ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+      ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
       ippAddStrings(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", (int)(sizeof(pattrs) / sizeof(pattrs[0])), NULL, pattrs);
 
       response = cupsDoRequest(http, request, resource);
@@ -473,7 +471,7 @@ main(int  argc,				/* I - Number of command-line args */
 
         request = ippNewRequest(IPP_OP_CREATE_JOB);
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
-	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "job-name", NULL, job_name);
 
         response = cupsDoRequest(http, request, resource);
@@ -495,7 +493,7 @@ main(int  argc,				/* I - Number of command-line args */
         request = ippNewRequest(IPP_OP_SEND_DOCUMENT);
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
 	ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "job-id", job_id);
-	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, output_type);
 	if (gzip)
 	  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression", NULL, "gzip");
@@ -505,7 +503,7 @@ main(int  argc,				/* I - Number of command-line args */
       {
         request = ippNewRequest(IPP_OP_PRINT_JOB);
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
-	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, output_type);
 	if (gzip)
 	  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression", NULL, "gzip");
@@ -528,10 +526,10 @@ main(int  argc,				/* I - Number of command-line args */
       if (gzip)
         httpSetField(http, HTTP_FIELD_CONTENT_ENCODING, "gzip");
 
-      write_cb  = (xform_write_cb_t)httpWrite2;
+      write_cb  = (xform_write_cb_t)httpWrite;
       write_ptr = http;
 
-      monitor = _cupsThreadCreate((_cups_thread_func_t)monitor_ipp, (void *)device_uri);
+      monitor = cupsThreadCreate((cups_thread_func_t)monitor_ipp, (void *)device_uri);
     }
 
     httpAddrFreeList(list);
@@ -559,44 +557,10 @@ main(int  argc,				/* I - Number of command-line args */
     close(fd);
 
   if (monitor)
-    _cupsThreadCancel(monitor);
+    cupsThreadCancel(monitor);
 
   return (status);
 }
-
-
-/*
- * 'invert_gray()' - Invert grayscale to black.
- */
-
-#ifdef HAVE_MUPDF
-static void
-invert_gray(unsigned char *row,		/* I - Current row */
-            size_t        num_pixels)	/* I - Number of pixels */
-{
-  unsigned	*ptr;			/* Pointer to 32-bits worth of pixels */
-
-
-  ptr = (unsigned *)row;
-  while (num_pixels > 3)
-  {
-    *ptr = ~*ptr;
-    ptr ++;
-    num_pixels -= 4;
-  }
-
-  if (num_pixels > 0)
-  {
-    row = (unsigned char *)ptr;
-    while (num_pixels > 0)
-    {
-      *row = ~*row;
-      row ++;
-      num_pixels --;
-    }
-  }
-}
-#endif /* HAVE_MUPDF */
 
 
 /*
@@ -637,7 +601,7 @@ load_env_options(
       if (*envptr == '_')
         *nameptr++ = '-';
       else
-        *nameptr++ = (char)_cups_tolower(*envptr);
+        *nameptr++ = (char)tolower(*envptr);
     }
 
     *nameptr = '\0';
@@ -695,7 +659,7 @@ monitor_ipp(const char *device_uri)	/* I - Device URI */
   else
     encryption = HTTP_ENCRYPTION_IF_REQUESTED;
 
-  while ((http = httpConnect2(host, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
+  while ((http = httpConnect(host, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
   {
     fprintf(stderr, "ERROR: Unable to connect to \"%s\" on port %d: %s\n", host, port, cupsLastErrorString());
     sleep(30);
@@ -713,7 +677,7 @@ monitor_ipp(const char *device_uri)	/* I - Device URI */
 
     request = ippNewRequest(IPP_OP_GET_PRINTER_ATTRIBUTES);
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
-    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsUser());
+    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
     ippAddStrings(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", (int)(sizeof(pattrs) / sizeof(pattrs[0])), NULL, pattrs);
 
     response = cupsDoRequest(http, request, resource);
@@ -1302,7 +1266,7 @@ raster_start_job(xform_raster_t   *ras,	/* I - Raster information */
 		 xform_write_cb_t cb,	/* I - Write callback */
 		 void             *ctx)	/* I - Write context */
 {
-  ras->ras = cupsRasterOpenIO((cups_raster_iocb_t)cb, ctx, !strcmp(ras->format, "image/pwg-raster") ? CUPS_RASTER_WRITE_PWG : CUPS_RASTER_WRITE_APPLE);
+  ras->ras = cupsRasterOpenIO((cups_raster_cb_t)cb, ctx, !strcmp(ras->format, "image/pwg-raster") ? CUPS_RASTER_WRITE_PWG : CUPS_RASTER_WRITE_APPLE);
 }
 
 
@@ -1325,9 +1289,9 @@ raster_start_page(xform_raster_t   *ras,/* I - Raster information */
   ras->bottom = ras->header.cupsHeight;
 
   if (ras->header.Duplex && !(page & 1))
-    cupsRasterWriteHeader2(ras->ras, &ras->back_header);
+    cupsRasterWriteHeader(ras->ras, &ras->back_header);
   else
-    cupsRasterWriteHeader2(ras->ras, &ras->header);
+    cupsRasterWriteHeader(ras->ras, &ras->header);
 
   if (ras->header.cupsBitsPerPixel == 1 || ras->header.cupsColorSpace == CUPS_CSPACE_K)
   {
@@ -2116,497 +2080,18 @@ xform_document(
     xform_write_cb_t cb,		/* I - Write callback */
     void             *ctx)		/* I - Write context */
 {
-  fz_context		*context;	/* MuPDF context */
-  fz_document		*document;	/* Document to print */
-  fz_page		*pdf_page;	/* Page in PDF file */
-  fz_pixmap		*pixmap;	/* Pixmap for band */
-  fz_device		*device;	/* Device for rendering */
-  fz_colorspace		*cs;		/* Quartz color space */
-  xform_raster_t	ras;		/* Raster info */
-  size_t		max_raster;	/* Maximum raster memory to use */
-  const char		*max_raster_env;/* IPPTRANSFORM_MAX_RASTER env var */
-  unsigned		pages = 1;	/* Number of pages */
-  int			color = 1;	/* Color PDF? */
-  const char		*page_ranges;	/* "page-ranges" option */
-  unsigned		first, last;	/* First and last page of range */
-  const char		*print_scaling;	/* print-scaling option */
-  unsigned		copy;		/* Current copy */
-  unsigned		page;		/* Current page */
-  unsigned		media_sheets = 0,
-			impressions = 0;/* Page/sheet counters */
-  size_t		band_size;	/* Size of band line */
-  double		xscale, yscale;	/* Scaling factor */
-  fz_rect		image_box;	/* Bounding box of content */
-  fz_matrix	 	base_transform,	/* Base transform */
-			image_transform,/* Transform for content ("page image") */
-			transform,	/* Transform for page */
-			back_transform;	/* Transform for back side */
-
-
- /*
-  * Open the PDF file...
-  */
-
-  if ((context = fz_new_context(NULL, NULL, FZ_STORE_UNLIMITED)) == NULL)
-  {
-    fputs("ERROR: Unable to create context.\n", stderr);
-    return (1);
-  }
-
-  fz_register_document_handlers(context);
-
-  fz_try(context) document = fz_open_document(context, filename);
-  fz_catch(context)
-  {
-    fprintf(stderr, "ERROR: Unable to open '%s': %s\n", filename, fz_caught_message(context));
-    fz_drop_context(context);
-    return (1);
-  }
-
-  if (fz_needs_password(context, document))
-  {
-    fputs("ERROR: Document is encrypted and cannot be unlocked.\n", stderr);
-    fz_drop_document(context, document);
-    fz_drop_context(context);
-    return (1);
-  }
-
- /*
-  * Check page ranges...
-  */
-
-  if ((page_ranges = cupsGetOption("page-ranges", num_options, options)) != NULL)
-  {
-    if (sscanf(page_ranges, "%u-%u", &first, &last) != 2 || first > last)
-    {
-      fprintf(stderr, "ERROR: Bad \"page-ranges\" value '%s'.\n", page_ranges);
-
-      fz_drop_document(context, document);
-      fz_drop_context(context);
-
-      return (1);
-    }
-
-    pages = (unsigned)fz_count_pages(context, document);
-    if (first > pages)
-    {
-      fputs("ERROR: \"page-ranges\" value does not include any pages to print in the document.\n", stderr);
-
-      fz_drop_document(context, document);
-      fz_drop_context(context);
-
-      return (1);
-    }
-
-    if (last > pages)
-      last = pages;
-  }
-  else
-  {
-    first = 1;
-    last  = (unsigned)fz_count_pages(context, document);
-  }
-
-  pages = last - first + 1;
-
- /*
-  * Setup the raster context...
-  */
-
-  if (xform_setup(&ras, outformat, resolutions, sheet_back, types, color, 1, num_options, options))
-  {
-    fz_drop_document(context, document);
-    fz_drop_context(context);
-
-    return (1);
-  }
-
-  if (ras.header.cupsBitsPerPixel <= 8)
-  {
-   /*
-    * Grayscale output...
-    */
-
-    ras.band_bpp = 1;
-    cs           = fz_device_gray(context);
-  }
-  else if (ras.header.cupsBitsPerPixel == 24)
-  {
-   /*
-    * Color (sRGB/AdobeRGB) output...
-    */
-
-    ras.band_bpp = 3;
-
-#ifdef HAVE_FZ_CMM_ENGINE_LCMS
-    if (ras.header.cupsColorSpace == CUPS_CSPACE_ADOBERGB)
-    {
-      fz_set_cmm_engine(context, &fz_cmm_engine_lcms);
-
-# if 0 /* MuPDF crashes - known bug */
-     /*
-      * Create a calibrated colorspace using the AdobeRGB (1998) values.
-      */
-
-      static float wp_val[] = { 0.9505f, 1.0f, 1.0891f };
-      static float bp_val[] = { 0.0f, 0.0f, 0.0f };
-      static float gamma_val[] = { 2.19921875f, 2.19921875f, 2.19921875f };
-      static float matrix_val[] = {  2.04159f, -0.56501f, -0.34473f,
-                                    -0.96924f,  1.87597f,  0.05156f,
-                                     0.01344f, -0.11836f,  1.01517f };
-
-      cs = fz_new_cal_colorspace(context, "AdobeRGB", wp_val, bp_val, gamma_val, matrix_val);
-#  endif // 0
-
-#  if FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14
-#    define ADOBE_COLORSPACE	FZ_COLORSPACE_RGB
-#  else
-#    define ADOBE_COLORSPACE	"AdobeRGB1998"
-#  endif /* FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14 */
-
-#  ifdef __APPLE__
-      cs = fz_new_icc_colorspace_from_file(context, ADOBE_COLORSPACE, "/System/Library/ColorSync/Profiles/AdobeRGB1998.icc");
-#  else
-      cs = fz_new_icc_colorspace_from_file(context, ADOBE_COLORSPACE, "/usr/share/color/icc/colord/AdobeRGB1998.icc");
-#  endif /* __APPLE__ */
-    }
-    else
-#endif /* HAVE_FZ_CMM_ENGINE_LCMS */
-    {
-     /*
-      * Use the "device RGB" colorspace which is sRGB for MuPDF...
-      */
-
-      cs = fz_device_rgb(context);
-    }
-  }
-  else if (ras.header.cupsBitsPerPixel == 32)
-  {
-   /*
-    * CMYK output...
-    */
-
-    ras.band_bpp = 4;
-    cs           = fz_device_cmyk(context);
-  }
-
-  max_raster     = XFORM_MAX_RASTER;
-  max_raster_env = getenv("IPPTRANSFORM_MAX_RASTER");
-  if (max_raster_env && strtol(max_raster_env, NULL, 10) > 0)
-    max_raster = (size_t)strtol(max_raster_env, NULL, 10);
-
-  band_size = (size_t)ras.header.cupsWidth * ras.band_bpp;
-  fprintf(stderr, "DEBUG: ras.header.cupsWidth=%u, ras.band_bpp=%u, band_size=%ld\n", ras.header.cupsWidth, ras.band_bpp, (long)band_size);
-
-  if ((ras.band_height = (unsigned)(max_raster / band_size)) < 1)
-    ras.band_height = 1;
-  else if (ras.band_height > ras.header.cupsHeight)
-    ras.band_height = ras.header.cupsHeight;
-
-#  if HAVE_FZ_NEW_PIXMAP_5_ARG
-  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth, (int)ras.band_height, 0);
-#  else
-  pixmap = fz_new_pixmap(context, cs, (int)ras.header.cupsWidth, (int)ras.band_height, NULL, 0);
-
-  fprintf(stderr, "pixmap->w       = %d\n", pixmap->w);
-  fprintf(stderr, "pixmap->h       = %d\n", pixmap->h);
-  fprintf(stderr, "pixmap->alpha   = %d\n", pixmap->alpha);
-  fprintf(stderr, "pixmap->flags   = %d\n", pixmap->flags);
-  fprintf(stderr, "pixmap->xres    = %d\n", pixmap->xres);
-  fprintf(stderr, "pixmap->yres    = %d\n", pixmap->yres);
-  fprintf(stderr, "pixmap->stride  = %ld\n", (long)pixmap->stride);
-  fprintf(stderr, "pixmap->samples = %p\n", pixmap->samples);
-
-  pixmap->flags &= ~FZ_PIXMAP_FLAG_INTERPOLATE;
-#  endif /* HAVE_FZ_NEW_PIXMAP_5_ARG */
-
-  pixmap->xres = (int)ras.header.HWResolution[0];
-  pixmap->yres = (int)ras.header.HWResolution[1];
-
-  xscale = ras.header.HWResolution[0] / 72.0;
-  yscale = ras.header.HWResolution[1] / 72.0;
-
-  if (Verbosity > 1)
-    fprintf(stderr, "DEBUG: xscale=%g, yscale=%g\n", xscale, yscale);
-
-#  if FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14
-  base_transform = fz_scale(xscale, yscale);
-#  else
-  fz_scale(&base_transform, xscale, yscale);
-#  endif /* FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14 */
-
-  if (Verbosity > 1)
-    fprintf(stderr, "DEBUG: Band height=%u, page height=%u\n", ras.band_height, ras.header.cupsHeight);
-
-#  if FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14
-  device = fz_new_draw_device(context, base_transform, pixmap);
-#  else
-  device = fz_new_draw_device(context, &base_transform, pixmap);
-#  endif /* FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14 */
-
-  /* Don't anti-alias or interpolate when creating raster data */
-  fz_set_aa_level(context, 0);
-  fz_enable_device_hints(context, device, FZ_DONT_INTERPOLATE_IMAGES);
-
- /*
-  * Setup the back page transform, if any...
-  */
-
-  if (sheet_back && ras.header.Duplex)
-  {
-    if (!strcmp(sheet_back, "flipped"))
-    {
-      if (ras.header.Tumble)
-        back_transform = make_matrix(-1, 0, 0, 1, ras.header.cupsPageSize[0], 0);
-      else
-        back_transform = make_matrix(1, 0, 0, -1, 0, ras.header.cupsPageSize[1]);
-    }
-    else if (!strcmp(sheet_back, "manual-tumble") && ras.header.Tumble)
-      back_transform = make_matrix(-1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
-    else if (!strcmp(sheet_back, "rotated") && !ras.header.Tumble)
-      back_transform = make_matrix(-1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
-    else
-      back_transform = make_matrix(1, 0, 0, 1, 0, 0);
-  }
-  else
-    back_transform = make_matrix(1, 0, 0, 1, 0, 0);
-
-  if (Verbosity > 1)
-    fprintf(stderr, "DEBUG: cupsPageSize=[%g %g]\n", ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
-  if (Verbosity > 1)
-    fprintf(stderr, "DEBUG: back_transform=[%g %g %g %g %g %g]\n", back_transform.a, back_transform.b, back_transform.c, back_transform.d, back_transform.e, back_transform.f);
-
- /*
-  * Get print-scaling value...
-  */
-
-  if ((print_scaling = cupsGetOption("print-scaling", num_options, options)) == NULL)
-    if ((print_scaling = getenv("IPP_PRINT_SCALING_DEFAULT")) == NULL)
-      print_scaling = "auto";
-
- /*
-  * Draw all of the pages...
-  */
-
-  (*(ras.start_job))(&ras, cb, ctx);
-
-  for (copy = 0; copy < ras.copies; copy ++)
-  {
-    for (page = 1; page <= pages; page ++)
-    {
-      unsigned		y,		/* Current line */
-			band_starty = 0,/* Start line of band */
-			band_endy = 0;	/* End line of band */
-      unsigned char	*lineptr;	/* Pointer to line */
-
-      pdf_page = fz_load_page(context, document, (int)(page + first - 2));
-
-#  if FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14
-      image_box = fz_bound_page(context, pdf_page);
-#  else
-      fz_bound_page(context, pdf_page, &image_box);
-#  endif /* FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14 */
-
-      fprintf(stderr, "DEBUG: image_box=[%g %g %g %g]\n", image_box.x0, image_box.y0, image_box.x1, image_box.y1);
-
-      float image_width = image_box.x1 - image_box.x0;
-      float image_height = image_box.y1 - image_box.y0;
-      int image_rotation = 0;
-      int is_image = strcmp(informat, "application/pdf") != 0;
-      float image_xscale, image_yscale;
-
-      if ((image_height < image_width && ras.header.cupsWidth < ras.header.cupsHeight) ||
-	   (image_width < image_height && ras.header.cupsHeight < ras.header.cupsWidth))
-      {
-       /*
-	* Rotate image/page 90 degrees...
-	*/
-
-	image_rotation = 90;
-      }
-
-      if ((!strcmp(print_scaling, "auto") && ras.borderless && is_image) || !strcmp(print_scaling, "fill"))
-      {
-       /*
-	* Scale to fill...
-	*/
-
-	if (image_rotation)
-	{
-	  image_xscale = ras.header.cupsPageSize[0] / (double)image_height;
-	  image_yscale = ras.header.cupsPageSize[1] / (double)image_width;
-	}
-	else
-	{
-	  image_xscale = ras.header.cupsPageSize[0] / (double)image_width;
-	  image_yscale = ras.header.cupsPageSize[1] / (double)image_height;
-	}
-
-	if (image_xscale < image_yscale)
-	  image_xscale = image_yscale;
-	else
-	  image_yscale = image_xscale;
-
-      }
-      else if ((!strcmp(print_scaling, "auto") && (is_image || (image_rotation == 0 && (image_width > ras.header.cupsPageSize[0] || image_height > ras.header.cupsPageSize[1])) || (image_rotation == 90 && (image_height > ras.header.cupsPageSize[1] || image_width > ras.header.cupsPageSize[1])))) || !strcmp(print_scaling, "fit"))
-      {
-       /*
-	* Scale to fit...
-	*/
-
-	if (image_rotation)
-	{
-	  image_xscale = ras.header.cupsPageSize[0] / (double)image_height;
-	  image_yscale = ras.header.cupsPageSize[1] / (double)image_width;
-	}
-	else
-	{
-	  image_xscale = ras.header.cupsPageSize[0] / (double)image_width;
-	  image_yscale = ras.header.cupsPageSize[1] / (double)image_height;
-	}
-
-	if (image_xscale > image_yscale)
-	  image_xscale = image_yscale;
-	else
-	  image_yscale = image_xscale;
-      }
-      else
-      {
-       /*
-        * Do not scale...
-	*/
-
-        image_xscale = image_yscale = 1.0;
-      }
-
-      if (image_rotation)
-      {
-	image_transform = make_matrix(image_xscale, 0, 0, image_yscale, 0.5 * (ras.header.cupsPageSize[0] - image_xscale * image_height), 0.5 * (ras.header.cupsPageSize[1] - image_yscale * image_width));
-      }
-      else
-      {
-	image_transform = make_matrix(image_xscale, 0, 0, image_yscale, 0.5 * (ras.header.cupsPageSize[0] - image_xscale * image_width), 0.5 * (ras.header.cupsPageSize[1] - image_yscale * image_height));
-      }
-
-      if (Verbosity > 1)
-        fprintf(stderr, "DEBUG: Printing copy %d/%d, page %d/%d, image_transform=[%g %g %g %g %g %g]\n", copy + 1, ras.copies, page, pages, image_transform.a, image_transform.b, image_transform.c, image_transform.d, image_transform.e, image_transform.f);
-
-      (*(ras.start_page))(&ras, page, cb, ctx);
-
-      for (y = ras.top; y < ras.bottom; y ++)
-      {
-	if (y >= band_endy)
-	{
-	 /*
-	  * Draw the next band of raster data...
-	  */
-
-	  band_starty = y;
-	  band_endy   = y + ras.band_height;
-	  if (band_endy > ras.bottom)
-	    band_endy = ras.bottom;
-
-	  if (Verbosity > 1)
-	    fprintf(stderr, "DEBUG: Drawing band from %u to %u.\n", band_starty, band_endy);
-
-          fz_clear_pixmap_with_value(context, pixmap, 0xff);
-          fputs("DEBUG: Band cleared...\n", stderr);
-
-          transform = fz_identity;
-
-#  if FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14
-	  transform = fz_pre_translate(transform, 0.0, -1.0 * y / yscale);
-
-	  if (!(page & 1) && ras.header.Duplex)
-	    transform = fz_concat(transform, back_transform);
-
-	  transform = fz_concat(transform, image_transform);
-
-#  else
-	  fz_pre_translate(&transform, 0.0, -1.0 * y / yscale);
-
-	  if (!(page & 1) && ras.header.Duplex)
-	    fz_concat(&transform, &transform, &back_transform);
-
-	  fz_concat(&transform, &transform, &image_transform);
-#  endif /* FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14 */
-
-          fprintf(stderr, "DEBUG: Page transform=[%g %g %g %g %g %g]\n", transform.a, transform.b, transform.c, transform.d, transform.e, transform.f);
-
-#  if FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14
-          fz_run_page(context, pdf_page, device, transform, NULL);
-#  else
-          fz_run_page(context, pdf_page, device, &transform, NULL);
-#  endif /* FZ_VERSION_MAJOR > 1 || FZ_VERSION_MINOR > 14 */
-
-          fputs("DEBUG: Band rendered...\n", stderr);
-	}
-
-       /*
-	* Prepare and write a line...
-	*/
-
-	lineptr = pixmap->samples + (y - band_starty) * band_size + ras.left * ras.band_bpp;
-
-        if (ras.header.cupsColorSpace == CUPS_CSPACE_K && ras.header.cupsBitsPerPixel >= 8)
-          invert_gray(lineptr, ras.right - ras.left);
-
-	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
-      }
-
-      (*(ras.end_page))(&ras, page, cb, ctx);
-
-      impressions ++;
-      fprintf(stderr, "ATTR: job-impressions-completed=%u\n", impressions);
-      if (!ras.header.Duplex || !(page & 1))
-      {
-        media_sheets ++;
-	fprintf(stderr, "ATTR: job-media-sheets-completed=%u\n", media_sheets);
-      }
-    }
-
-    if (ras.copies > 1 && (pages & 1) && ras.header.Duplex)
-    {
-     /*
-      * Duplex printing, add a blank back side image...
-      */
-
-      unsigned		y;		/* Current line */
-
-      if (Verbosity > 1)
-        fprintf(stderr, "DEBUG: Printing blank page %u for duplex.\n", pages + 1);
-
-      memset(pixmap->samples, ras.header.cupsBitsPerPixel == 32 ? 0 : 255, ras.header.cupsBytesPerLine);
-
-      (*(ras.start_page))(&ras, page, cb, ctx);
-
-      for (y = ras.top; y < ras.bottom; y ++)
-	(*(ras.write_line))(&ras, y, pixmap->samples, cb, ctx);
-
-      (*(ras.end_page))(&ras, page, cb, ctx);
-
-      impressions ++;
-      fprintf(stderr, "ATTR: job-impressions-completed=%u\n", impressions);
-      if (!ras.header.Duplex || !(page & 1))
-      {
-        media_sheets ++;
-	fprintf(stderr, "ATTR: job-media-sheets-completed=%u\n", media_sheets);
-      }
-    }
-  }
-
-  (*(ras.end_job))(&ras, cb, ctx);
-
- /*
-  * Clean up...
-  */
-
-  fz_drop_device(context, device);
-  fz_drop_pixmap(context, pixmap);
-  fz_drop_document(context, document);
-  fz_drop_context(context);
-
-  return (1);
+  (void)filename;
+  (void)informat;
+  (void)outformat;
+  (void)resolutions;
+  (void)sheet_back;
+  (void)types;
+  (void)num_options;
+  (void)options;
+  (void)cb;
+  (void)ctx;
+
+  return (0);
 }
 #endif /* HAVE_COREGRAPHICS */
 
@@ -2793,15 +2278,15 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
       switch (pq = atoi(print_quality))
       {
         case IPP_QUALITY_DRAFT :
-	    printer_resolution = cupsArrayIndex(res_array, 0);
+	    printer_resolution = cupsArrayGetElement(res_array, 0);
 	    break;
 
         case IPP_QUALITY_NORMAL :
-	    printer_resolution = cupsArrayIndex(res_array, cupsArrayCount(res_array) / 2);
+	    printer_resolution = cupsArrayGetElement(res_array, cupsArrayGetCount(res_array) / 2);
 	    break;
 
         case IPP_QUALITY_HIGH :
-	    printer_resolution = cupsArrayIndex(res_array, cupsArrayCount(res_array) - 1);
+	    printer_resolution = cupsArrayGetElement(res_array, cupsArrayGetCount(res_array) - 1);
 	    break;
 
 	default :
@@ -2813,7 +2298,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   }
 
   if (!printer_resolution)
-    printer_resolution = cupsArrayIndex(res_array, cupsArrayCount(res_array) / 2);
+    printer_resolution = cupsArrayGetElement(res_array, cupsArrayGetCount(res_array) / 2);
 
   if (!printer_resolution)
   {
@@ -2860,7 +2345,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     }
   }
 
-  if ((type_array = cupsArrayNew3((cups_array_func_t)strcasecmp, NULL, NULL, 0, (cups_acopy_func_t)_cupsStrAlloc, (cups_afree_func_t)_cupsStrFree)) != NULL)
+  if ((type_array = cupsArrayNew((cups_array_cb_t)strcasecmp, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free)) != NULL)
     _cupsArrayAddStrings(type_array, types, ',');
 
   if (color)

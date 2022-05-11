@@ -1,9 +1,7 @@
 #
-# IPP tools makefile.
+# Tools makefile.
 #
-# Copyright © 2014-2021 by the IEEE-ISTO Printer Working Group.
-# Copyright © 2007-2019 by Apple Inc.
-# Copyright © 1997-2006 by Easy Software Products, all rights reserved.
+# Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
 # information.
@@ -89,7 +87,7 @@ test:
 # ipp3dprinter
 #
 
-ipp3dprinter:	ipp3dprinter.o ../cups/libcups.a
+ipp3dprinter:	ipp3dprinter.o ../libcups/cups/libcups.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ipp3dprinter.o $(LIBS)
 
@@ -98,7 +96,7 @@ ipp3dprinter:	ipp3dprinter.o ../cups/libcups.a
 # ippdoclint
 #
 
-ippdoclint:	ippdoclint.o ../cups/libcups.a
+ippdoclint:	ippdoclint.o ../libcups/cups/libcups.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ippdoclint.o $(LIBS)
 
@@ -107,7 +105,7 @@ ippdoclint:	ippdoclint.o ../cups/libcups.a
 # ippproxy
 #
 
-ippproxy:	ippproxy.o ../cups/libcups.a
+ippproxy:	ippproxy.o ../libcups/cups/libcups.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ippproxy.o $(LIBS)
 
@@ -116,7 +114,7 @@ ippproxy:	ippproxy.o ../cups/libcups.a
 # ipptransform
 #
 
-ipptransform:	ipptransform.o ../cups/libcups.a
+ipptransform:	ipptransform.o ../libcups/cups/libcups.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ipptransform.o $(LIBS)
 
@@ -125,7 +123,7 @@ ipptransform:	ipptransform.o ../cups/libcups.a
 # ipptransform3d
 #
 
-ipptransform3d:	ipptransform3d.o ../cups/libcups.a
+ipptransform3d:	ipptransform3d.o ../libcups/cups/libcups.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ipptransform3d.o $(LIBS)
 
