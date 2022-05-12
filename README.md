@@ -19,6 +19,61 @@ general-purpose and configurable.
 > formal security testing or analysis, and might eat your pet...
 
 
+Getting the Code
+----------------
+
+From the Github sources, clone the repository with the `--recurse-submodules`
+option *or* use the `git submodule` commands:
+
+    git clone --recurse-submodules git@github.com:istopwg/ippsample.git
+
+    git clone git@github.com:istopwg/ippsample.git
+    git submodule init
+    git submodule update
+
+When updating an already-cloned repository:
+
+    git pull
+    git submodule update
+
+
+Building the Code
+-----------------
+
+The IPP sample code uses a configure script on POSIX platforms to take care of
+any platform differences:
+
+    ./configure OPTIONS
+    make
+
+The following options are supported:
+
+- `--disable-shared`: Disable shared libraries.
+- `--enable-debug`: Enable debugging and debug logging.
+- `--enable-maintainer`: Enable warnings as errors.
+- `--enable-sanitizer`: Enable address sanitizer.
+- `--enable-static`: Enable static libraries.
+- `--prefix=PATH`: Configure the installation directory, default is `/usr/local`.
+
+On macOS, the "xcode" directory contains an Xcode workspace that can be used to
+build the code.  Similarly, on Windows the "vcnet" directory contains a Visual
+Studio solution that can be used to build the code.
+
+
+Testing the Code
+----------------
+
+The "test" target runs all of the unit tests and a full-up "system" test of the
+various programs.
+
+
+Resources
+---------
+
+The IPP sample code includes per-specification ipptool test files under the
+"examples" directory.
+
+
 ipp3dprinter
 -------------
 
@@ -54,8 +109,8 @@ ipptransform
 ------------
 
 The `ipptransform` program is a generic file conversion utility that is used
-primarily with `ippeveprinter` and `ippserver` to support rasterization of JPEG
-and PDF documents for IPP Everywhere™ and HP PCL printers.
+primarily with `ippeveprinter` and `ippserver` to support rasterization of JPEG,
+PNG, and PDF documents for IPP Everywhere™ and HP PCL printers.
 
 
 ipptransform3d
