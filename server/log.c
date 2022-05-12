@@ -180,8 +180,7 @@ serverLogPrinter(
   * printf format specifiers.
   */
 
-  strncpy(temp, "[Printer ", sizeof(temp) - 1);
-  temp[sizeof(temp) - 1] = '\0';
+  cupsCopyString(temp, "[Printer ", sizeof(temp));
   for (tempptr = temp + 9, nameptr = printer->name; *nameptr && tempptr < (temp + 200); tempptr ++)
   {
     if (*nameptr == '%')
@@ -190,7 +189,7 @@ serverLogPrinter(
   }
   *tempptr++ = ']';
   *tempptr++ = ' ';
-  strncpy(tempptr, format, sizeof(temp) - (size_t)(tempptr - temp - 1));
+  cupsCopyString(tempptr, format, sizeof(temp) - (size_t)(tempptr - temp));
 
   va_start(ap, format);
   server_log_to_file(level, temp, ap);
@@ -375,7 +374,7 @@ safe_vsnprintf(
 
             if (bufptr)
 	    {
-	      strncpy(bufptr, temp, (size_t)(bufend - bufptr - 1));
+	      cupsCopyString(bufptr, temp, (size_t)(bufend - bufptr));
 	      bufptr += strlen(bufptr);
 	    }
 	    break;
@@ -405,7 +404,7 @@ safe_vsnprintf(
 
 	    if (bufptr)
 	    {
-	      strncpy(bufptr, temp, (size_t)(bufend - bufptr - 1));
+	      cupsCopyString(bufptr, temp, (size_t)(bufend - bufptr));
 	      bufptr += strlen(bufptr);
 	    }
 	    break;
@@ -420,7 +419,7 @@ safe_vsnprintf(
 
 	    if (bufptr)
 	    {
-	      strncpy(bufptr, temp, (size_t)(bufend - bufptr - 1));
+	      cupsCopyString(bufptr, temp, (size_t)(bufend - bufptr));
 	      bufptr += strlen(bufptr);
 	    }
 	    break;

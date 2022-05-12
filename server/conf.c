@@ -650,8 +650,7 @@ add_document_privacy(void)
   {
     DocumentPrivacyArray = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
 
-    strncpy(temp, DocumentPrivacyAttributes, sizeof(temp) - 1);
-    temp[sizeof(temp) - 1] = '\0';
+    cupsCopyString(temp, DocumentPrivacyAttributes, sizeof(temp));
 
     ptr = temp;
     while (*ptr)
@@ -929,8 +928,7 @@ add_job_privacy(void)
   {
     JobPrivacyArray = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
 
-    strncpy(temp, JobPrivacyAttributes, sizeof(temp) - 1);
-    temp[sizeof(temp) - 1] = '\0';
+    cupsCopyString(temp, JobPrivacyAttributes, sizeof(temp));
 
     ptr = temp;
     while (*ptr)
@@ -1027,8 +1025,7 @@ add_subscription_privacy(void)
   {
     SubscriptionPrivacyArray = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
 
-    strncpy(temp, SubscriptionPrivacyAttributes, sizeof(temp) - 1);
-    temp[sizeof(temp) - 1] = '\0';
+    cupsCopyString(temp, SubscriptionPrivacyAttributes, sizeof(temp));
 
     ptr = temp;
     while (*ptr)

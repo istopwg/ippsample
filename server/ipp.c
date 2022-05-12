@@ -812,8 +812,7 @@ copy_document_uri(
       * Follow redirection...
       */
 
-      strncpy(redirect, httpGetField(http, HTTP_FIELD_LOCATION), sizeof(redirect) - 1);
-      redirect[sizeof(redirect) - 1] = '\0';
+      cupsCopyString(redirect, httpGetField(http, HTTP_FIELD_LOCATION), sizeof(redirect));
       httpClose(http);
 
       uri_status = httpSeparateURI(HTTP_URI_CODING_ALL, redirect, scheme, sizeof(scheme), userpass, sizeof(userpass), hostname, sizeof(hostname), &port, resource, sizeof(resource));
@@ -1092,8 +1091,7 @@ copy_printer_attributes(
 
     ippFirstAttribute(client->request);
     attr = ippNextAttribute(client->request);
-    strncpy(lang, ippGetString(attr, 0, NULL), sizeof(lang) - 1);
-    lang[sizeof(lang) - 1] = '\0';
+    cupsCopyString(lang, ippGetString(attr, 0, NULL), sizeof(lang));
     key.lang = lang;
     if ((match = cupsArrayFind(printer->pinfo.strings, &key)) == NULL && lang[2])
     {
@@ -2549,8 +2547,7 @@ ipp_create_printer(
     return;
   }
 
-  strncpy(name, printer_name, sizeof(name) - 1);
-  name[sizeof(name) - 1] = '\0';
+  cupsCopyString(name, printer_name, sizeof(name));
   for (nameptr = name; *nameptr; nameptr ++)
     if ((*nameptr & 255) <= ' ' || *nameptr == '#' || *nameptr == '/' || *nameptr == 0x7f)
       *nameptr = '_';
@@ -5027,8 +5024,7 @@ ipp_get_system_attributes(
 
     ippFirstAttribute(client->request);
     attr = ippNextAttribute(client->request);
-    strncpy(lang, ippGetString(attr, 0, NULL), sizeof(lang) - 1);
-    lang[sizeof(lang) - 1] = '\0';
+    cupsCopyString(lang, ippGetString(attr, 0, NULL), sizeof(lang));
     key.lang = lang;
     if ((match = cupsArrayFind(printer->pinfo.strings, &key)) == NULL && lang[2])
     {
@@ -7880,8 +7876,7 @@ ipp_update_output_device_attributes(
       else
         high = low;
 
-      strncpy(temp, attrname, sizeof(temp) - 1);
-      temp[sizeof(temp) - 1] = '\0';
+      cupsCopyString(temp, attrname, sizeof(temp));
       if ((tempptr = strrchr(temp, '.')) != NULL)
         *tempptr = '\0';
 

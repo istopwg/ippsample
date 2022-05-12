@@ -116,8 +116,7 @@ serverCreateListeners(const char *host,	/* I - Hostname, IP address, or NULL for
 
     lis = calloc(1, sizeof(server_listener_t));
     lis->fd = sock;
-    strncpy(lis->host, host, sizeof(lis->host) - 1);
-    lis->host[sizeof(lis->host) - 1] = '\0';
+    cupsCopyString(lis->host, host, sizeof(lis->host));
     lis->port = port;
 
     if (!Listeners)
