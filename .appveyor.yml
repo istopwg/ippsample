@@ -1,5 +1,18 @@
 version: "{build}"
-image: Visual Studio 2017
+image: Visual Studio 2019
+clone_script:
+  - ps: >-
+    if (-not $env:APPVEYOR_PULL_REQUEST_NUMBER) {
+      git clone -q --branch=$env:APPVEYOR_REPO_BRANCH https://github.com/$env:APPVEYOR_REPO_NAME.git $env:APPVEYOR_BUILD_FOLDER
+      cd $env:APPVEYOR_BUILD_FOLDER
+      git checkout -qf $env:APPVEYOR_REPO_COMMIT
+    } else {
+      git clone -q https://github.com/$env:APPVEYOR_REPO_NAME.git $env:APPVEYOR_BUILD_FOLDER
+      cd $env:APPVEYOR_BUILD_FOLDER
+      git fetch -q origin +refs/pull/$env:APPVEYOR_PULL_REQUEST_NUMBER/merge:
+      git checkout -qf FETCH_HEAD
+    }
+  - cmd: git submodule update --init --recursive
 
 # Uncomment to debug via RDP
 # init:
@@ -18,6 +31,8 @@ install:
 
   # Install zlib dependency
   - ps: nuget restore vcnet\ippsample.sln
+  - ps: nuget restore libcups\vcnet\libcups.sln
+  - ps: nuget restore pdfio\pdfio.sln
 
 build_script:
   - ps: msbuild.exe vcnet\ippsample.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v140
