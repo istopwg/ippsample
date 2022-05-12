@@ -1,5 +1,5 @@
 name: ipp
-base: core18
+base: core20
 version: 1.0b1
 summary: IPP Sample Implementation
 description: |
@@ -11,42 +11,42 @@ grade: stable
 confinement: strict
 icon: server/printer.png
 
+architectures:
+  - build-on: [ arm64, armhf, amd64 ]
+    run-on: [ arm64, armhf, amd64 ]
+
 apps:
-    server:
-        command: sbin/server
+    ipp3dprinter:
+        command: bin/ipp3dprinter
         plugs: [avahi-observe, home, network, network-bind]
-    eveprinter:
-        command: bin/eveprinter
+    ippdoclint:
+        command: bin/ippdoclint
+        plugs: [home]
+    ippeveprinter:
+        command: bin/ippeveprinter
         plugs: [avahi-observe, home, network, network-bind]
-    find:
-        command: bin/find
+    ippfind:
+        command: bin/ippfind
         plugs: [avahi-observe, home, network]
-    proxy:
-        command: sbin/proxy
+    ippproxy:
+        command: sbin/ippproxy
         plugs: [avahi-observe, home, network]
-    tool:
-        command: bin/tool
+    ippserver:
+        command: sbin/ippserver
+        plugs: [avahi-observe, home, network, network-bind]
+    ipptool:
+        command: bin/ipptool
+        plugs: [home, network]
+    ipptransform:
+        command: bin/ipptransform
+        plugs: [home, network]
+    ipptransform3d:
+        command: bin/ipptransform3d
         plugs: [home, network]
 
 parts:
-    mupdf:
-        plugin: make
-        make-install-var: prefix
-        make-parameters: [HAVE_X11=no, HAVE_GLFW=no, HAVE_GLUT=no, USE_SYSTEM_LIBS=yes]
-        source: https://mupdf.com/downloads/archive/mupdf-1.12.0-source.tar.gz
-        prime:
-            - -bin/mu*
-            - -include/mu*
-            - -lib/libmu*
-            - -share/doc/mupdf
-            - -share/man/man1/mu*
-        build-packages: [libfreetype6-dev, libharfbuzz-dev, libjbig2dec0-dev, libjpeg-dev, liblcms2-dev, libopenjp2-7-dev, libpng-dev, zlib1g-dev]
-
     main:
-        after: [mupdf]
         plugin: autotools
-        configflags: [--with-name-prefix=]
         source: .
-        build-packages: [cura-engine, libavahi-client-dev, libfreetype6-dev, libgnutls28-dev, libharfbuzz-dev, libjbig2dec0-dev, libjpeg-dev, liblcms2-dev, libopenjp2-7-dev, libpng-dev, zlib1g-dev]
-        stage-packages: [libavahi-client3, libjpeg-turbo8, libopenjp2-7]
-
+        build-packages: [cura-engine, libavahi-client-dev, libjpeg-dev, libpam-dev, libpng-dev, libssl-dev, libusb-1.0-0-dev, zlib1g-dev]
+        stage-packages: [libavahi-client3, libjpeg-turbo8]
