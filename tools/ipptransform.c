@@ -214,7 +214,7 @@ main(int  argc,				/* I - Number of command-line args */
 	        usage(1);
 	      }
 
-	      stdout = freopen(argv[i], "w", stdout);
+	      freopen(argv[i], "w", stdout);
 	      break;
 
 	  case 'i' :
@@ -567,7 +567,9 @@ main(int  argc,				/* I - Number of command-line args */
  * 'load_env_options()' - Load options from the environment.
  */
 
+#ifndef _WIN32
 extern char **environ;
+#endif // !_WIN32
 
 static size_t				/* O - Number of options */
 load_env_options(
@@ -711,7 +713,7 @@ monitor_ipp(const char *device_uri)	/* I - Device URI */
 	else
 	  fprintf(stderr, "ATTR: %s='%s'\n", name, value);
 
-        strlcpy(pvalues[i], value, sizeof(pvalues[i]));
+        cupsCopyString(pvalues[i], value, sizeof(pvalues[i]));
       }
     }
 

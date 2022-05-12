@@ -725,7 +725,9 @@ lint_raster(const char *filename,	/* I - File to check */
  * 'load_env_options()' - Load options from the environment.
  */
 
+#ifndef _WIN32
 extern char **environ;
+#endif // !_WIN32
 
 static size_t				/* O - Number of options */
 load_env_options(

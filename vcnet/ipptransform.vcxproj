@@ -105,16 +105,15 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="dnssdstub.vcxproj">
-      <Project>{c0899b3a-43e7-4bc3-a785-659e1fd2ea83}</Project>
-    </ProjectReference>
-    <ProjectReference Include="libcups3.vcxproj">
-      <Project>{cb4aa6f2-3e84-45be-b505-95cd375e8be3}</Project>
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-    </ProjectReference>
+    <ClCompile Include="..\tools\ipptransform.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\tools\ipptransform.c" />
+    <ProjectReference Include="..\libcups\vcnet\dnssdstub.vcxproj">
+      <Project>{c0899b3a-43e7-4bc3-a785-659e1fd2ea83}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\libcups\vcnet\libcups3.vcxproj">
+      <Project>{cb4aa6f2-3e84-45be-b505-95cd375e8be3}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
