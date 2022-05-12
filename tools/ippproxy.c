@@ -12,9 +12,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <signal.h>
-#include <unistd.h>
-#include <fcntl.h>
+#ifndef _WIN32
+#  include <signal.h>
+#  include <unistd.h>
+#  include <fcntl.h>
+#endif // !_WIN32
 #include <cups/cups.h>
 #include <cups/thread.h>
 
@@ -288,9 +290,11 @@ main(int  argc,				/* I - Number of command-line arguments */
   * Register the printer and wait for jobs to process...
   */
 
+#ifndef _WIN32
   signal(SIGHUP, sighandler);
   signal(SIGINT, sighandler);
   signal(SIGTERM, sighandler);
+#endif // !_WIN32
 
   if ((subscription_id = register_printer(http, printer_uri, resource, device_uri, device_uuid)) == 0)
   {
@@ -894,8 +898,14 @@ plogf(proxy_job_t *pjob,			/* I - Proxy job, if any */
   struct tm	curdate;		/* Current date and time */
 
 
+#ifdef _WIN32
+  _cups_gettimeofday(&curtime, NULL);
+  time_t tv_sec = (time_t)curtime.tv_sec;
+  gmtime_s(&curdate, &tv_sec);
+#else
   gettimeofday(&curtime, NULL);
   gmtime_r(&curtime.tv_sec, &curdate);
+#endif /* _WIN32 */
 
   if (pjob)
     snprintf(temp, sizeof(temp), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ  [Job %d] %s\n", curdate.tm_year + 1900, curdate.tm_mon + 1, curdate.tm_mday, curdate.tm_hour, curdate.tm_min, curdate.tm_sec, (int)curtime.tv_usec / 1000, pjob->remote_job_id, message);
