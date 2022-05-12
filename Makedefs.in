@@ -9,20 +9,11 @@
 # information.
 #
 
-#
 # Version of the IPP sample code.
-#
-
-IPPSAMPLE_VERSION =	@CUPS_VERSION@
+IPPSAMPLE_VERSION =	@IPPSAMPLE_VERSION@
 
 
-#
 # Components that get built...
-#
-
-IPPFIND_BIN		=	@IPPFIND_BIN@
-IPPFIND_HTML		=	@IPPFIND_HTML@
-IPPFIND_MAN		=	@IPPFIND_MAN@
 IPPTRANSFORM_BIN	=	@IPPTRANSFORM_BIN@
 IPPTRANSFORM_HTML	=	@IPPTRANSFORM_HTML@
 IPPTRANSFORM_MAN	=	@IPPTRANSFORM_MAN@
@@ -31,37 +22,24 @@ IPPTRANSFORM3D_HTML	=	@IPPTRANSFORM3D_HTML@
 IPPTRANSFORM3D_MAN	=	@IPPTRANSFORM3D_MAN@
 
 
-#
 # Programs...
-#
-
-AR		=	@AR@
-AWK		=	@AWK@
 CC		=	@CC@
-CHMOD		=	@CHMOD@
-GZIP		=	@GZIP@
 INSTALL		=	@INSTALL@
-RANLIB		=	@RANLIB@
+LN		=	@LN@ -sf
+MKDIR           =       @MKDIR@ -p
 RM		=	@RM@ -f
 RMDIR		=	@RMDIR@
 SED		=	@SED@
 SHELL		=	/bin/sh
 
-#
-# Installation programs...
-#
 
-INSTALL_BIN	=	$(LIBTOOL) $(INSTALL) -c -m 555 @INSTALL_STRIP@
+# Installation programs...
+INSTALL_BIN	=	$(LIBTOOL) $(INSTALL) -c -m 755
 INSTALL_DATA	=	$(INSTALL) -c -m 444
-INSTALL_DIR	=	$(INSTALL) -d
-INSTALL_LIB	=	$(LIBTOOL) $(INSTALL) -c -m 555 @INSTALL_STRIP@
+INSTALL_DIR	=	$(INSTALL) -d -m 755
+INSTALL_LIB	=	$(LIBTOOL) $(INSTALL) -c -m 755
 INSTALL_MAN	=	$(INSTALL) -c -m 444
 
-#
-# Libraries...
-#
-
-LIBZ		=	@LIBZ@
 
 # Programs and options...
 CC		=	@CC@
@@ -73,12 +51,7 @@ CSFLAGS		=	-s "$(CODESIGN_IDENTITY)" @CSFLAGS@ --timestamp
 INSTALL		=	@INSTALL@
 LDFLAGS		=	@LDFLAGS@ $(OPTIM)
 LIBS		=	../pdfio/libpdfio.a -L../libcups/cups `PKG_CONFIG_PATH=../libcups pkg-config --libs cups` @LIBS@ -lm
-LN		=	@LN@
-MKDIR           =       @MKDIR@ -p
 OPTIM		=	@OPTIM@
-RM		=	@RM@ -f
-RMDIR		=	@RMDIR@
-SHELL		=	/bin/sh
 WARNINGS	=	@WARNINGS@
 
 

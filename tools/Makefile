@@ -1,5 +1,5 @@
 #
-# Tools makefile.
+# Tools makefile for the IPP sample code.
 #
 # Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group.
 #
@@ -58,18 +58,21 @@ depend:
 #
 
 install:	all
-	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(bindir)
+	echo "Installing user programs to $(BUILDROOT)$(bindir)..."
+	$(INSTALL_DIR) $(BUILDROOT)$(bindir)
 	for file in $(BIN_TARGETS); do \
 		destfile=`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`; \
 		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir)/$$destfile; \
 	done
-	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(libexecdir)/cups/command
+	echo "Installing printer commands to $(BUILDROOT)$(libexecdir)/cups/command..."
+	$(INSTALL_DIR) $(BUILDROOT)$(libexecdir)/cups/command
 	for file in $(COMMAND_TARGETS); do \
 		destfile=`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`; \
 		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir)/$$destfile; \
-		ln -sf ../../../bin/$$destfile $(BUILDROOT)$(libexecdir)/cups/command/$$file; \
+		$(LN) $(bindir)/$$destfile $(BUILDROOT)$(libexecdir)/cups/command/$$file; \
 	done
-	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(sbindir)
+	echo "Installing admin programs to $(BUILDROOT)$(sbindir)..."
+	$(INSTALL_DIR) $(BUILDROOT)$(sbindir)
 	for file in $(SBIN_TARGETS); do \
 		destfile=`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`; \
 		$(INSTALL_BIN) $$file $(BUILDROOT)$(sbindir)/$$destfile; \

@@ -63,6 +63,7 @@ AC_PROG_CC
 AC_PATH_PROGS([CODE_SIGN], [codesign true])
 AC_PATH_PROG([MKDIR], [mkdir])
 AC_PATH_PROG([RM], [rm])
+AC_PATH_PROG([RMDIR], [rmdir])
 AC_PATH_PROG([LN], [ln])
 
 

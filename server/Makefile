@@ -1,5 +1,5 @@
 #
-# Makefile for sample IPP server implementation.
+# Makefile for sample IPP server.
 #
 # Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group.
 #
@@ -64,7 +64,8 @@ depend:
 #
 
 install:	all
-	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(sbindir)
+	echo "Installing server to $(BUILDROOT)$(sbindir)..."
+	$(INSTALL_DIR) $(BUILDROOT)$(sbindir)
 	$(INSTALL_BIN) ippserver $(BUILDROOT)$(sbindir)/$(IPP)server
 
 

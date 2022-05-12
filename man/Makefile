@@ -1,8 +1,7 @@
 #
 # IPP documentation makefile.
 #
-# Copyright © 2014-2019 by the IEEE-ISTO Printer Working Group.
-# Copyright © 2015-2019 by Apple Inc.
+# Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
 # information.
@@ -16,13 +15,7 @@ OBJS		=	\
 TARGETS		=	\
 			mantohtml
 MAN1		=	\
-			ipp3dprinter.1 \
-			ippeveprinter.1 \
-			$(IPPFIND_MAN) \
-			ipptool.1
-MAN5		=	\
-			ipptoolfile.5
-
+			ipp3dprinter.1
 MAN7		=	\
 			ippdoclint.7 \
 			$(IPPTRANSFORM_MAN) \
@@ -33,12 +26,8 @@ MAN8		=	\
 HTML		=	\
 			ipp3dprinter.html \
 			ippdoclint.html \
-			ippeveprinter.html \
-			$(IPPFIND_HTML) \
 			ippproxy.html \
 			ippserver.html \
-			ipptool.html \
-			ipptoolfile.html \
 			$(IPPTRANSFORM_HTML) \
 			$(IPPTRANSFORM3D_HTML)
 
@@ -47,8 +36,8 @@ HTML		=	\
 # Rules for converting man pages to HTML...
 #
 
-.SUFFIXES:	.1 .5 .7 .8 .html
-.1.html .5.html .7.html .8.html:	mantohtml
+.SUFFIXES:	.1 .7 .8 .html
+.1.html .7.html .8.html:	mantohtml
 	echo Generating $@...
 	./mantohtml $< >$@
 
@@ -81,24 +70,17 @@ depend:
 #
 
 install:
-	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(mandir)/man1
+	echo "Installing man pages to $(BUILDROOT)/$(mandir)..."
+	$(INSTALL_DIR) $(BUILDROOT)$(mandir)/man1
 	for file in $(MAN1); do \
-		man="`echo $$file .| sed -e '1,$$s/^ipp/$(IPP)/'`"; \
 		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man1/$$man; \
 	done
-	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(mandir)/man5
-	for file in $(MAN5); do \
-		man="`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`"; \
-		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man5/$$man; \
-	done
-	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(mandir)/man7
+	$(INSTALL_DIR) $(BUILDROOT)$(mandir)/man7
 	for file in $(MAN7); do \
-		man="`echo $$file .| sed -e '1,$$s/^ipp/$(IPP)/'`"; \
 		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man7/$$man; \
 	done
-	$(INSTALL_DIR) -m 755 $(BUILDROOT)$(mandir)/man8
+	$(INSTALL_DIR) $(BUILDROOT)$(mandir)/man8
 	for file in $(MAN8); do \
-		man="`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`"; \
 		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man8/$$man; \
 	done
 
