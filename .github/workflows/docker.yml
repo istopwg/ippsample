@@ -78,7 +78,7 @@ jobs:
       -
         name: Call commands
         run: |
-          docker run ippsample:${{ needs.setup.outputs.IMAGE_TAG }} ipp3dprinter --version
+          docker run ippsample:${{ needs.setup.outputs.IMAGE_TAG }} ippserver --version
           docker run ippsample:${{ needs.setup.outputs.IMAGE_TAG }} ippeveprinter --version
           docker run ippsample:${{ needs.setup.outputs.IMAGE_TAG }} ippfind --version
           docker run ippsample:${{ needs.setup.outputs.IMAGE_TAG }} ipptool --version
