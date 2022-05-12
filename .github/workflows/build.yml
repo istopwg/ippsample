@@ -44,3 +44,18 @@ jobs:
       run: make
     - name: test
       run: make test || cat test/error_log*
+
+  build-windows:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: setup-msbuild
+      uses: microsoft/setup-msbuild@v1.0.2
+    - name: nuget restore
+      run: cd vcnet; nuget restore ippsample.sln; cd ..\libcups\vcnet; nuget restore libcups.sln; cd ..\..\pdfio; nuget restore pdfio.sln
+    - name: msbuild
+      run: cd vcnet; msbuild ippsample.sln
