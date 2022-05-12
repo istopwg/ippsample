@@ -8,7 +8,6 @@
  * information.
  */
 
-#define _GNU_SOURCE
 #include "ippserver.h"
 
 #ifdef _WIN32
