@@ -79,6 +79,7 @@ main(int  argc,				/* I - Number of command-line args */
     else if (!strcmp(argv[i], "--version"))
     {
       puts(IPPSAMPLE_VERSION);
+      return (0);
     }
     else if (!strncmp(argv[i], "--", 2))
     {

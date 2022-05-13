@@ -18,4 +18,4 @@ ENTRYPOINT ["/usr/bin/entrypoint.sh"]
 
 # Copy source files to image
 COPY . /root/ippsample/
-RUN cd /root/ippsample; ./configure; make; make install
+RUN cd /root/ippsample; ./configure --prefix=/usr; make; make install

@@ -61,21 +61,18 @@ install:	all
 	echo "Installing user programs to $(BUILDROOT)$(bindir)..."
 	$(INSTALL_DIR) $(BUILDROOT)$(bindir)
 	for file in $(BIN_TARGETS); do \
-		destfile=`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`; \
-		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir)/$$destfile; \
+		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir)/$$file; \
 	done
 	echo "Installing printer commands to $(BUILDROOT)$(libexecdir)/cups/command..."
 	$(INSTALL_DIR) $(BUILDROOT)$(libexecdir)/cups/command
 	for file in $(COMMAND_TARGETS); do \
-		destfile=`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`; \
-		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir)/$$destfile; \
-		$(LN) $(bindir)/$$destfile $(BUILDROOT)$(libexecdir)/cups/command/$$file; \
+		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir)/$$file; \
+		$(LN) $(bindir)/$$file $(BUILDROOT)$(libexecdir)/cups/command/$$file; \
 	done
 	echo "Installing admin programs to $(BUILDROOT)$(sbindir)..."
 	$(INSTALL_DIR) $(BUILDROOT)$(sbindir)
 	for file in $(SBIN_TARGETS); do \
-		destfile=`echo $$file | sed -e '1,$$s/^ipp/$(IPP)/'`; \
-		$(INSTALL_BIN) $$file $(BUILDROOT)$(sbindir)/$$destfile; \
+		$(INSTALL_BIN) $$file $(BUILDROOT)$(sbindir)/$$file; \
 	done
 
 

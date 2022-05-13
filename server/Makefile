@@ -64,9 +64,9 @@ depend:
 #
 
 install:	all
-	echo "Installing server to $(BUILDROOT)$(bindir)..."
-	$(INSTALL_DIR) $(BUILDROOT)$(bindir)
-	$(INSTALL_BIN) ippserver $(BUILDROOT)$(bindir)/$(IPP)server
+	echo "Installing server to $(BUILDROOT)$(sbindir)..."
+	$(INSTALL_DIR) $(BUILDROOT)$(sbindir)
+	$(INSTALL_BIN) ippserver $(BUILDROOT)$(sbindir)/ippserver
 
 
 #
