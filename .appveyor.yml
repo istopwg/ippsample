@@ -1,18 +1,5 @@
 version: "{build}"
 image: Visual Studio 2019
-clone_script:
-  - ps: >-
-    if (-not $env:APPVEYOR_PULL_REQUEST_NUMBER) {
-      git clone -q --branch=$env:APPVEYOR_REPO_BRANCH https://github.com/$env:APPVEYOR_REPO_NAME.git $env:APPVEYOR_BUILD_FOLDER
-      cd $env:APPVEYOR_BUILD_FOLDER
-      git checkout -qf $env:APPVEYOR_REPO_COMMIT
-    } else {
-      git clone -q https://github.com/$env:APPVEYOR_REPO_NAME.git $env:APPVEYOR_BUILD_FOLDER
-      cd $env:APPVEYOR_BUILD_FOLDER
-      git fetch -q origin +refs/pull/$env:APPVEYOR_PULL_REQUEST_NUMBER/merge:
-      git checkout -qf FETCH_HEAD
-    }
-  - cmd: git submodule update --init --recursive
 
 # Uncomment to debug via RDP
 # init:
@@ -28,6 +15,9 @@ install:
       -Subject 'CN=IEEE INDUSTRY STANDARDS AND TECHNOLOGY ORGANIZATION' `
       -KeyAlgorithm RSA -KeyLength 2048 -Type CodeSigningCert `
       -CertStoreLocation Cert:\CurrentUser\My
+
+  # Grab submodules...
+  - ps: git submodule update --init --recursive
 
   # Install zlib dependency
   - ps: nuget restore vcnet\ippsample.sln
