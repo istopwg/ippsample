@@ -12,8 +12,9 @@ confinement: strict
 icon: server/printer.png
 
 architectures:
-  - build-on: [ arm64, armhf, amd64 ]
-    run-on: [ arm64, armhf, amd64 ]
+  - build-on: amd64
+  - build-on: arm64
+  - build-on: armhf
 
 apps:
     ipp3dprinter:
@@ -47,6 +48,6 @@ apps:
 parts:
     main:
         plugin: autotools
-        source: .
+        source-type: git
         build-packages: [cura-engine, libavahi-client-dev, libjpeg-dev, libpam-dev, libpng-dev, libssl-dev, libusb-1.0-0-dev, zlib1g-dev]
         stage-packages: [libavahi-client3, libjpeg-turbo8]
