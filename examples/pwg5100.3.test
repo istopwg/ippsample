@@ -1,884 +1,103 @@
 #
-#Check a printer for conformance with pwg5100.3: Production Printing Attributes - Set 1
+# Top-level Makefile for IPP sample implementations.
 #
+# Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group.
 #
-#Usage:
+# Licensed under Apache License v2.0.  See the file "LICENSE" for more
+# information.
 #
-#	./ipptool printer-uri pwg5100.3.1.test
+# Usage:
 #
+#   ./ipptool -t PRINTER-URI pwg5100.3.test
+#
+
 {
-	NAME "Get printer attributes"
-	OPERATION Get-Printer-Attributes
+    NAME "PWG 5100.3-20YY: Required Attributes"
+    OPERATION Get-Printer-Attributes
 
-	GROUP operation-attributes-tag
-	ATTR charset attributes-charset utf-8
-	ATTR language attributes-natural-language en
-	ATTR uri printer-uri $uri
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR language attributes-natural-language en
+    ATTR uri printer-uri $uri
 
-	STATUS successful-ok
-
-# Checking which optional attributes (Section 7.1 pwg5100.3 Column 1) are satisfied.
+    STATUS successful-ok
 
     EXPECT cover-back-supported OF-TYPE keyword IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_COVER_BACK
-    
-     
-    EXPECT x-side2-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_X_SIDE2_IMAGE_SHIFT
-    EXPECT y-side2-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_Y_SIDE2_IMAGE_SHIFT
-    EXPECT x-side1-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_X_SIDE1_IMAGE_SHIFT
-    EXPECT y-side1-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_Y_SIDE1_IMAGE_SHIFT
+    EXPECT cover-back-default OF-TYPE collection|no-value IN-GROUP printer-attributes-tag COUNT 1 IF-DEFINED HAVE_COVER_BACK
 
-# Ensuring that attributes which become conditionally required (Section 7.1 pwg5100.3 Column 2) are present when corresponding condition is satisfied.
+    EXPECT cover-front-supported OF-TYPE keyword IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_COVER_FRONT
+    EXPECT cover-front-default OF-TYPE collection|no-value IN-GROUP printer-attributes-tag COUNT 1 IF-DEFINED HAVE_COVER_FRONT
 
-    EXPECT cover-front-supported OF-TYPE keyword IN-GROUP printer-attributes-tag IF-DEFINED HAVE_COVER_BACK DEFINE-MATCH HAVE_COVER_FRONT    
-    EXPECT x-side1-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag IF-DEFINED HAVE_X_SIDE2_IMAGE_SHIFT DEFINE-MATCH HAVE_X_SIDE1_IMAGE_SHIFT
-    EXPECT y-side1-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag IF-DEFINED HAVE_Y_SIDE2_IMAGE_SHIFT DEFINE-MATCH HAVE_Y_SIDE1_IMAGE_SHIFT
-    EXPECT x-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag IF-DEFINED HAVE_X_SIDE1_IMAGE_SHIFT DEFINE-MATCH HAVE_X_IMAGE_SHIFT
-    EXPECT y-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag IF-DEFINED HAVE_Y_SIDE1_IMAGE_SHIFT DEFINE-MATCH HAVE_y_IMAGE_SHIFT
+    EXPECT cover-type-supported OF-TYPE keyword IN-GROUP printer-attributes-tag IF-DEFINED HAVE_COVER_BACK
+    EXPECT cover-type-supported OF-TYPE keyword IN-GROUP printer-attributes-tag IF-DEFINED HAVE_COVER_FRONT
 
-# Ensuring that xxx-default attributes (if present) satisfy conformance requirements.
+    EXPECT image-orientation-default OF-TYPE enum|no-value IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT image-orientation-supported OF-TYPE enum IN-GROUP printer-attributes-tag
 
-    EXPECT ?cover-back-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1
-    EXPECT ?x-side2-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
-    EXPECT ?y-side2-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
-    EXPECT ?x-side1-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
-    EXPECT ?y-side1-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
-    
-    EXPECT ?cover-front-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1
-    EXPECT ?x-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
-    EXPECT ?y-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
-
-    #NEW ATTRIBUTES
-
-    #Printer Description Attributes
-
-    EXPECT ?cover-type-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
-    
-    EXPECT ?force-front-side-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag
-    EXPECT force-front-side-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_FORCE_FRONT
-    
-    EXPECT ?imposition-template-default OF-TYPE keyword|name IN-GROUP printer-attributes-tag
-    EXPECT ?imposition-template-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag
     EXPECT imposition-template-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_IMPOSITION_TEMPLATE
-    
-    EXPECT ?insert-count-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag
+    EXPECT imposition-template-default OF-TYPE keyword|NAME IN-GROUP printer-attributes-tag COUNT 1 IF-DEFINED HAVE_IMPOSITION_TEMPLATE
 
-    EXPECT ?insert-sheet-default OF-TYPE collection IN-GROUP printer-attributes-tag
-    EXPECT ?insert-sheet-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
-    EXPECT insert-sheet-supported OF-TYPE keyword IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_INSERT_SHEET
+    EXPECT insert-count-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT insert-sheet-default OF-TYPE collection|no-value IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT insert-sheet-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "insert-after-page-number"
+    EXPECT insert-sheet-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "insert-count"
+    EXPECT insert-sheet-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "media"
+    EXPECT insert-sheet-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "media-col"
 
+    EXPECT job-error-sheet-default OF-TYPE collection|no-value IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT job-error-sheet-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE job-error-sheet-type
+    EXPECT job-error-sheet-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE job-error-sheet-when
+    EXPECT job-error-sheet-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE media
+    EXPECT job-error-sheet-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE media-col
 
+    EXPECT job-error-sheet-type-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE none
+    EXPECT job-error-sheet-type-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE standard
 
-    EXPECT ?job-accounting-output-bin-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag 
-    
+    EXPECT job-error-sheet-when-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE always
+    EXPECT job-error-sheet-when-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE on-error
 
-    EXPECT ?job-accounting-sheets-default OF-TYPE collection IN-GROUP printer-attributes-tag
-    EXPECT ?job-accounting-sheets-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+    EXPECT job-message-to-operator-supported OF-TYPE boolean IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE true
 
+    EXPECT job-sheet-message-supported OF-TYPE boolean IN-GROUP printer-attributes-tag COUNT 1 WITH-VALUE true
 
-    EXPECT ?job-accounting-sheets-type-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag
-    EXPECT job-accounting-sheets-type-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_JOB_ACCOUNTING_SHEETS
+    EXPECT separator-sheets-default OF-TYPE collection|no-value IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT separator-sheets-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE separator-sheets-type
+    EXPECT separator-sheets-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE media
+    EXPECT separator-sheets-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE media-col
+    EXPECT separator-sheets-type-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE both-sheets
+    EXPECT separator-sheets-type-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE end-sheet
+    EXPECT separator-sheets-type-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE none
+    EXPECT separator-sheets-type-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE slip-sheets
+    EXPECT separator-sheets-type-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE start-sheet
 
-    EXPECT ?job-error-sheet-default OF-TYPE collection IN-GROUP printer-attributes-tag
-    EXPECT ?job-error-sheet-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
-    EXPECT job-error-sheet-supported OF-TYPE keyword IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_JOB_ERROR_SHEETS
+    EXPECT x-image-position-default OF-TYPE keyword IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT x-image-position-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE center
+    EXPECT x-image-position-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE left
+    EXPECT x-image-position-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE none
+    EXPECT x-image-position-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE right
 
+    EXPECT x-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT x-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag COUNT 1
 
-    EXPECT ?job-error-sheet-type-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag
+    EXPECT x-side1-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT x-side1-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag COUNT 1
 
-    EXPECT ?job-message-to-operator-supported OF-TYPE boolean IN-GROUP printer-attributes-tag
-    EXPECT job-message-to-operator-supported OF-TYPE boolean IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_JOB_MESSAGE_TO_OPERATOR
+    EXPECT x-side2-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT x-side2-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag COUNT 1
 
-    EXPECT ?job-sheet-message-supported OF-TYPE boolean IN-GROUP printer-attributes-tag
-    EXPECT job-sheet-message-supported OF-TYPE boolean IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_JOB_SHEET_MESSAGE
+    EXPECT y-image-position-default OF-TYPE keyword IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT y-image-position-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE bottom
+    EXPECT y-image-position-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE center
+    EXPECT y-image-position-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE none
+    EXPECT y-image-position-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE top
 
-    EXPECT ?page-delivery-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
-    EXPECT page-delivery-supported OF-TYPE keyword IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_PAGE_DELIVERY
+    EXPECT y-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT y-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag COUNT 1
 
-    EXPECT ?presentation-direction-number-up-default OF-TYPE keyword IN-GROUP printer-attributes-tag
-    EXPECT ?presentation-direction-number-up-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
-    EXPECT presentation-direction-number-up-supported OF-TYPE keyword IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_PRESENTATION_DIRECTION_NUMBER_UP
+    EXPECT y-side1-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT y-side1-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag COUNT 1
 
-    EXPECT ?separator-sheets-default OF-TYPE collection IN-GROUP printer-attributes-tag
-    EXPECT ?separator-sheets-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
-    EXPECT separator-sheets-supported OF-TYPE keyword IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_SEPARATOR_SHEETS
-
-
-
-    EXPECT ?separator-sheets-type-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag
-
-    EXPECT ?x-image-position-default OF-TYPE keyword IN-GROUP printer-attributes-tag
-    EXPECT ?x-image-position-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
-    EXPECT x-image-position-supported OF-TYPE keyword IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_X_IMAGE_POSITION
-
-    EXPECT ?x-image-shift-default OF-TYPE integer IN-GROUP document-attributes-tag COUNT 1
-    EXPECT ?x-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag COUNT 1
-    EXPECT x-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_X_IMAGE_SHIFT
-
-    EXPECT ?x-side1-image-shift-default OF-TYPE integer IN-GROUP document-attributes-tag COUNT 1
-    EXPECT ?x-side1-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag COUNT 1
-    EXPECT x-side1-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_X_SIDE1_IMAGE_SHIFT
-
-    EXPECT ?x-side2-image-shift-default OF-TYPE integer IN-GROUP document-attributes-tag COUNT 1
-    EXPECT ?x-side2-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag COUNT 1
-    EXPECT x-side2-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_X_SIDE2_IMAGE_SHIFT
-
-    EXPECT ?Y-image-position-default OF-TYPE keyword IN-GROUP printer-attributes-tag
-    EXPECT ?Y-image-position-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
-    EXPECT y-image-position-supported OF-TYPE keyword IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_Y_IMAGE_POSITION
-
-    EXPECT ?y-image-shift-default OF-TYPE integer IN-GROUP document-attributes-tag COUNT 1
-    EXPECT ?y-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag COUNT 1
-    EXPECT y-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_Y_IMAGE_SHIFT
-
-    EXPECT ?Y-side1-image-shift-default OF-TYPE integer IN-GROUP document-attributes-tag COUNT 1
-    EXPECT ?Y-side1-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag COUNT 1
-    EXPECT y-side1-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_Y_SIDE1_IMAGE_SHIFT
-
-    EXPECT ?y-side2-image-shift-default OF-TYPE integer IN-GROUP document-attributes-tag COUNT 1
-    EXPECT ?y-side2-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag COUNT 1
-    EXPECT y-side2-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_Y_SIDE2_IMAGE_SHIFT
-
-    #Obsolete Attributes
-
-    EXPECT !page-order-received OF-TYPE keyword IN-GROUP printer-attributes-tag
-    EXPECT !current-page-order OF-TYPE keyword IN-GROUP printer-attributes-tag
-    EXPECT !insert-after-page-number-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag
-    EXPECT !job-accounting-output-bin-default OF-TYPE keyword|name IN-GROUP printer-attributes-tag
-    EXPECT !page-order-received-default OF-TYPE keyword IN-GROUP printer-attributes-tag
-    EXPECT !page-order-received-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
-    EXPECT !user-defined-values-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
-
-    #Job Template ATTRIBUTES xxx-supported and xxx-default
-    
+    EXPECT y-side2-image-shift-default OF-TYPE integer IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT y-side2-image-shift-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag COUNT 1
 }
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_COVER_BACK
-	NAME "Print-job operation to pass the cover-back attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR collection cover-back {
-            MEMBER keyword media none
-            MEMBER keyword cover-type print-back
-        }
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_COVER_BACK
-	NAME "Get-job-attribute to check presence of cover-back attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT cover-back OF-TYPE collection IN-GROUP job-attributes-tag COUNT 1
-     EXPECT cover-back/cover-type OF-TYPE keyword|name IN-GROUP job-attributes-tag WITH-VALUE "print-back"
-	 EXPECT job-sheets-col/media OF-TYPE keyword|name IN-GROUP job-attributes-tag WITH-VALUE "none"
-}
-
-{
-
-	SKIP-IF-NOT-DEFINED HAVE_COVER_FRONT
-	NAME "Print-job operation to pass the cover-front attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR collection cover-front {
-
-        }
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_COVER_FRONT
-	NAME "Get-job-attribute to check presence cover-front attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT cover-front OF-TYPE collection IN-GROUP job-attributes-tag COUNT 1
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_FORCE_FRONT
-	NAME "Print-job operation to pass the force-front attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR integer force-front-side 1
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_FORCE_FRONT
-	NAME "Get-job-attribute to check presence force-front-side attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT force-front-side OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE 1
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_IMPOSITION_TEMPLATE
-	NAME "Print-job operation to pass the imposition-template attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR keyword imposition-template none
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_IMPOSITION_TEMPLATE
-	NAME "Get-job-attribute to check presence imposition-template attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT imposition-template OF-TYPE keyword|name IN-GROUP job-attributes-tag WITH-VALUE "none"
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_INSERT_SHEET
-	NAME "Print-job operation to pass the insert-sheet attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR collection insert-sheet {
-            MEMBER integer insert-after-page-number 1
-            MEMBER integer insert-count 1
-            MEMBER keyword media none
-        }
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_INSERT_SHEET
-	NAME "Get-job-attribute to check presence insert-sheet attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT insert-sheet OF-TYPE collection IN-GROUP job-attributes-tag
-     EXPECT insert-sheet/insert-after-page-number OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE 1
-     EXPECT insert-sheet/insert-count OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE 1
-     EXPECT insert-sheet/media OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE "none"
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_JOB_ACCOUNTING_SHEETS
-	NAME "Print-job operation to pass the job-accounting-sheets attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR collection job-accounting-sheets {
-            MEMBER keyword job-accounting-sheets-type standard
-            MEMBER keyword media none
-        }
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_JOB_ACCOUNTING_SHEETS
-	NAME "Get-job-attribute to check presence job-accounting-sheets attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT job-accounting-sheets OF-TYPE collection IN-GROUP job-attributes-tag
-     EXPECT job-accounting-sheets/job-accounting-sheets-type OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE "standard"
-     EXPECT job-accounting-sheets/media OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE "none"
-}
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_JOB_ERROR_SHEETS
-	NAME "Print-job operation to pass the job-error-sheets attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR collection job-error-sheet {
-            MEMBER keyword job-error-sheet-type standard
-            MEMBER keyword job-error-sheet-when always
-            MEMBER keyword media none
-        }
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_JOB_ERROR_SHEETS
-	NAME "Get-job-attribute to check presence job-error-sheet attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT job-accounting-sheet OF-TYPE collection IN-GROUP job-attributes-tag
-     EXPECT job-accounting-sheet/job-error-sheet-type OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE "standard"
-     EXPECT job-accounting-sheet/job-error-sheet-when OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE "always"
-     EXPECT job-accounting-sheet/media OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE "none"
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_JOB_MESSAGE_TO_OPERATOR
-	NAME "Print-job operation to pass the job-message-to-operator attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR text job-message-to-operator "bogus bogus"
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_JOB_MESSAGE_TO_OPERATOR
-	NAME "Get-job-attribute to check presence job-message-to-operator attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT job-message-to-operator OF-TYPE text IN-GROUP job-attributes-tag WITH-VALUE "bogus bogus"
-     
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_JOB_SHEET_MESSAGE
-	NAME "Print-job operation to pass the job-sheet-message attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR text job-sheet-message "bogus bogus"
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_JOB_SHEET_MESSAGE
-	NAME "Get-job-attribute to check presence job-sheet-message attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT job-sheet-message OF-TYPE text IN-GROUP job-attributes-tag WITH-VALUE "bogus bogus"
-     
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_PAGE_DELIVERY
-	NAME "Print-job operation to pass the page-delivery attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR keyword page-delivery same-order-face-up
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_PAGE_DELIVERY
-	NAME "Get-job-attribute to check presence page-delivery attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT page-delivery OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE "same-order-face-up"
-     
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_PRESENTATION_DIRECTION_NUMBER_UP
-	NAME "Print-job operation to pass the presentation-direction-number-up attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR keyword presentation-direction-number-up tobottom-toright
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_PRESENTATION_DIRECTION_NUMBER_UP
-	NAME "Get-job-attribute to check presence presentation-direction-number-up attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT presentation-direction-number-up OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE "tobottom-toright"
-     
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_SEPARATOR_SHEETS
-	NAME "Print-job operation to pass the separator-sheets attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR collection separator-sheets {
-            MEMBER keyword separator-sheets-type none
-            MEMBER keyword media none
-        }
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_SEPARATOR_SHEETS
-	NAME "Get-job-attribute to check presence separator-sheets attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT separator-sheets OF-TYPE collection IN-GROUP job-attributes-tag
-     EXPECT separator-sheets/separator-sheets-type OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE "none"
-     EXPECT separator-sheets/media OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE "none"
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_X_IMAGE_POSITION
-	NAME "Print-job operation to pass the x-image-position attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR keyword x-image-position center
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_X_IMAGE_POSITION
-	NAME "Get-job-attribute to check presence x-image-position attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT x-image-position OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE "center"
-     
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_X_IMAGE_SHIFT
-	NAME "Print-job operation to pass the x-image-shift attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR integer x-image-shift 1
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_X_IMAGE_SHIFT
-	NAME "Get-job-attribute to check presence x-image-shift attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT x-image-shift OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE 1
-     
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_X_SIDE1_IMAGE_SHIFT
-	NAME "Print-job operation to pass the x-side1-image-shift attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR integer x-side1-image-shift 1
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_X_SIDE1_IMAGE_SHIFT
-	NAME "Get-job-attribute to check presence x-side1-image-shift attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT x-side1-image-shift OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE 1
-     
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_X_SIDE2_IMAGE_SHIFT
-	NAME "Print-job operation to pass the x-side2-image-shift attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR integer x-side2-image-shift 1
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_X_SIDE2_IMAGE_SHIFT
-	NAME "Get-job-attribute to check presence x-side2-image-shift attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT x-side2-image-shift OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE 1
-     
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_Y_IMAGE_POSITION
-	NAME "Print-job operation to pass the y-image-position attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR keyword y-image-position center
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_Y_IMAGE_POSITION
-	NAME "Get-job-attribute to check presence y-image-position attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT y-image-position OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE "center"
-     
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_Y_IMAGE_SHIFT
-	NAME "Print-job operation to pass the y-image-shift attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR integer y-image-shift 1
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_Y_IMAGE_SHIFT
-	NAME "Get-job-attribute to check presence y-image-shift attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT y-image-shift OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE 1
-     
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_Y_SIDE1_IMAGE_SHIFT
-	NAME "Print-job operation to pass the y-side1-image-shift attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR integer y-side1-image-shift 1
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_Y_SIDE1_IMAGE_SHIFT
-	NAME "Get-job-attribute to check presence y-side1-image-shift attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT y-side1-image-shift OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE 1
-     
-}
-
-{
-	
-	SKIP-IF-NOT-DEFINED HAVE_Y_SIDE2_IMAGE_SHIFT
-	NAME "Print-job operation to pass the y-side2-image-shift attribute along with the request"
-	OPERATION Print-Job
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR name requesting-user-name $user
-
-	GROUP job-attributes-tag
-		ATTR integer y-side2-image-shift 1
-
-	FILE $filename
-
-	STATUS successful-ok
-	EXPECT job-id OF-TYPE integer IN-GROUP Job-attributes-tag WITH-VALUE >0
-}
-
-{
-	SKIP-IF-NOT-DEFINED HAVE_Y_SIDE2_IMAGE_SHIFT
-	NAME "Get-job-attribute to check presence y-side2-image-shift attribute"
-	OPERATION Get-Job-Attributes
-	GROUP operation-attributes-tag
-		ATTR charset attributes-charset utf-8
-		ATTR language attributes-natural-language en
-		ATTR uri printer-uri $uri
-		ATTR integer job-id $job-id
-
-	STATUS successful-ok
-	 EXPECT y-side2-image-shift OF-TYPE integer IN-GROUP job-attributes-tag WITH-VALUE 1
-     
-}
-
-
-
-
-
-
-
-
-	
+# TODO: Add print tests for imposition, covers, error sheets, etc.

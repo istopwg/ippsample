@@ -196,13 +196,6 @@ serverCreatePrinter(
 #endif /* HAVE_STATVFS */
   ipp_attribute_t	*attr;		/* Attribute */
   const char		*webscheme;	/* HTTP/HTTPS */
-  static const int	orients[4] =	/* orientation-requested-supported values */
-  {
-    IPP_ORIENT_PORTRAIT,
-    IPP_ORIENT_LANDSCAPE,
-    IPP_ORIENT_REVERSE_LANDSCAPE,
-    IPP_ORIENT_REVERSE_PORTRAIT
-  };
   static const char * const versions[] =/* ipp-versions-supported values */
   {
     "1.0",
@@ -216,6 +209,7 @@ serverCreatePrinter(
     "document-object",
     "ipp-everywhere",
     "page-overrides",
+    "production",
     "system-service",
     "infrastructure-printer"
   };
@@ -384,10 +378,10 @@ serverCreatePrinter(
 #endif /* HAVE_LIBZ */
     "none"
   };
-  static const char * const identify_actions[] =
-  {
-    "display",
-    "sound"
+  static const char * const doc_settable_attributes_supported[] =
+  {					/* document-settable-attributes-supported */
+    "document-metadata",
+    "document-name"
   };
   static const char * const doc_creation[] =
   {					/* document-creation-attributes-supported values */
@@ -402,6 +396,7 @@ serverCreatePrinter(
     "document-password",
     "finishings",
     "finishings-col",
+    "image-orientation",
     "imposition-template",
     "insert-sheet",
     "materials-col",
@@ -440,6 +435,30 @@ serverCreatePrinter(
     "y-side1-image-shift",
     "y-side2-image-shift"
   };
+  static const char * const identify_actions[] =
+  {
+    "display",
+    "sound"
+  };
+  static const int image_orientation_supported[] =
+  {
+    IPP_ORIENT_PORTRAIT,
+    IPP_ORIENT_LANDSCAPE,
+    IPP_ORIENT_REVERSE_LANDSCAPE,
+    IPP_ORIENT_REVERSE_PORTRAIT
+  };
+  static const char * const imposition_template_supported[] =
+  {					// imposition-template-supported values
+    "booklet",
+    "none"
+  };
+  static const char * const insert_sheet_supported[] =
+  {					// insert-sheet-supported values
+    "insert-after-page-number",
+    "insert-count",
+    "media",
+    "media-col"
+  };
   static const char * const job_creation[] =
   {					/* job-creation-attributes-supported values */
     "chamber-humidity",
@@ -450,6 +469,7 @@ serverCreatePrinter(
     "document-password",
     "finishings",
     "finishings-col",
+    "image-orientation",
     "imposition-template",
     "insert-sheet",
     "job-account-id",
@@ -512,6 +532,23 @@ serverCreatePrinter(
     "y-side1-image-shift",
     "y-side2-image-shift"
   };
+  static const char * const job_error_sheet_supported[] =
+  {					// job-error-sheet-supported values
+    "job-error-sheet-type",
+    "job-error-sheet-when",
+    "media",
+    "media-col"
+  };
+  static const char * const job_error_sheet_type_supported[] =
+  {					// job-error-sheet-type-supported values
+    "none",
+    "standard"
+  };
+  static const char * const job_error_sheet_when_supported[] =
+  {					// job-error-sheet-when-supported values
+    "always",
+    "on-error"
+  };
   static const char * const job_hold_until_supported[] =
   {					/* job-hold-until-supported values */
     "no-hold",
@@ -523,11 +560,6 @@ serverCreatePrinter(
     "third-shift",
     "weekend"
   };
-  static const char * const doc_settable_attributes_supported[] =
-  {					/* document-settable-attributes-supported */
-    "document-metadata",
-    "document-name"
-  };
   static const char * const job_settable_attributes_supported[] =
   {					/* job-settable-attributes-supported */
     "document-metadata",
@@ -536,6 +568,17 @@ serverCreatePrinter(
     "job-hold-until-time",
     "job-name",
     "job-priority"
+  };
+  static const char * const job_sheets_supported[] =
+  {
+    "none",
+    "standard"
+  };
+  static const char * const job_sheets_col_supported[] =
+  {
+    "job-sheets",
+    "media",
+    "media-col"
   };
   static const int media_col_sizes[][2] =
   {					/* Default media-col sizes */
@@ -577,6 +620,14 @@ serverCreatePrinter(
     "printer-state-change-time",
     "notify-lease-expiration-time",
     "notify-subscriber-user-name"
+  };
+  static const int orientation_requested_supported[] =
+  {
+    IPP_ORIENT_PORTRAIT,
+    IPP_ORIENT_LANDSCAPE,
+    IPP_ORIENT_REVERSE_LANDSCAPE,
+    IPP_ORIENT_REVERSE_PORTRAIT,
+    IPP_ORIENT_NONE
   };
   static const char * const overrides[] =
   {					/* overrides-supported */
@@ -664,6 +715,20 @@ serverCreatePrinter(
     "https",
     "file"
   };
+  static const char * const separator_sheets_supported[] =
+  {					// separator-sheets-supported values
+    "media",
+    "media-col",
+    "separator-sheets-type"
+  };
+  static const char * const separator_sheets_type_supported[] =
+  {					// separator-sheets-type-supported values
+    "none",
+    "both-sheets",
+    "end-sheet",
+    "slip-sheets",
+    "start-sheet"
+  };
   static const char * const sides_supported[] =
   {					/* sides-supported values */
     "one-sided",
@@ -705,6 +770,20 @@ serverCreatePrinter(
     "pending-held",
     "processing",
     "processing-stopped"
+  };
+  static const char * const x_image_position_supported[] =
+  {					// x-image-position-supported values
+    "center",
+    "left",
+    "none",
+    "right"
+  };
+  static const char * const y_image_position_supported[] =
+  {					// y-image-position-supported values
+    "bottom",
+    "center",
+    "none",
+    "top"
   };
 
 
@@ -983,6 +1062,37 @@ serverCreatePrinter(
   if (!cupsArrayFind(existing, (void *)"identify-actions-supported"))
     ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "identify-actions-supported", sizeof(identify_actions) / sizeof(identify_actions[0]), NULL, identify_actions);
 
+  if (!is_print3d)
+  {
+    /* image-orientation-default */
+    if (!cupsArrayFind(existing, (void *)"image-orientation-default"))
+      ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_ENUM, "image-orientation-default", IPP_ORIENT_PORTRAIT);
+
+    /* image-orientation-supported */
+    if (!cupsArrayFind(existing, (void *)"image-orientation-supported"))
+      ippAddIntegers(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_ENUM, "image-orientation-supported", sizeof(image_orientation_supported) / sizeof(image_orientation_supported[0]), image_orientation_supported);
+
+    /* imposition-template-default */
+    if (!cupsArrayFind(existing, (void *)"imposition-template-default"))
+      ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "imposition-template-default", NULL, "none");
+
+    /* imposition-template-supported */
+    if (!cupsArrayFind(existing, (void *)"imposition-template-supported"))
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "imposition-template-supported", sizeof(imposition_template_supported) / sizeof(imposition_template_supported[0]), NULL, imposition_template_supported);
+
+    /* insert-count-supported */
+    if (!cupsArrayFind(existing, (void *)"insert-count-supported"))
+      ippAddRange(printer->pinfo.attrs, IPP_TAG_PRINTER, "insert-count-supported", 0, 99);
+
+    /* insert-sheet-default */
+    if (!cupsArrayFind(existing, (void *)"insert-sheet-default"))
+      ippAddOutOfBand(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "insert-sheet-default");
+
+    /* insert-sheet-supported */
+    if (!cupsArrayFind(existing, (void *)"insert-sheet-supported"))
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "insert-sheet-supported", sizeof(insert_sheet_supported) / sizeof(insert_sheet_supported[0]), NULL, insert_sheet_supported);
+  }
+
   /* ipp-features-supported */
   if (!cupsArrayFind(existing, (void *)"ipp-features-supported"))
   {
@@ -1044,6 +1154,25 @@ serverCreatePrinter(
     ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-creation-attributes-supported", num_sup_attrs, NULL, sup_attrs);
   }
 
+  if (!is_print3d)
+  {
+    /* job-error-sheet-default */
+    if (!cupsArrayFind(existing, (void *)"job-error-sheet-default"))
+      ippAddOutOfBand(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "job-error-sheet-default");
+
+    /* job-error-sheet-supported */
+    if (!cupsArrayFind(existing, (void *)"job-error-sheet-supported"))
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-error-sheet-supported", sizeof(job_error_sheet_supported) / sizeof(job_error_sheet_supported[0]), NULL, job_error_sheet_supported);
+
+    /* job-error-sheet-type-supported */
+    if (!cupsArrayFind(existing, (void *)"job-error-sheet-supported"))
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-error-sheet-type-supported", sizeof(job_error_sheet_type_supported) / sizeof(job_error_sheet_type_supported[0]), NULL, job_error_sheet_type_supported);
+
+    /* job-error-sheet-when-supported */
+    if (!cupsArrayFind(existing, (void *)"job-error-sheet-supported"))
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-error-sheet-when-supported", sizeof(job_error_sheet_when_supported) / sizeof(job_error_sheet_when_supported[0]), NULL, job_error_sheet_when_supported);
+  }
+
   /* job-hold-until-default */
   if (!cupsArrayFind(existing, (void *)"job-hold-until-default"))
     ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-hold-until-default", NULL, "no-hold");
@@ -1060,6 +1189,17 @@ serverCreatePrinter(
   /* job-k-octets-supported */
   ippAddRange(printer->pinfo.attrs, IPP_TAG_PRINTER, "job-k-octets-supported", 0,
 	      k_supported);
+
+  if (!is_print3d)
+  {
+    /* job-message-to-operator-default */
+    if (!cupsArrayFind(existing, (void *)"job-message-to-operator-default"))
+      ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_TEXT), "job-message-to-operator-default", NULL, "");
+
+    /* job-message-to-operator-supported */
+    if (!cupsArrayFind(existing, (void *)"job-message-to-operator-supported"))
+      ippAddBoolean(printer->pinfo.attrs, IPP_TAG_PRINTER, "job-message-to-operator-supported", true);
+  }
 
   /* job-password-encryption-supported */
   if (!is_print3d && !cupsArrayFind(existing, (void *)"job-password-encryption-supported"))
@@ -1082,6 +1222,26 @@ serverCreatePrinter(
 
   if (!is_print3d)
   {
+    /* job-sheet-message-default */
+    if (!cupsArrayFind(existing, (void *)"job-sheet-message-default"))
+      ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_TEXT), "job-sheet-message-default", NULL, "");
+
+    /* job-sheet-message-supported */
+    if (!cupsArrayFind(existing, (void *)"job-sheet-message-supported"))
+      ippAddBoolean(printer->pinfo.attrs, IPP_TAG_PRINTER, "job-sheet-message-supported", true);
+
+    /* job-sheets-col-supported */
+    if (!cupsArrayFind(existing, (void *)"job-sheets-col-supported"))
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-sheets-col-supported", sizeof(job_sheets_col_supported) / sizeof(job_sheets_col_supported[0]), NULL, job_sheets_col_supported);
+
+    /* job-sheets-default */
+    if (!cupsArrayFind(existing, (void *)"job-sheets-default"))
+      ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-sheets-default", NULL, "none");
+
+    /* job-sheets-supported */
+    if (!cupsArrayFind(existing, (void *)"job-sheets-supported"))
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "job-sheets-supported", sizeof(job_sheets_supported) / sizeof(job_sheets_supported[0]), NULL, job_sheets_supported);
+
     /* media-bottom-margin-supported */
     if (!cupsArrayFind(existing, (void *)"media-bottom-margin-supported"))
       ippAddIntegers(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "media-bottom-margin-supported", (int)(sizeof(media_xxx_margin_supported) / sizeof(media_xxx_margin_supported[0])), media_xxx_margin_supported);
@@ -1227,11 +1387,11 @@ serverCreatePrinter(
   {
     /* orientation-requested-default */
     if (!cupsArrayFind(existing, (void *)"orientation-requested-default"))
-      ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "orientation-requested-default", 0);
+      ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_ENUM, "orientation-requested-default", IPP_ORIENT_NONE);
 
     /* orientation-requested-supported */
     if (!cupsArrayFind(existing, (void *)"orientation-requested-supported"))
-      ippAddIntegers(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_ENUM, "orientation-requested-supported", 4, orients);
+      ippAddIntegers(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_ENUM, "orientation-requested-supported", sizeof(orientation_requested_supported) / sizeof(orientation_requested_supported[0]), orientation_requested_supported);
 
     /* output-bin-default */
     if (!cupsArrayFind(existing, (void *)"output-bin-default"))
@@ -1558,13 +1718,28 @@ serverCreatePrinter(
   /* reference-uri-scheme-supported */
   ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_URISCHEME), "reference-uri-schemes-supported", (int)(sizeof(reference_uri_schemes_supported) / sizeof(reference_uri_schemes_supported[0])) - !FileDirectories, NULL, reference_uri_schemes_supported);
 
-  /* sides-default */
-  if (!is_print3d && !cupsArrayFind(existing, (void *)"sides-default"))
-    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "sides-default", NULL, "one-sided");
+  if (!is_print3d)
+  {
+    /* separator-sheets-default */
+    if (!cupsArrayFind(existing, (void *)"separator-sheets-default"))
+      ippAddOutOfBand(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "separator-sheets-default");
 
-  /* sides-supported */
-  if (!is_print3d && !cupsArrayFind(existing, (void *)"sides-supported"))
-    ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "sides-supported", printer->pinfo.duplex ? 3 : 1, NULL, sides_supported);
+    /* separator-sheets-supported */
+    if (!cupsArrayFind(existing, (void *)"separator-sheets-supported"))
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "separator-sheets-supported", sizeof(separator_sheets_supported) / sizeof(separator_sheets_supported[0]), NULL, separator_sheets_supported);
+
+    /* separator-sheets-type-supported */
+    if (!cupsArrayFind(existing, (void *)"separator-sheets-type-supported"))
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "separator-sheets-type-supported", sizeof(separator_sheets_type_supported) / sizeof(separator_sheets_type_supported[0]), NULL, separator_sheets_type_supported);
+
+    /* sides-default */
+    if (!cupsArrayFind(existing, (void *)"sides-default"))
+      ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "sides-default", NULL, "one-sided");
+
+    /* sides-supported */
+    if (!cupsArrayFind(existing, (void *)"sides-supported"))
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "sides-supported", printer->pinfo.duplex ? 3 : 1, NULL, sides_supported);
+  }
 
   /* urf-supported */
   for (i = 0; i < num_formats; i ++)
@@ -1598,6 +1773,74 @@ serverCreatePrinter(
     ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "which-jobs-supported", sizeof(which_jobs_proxy) / sizeof(which_jobs_proxy[0]), NULL, which_jobs_proxy);
   else
     ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "which-jobs-supported", sizeof(which_jobs) / sizeof(which_jobs[0]), NULL, which_jobs);
+
+  if (!is_print3d)
+  {
+    /* x-image-position-default */
+    if (!cupsArrayFind(existing, (void *)"x-image-position-default"))
+      ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "x-image-position-default", NULL, "none");
+
+    /* x-image-position-supported */
+    if (!cupsArrayFind(existing, (void *)"x-image-position-supported"))
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "x-image-position-supported", sizeof(x_image_position_supported) / sizeof(x_image_position_supported[0]), NULL, x_image_position_supported);
+
+    /* x-image-shift-default */
+    if (!cupsArrayFind(existing, (void *)"x-image-shift-default"))
+      ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "x-image-shift-default", 0);
+
+    /* x-image-shift-supported */
+    if (!cupsArrayFind(existing, (void *)"x-image-shift-supported"))
+      ippAddRange(printer->pinfo.attrs, IPP_TAG_PRINTER, "x-image-shift-supported", INT_MIN, INT_MAX);
+
+    /* x-side1-image-shift-default */
+    if (!cupsArrayFind(existing, (void *)"x-side1-image-shift-default"))
+      ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "x-side1-image-shift-default", 0);
+
+    /* x-side1-image-shift-supported */
+    if (!cupsArrayFind(existing, (void *)"x-side1-image-shift-supported"))
+      ippAddRange(printer->pinfo.attrs, IPP_TAG_PRINTER, "x-side1-image-shift-supported", INT_MIN, INT_MAX);
+
+    /* x-side2-image-shift-default */
+    if (!cupsArrayFind(existing, (void *)"x-side2-image-shift-default"))
+      ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "x-side2-image-shift-default", 0);
+
+    /* x-side2-image-shift-supported */
+    if (!cupsArrayFind(existing, (void *)"x-side2-image-shift-supported"))
+      ippAddRange(printer->pinfo.attrs, IPP_TAG_PRINTER, "x-side2-image-shift-supported", INT_MIN, INT_MAX);
+
+    /* y-image-position-default */
+    if (!cupsArrayFind(existing, (void *)"y-image-position-default"))
+      ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "y-image-position-default", NULL, "none");
+
+    /* y-image-position-supported */
+    if (!cupsArrayFind(existing, (void *)"y-image-position-supported"))
+      ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "y-image-position-supported", sizeof(y_image_position_supported) / sizeof(y_image_position_supported[0]), NULL, y_image_position_supported);
+
+    /* y-image-shift-default */
+    if (!cupsArrayFind(existing, (void *)"y-image-shift-default"))
+      ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "y-image-shift-default", 0);
+
+    /* y-image-shift-supported */
+    if (!cupsArrayFind(existing, (void *)"y-image-shift-supported"))
+      ippAddRange(printer->pinfo.attrs, IPP_TAG_PRINTER, "y-image-shift-supported", INT_MIN, INT_MAX);
+
+    /* y-side1-image-shift-default */
+    if (!cupsArrayFind(existing, (void *)"y-side1-image-shift-default"))
+      ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "y-side1-image-shift-default", 0);
+
+    /* y-side1-image-shift-supported */
+    if (!cupsArrayFind(existing, (void *)"y-side1-image-shift-supported"))
+      ippAddRange(printer->pinfo.attrs, IPP_TAG_PRINTER, "y-side1-image-shift-supported", INT_MIN, INT_MAX);
+
+    /* y-side2-image-shift-default */
+    if (!cupsArrayFind(existing, (void *)"y-side2-image-shift-default"))
+      ippAddInteger(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "y-side2-image-shift-default", 0);
+
+    /* y-side2-image-shift-supported */
+    if (!cupsArrayFind(existing, (void *)"y-side2-image-shift-supported"))
+      ippAddRange(printer->pinfo.attrs, IPP_TAG_PRINTER, "y-side2-image-shift-supported", INT_MIN, INT_MAX);
+
+  }
 
   /* xri-authentication-supported */
   ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication-supported", NULL, Authentication ? "basic" : "none");
