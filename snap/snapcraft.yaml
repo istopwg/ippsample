@@ -48,6 +48,7 @@ apps:
 parts:
     main:
         plugin: autotools
-        source-type: git
+        source: .
+        source-submodules: [libcups, pdfio]
         build-packages: [cura-engine, libavahi-client-dev, libjpeg-dev, libpam-dev, libpng-dev, libssl-dev, libusb-1.0-0-dev, zlib1g-dev]
         stage-packages: [libavahi-client3, libjpeg-turbo8]
