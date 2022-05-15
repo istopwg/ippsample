@@ -48,8 +48,8 @@ any platform differences:
 
 The following options are supported:
 
-- `--disable-shared`: Disable shared libraries.
 - `--enable-debug`: Enable debugging and debug logging.
+- `--disable-shared`: Disable shared libraries.
 - `--enable-maintainer`: Enable warnings as errors.
 - `--enable-sanitizer`: Enable address sanitizer.
 - `--enable-static`: Enable static libraries.
@@ -64,7 +64,9 @@ Testing the Code
 ----------------
 
 The "test" target runs all of the unit tests and a full-up "system" test of the
-various programs.
+various programs:
+
+    make test
 
 
 Resources
@@ -125,7 +127,9 @@ Legal Stuff
 -----------
 
 Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group.
+
 Copyright © 2007-2019 by Apple Inc.
+
 Copyright © 1997-2007 by Easy Software Products.
 
 This software is provided under the terms of the Apache License, Version 2.0.
