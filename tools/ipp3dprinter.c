@@ -30,7 +30,6 @@
 #include <cups/thread.h>
 
 // TODO: Remove dependency on private APIs!
-#include <cups/array-private.h>
 #include <cups/ipp-private.h>
 
 #include <limits.h>
@@ -418,7 +417,7 @@ main(int  argc,				/* I - Number of command-line args */
 	      if (i >= argc)
 	        usage(1);
 
-	      docformats = _cupsArrayNewStrings(argv[i], ',');
+	      docformats = cupsArrayNewStrings(argv[i], ',');
 	      break;
 
 	  case 'i' : /* -i icon.png */
@@ -562,7 +561,7 @@ main(int  argc,				/* I - Number of command-line args */
   */
 
   if (!docformats)
-    docformats = _cupsArrayNewStrings("application/vnd.pwg-safe-gcode", ',');
+    docformats = cupsArrayNewStrings("application/vnd.pwg-safe-gcode", ',');
 
   if (attrfile)
     attrs = load_ippserver_attributes(servername, serverport, attrfile, docformats);

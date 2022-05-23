@@ -16,9 +16,6 @@
 #include <cups/raster.h>
 #include <cups/thread.h>
 
-// TODO: Eliminate private APIs
-#include <cups/array-private.h>
-
 #ifdef HAVE_COREGRAPHICS
 #  include <CoreGraphics/CoreGraphics.h>
 #  include <ImageIO/ImageIO.h>
@@ -2264,7 +2261,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   * Figure out the proper resolution, etc.
   */
 
-  res_array = _cupsArrayNewStrings(resolutions, ',');
+  res_array = cupsArrayNewStrings(resolutions, ',');
 
   if ((printer_resolution = cupsGetOption("printer-resolution", num_options, options)) != NULL && !cupsArrayFind(res_array, (void *)printer_resolution))
   {
@@ -2348,7 +2345,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   }
 
   if ((type_array = cupsArrayNew((cups_array_cb_t)strcasecmp, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free)) != NULL)
-    _cupsArrayAddStrings(type_array, types, ',');
+    cupsArrayAddStrings(type_array, types, ',');
 
   if (color)
   {
