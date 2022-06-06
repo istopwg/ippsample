@@ -18,7 +18,6 @@
 #  include <pwd.h>
 #  include <grp.h>
 #endif /* _WIN32 */
-#include <cups/ipp-private.h>
 
 
 /*
@@ -35,7 +34,7 @@ static char		*default_printer = NULL;
 static void		add_document_privacy(void);
 static void		add_job_privacy(void);
 static void		add_subscription_privacy(void);
-static int		attr_cb(_ipp_file_t *f, server_pinfo_t *pinfo, const char *attr);
+static int		attr_cb(ipp_file_t *f, server_pinfo_t *pinfo, const char *attr);
 static int		compare_lang(server_lang_t *a, server_lang_t *b);
 static int		compare_printers(server_printer_t *a, server_printer_t *b);
 static server_icc_t	*copy_icc(server_icc_t *a);
@@ -45,17 +44,15 @@ static void		create_system_attributes(void);
 static void		dnssd_client_cb(AvahiClient *c, AvahiClientState state, void *userdata);
 #endif /* HAVE_AVAHI */
 static void		dnssd_init(void);
-static int		error_cb(_ipp_file_t *f, server_pinfo_t *pinfo, const char *error);
+static int		error_cb(ipp_file_t *f, server_pinfo_t *pinfo, const char *error);
 static int		finalize_system(void);
 static void		free_icc(server_icc_t *a);
 static void		free_lang(server_lang_t *a);
 static int		load_system(const char *conf);
-static ipp_t		*parse_collection(_ipp_file_t *f, _ipp_vars_t *v, void *user_data);
-static int		parse_value(_ipp_file_t *f, _ipp_vars_t *v, void *user_data, ipp_t *ipp, ipp_attribute_t **attr, size_t element);
 static void		print_escaped_string(cups_file_t *fp, const char *s, size_t len);
 static void		print_ipp_attr(cups_file_t *fp, ipp_attribute_t *attr, int indent);
 static void		save_printer(server_printer_t *printer, const char *directory);
-static int		token_cb(_ipp_file_t *f, _ipp_vars_t *vars, server_pinfo_t *pinfo, const char *token);
+static int		token_cb(ipp_file_t *f, server_pinfo_t *pinfo, const char *token);
 
 
 /*
@@ -401,13 +398,14 @@ serverFindPrinter(const char *resource)	/* I - Resource path */
  * DEVICE-URI values can be "socket", "ipp", or "ipps" URIs.
  */
 
-int					/* O - 1 on success, 0 on failure */
+int					// O - 1 on success, 0 on failure
 serverLoadAttributes(
-    const char     *filename,		/* I - File to load */
-    server_pinfo_t *pinfo)		/* I - Printer information */
+    const char     *filename,		// I - File to load
+    server_pinfo_t *pinfo)		// I - Printer information
 {
-  _ipp_vars_t	vars;			/* IPP variables */
-  char		temp[32];		/* Temporary string */
+  ipp_file_t	*file;			// IPP data file
+  bool		status;			// Load status
+  char		temp[32];		// Temporary string
 
 
  /*
@@ -419,24 +417,32 @@ serverLoadAttributes(
   * - SERVERPORT: The default port of the server.
   */
 
-  _ippVarsInit(&vars, (_ipp_fattr_cb_t)attr_cb, (_ipp_ferror_cb_t)error_cb, (_ipp_ftoken_cb_t)token_cb);
-  _ippVarsSet(&vars, "SERVERNAME", ServerName);
+  if ((pinfo->attrs = ippNew()) == NULL)
+    return (0);
+
+  if ((file = ippFileNew(NULL, (ipp_fattr_cb_t)attr_cb, (ipp_ferror_cb_t)error_cb, (void *)pinfo)) == NULL)
+    return (0);
+
+  ippFileSetAttributes(file, pinfo->attrs);
+  ippFileSetGroupTag(file, IPP_TAG_PRINTER);
+
+  ippFileSetVar(file, "SERVERNAME", ServerName);
+
   snprintf(temp, sizeof(temp), "%d", DefaultPort);
-  _ippVarsSet(&vars, "SERVERPORT", temp);
+  ippFileSetVar(file, "SERVERPORT", temp);
 
- /*
-  * Load attributes and values for the printer...
-  */
+  status = ippFileOpen(file, filename, "r");
 
-  pinfo->attrs = _ippFileParse(&vars, filename, (void *)pinfo);
+  if (status)
+    status = ippFileRead(file, (ipp_ftoken_cb_t)token_cb, false);
 
  /*
   * Free memory and return...
   */
 
-  _ippVarsDeinit(&vars);
+  ippFileDelete(file);
 
-  return (pinfo->attrs != NULL);
+  return (status);
 }
 
 
@@ -1077,7 +1083,7 @@ add_subscription_privacy(void)
  */
 
 static int				/* O - 1 to use, 0 to ignore */
-attr_cb(_ipp_file_t    *f,		/* I - IPP file */
+attr_cb(ipp_file_t     *f,		/* I - IPP file */
         server_pinfo_t *pinfo,		/* I - Printer information */
         const char     *attr)		/* I - Attribute name */
 {
@@ -1987,7 +1993,7 @@ dnssd_init(void)
  */
 
 static int				/* O - 1 to continue, 0 to stop */
-error_cb(_ipp_file_t    *f,		/* I - IPP file data */
+error_cb(ipp_file_t     *f,		/* I - IPP file data */
          server_pinfo_t *pinfo,		/* I - Printer information */
          const char     *error)		/* I - Error message */
 {
@@ -2785,405 +2791,6 @@ iso_date(const ipp_uchar_t *date)	/* I - IPP (RFC 1903) date/time value */
 
 
 /*
- * 'parse_collection()' - Parse an IPP collection value.
- */
-
-static ipp_t *				/* O - Collection value or @code NULL@ on error */
-parse_collection(
-    _ipp_file_t      *f,		/* I - IPP data file */
-    _ipp_vars_t      *v,		/* I - IPP variables */
-    void             *user_data)	/* I - User data pointer */
-{
-  ipp_t		*col = ippNew();	/* Collection value */
-  ipp_attribute_t *attr = NULL;		/* Current member attribute */
-  char		token[1024];		/* Token string */
-
-
- /*
-  * Parse the collection value...
-  */
-
-  while (_ippFileReadToken(f, token, sizeof(token)))
-  {
-    if (!strcasecmp(token, "}"))
-    {
-     /*
-      * End of collection value...
-      */
-
-      break;
-    }
-    else if (!strcasecmp(token, "MEMBER"))
-    {
-     /*
-      * Member attribute definition...
-      */
-
-      char	syntax[128],		/* Attribute syntax (value tag) */
-		name[128];		/* Attribute name */
-      ipp_tag_t	value_tag;		/* Value tag */
-
-      attr = NULL;
-
-      if (!_ippFileReadToken(f, syntax, sizeof(syntax)))
-      {
-        fprintf(stderr, "ippserver: Missing MEMBER syntax on line %d of \"%s\".\n", f->linenum, f->filename);
-	ippDelete(col);
-	col = NULL;
-	break;
-      }
-      else if ((value_tag = ippTagValue(syntax)) < IPP_TAG_UNSUPPORTED_VALUE)
-      {
-        fprintf(stderr, "ippserver: Bad MEMBER syntax \"%s\" on line %d of \"%s\".\n", syntax, f->linenum, f->filename);
-	ippDelete(col);
-	col = NULL;
-	break;
-      }
-
-      if (!_ippFileReadToken(f, name, sizeof(name)) || !name[0])
-      {
-        fprintf(stderr, "ippserver: Missing MEMBER name on line %d of \"%s\".\n", f->linenum, f->filename);
-	ippDelete(col);
-	col = NULL;
-	break;
-      }
-
-      if (value_tag < IPP_TAG_INTEGER)
-      {
-       /*
-	* Add out-of-band attribute - no value string needed...
-	*/
-
-        ippAddOutOfBand(col, IPP_TAG_ZERO, value_tag, name);
-      }
-      else
-      {
-       /*
-        * Add attribute with one or more values...
-        */
-
-        attr = ippAddString(col, IPP_TAG_ZERO, value_tag, name, NULL, NULL);
-
-        if (!parse_value(f, v, user_data, col, &attr, 0))
-        {
-	  ippDelete(col);
-	  col = NULL;
-          break;
-	}
-      }
-
-    }
-    else if (attr && !strcasecmp(token, ","))
-    {
-     /*
-      * Additional value...
-      */
-
-      if (!parse_value(f, v, user_data, col, &attr, ippGetCount(attr)))
-      {
-	ippDelete(col);
-	col = NULL;
-	break;
-      }
-    }
-    else
-    {
-     /*
-      * Something else...
-      */
-
-      fprintf(stderr, "ippserver: Unknown directive \"%s\" on line %d of \"%s\".\n", token, f->linenum, f->filename);
-      ippDelete(col);
-      col  = NULL;
-      attr = NULL;
-      break;
-    }
-  }
-
-  return (col);
-}
-
-
-/*
- * 'parse_value()' - Parse an IPP value.
- */
-
-static int				/* O  - 1 on success or 0 on error */
-parse_value(_ipp_file_t      *f,	/* I  - IPP data file */
-            _ipp_vars_t      *v,	/* I  - IPP variables */
-            void             *user_data,/* I  - User data pointer */
-            ipp_t            *ipp,	/* I  - IPP message */
-            ipp_attribute_t  **attr,	/* IO - IPP attribute */
-            size_t           element)	/* I  - Element number */
-{
-  char		value[2049],		/* Value string */
-		*valueptr,		/* Pointer into value string */
-		temp[2049],		/* Temporary string */
-		*tempptr;		/* Pointer into temporary string */
-  size_t	valuelen;		/* Length of value */
-
-
-  if (!_ippFileReadToken(f, temp, sizeof(temp)))
-  {
-    fprintf(stderr, "ippserver: Missing value on line %d of \"%s\".\n", f->linenum, f->filename);
-    return (0);
-  }
-
-  _ippVarsExpand(v, value, temp, sizeof(value));
-
-  switch (ippGetValueTag(*attr))
-  {
-    case IPP_TAG_BOOLEAN :
-        return (ippSetBoolean(ipp, attr, element, !strcasecmp(value, "true")));
-        break;
-
-    case IPP_TAG_ENUM :
-    case IPP_TAG_INTEGER :
-        return (ippSetInteger(ipp, attr, element, (int)strtol(value, NULL, 0)));
-        break;
-
-    case IPP_TAG_DATE :
-        {
-          int	year,			/* Year */
-		month,			/* Month */
-		day,			/* Day of month */
-		hour,			/* Hour */
-		minute,			/* Minute */
-		second,			/* Second */
-		utc_offset = 0;		/* Timezone offset from UTC */
-          ipp_uchar_t date[11];		/* dateTime value */
-
-          if (*value == 'P')
-          {
-           /*
-            * Time period...
-            */
-
-            time_t	curtime;	/* Current time in seconds */
-            int		period = 0,	/* Current period value */
-			saw_T = 0;	/* Saw time separator */
-
-            curtime = time(NULL);
-
-            for (valueptr = value + 1; *valueptr; valueptr ++)
-            {
-              if (isdigit(*valueptr & 255))
-              {
-                period = (int)strtol(valueptr, &valueptr, 10);
-
-                if (!valueptr || period < 0)
-                {
-		  fprintf(stderr, "ippserver: Bad dateTime value \"%s\" on line %d of \"%s\".\n", value, f->linenum, f->filename);
-		  return (0);
-		}
-              }
-
-              if (*valueptr == 'Y')
-              {
-                curtime += 365 * 86400 * period;
-                period  = 0;
-              }
-              else if (*valueptr == 'M')
-              {
-                if (saw_T)
-                  curtime += 60 * period;
-                else
-                  curtime += 30 * 86400 * period;
-
-                period = 0;
-              }
-              else if (*valueptr == 'D')
-              {
-                curtime += 86400 * period;
-                period  = 0;
-              }
-              else if (*valueptr == 'H')
-              {
-                curtime += 3600 * period;
-                period  = 0;
-              }
-              else if (*valueptr == 'S')
-              {
-                curtime += period;
-                period = 0;
-              }
-              else if (*valueptr == 'T')
-              {
-                saw_T  = 1;
-                period = 0;
-              }
-              else
-	      {
-		fprintf(stderr, "ippserver: Bad dateTime value \"%s\" on line %d of \"%s\".\n", value, f->linenum, f->filename);
-		return (0);
-	      }
-	    }
-
-	    return (ippSetDate(ipp, attr, element, ippTimeToDate(curtime)));
-          }
-          else if (sscanf(value, "%d-%d-%dT%d:%d:%d%d", &year, &month, &day, &hour, &minute, &second, &utc_offset) < 6)
-          {
-           /*
-            * Date/time value did not parse...
-            */
-
-	    fprintf(stderr, "ippserver: Bad dateTime value \"%s\" on line %d of \"%s\".\n", value, f->linenum, f->filename);
-	    return (0);
-          }
-
-          date[0] = (ipp_uchar_t)(year >> 8);
-          date[1] = (ipp_uchar_t)(year & 255);
-          date[2] = (ipp_uchar_t)month;
-          date[3] = (ipp_uchar_t)day;
-          date[4] = (ipp_uchar_t)hour;
-          date[5] = (ipp_uchar_t)minute;
-          date[6] = (ipp_uchar_t)second;
-          date[7] = 0;
-          if (utc_offset < 0)
-          {
-            utc_offset = -utc_offset;
-            date[8]    = (ipp_uchar_t)'-';
-	  }
-	  else
-	  {
-            date[8] = (ipp_uchar_t)'+';
-	  }
-
-          date[9]  = (ipp_uchar_t)(utc_offset / 100);
-          date[10] = (ipp_uchar_t)(utc_offset % 100);
-
-          return (ippSetDate(ipp, attr, element, date));
-        }
-        break;
-
-    case IPP_TAG_RESOLUTION :
-	{
-	  int	xres,		/* X resolution */
-		yres;		/* Y resolution */
-	  char	*ptr;		/* Pointer into value */
-
-	  xres = yres = (int)strtol(value, (char **)&ptr, 10);
-	  if (ptr > value && xres > 0)
-	  {
-	    if (*ptr == 'x')
-	      yres = (int)strtol(ptr + 1, (char **)&ptr, 10);
-	  }
-
-	  if (ptr <= value || xres <= 0 || yres <= 0 || !ptr || (strcasecmp(ptr, "dpi") && strcasecmp(ptr, "dpc") && strcasecmp(ptr, "dpcm") && strcasecmp(ptr, "other")))
-	  {
-	    fprintf(stderr, "ippserver: Bad resolution value \"%s\" on line %d of \"%s\".\n", value, f->linenum, f->filename);
-	    return (0);
-	  }
-
-	  if (!strcasecmp(ptr, "dpi"))
-	    return (ippSetResolution(ipp, attr, element, IPP_RES_PER_INCH, xres, yres));
-	  else if (!strcasecmp(ptr, "dpc") || !strcasecmp(ptr, "dpcm"))
-	    return (ippSetResolution(ipp, attr, element, IPP_RES_PER_CM, xres, yres));
-	  else
-	    return (ippSetResolution(ipp, attr, element, (ipp_res_t)0, xres, yres));
-	}
-	break;
-
-    case IPP_TAG_RANGE :
-	{
-	  int	lower,			/* Lower value */
-		upper;			/* Upper value */
-
-          if (sscanf(value, "%d-%d", &lower, &upper) != 2)
-          {
-	    fprintf(stderr, "ippserver: Bad rangeOfInteger value \"%s\" on line %d of \"%s\".\n", value, f->linenum, f->filename);
-	    return (0);
-	  }
-
-	  return (ippSetRange(ipp, attr, element, lower, upper));
-	}
-	break;
-
-    case IPP_TAG_STRING :
-        valuelen = strlen(value);
-
-        if (value[0] == '<' && value[strlen(value) - 1] == '>')
-        {
-          if (valuelen & 1)
-          {
-	    fprintf(stderr, "ippserver: Bad octetString value on line %d of \"%s\".\n", f->linenum, f->filename);
-	    return (0);
-          }
-
-          valueptr = value + 1;
-          tempptr  = temp;
-
-          while (*valueptr && *valueptr != '>')
-          {
-	    if (!isxdigit(valueptr[0] & 255) || !isxdigit(valueptr[1] & 255))
-	    {
-	      fprintf(stderr, "ippserver: Bad octetString value on line %d of \"%s\".\n", f->linenum, f->filename);
-	      return (0);
-	    }
-
-            if (valueptr[0] >= '0' && valueptr[0] <= '9')
-              *tempptr = (char)((valueptr[0] - '0') << 4);
-	    else
-              *tempptr = (char)((tolower(valueptr[0]) - 'a' + 10) << 4);
-
-            if (valueptr[1] >= '0' && valueptr[1] <= '9')
-              *tempptr |= (valueptr[1] - '0');
-	    else
-              *tempptr |= (tolower(valueptr[1]) - 'a' + 10);
-
-            tempptr ++;
-          }
-
-          return (ippSetOctetString(ipp, attr, element, temp, (size_t)(tempptr - temp)));
-        }
-        else
-          return (ippSetOctetString(ipp, attr, element, value, valuelen));
-        break;
-
-    case IPP_TAG_TEXTLANG :
-    case IPP_TAG_NAMELANG :
-    case IPP_TAG_TEXT :
-    case IPP_TAG_NAME :
-    case IPP_TAG_KEYWORD :
-    case IPP_TAG_URI :
-    case IPP_TAG_URISCHEME :
-    case IPP_TAG_CHARSET :
-    case IPP_TAG_LANGUAGE :
-    case IPP_TAG_MIMETYPE :
-        return (ippSetString(ipp, attr, element, value));
-        break;
-
-    case IPP_TAG_BEGIN_COLLECTION :
-        {
-          int	status;			/* Add status */
-          ipp_t *col;			/* Collection value */
-
-          if (strcmp(value, "{"))
-          {
-	    fprintf(stderr, "ippserver: Bad collection value on line %d of \"%s\".\n", f->linenum, f->filename);
-	    return (0);
-          }
-
-          if ((col = parse_collection(f, v, user_data)) == NULL)
-            return (0);
-
-	  status = ippSetCollection(ipp, attr, element, col);
-	  ippDelete(col);
-
-	  return (status);
-	}
-	break;
-
-    default :
-        fprintf(stderr, "ippserver: Unsupported value on line %d of \"%s\".\n", f->linenum, f->filename);
-        return (0);
-  }
-
-  return (1);
-}
-
-
-/*
  * 'print_escaped_string()' - Print an escaped string value.
  */
 
@@ -3417,8 +3024,7 @@ save_printer(
  */
 
 static int				/* O - 1 to continue, 0 to stop */
-token_cb(_ipp_file_t    *f,		/* I - IPP file data */
-         _ipp_vars_t    *vars,		/* I - IPP variables */
+token_cb(ipp_file_t     *f,		/* I - IPP file data */
          server_pinfo_t *pinfo,		/* I - Printer information */
          const char     *token)		/* I - Current token */
 {
@@ -3426,30 +3032,18 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
 	value[1024];			/* Value string */
 
 
-  if (!token)
-  {
-   /*
-    * NULL token means do the initial setup - create an empty IPP message and
-    * return...
-    */
-
-    f->attrs     = ippNew();
-    f->group_tag = IPP_TAG_PRINTER;
-
-    return (1);
-  }
 #ifndef _WIN32
-  else if (!strcasecmp(token, "AuthPrintGroup"))
+  if (!strcasecmp(token, "AuthPrintGroup"))
   {
     struct group	*group;		/* Group information */
 
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing AuthPrintGroup value on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing AuthPrintGroup value on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
-    _ippVarsExpand(vars, value, temp, sizeof(value));
+    ippFileExpandVars(f, value, temp, sizeof(value));
 
     if (!strcasecmp(value, "@system"))
     {
@@ -3457,7 +3051,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
     }
     else if ((group = getgrnam(value)) == NULL)
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Unknown AuthPrintGroup \"%s\" on line %d of \"%s\".", value, f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Unknown AuthPrintGroup \"%s\" on line %d of '%s'.", value, ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
     else
@@ -3469,13 +3063,13 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
   {
     struct group	*group;		/* Group information */
 
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing AuthProxyGroup value on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing AuthProxyGroup value on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
-    _ippVarsExpand(vars, value, temp, sizeof(value));
+    ippFileExpandVars(f, value, temp, sizeof(value));
 
     if (!strcasecmp(value, "@system"))
     {
@@ -3483,7 +3077,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
     }
     else if ((group = getgrnam(value)) == NULL)
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Unknown AuthProxyGroup \"%s\" on line %d of \"%s\".", value, f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Unknown AuthProxyGroup \"%s\" on line %d of '%s'.", value, ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
     else
@@ -3491,52 +3085,53 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
       pinfo->proxy_group = group->gr_gid;
     }
   }
+  else
 #endif /* !_WIN32 */
-  else if (!strcasecmp(token, "Command"))
+  if (!strcasecmp(token, "Command"))
   {
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Command value on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Command value on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
-    _ippVarsExpand(vars, value, temp, sizeof(value));
+    ippFileExpandVars(f, value, temp, sizeof(value));
 
     pinfo->command = strdup(value);
   }
   else if (!strcasecmp(token, "DeviceURI"))
   {
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing DeviceURI value on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing DeviceURI value on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
-    _ippVarsExpand(vars, value, temp, sizeof(value));
+    ippFileExpandVars(f, value, temp, sizeof(value));
 
     pinfo->device_uri = strdup(value);
   }
   else if (!strcasecmp(token, "InitialState"))
   {
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing InitialState value on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing InitialState value on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
     pinfo->initial_accepting = (char)atoi(temp);
 
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing InitialState value on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing InitialState value on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
     pinfo->initial_state = (ipp_pstate_t)atoi(temp);
 
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing InitialState value on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing InitialState value on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
@@ -3544,21 +3139,21 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
   }
   else if (!strcasecmp(token, "Make"))
   {
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Make value on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Make value on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
-    _ippVarsExpand(vars, value, temp, sizeof(value));
+    ippFileExpandVars(f, value, temp, sizeof(value));
 
     pinfo->make = strdup(value);
   }
   else if (!strcasecmp(token, "MaxOutputDevices"))
   {
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing MaxOutputDevices value on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing MaxOutputDevices value on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
@@ -3566,21 +3161,21 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
   }
   else if (!strcasecmp(token, "Model"))
   {
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Model value on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Model value on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
-    _ippVarsExpand(vars, value, temp, sizeof(value));
+    ippFileExpandVars(f, value, temp, sizeof(value));
 
     pinfo->model = strdup(value);
   }
   else if (!strcasecmp(token, "OutputDevice"))
   {
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing OutputDevice UUID value on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing OutputDevice UUID value on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
@@ -3588,13 +3183,13 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
   }
   else if (!strcasecmp(token, "OutputFormat"))
   {
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing OutputFormat value on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing OutputFormat value on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
-    _ippVarsExpand(vars, value, temp, sizeof(value));
+    ippFileExpandVars(f, value, temp, sizeof(value));
 
     pinfo->output_format = strdup(value);
   }
@@ -3603,29 +3198,29 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
     server_icc_t	icc;		/* ICC profile data */
     char		filename[1024];	/* ICC file */
 
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Profile name on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Profile name on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
-    _ippVarsExpand(vars, value, temp, sizeof(value));
+    ippFileExpandVars(f, value, temp, sizeof(value));
 
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Profile filename on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Profile filename on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
-    _ippVarsExpand(vars, filename, temp, sizeof(filename));
+    ippFileExpandVars(f, filename, temp, sizeof(filename));
 
-    if (!_ippFileReadToken(f, temp, sizeof(temp)) || strcmp(temp, "{"))
+    if (!ippFileReadToken(f, temp, sizeof(temp)) || strcmp(temp, "{"))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Profile collection on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Profile collection on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
-    if ((icc.attrs = parse_collection(f, vars, pinfo)) == NULL)
+    if ((icc.attrs = ippFileReadCollection(f)) == NULL)
       return (0);
 
     if ((icc.resource = serverFindResourceByFilename(filename)) == NULL)
@@ -3647,21 +3242,21 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
     server_lang_t lang;			/* New localization */
     char	stringsfile[1024];	/* Strings filename */
 
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Strings language on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Strings language on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
-    _ippVarsExpand(vars, value, temp, sizeof(value));
+    ippFileExpandVars(f, value, temp, sizeof(value));
 
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Strings filename on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Strings filename on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
-    _ippVarsExpand(vars, stringsfile, temp, sizeof(stringsfile));
+    ippFileExpandVars(f, stringsfile, temp, sizeof(stringsfile));
 
     lang.lang = value;
     if ((lang.resource = serverFindResourceByFilename(stringsfile)) == NULL)
@@ -3676,9 +3271,9 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
   }
   else if (!strcasecmp(token, "WebForms"))
   {
-    if (!_ippFileReadToken(f, temp, sizeof(temp)))
+    if (!ippFileReadToken(f, temp, sizeof(temp)))
     {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing WebForms value on line %d of \"%s\".", f->linenum, f->filename);
+      serverLog(SERVER_LOGLEVEL_ERROR, "Missing WebForms value on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
       return (0);
     }
 
@@ -3686,7 +3281,7 @@ token_cb(_ipp_file_t    *f,		/* I - IPP file data */
   }
   else
   {
-    serverLog(SERVER_LOGLEVEL_ERROR, "Unknown directive \"%s\" on line %d of \"%s\".", token, f->linenum, f->filename);
+    serverLog(SERVER_LOGLEVEL_ERROR, "Unknown directive \"%s\" on line %d of '%s'.", token, ippFileGetLineNumber(f), ippFileGetFilename(f));
     return (0);
   }
 

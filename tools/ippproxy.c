@@ -21,6 +21,14 @@
 #include <cups/thread.h>
 
 
+//
+// Macros to implement a simple Fibonacci sequence for variable back-off...
+//
+
+#define FIB_NEXT(v) (((((v >> 8) + (v & 255) - 1) % 60) + 1) | ((v & 255) << 8))
+#define FIB_VALUE(v) (v & 255)
+
+
 /*
  * Local types...
  */
@@ -145,6 +153,7 @@ main(int  argc,				/* I - Number of command-line arguments */
   int		subscription_id;	/* Event subscription ID */
   char		device_uuid[45];	/* Device UUID URN */
   const char	*outformat = NULL;	/* Output format */
+  unsigned	interval = 1;		// Current retry interval
 
 
  /*
@@ -274,11 +283,10 @@ main(int  argc,				/* I - Number of command-line arguments */
 
   while ((http = cupsConnectDest(dest, CUPS_DEST_FLAGS_DEVICE, 30000, NULL, resource, sizeof(resource), NULL, NULL)) == NULL)
   {
-    int interval = 1 + (rand() % 30);
-					/* Retry interval */
+    interval = FIB_NEXT(interval);
 
-    plogf(NULL, "'%s' is not responding, retrying in %d seconds.", printer_uri, interval);
-    sleep((unsigned)interval);
+    plogf(NULL, "'%s' is not responding, retrying in %u seconds.", printer_uri, FIB_VALUE(interval));
+    sleep(FIB_VALUE(interval));
   }
 
   if (verbosity)
@@ -591,6 +599,7 @@ get_device_attrs(const char *device_uri)/* I - Device URI */
     ipp_t	*request;		/* Get-Printer-Attributes request */
     ipp_attribute_t *urf_supported,	/* urf-supported */
 		*pwg_supported;		/* pwg-raster-document-xxx-supported */
+    unsigned	interval = 1;		// Current retry interval
 
 
    /*
@@ -601,11 +610,10 @@ get_device_attrs(const char *device_uri)/* I - Device URI */
 
     while ((http = cupsConnectDest(dest, CUPS_DEST_FLAGS_DEVICE, 30000, NULL, resource, sizeof(resource), NULL, NULL)) == NULL)
     {
-      int interval = 1 + (rand() % 30);
-					/* Retry interval */
+      interval = FIB_NEXT(interval);
 
-      plogf(NULL, "'%s' is not responding, retrying in %d seconds.", device_uri, interval);
-      sleep((unsigned)interval);
+      plogf(NULL, "'%s' is not responding, retrying in %u seconds.", device_uri, FIB_VALUE(interval));
+      sleep(FIB_VALUE(interval));
     }
 
     cupsFreeDests(1, dest);
@@ -928,6 +936,7 @@ proxy_jobs(proxy_info_t *info)		/* I - Printer and device info */
   cups_dest_t	*dest;			/* Destination for printer URI */
   proxy_job_t	*pjob;			/* Current job */
 //  ipp_t		*new_attrs;		/* New device attributes */
+  unsigned	interval = 1;		// Current interval
 
 
  /*
@@ -947,11 +956,10 @@ proxy_jobs(proxy_info_t *info)		/* I - Printer and device info */
 
   while ((info->http = cupsConnectDest(dest, CUPS_DEST_FLAGS_DEVICE, 30000, NULL, info->resource, sizeof(info->resource), NULL, NULL)) == NULL)
   {
-    int interval = 1 + (rand() % 30);
-					/* Retry interval */
+    interval = FIB_NEXT(interval);
 
-    plogf(NULL, "'%s' is not responding, retrying in %d seconds.", info->printer_uri, interval);
-    sleep((unsigned)interval);
+    plogf(NULL, "'%s' is not responding, retrying in %u seconds.", info->printer_uri, FIB_VALUE(interval));
+    sleep(FIB_VALUE(interval));
   }
 
   cupsFreeDests(1, dest);

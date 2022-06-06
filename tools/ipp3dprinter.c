@@ -29,9 +29,6 @@
 #include <cups/cups.h>
 #include <cups/thread.h>
 
-// TODO: Remove dependency on private APIs!
-#include <cups/ipp-private.h>
-
 #include <limits.h>
 #include <sys/stat.h>
 
@@ -72,7 +69,7 @@ extern char **environ;
 #  include <sys/vfs.h>
 #endif /* HAVE_SYS_VFS_H */
 
-#include <server/printer3d-png.h>
+#include "../server/printer3d-png.h"
 
 
 /*
@@ -267,7 +264,7 @@ static void		ipp_send_document(ipp3d_client_t *client);
 static void		ipp_send_uri(ipp3d_client_t *client);
 static void		ipp_validate_job(ipp3d_client_t *client);
 static ipp_t		*load_ippserver_attributes(const char *servername, int serverport, const char *filename, cups_array_t *docformats);
-static int		parse_options(ipp3d_client_t *client, cups_option_t **options);
+static size_t		parse_options(ipp3d_client_t *client, cups_option_t **options);
 static void		process_attr_message(ipp3d_job_t *job, char *message);
 static void		*process_client(ipp3d_client_t *client);
 static int		process_http(ipp3d_client_t *client);
@@ -283,8 +280,8 @@ static int		show_materials(ipp3d_client_t *client);
 static int		show_status(ipp3d_client_t *client);
 static char		*time_string(time_t tv, char *buffer, size_t bufsize);
 static void		usage(int status) _CUPS_NORETURN;
-static int		valid_doc_attributes(ipp3d_client_t *client);
-static int		valid_job_attributes(ipp3d_client_t *client);
+static bool		valid_doc_attributes(ipp3d_client_t *client);
+static bool		valid_job_attributes(ipp3d_client_t *client);
 
 
 /*
@@ -1081,7 +1078,7 @@ create_printer(
     ipp_t        *attrs)		/* I - Capability attributes */
 {
   ipp3d_printer_t	*printer;	/* Printer */
-  int			i;		/* Looping var */
+  size_t		i;		/* Looping var */
 #ifndef _WIN32
   char			path[1024];	/* Full path to command */
 #endif /* !_WIN32 */
@@ -1092,10 +1089,10 @@ create_printer(
 			adminurl[1024],	/* printer-more-info URI */
 			uuid[128];	/* printer-uuid */
   int			k_supported;	/* Maximum file size supported */
-  int			num_formats;	/* Number of supported document formats */
+  size_t		num_formats;	/* Number of supported document formats */
   const char		*formats[100],	/* Supported document formats */
 			*format;	/* Current format */
-  int			num_sup_attrs;	/* Number of supported attributes */
+  size_t		num_sup_attrs;	/* Number of supported attributes */
   const char		*sup_attrs[100];/* Supported attributes */
   char			xxx_supported[256];
 					/* Name of -supported attribute */
@@ -3393,14 +3390,14 @@ ipp_validate_job(ipp3d_client_t *client)	/* I - Client */
  * 'ippserver_attr_cb()' - Determine whether an attribute should be loaded.
  */
 
-static int				/* O - 1 to use, 0 to ignore */
+static bool				/* O - `true` to use, `false` to ignore */
 ippserver_attr_cb(
-    _ipp_file_t    *f,			/* I - IPP file */
-    void           *user_data,		/* I - User data pointer (unused) */
-    const char     *attr)		/* I - Attribute name */
+    ipp_file_t *f,			/* I - IPP file */
+    void       *user_data,		/* I - User data pointer (unused) */
+    const char *attr)			/* I - Attribute name */
 {
-  int		i,			/* Current element */
-		result;			/* Result of comparison */
+  size_t	i;			/* Current element */
+  int		result;			/* Result of comparison */
   static const char * const ignored[] =
   {					/* Ignored attributes */
     "attributes-charset",
@@ -3481,7 +3478,7 @@ ippserver_attr_cb(
   (void)f;
   (void)user_data;
 
-  for (i = 0, result = 1; i < (int)(sizeof(ignored) / sizeof(ignored[0])); i ++)
+  for (i = 0, result = 1; i < (sizeof(ignored) / sizeof(ignored[0])); i ++)
   {
     if ((result = strcmp(attr, ignored[i])) <= 0)
       break;
@@ -3495,51 +3492,18 @@ ippserver_attr_cb(
  * 'ippserver_error_cb()' - Log an error message.
  */
 
-static int				/* O - 1 to continue, 0 to stop */
+static bool				/* O - `true` to continue, `false` to stop */
 ippserver_error_cb(
-    _ipp_file_t    *f,			/* I - IPP file data */
-    void           *user_data,		/* I - User data pointer (unused) */
-    const char     *error)		/* I - Error message */
+    ipp_file_t *f,			/* I - IPP file data */
+    void       *user_data,		/* I - User data pointer (unused) */
+    const char *error)			/* I - Error message */
 {
   (void)f;
   (void)user_data;
 
   fprintf(stderr, "%s\n", error);
 
-  return (1);
-}
-
-
-/*
- * 'ippserver_token_cb()' - Process ippserver-specific config file tokens.
- */
-
-static int				/* O - 1 to continue, 0 to stop */
-ippserver_token_cb(
-    _ipp_file_t    *f,			/* I - IPP file data */
-    _ipp_vars_t    *vars,		/* I - IPP variables */
-    void           *user_data,		/* I - User data pointer (unused) */
-    const char     *token)		/* I - Current token */
-{
-  (void)vars;
-  (void)user_data;
-
-  if (!token)
-  {
-   /*
-    * NULL token means do the initial setup - create an empty IPP message and
-    * return...
-    */
-
-    f->attrs     = ippNew();
-    f->group_tag = IPP_TAG_PRINTER;
-  }
-  else
-  {
-    fprintf(stderr, "Unknown directive \"%s\" on line %d of \"%s\" ignored.", token, f->linenum, f->filename);
-  }
-
-  return (1);
+  return (true);
 }
 
 
@@ -3554,8 +3518,8 @@ load_ippserver_attributes(
     const char   *filename,		/* I - ippserver attribute filename */
     cups_array_t *docformats)		/* I - document-format-supported values */
 {
+  ipp_file_t	*file;			// IPP data file
   ipp_t		*attrs;			/* IPP attributes */
-  _ipp_vars_t	vars;			/* IPP variables */
   char		temp[256];		/* Temporary string */
 
 
@@ -3570,32 +3534,37 @@ load_ippserver_attributes(
   * - SERVERPORT: The default port of the server.
   */
 
-  _ippVarsInit(&vars, (_ipp_fattr_cb_t)ippserver_attr_cb, (_ipp_ferror_cb_t)ippserver_error_cb, (_ipp_ftoken_cb_t)ippserver_token_cb);
+  attrs = ippNew();
+  file  = ippFileNew(NULL, (ipp_fattr_cb_t)ippserver_attr_cb, (ipp_ferror_cb_t)ippserver_error_cb, NULL);
+
+  ippFileSetAttributes(file, attrs);
+  ippFileSetGroupTag(file, IPP_TAG_PRINTER);
 
   if (servername)
   {
-    _ippVarsSet(&vars, "SERVERNAME", servername);
+    ippFileSetVar(file, "SERVERNAME", servername);
   }
   else
   {
     httpGetHostname(NULL, temp, sizeof(temp));
-    _ippVarsSet(&vars, "SERVERNAME", temp);
+    ippFileSetVar(file, "SERVERNAME", temp);
   }
 
   snprintf(temp, sizeof(temp), "%d", serverport);
-  _ippVarsSet(&vars, "SERVERPORT", temp);
+  ippFileSetVar(file, "SERVERPORT", temp);
 
  /*
   * Load attributes and values for the printer...
   */
 
-  attrs = _ippFileParse(&vars, filename, NULL);
+  ippFileOpen(file, filename, "r");
+  ippFileRead(file, NULL, false);
 
  /*
   * Free memory and return...
   */
 
-  _ippVarsDeinit(&vars);
+  ippFileDelete(file);
 
   return (attrs);
 }
@@ -3607,14 +3576,14 @@ load_ippserver_attributes(
  * The client->options string is destroyed by this function.
  */
 
-static int				/* O - Number of options */
+static size_t				/* O - Number of options */
 parse_options(ipp3d_client_t *client,	/* I - Client */
               cups_option_t   **options)/* O - Options */
 {
-  char	*name,				/* Name */
-      	*value,				/* Value */
-	*next;				/* Next name=value pair */
-  int	num_options = 0;		/* Number of options */
+  char		*name,			/* Name */
+      		*value,			/* Value */
+		*next;			/* Next name=value pair */
+  size_t	num_options = 0;	/* Number of options */
 
 
   *options = NULL;
@@ -3644,7 +3613,7 @@ process_attr_message(
     ipp3d_job_t *job,			/* I - Job */
     char       *message)		/* I - Message */
 {
-  int		i,			/* Looping var */
+  size_t	i,			/* Looping var */
 		num_options = 0;	/* Number of name=value pairs */
   cups_option_t	*options = NULL,	/* name=value pairs from message */
 		*option;		/* Current option */
@@ -4849,7 +4818,7 @@ register_printer(
 {
 #ifdef HAVE_DNSSD
   ipp3d_txt_t		ipp_txt;	/* Bonjour IPP TXT record */
-  int			i,		/* Looping var */
+  size_t		i,		/* Looping var */
 			count;		/* Number of values */
   ipp_attribute_t	*document_format_supported,
 			*printer_location,
@@ -5334,7 +5303,7 @@ show_materials(ipp3d_client_t  *client)	/* I - Client connection */
 {
   ipp3d_printer_t *printer = client->printer;
 					/* Printer */
-  int			i, j,		/* Looping vars */
+  size_t		i, j,		/* Looping vars */
 			count;		/* Number of values */
   ipp_attribute_t	*materials_db,	/* materials-col-database attribute */
 			*materials_ready,/* materials-col-ready attribute */
@@ -5344,8 +5313,8 @@ show_materials(ipp3d_client_t  *client)	/* I - Client connection */
                         *material_key,	/* materials-col-database material-key value */
                         *ready_key,	/* materials-col-ready material-key value */
                         *ready_name;	/* materials-col-ready marterial-name value */
-  int			max_materials;	/* max-materials-col-supported value */
-  int			num_options = 0;/* Number of form options */
+  size_t		max_materials;	/* max-materials-col-supported value */
+  size_t		num_options = 0;/* Number of form options */
   cups_option_t		*options = NULL;/* Form options */
 
 
@@ -5382,7 +5351,7 @@ show_materials(ipp3d_client_t  *client)	/* I - Client connection */
     return (1);
   }
 
-  max_materials = ippGetInteger(attr, 0);
+  max_materials = (size_t)ippGetInteger(attr, 0);
 
  /*
   * Process form data if present...
@@ -5411,7 +5380,7 @@ show_materials(ipp3d_client_t  *client)	/* I - Client connection */
 
     for (i = 0; i < max_materials; i ++)
     {
-      snprintf(name, sizeof(name), "material%d", i);
+      snprintf(name, sizeof(name), "material%u", (unsigned)i);
       if ((val = cupsGetOption(name, num_options, options)) == NULL || !*val)
         continue;
 
@@ -5451,10 +5420,10 @@ show_materials(ipp3d_client_t  *client)	/* I - Client connection */
     materials_col = ippGetCollection(materials_ready, i);
     ready_key     = ippGetString(ippFindAttribute(materials_col, "material-key", IPP_TAG_ZERO), 0, NULL);
 
-    html_printf(client, "<tr><th>Material %d:</th>", i + 1);
+    html_printf(client, "<tr><th>Material %u:</th>", (unsigned)i + 1);
     if (printer->web_forms)
     {
-      html_printf(client, "<td><select name=\"material%d\"><option value=\"\">None</option>", i);
+      html_printf(client, "<td><select name=\"material%u\"><option value=\"\">None</option>", (unsigned)i);
       for (j = 0, count = ippGetCount(materials_db); j < count; j ++)
       {
 	materials_col = ippGetCollection(materials_db, j);
@@ -5468,7 +5437,7 @@ show_materials(ipp3d_client_t  *client)	/* I - Client connection */
 	else if (material_name)
 	  html_printf(client, "<!-- Error: no material-key for material-name=\"%s\" -->", material_name);
 	else
-	  html_printf(client, "<!-- Error: no material-key or material-name for materials-col-database[%d] -->", j + 1);
+	  html_printf(client, "<!-- Error: no material-key or material-name for materials-col-database[%u] -->", (unsigned)j + 1);
       }
       html_printf(client, "</select></td></tr>\n");
     }
@@ -5656,11 +5625,11 @@ usage(int status)			/* O - Exit status */
  * suitable response and attributes to the unsupported group.
  */
 
-static int				/* O - 1 if valid, 0 if not */
+static bool				/* O - `true` if valid, `false` if not */
 valid_doc_attributes(
     ipp3d_client_t *client)		/* I - Client */
 {
-  int			valid = 1;	/* Valid attributes? */
+  bool			valid = true;	/* Valid attributes? */
   ipp_op_t		op = ippGetOperation(client->request);
 					/* IPP operation */
   const char		*op_name = ippOpString(op);
@@ -5694,7 +5663,7 @@ valid_doc_attributes(
         !ippContainsString(supported, compression))
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
     else
     {
@@ -5721,7 +5690,7 @@ valid_doc_attributes(
         ippGetGroupTag(attr) != IPP_TAG_OPERATION)
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
     else
     {
@@ -5778,7 +5747,7 @@ valid_doc_attributes(
   if (op != IPP_OP_CREATE_JOB && (supported = ippFindAttribute(client->printer->attrs, "document-format-supported", IPP_TAG_MIMETYPE)) != NULL && !ippContainsString(supported, format))
   {
     respond_unsupported(client, attr);
-    valid = 0;
+    valid = false;
   }
 
  /*
@@ -5799,13 +5768,13 @@ valid_doc_attributes(
  * response and attributes to the unsupported group.
  */
 
-static int				/* O - 1 if valid, 0 if not */
+static bool				/* O - `true` if valid, `false` if not */
 valid_job_attributes(
     ipp3d_client_t *client)		/* I - Client */
 {
-  int			i,		/* Looping var */
-			count,		/* Number of values */
-			valid = 1;	/* Valid attributes? */
+  size_t		i,		/* Looping var */
+			count;		/* Number of values */
+  bool			valid = true;	/* Valid attributes? */
   ipp_attribute_t	*attr,		/* Current attribute */
 			*supported;	/* xxx-supported attribute */
 
@@ -5826,7 +5795,7 @@ valid_job_attributes(
         ippGetInteger(attr, 0) < 1 || ippGetInteger(attr, 0) > 999)
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -5835,7 +5804,7 @@ valid_job_attributes(
     if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_BOOLEAN)
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -5848,7 +5817,7 @@ valid_job_attributes(
 	strcmp(ippGetString(attr, 0, NULL), "no-hold"))
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -5857,7 +5826,7 @@ valid_job_attributes(
     if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetInteger(attr, 0) < 0)
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -5868,7 +5837,7 @@ valid_job_attributes(
 	 ippGetValueTag(attr) != IPP_TAG_NAMELANG))
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
 
     ippSetGroupTag(client->request, &attr, IPP_TAG_JOB);
@@ -5882,7 +5851,7 @@ valid_job_attributes(
         ippGetInteger(attr, 0) < 1 || ippGetInteger(attr, 0) > 100)
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -5895,7 +5864,7 @@ valid_job_attributes(
 	strcmp(ippGetString(attr, 0, NULL), "none"))
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -5907,7 +5876,7 @@ valid_job_attributes(
 	 ippGetValueTag(attr) != IPP_TAG_KEYWORD))
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
     else
     {
@@ -5916,7 +5885,7 @@ valid_job_attributes(
       if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
       {
 	respond_unsupported(client, attr);
-	valid = 0;
+	valid = false;
       }
     }
   }
@@ -5935,7 +5904,7 @@ valid_job_attributes(
         ippGetValueTag(attr) != IPP_TAG_BEGIN_COLLECTION)
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
 
     col = ippGetCollection(attr, 0);
@@ -5948,7 +5917,7 @@ valid_job_attributes(
 	   ippGetValueTag(member) != IPP_TAG_KEYWORD))
       {
 	respond_unsupported(client, attr);
-	valid = 0;
+	valid = false;
       }
       else
       {
@@ -5957,7 +5926,7 @@ valid_job_attributes(
 	if (!ippContainsString(supported, ippGetString(member, 0, NULL)))
 	{
 	  respond_unsupported(client, attr);
-	  valid = 0;
+	  valid = false;
 	}
       }
     }
@@ -5966,7 +5935,7 @@ valid_job_attributes(
       if (ippGetCount(member) != 1)
       {
 	respond_unsupported(client, attr);
-	valid = 0;
+	valid = false;
       }
       else
       {
@@ -5976,7 +5945,7 @@ valid_job_attributes(
 	    (y_dim = ippFindAttribute(size, "y-dimension", IPP_TAG_INTEGER)) == NULL || ippGetCount(y_dim) != 1)
 	{
 	  respond_unsupported(client, attr);
-	  valid = 0;
+	  valid = false;
 	}
 	else
 	{
@@ -5998,7 +5967,7 @@ valid_job_attributes(
 	  if (i >= count)
 	  {
 	    respond_unsupported(client, attr);
-	    valid = 0;
+	    valid = false;
 	  }
 	}
       }
@@ -6014,7 +5983,7 @@ valid_job_attributes(
 		"separate-documents-collated-copies")))
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -6025,7 +5994,7 @@ valid_job_attributes(
         ippGetInteger(attr, 0) > IPP_ORIENT_REVERSE_PORTRAIT)
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -6034,7 +6003,7 @@ valid_job_attributes(
     if (ippGetValueTag(attr) != IPP_TAG_RANGE)
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -6045,7 +6014,7 @@ valid_job_attributes(
         ippGetInteger(attr, 0) > IPP_QUALITY_HIGH)
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 
@@ -6057,7 +6026,7 @@ valid_job_attributes(
         !supported)
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
     else
     {
@@ -6079,7 +6048,7 @@ valid_job_attributes(
       if (i >= count)
       {
 	respond_unsupported(client, attr);
-	valid = 0;
+	valid = false;
       }
     }
   }
@@ -6092,20 +6061,20 @@ valid_job_attributes(
     if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_KEYWORD)
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
     else if ((supported = ippFindAttribute(client->printer->attrs, "sides-supported", IPP_TAG_KEYWORD)) != NULL)
     {
       if (!ippContainsString(supported, sides))
       {
 	respond_unsupported(client, attr);
-	valid = 0;
+	valid = false;
       }
     }
     else if (strcmp(sides, "one-sided"))
     {
       respond_unsupported(client, attr);
-      valid = 0;
+      valid = false;
     }
   }
 

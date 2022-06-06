@@ -13,6 +13,7 @@
 			buildPhases = (
 			);
 			dependencies = (
+				27006809284E80D000AFBD2F /* PBXTargetDependency */,
 				270185B22283B59C00271095 /* PBXTargetDependency */,
 				72E006161C5C0C52006CF057 /* PBXTargetDependency */,
 				72E006181C5C0C52006CF057 /* PBXTargetDependency */,
@@ -25,6 +26,17 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		270067F9284E80BD00AFBD2F /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74E9282C3B370026ECAF /* libcups_static.a */; };
+		270067FA284E80BD00AFBD2F /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74EE282C4FF90026ECAF /* libssl.a */; };
+		270067FB284E80BD00AFBD2F /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74ED282C4FF80026ECAF /* libcrypto.a */; };
+		270067FC284E80BD00AFBD2F /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EB1C0CE81900139783 /* SystemConfiguration.framework */; };
+		270067FD284E80BD00AFBD2F /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
+		270067FE284E80BD00AFBD2F /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
+		270067FF284E80BD00AFBD2F /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
+		27006800284E80BD00AFBD2F /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
+		27006801284E80BD00AFBD2F /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
+		27006803284E80BD00AFBD2F /* ippproxy.8 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E0060C1C5C0BE3006CF057 /* ippproxy.8 */; };
+		2700680B284E80E600AFBD2F /* ipp3dprinter.c in Sources */ = {isa = PBXBuildFile; fileRef = 2700680A284E80E600AFBD2F /* ipp3dprinter.c */; };
 		275C6BA41C878A74000D2DE7 /* ippproxy.8 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E0060C1C5C0BE3006CF057 /* ippproxy.8 */; };
 		275C6BA51C878A83000D2DE7 /* ippserver.8 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72B402A81C0CE43D00139783 /* ippserver.8 */; };
 		275C6BA91C878AF5000D2DE7 /* ipptransform.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 275C6BA31C878A65000D2DE7 /* ipptransform.1 */; };
@@ -102,6 +114,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		27006808284E80D000AFBD2F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 270067F5284E80BD00AFBD2F;
+			remoteInfo = ipp3dprinter;
+		};
 		270185B12283B59C00271095 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
@@ -140,6 +159,16 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		27006802284E80BD00AFBD2F /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/local/share/man/man1;
+			dstSubfolderSpec = 0;
+			files = (
+				27006803284E80BD00AFBD2F /* ippproxy.8 in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
 		2778EBA81D2FF60E00DE72EC /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -193,9 +222,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		27006807284E80BD00AFBD2F /* ipp3dprinter */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ipp3dprinter; sourceTree = BUILT_PRODUCTS_DIR; };
+		2700680A284E80E600AFBD2F /* ipp3dprinter.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ipp3dprinter.c; path = ../tools/ipp3dprinter.c; sourceTree = "<group>"; };
 		2701858D2283B53900271095 /* ippeveprinter.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; name = ippeveprinter.1; path = ../man/ippeveprinter.1; sourceTree = "<group>"; };
 		2701858E2283B53900271095 /* ippeveprinter.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = ippeveprinter.html; path = ../man/ippeveprinter.html; sourceTree = "<group>"; };
-		270185AF2283B58400271095 /* ippeveprinter.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ippeveprinter.c; path = ../tools/ippeveprinter.c; sourceTree = "<group>"; };
 		275C6BA21C878A65000D2DE7 /* ipptransform.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = ipptransform.html; path = ../man/ipptransform.html; sourceTree = "<group>"; };
 		275C6BA31C878A65000D2DE7 /* ipptransform.1 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.man; name = ipptransform.1; path = ../man/ipptransform.1; sourceTree = "<group>"; };
 		275C6BAA1C87D907000D2DE7 /* dither.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dither.h; path = ../tools/dither.h; sourceTree = "<group>"; };
@@ -316,8 +346,6 @@
 		72B402AC1C0CE43D00139783 /* printer.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = printer.c; path = ../server/printer.c; sourceTree = "<group>"; };
 		72B402AE1C0CE43D00139783 /* subscription.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = subscription.c; path = ../server/subscription.c; sourceTree = "<group>"; };
 		72B402AF1C0CE43D00139783 /* transform.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = transform.c; path = ../server/transform.c; sourceTree = "<group>"; };
-		72B402D01C0CE60400139783 /* ippfind.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ippfind.c; path = ../tools/ippfind.c; sourceTree = "<group>"; };
-		72B402D11C0CE60400139783 /* ipptool.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ipptool.c; path = ../tools/ipptool.c; sourceTree = "<group>"; };
 		72B402E21C0CE66200139783 /* ippfind.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = ippfind.html; path = ../man/ippfind.html; sourceTree = "<group>"; };
 		72B402E31C0CE66200139783 /* ippserver.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = ippserver.html; path = ../man/ippserver.html; sourceTree = "<group>"; };
 		72B402E41C0CE66200139783 /* ipptool.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = ipptool.html; path = ../man/ipptool.html; sourceTree = "<group>"; };
@@ -342,6 +370,22 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		270067F8284E80BD00AFBD2F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				270067F9284E80BD00AFBD2F /* libcups_static.a in Frameworks */,
+				270067FA284E80BD00AFBD2F /* libssl.a in Frameworks */,
+				270067FB284E80BD00AFBD2F /* libcrypto.a in Frameworks */,
+				270067FC284E80BD00AFBD2F /* SystemConfiguration.framework in Frameworks */,
+				270067FD284E80BD00AFBD2F /* Security.framework in Frameworks */,
+				270067FE284E80BD00AFBD2F /* CoreFoundation.framework in Frameworks */,
+				270067FF284E80BD00AFBD2F /* libiconv.dylib in Frameworks */,
+				27006800284E80BD00AFBD2F /* libresolv.dylib in Frameworks */,
+				27006801284E80BD00AFBD2F /* libz.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		2778EBA11D2FF60E00DE72EC /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -471,6 +515,7 @@
 				725C87C01C7664DE00FB3AD5 /* ipptransform */,
 				2778EBAD1D2FF60E00DE72EC /* ipptransform3d */,
 				27EB2BA5204F81470088BC2C /* ippdoclint */,
+				27006807284E80BD00AFBD2F /* ipp3dprinter */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -574,11 +619,9 @@
 		72B4022E1C0CE22300139783 /* tools */ = {
 			isa = PBXGroup;
 			children = (
+				2700680A284E80E600AFBD2F /* ipp3dprinter.c */,
 				27EB2BA6204F81710088BC2C /* ippdoclint.c */,
-				270185AF2283B58400271095 /* ippeveprinter.c */,
-				72B402D01C0CE60400139783 /* ippfind.c */,
 				72E006031C5C0B49006CF057 /* ippproxy.c */,
-				72B402D11C0CE60400139783 /* ipptool.c */,
 				725C87C31C767CF800FB3AD5 /* ipptransform.c */,
 				2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */,
 				275C6BAA1C87D907000D2DE7 /* dither.h */,
@@ -644,6 +687,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		270067F5284E80BD00AFBD2F /* ipp3dprinter */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 27006804284E80BD00AFBD2F /* Build configuration list for PBXNativeTarget "ipp3dprinter" */;
+			buildPhases = (
+				270067F6284E80BD00AFBD2F /* Sources */,
+				270067F8284E80BD00AFBD2F /* Frameworks */,
+				27006802284E80BD00AFBD2F /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ipp3dprinter;
+			productName = ipptool;
+			productReference = 27006807284E80BD00AFBD2F /* ipp3dprinter */;
+			productType = "com.apple.product-type.tool";
+		};
 		2778EB9C1D2FF60E00DE72EC /* ipptransform3d */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2778EBAA1D2FF60E00DE72EC /* Build configuration list for PBXNativeTarget "ipptransform3d" */;
@@ -761,6 +821,7 @@
 			projectRoot = "";
 			targets = (
 				72E0060D1C5C0C48006CF057 /* All */,
+				270067F5284E80BD00AFBD2F /* ipp3dprinter */,
 				27EB2B94204F81470088BC2C /* ippdoclint */,
 				72E005F21C5C0B10006CF057 /* ippproxy */,
 				72B402171C0CDFB400139783 /* ippserver */,
@@ -771,6 +832,14 @@
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		270067F6284E80BD00AFBD2F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2700680B284E80E600AFBD2F /* ipp3dprinter.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		2778EB9F1D2FF60E00DE72EC /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -825,6 +894,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		27006809284E80D000AFBD2F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 270067F5284E80BD00AFBD2F /* ipp3dprinter */;
+			targetProxy = 27006808284E80D000AFBD2F /* PBXContainerItemProxy */;
+		};
 		270185B22283B59C00271095 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 27EB2B94204F81470088BC2C /* ippdoclint */;
@@ -853,6 +927,26 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		27006805284E80BD00AFBD2F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_IDENTITY = "-";
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		27006806284E80BD00AFBD2F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_IDENTITY = "-";
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		2778EBAB1D2FF60E00DE72EC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1108,6 +1202,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		27006804284E80BD00AFBD2F /* Build configuration list for PBXNativeTarget "ipp3dprinter" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				27006805284E80BD00AFBD2F /* Debug */,
+				27006806284E80BD00AFBD2F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		2778EBAA1D2FF60E00DE72EC /* Build configuration list for PBXNativeTarget "ipptransform3d" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
