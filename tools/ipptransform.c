@@ -15,6 +15,7 @@
 #include <cups/cups.h>
 #include <cups/raster.h>
 #include <cups/thread.h>
+#include <pdfio.h>
 
 #ifdef HAVE_COREGRAPHICS
 #  include <CoreGraphics/CoreGraphics.h>
@@ -26,10 +27,11 @@ extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
 #include "dither.h"
 
 
-/*
- * Constants...
- */
+// Macros...
+#define XFORM_MATCH(a,b)	(abs(a-b) <= 100)
 
+
+// Constants...
 #define XFORM_MAX_RASTER	16777216
 
 #define XFORM_RED_MASK		0x000000ff
@@ -40,39 +42,44 @@ extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
 #define XFORM_RG_MASK		(XFORM_RED_MASK | XFORM_GREEN_MASK)
 
 
-/*
- * Local types...
- */
-
+// Local types...
 typedef ssize_t (*xform_write_cb_t)(void *, const unsigned char *, size_t);
+					// Write callback
+
+typedef struct xform_document_s		// Document information
+{
+  const char	*filename,		// Document filename
+		*format;		// Document format
+} xform_document_t;
 
 typedef struct xform_raster_s xform_raster_t;
+					// Raster context
 
-struct xform_raster_s
+struct xform_raster_s			// Raster context
 {
-  const char		*format;	/* Output format */
-  size_t		num_options;	/* Number of job options */
-  cups_option_t		*options;	/* Job options */
-  unsigned		copies;		/* Number of copies */
-  cups_page_header_t	header;		/* Page header */
-  cups_page_header_t	back_header;	/* Page header for back side */
-  int			borderless;	/* Borderless media? */
-  unsigned char		*band_buffer;	/* Band buffer */
-  unsigned		band_height;	/* Band height */
-  unsigned		band_bpp;	/* Bytes per pixel in band */
+  const char		*format;	// Output format
+  size_t		num_options;	// Number of job options
+  cups_option_t		*options;	// Job options
+  unsigned		copies;		// Number of copies
+  cups_page_header_t	header;		// Page header
+  cups_page_header_t	back_header;	// Page header for back side
+  bool			borderless;	// Borderless media?
+  unsigned char		*band_buffer;	// Band buffer
+  unsigned		band_height;	// Band height
+  unsigned		band_bpp;	// Bytes per pixel in band
 
   /* Set by start_job callback */
-  cups_raster_t		*ras;		/* Raster stream */
+  cups_raster_t		*ras;		// Raster stream
 
   /* Set by start_page callback */
   unsigned		left, top, right, bottom;
-					/* Image (print) box with origin at top left */
-  unsigned		out_blanks;	/* Blank lines */
-  size_t		out_length;	/* Output buffer size */
-  unsigned char		*out_buffer;	/* Output (bit) buffer */
-  unsigned char		*comp_buffer;	/* Compression buffer */
+					// Image (print) box with origin at top left
+  unsigned		out_blanks;	// Blank lines
+  size_t		out_length;	// Output buffer size
+  unsigned char		*out_buffer;	// Output (bit) buffer
+  unsigned char		*comp_buffer;	// Compression buffer
 
-  unsigned char		dither[64][64];	/* Dither array */
+  unsigned char		dither[64][64];	// Dither array
 
   /* Callbacks */
   void			(*end_job)(xform_raster_t *, xform_write_cb_t, void *);
@@ -83,17 +90,11 @@ struct xform_raster_s
 };
 
 
-/*
- * Local globals...
- */
-
-static int	Verbosity = 0;		/* Log level */
+// Local globals...
+static int	Verbosity = 0;		// Log level
 
 
-/*
- * Local functions...
- */
-
+// Local functions...
 static size_t	load_env_options(cups_option_t **options);
 static void	*monitor_ipp(const char *device_uri);
 #ifdef HAVE_COREGRAPHICS
@@ -107,6 +108,8 @@ static void	pcl_printf(xform_write_cb_t cb, void *ctx, const char *format, ...) 
 static void	pcl_start_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	pcl_start_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	pcl_write_line(xform_raster_t *ras, unsigned y, const unsigned char *line, xform_write_cb_t cb, void *ctx);
+static char	*prepare_documents(size_t num_documents, xform_document_t *documents, size_t num_options, cups_option_t *options, cups_size_t *outmedia, char *outfile, size_t outsize, unsigned *outpages);
+static bool	prepare_media(size_t num_options, cups_option_t *options, cups_size_t *outmedia);
 static void	raster_end_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	raster_end_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	raster_init(xform_raster_t *ras);
@@ -115,33 +118,34 @@ static void	raster_start_page(xform_raster_t *ras, unsigned page, xform_write_cb
 static void	raster_write_line(xform_raster_t *ras, unsigned y, const unsigned char *line, xform_write_cb_t cb, void *ctx);
 static void	usage(int status) _CUPS_NORETURN;
 static ssize_t	write_fd(int *fd, const unsigned char *buffer, size_t bytes);
-static int	xform_document(const char *filename, const char *informat, const char *outformat, const char *resolutions, const char *sheet_back, const char *types, size_t num_options, cups_option_t *options, xform_write_cb_t cb, void *ctx);
-static int	xform_setup(xform_raster_t *ras, const char *outformat, const char *resolutions, const char *types, const char *sheet_back, bool color, unsigned pages, size_t num_options, cups_option_t *options);
+static bool	xform_document(const char *filename, const char *outformat, const char *resolutions, const char *sheet_back, const char *types, size_t num_options, cups_option_t *options, xform_write_cb_t cb, void *ctx);
+static bool	xform_setup(xform_raster_t *ras, const char *outformat, const char *resolutions, const char *types, const char *sheet_back, bool color, unsigned pages, size_t num_options, cups_option_t *options);
 
 
-/*
- * 'main()' - Main entry for transform utility.
- */
+//
+// 'main()' - Main entry for transform utility.
+//
 
 int					/* O - Exit status */
 main(int  argc,				/* I - Number of command-line args */
      char *argv[])			/* I - Command-line arguments */
 {
   int		i;			/* Looping var */
-  const char	*filename = NULL,	/* File to transform */
-		*content_type,		/* Source content type */
-		*device_uri,		/* Destination URI */
+  const char	*device_uri,		/* Destination URI */
 		*output_type,		/* Destination content type */
 		*resolutions,		/* pwg-raster-document-resolution-supported */
 		*sheet_back,		/* pwg-raster-document-sheet-back */
 		*types,			/* pwg-raster-document-type-supported */
 		*opt;			/* Option character */
+  size_t	num_files = 0;		// Number of files
+  xform_document_t files[1000];		// Files to convert
   size_t	num_options;		/* Number of options */
   cups_option_t	*options;		/* Options */
   int		fd = 1;			/* Output file/socket */
   http_t	*http = NULL;		/* Output HTTP connection */
   void		*write_ptr = &fd;	/* Pointer to file/socket/HTTP connection */
-  char		resource[1024];		/* URI resource path */
+  char		resource[1024],		/* URI resource path */
+		temp[128];		// Temporary string
   xform_write_cb_t write_cb = (xform_write_cb_t)write_fd;
 					/* Write callback */
   int		status = 0;		/* Exit status */
@@ -152,8 +156,9 @@ main(int  argc,				/* I - Number of command-line args */
   * Process the command-line...
   */
 
+  memset(files, 0, sizeof(files));
+
   num_options  = load_env_options(&options);
-  content_type = getenv("CONTENT_TYPE");
   device_uri   = getenv("DEVICE_URI");
   output_type  = getenv("OUTPUT_TYPE");
   resolutions  = getenv("IPP_PWG_RASTER_DOCUMENT_RESOLUTION_SUPPORTED");
@@ -222,7 +227,15 @@ main(int  argc,				/* I - Number of command-line args */
 	        usage(1);
 	      }
 
-	      content_type = argv[i];
+	      if (num_files < (sizeof(files) / sizeof(files[0])))
+	      {
+	        files[num_files].format = argv[i];
+	      }
+	      else
+	      {
+	        fputs("ERROR: Too many files.\n", stderr);
+	        return (1);
+	      }
 	      break;
 
 	  case 'm' :
@@ -291,52 +304,76 @@ main(int  argc,				/* I - Number of command-line args */
 	}
       }
     }
-    else if (!filename)
-      filename = argv[i];
+    else if (num_files < (sizeof(files) / sizeof(files[0])))
+    {
+      if (!files[num_files].format)
+      {
+        if (num_files == 0)
+        {
+          files[num_files].format = getenv("CONTENT_TYPE");
+	}
+	else
+	{
+	  snprintf(temp, sizeof(temp), "CONTENT_TYPE%u", (unsigned)num_files + 1);
+          files[num_files].format = getenv(temp);
+	}
+      }
+
+      if (!files[num_files].format)
+      {
+	if ((opt = strrchr(argv[i], '.')) != NULL)
+	{
+	  if (!strcmp(opt, ".jpg") || !strcmp(opt, ".jpeg"))
+	    files[num_files].format = "image/jpeg";
+	  else if (!strcmp(opt, ".pcl"))
+	    files[num_files].format = "application/vnd.hp-PCL";
+	  else if (!strcmp(opt, ".pdf"))
+	    files[num_files].format = "application/pdf";
+	  else if (!strcmp(opt, ".png"))
+	    files[num_files].format = "image/png";
+	  else if (!strcmp(opt, ".pxl"))
+	    files[num_files].format = "application/vnd.hp-PCLXL";
+	  else if (!strcmp(opt, ".pwg"))
+	    files[num_files].format = "image/pwg-raster";
+	  else if (!strcmp(opt, ".txt"))
+	    files[num_files].format = "text/plain";
+	  else if (!strcmp(opt, ".urf"))
+	    files[num_files].format = "image/urf";
+	}
+      }
+
+      if (!files[num_files].format)
+      {
+	fprintf(stderr, "ERROR: Unknown format for '%s', please specify with '-i' option.\n", argv[i]);
+	usage(1);
+      }
+      else if (strcmp(files[num_files].format, "application/pdf") && strcmp(files[num_files].format, "image/jpeg") && strcmp(files[num_files].format, "image/png") && strcmp(files[num_files].format, "text/plain"))
+      {
+	fprintf(stderr, "ERROR: Unsupported format '%s' for '%s'.\n", files[num_files].format, argv[i]);
+	usage(1);
+      }
+
+      files[num_files ++].filename = argv[i];
+    }
     else
     {
-      fprintf(stderr, "ERROR: Unknown argument '%s'.\n", argv[i]);
-      usage(1);
+      fputs("ERROR: Too many files.\n", stderr);
+      return (1);
     }
   }
 
- /*
-  * Check that we have everything we need...
-  */
-
-  if (!filename)
+  // Check that we have everything we need...
+  if (num_files == 0)
     usage(1);
-
-  if (!content_type)
-  {
-    if ((opt = strrchr(filename, '.')) != NULL)
-    {
-      if (!strcmp(opt, ".pdf"))
-        content_type = "application/pdf";
-      else if (!strcmp(opt, ".jpg") || !strcmp(opt, ".jpeg"))
-        content_type = "image/jpeg";
-    }
-  }
-
-  if (!content_type)
-  {
-    fprintf(stderr, "ERROR: Unknown format for \"%s\", please specify with '-i' option.\n", filename);
-    usage(1);
-  }
-  else if (strcmp(content_type, "application/pdf") && strcmp(content_type, "image/jpeg"))
-  {
-    fprintf(stderr, "ERROR: Unsupported format \"%s\" for \"%s\".\n", content_type, filename);
-    usage(1);
-  }
 
   if (!output_type)
   {
     fputs("ERROR: Unknown output format, please specify with '-m' option.\n", stderr);
     usage(1);
   }
-  else if (strcmp(output_type, "application/vnd.hp-pcl") && strcmp(output_type, "image/pwg-raster") && strcmp(output_type, "image/urf"))
+  else if (strcmp(output_type, "application/pdf") && strcmp(output_type, "application/vnd.hp-pcl") && strcmp(output_type, "image/pwg-raster") && strcmp(output_type, "image/urf"))
   {
-    fprintf(stderr, "ERROR: Unsupported output format \"%s\".\n", output_type);
+    fprintf(stderr, "ERROR: Unsupported output format '%s'.\n", output_type);
     usage(1);
   }
 
@@ -347,10 +384,7 @@ main(int  argc,				/* I - Number of command-line args */
   if (!types)
     types = "sgray_8";
 
- /*
-  * If the device URI is specified, open the connection...
-  */
-
+  // If the device URI is specified, open the connection...
   if (device_uri)
   {
     char	scheme[32],		/* URI scheme */
@@ -362,37 +396,35 @@ main(int  argc,				/* I - Number of command-line args */
 
     if (httpSeparateURI(HTTP_URI_CODING_ALL, device_uri, scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, resource, sizeof(resource)) < HTTP_URI_STATUS_OK)
     {
-      fprintf(stderr, "ERROR: Invalid device URI \"%s\".\n", device_uri);
+      fprintf(stderr, "ERROR: Invalid device URI '%s'.\n", device_uri);
       usage(1);
     }
 
     if (strcmp(scheme, "socket") && strcmp(scheme, "ipp") && strcmp(scheme, "ipps"))
     {
-      fprintf(stderr, "ERROR: Unsupported device URI scheme \"%s\".\n", scheme);
+      fprintf(stderr, "ERROR: Unsupported device URI scheme '%s'.\n", scheme);
       usage(1);
     }
 
     snprintf(service, sizeof(service), "%d", port);
     if ((list = httpAddrGetList(host, AF_UNSPEC, service)) == NULL)
     {
-      fprintf(stderr, "ERROR: Unable to lookup device URI host \"%s\": %s\n", host, cupsLastErrorString());
+      fprintf(stderr, "ERROR: Unable to lookup device URI host '%s': %s\n", host, cupsLastErrorString());
       return (1);
     }
 
     if (!strcmp(scheme, "socket"))
     {
-     /*
-      * AppSocket connection...
-      */
-
+      // AppSocket connection...
       if (!httpAddrConnect(list, &fd, 30000, NULL))
       {
-	fprintf(stderr, "ERROR: Unable to connect to \"%s\" on port %d: %s\n", host, port, cupsLastErrorString());
+	fprintf(stderr, "ERROR: Unable to connect to '%s' on port %d: %s\n", host, port, cupsLastErrorString());
 	return (1);
       }
     }
     else
     {
+      // IPP/IPPS connection...
       http_encryption_t encryption;	/* Encryption mode */
       ipp_t		*request,	/* IPP request */
 			*response;	/* IPP response */
@@ -408,10 +440,6 @@ main(int  argc,				/* I - Number of command-line args */
         "operations-supported"
       };
 
-     /*
-      * Connect to the IPP/IPPS printer...
-      */
-
       if (port == 443 || !strcmp(scheme, "ipps"))
         encryption = HTTP_ENCRYPTION_ALWAYS;
       else
@@ -419,14 +447,11 @@ main(int  argc,				/* I - Number of command-line args */
 
       if ((http = httpConnect(host, port, list, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
       {
-	fprintf(stderr, "ERROR: Unable to connect to \"%s\" on port %d: %s\n", host, port, cupsLastErrorString());
+	fprintf(stderr, "ERROR: Unable to connect to '%s' on port %d: %s\n", host, port, cupsLastErrorString());
 	return (1);
       }
 
-     /*
-      * See if it supports Create-Job + Send-Document...
-      */
-
+      // See if it supports Create-Job + Send-Document...
       request = ippNewRequest(IPP_OP_GET_PRINTER_ATTRIBUTES);
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
@@ -450,21 +475,18 @@ main(int  argc,				/* I - Number of command-line args */
 
       ippDelete(response);
 
-     /*
-      * Create the job and start printing...
-      */
-
+      // Create the job and start printing...
       if ((job_name = getenv("IPP_JOB_NAME")) == NULL)
       {
-	if ((job_name = strrchr(filename, '/')) != NULL)
+	if ((job_name = strrchr(files[0].filename, '/')) != NULL)
 	  job_name ++;
 	else
-	  job_name = filename;
+	  job_name = files[0].filename;
       }
 
       if (create_job)
       {
-        int		job_id = 0;	/* Job ID */
+        int	job_id;			// Job ID
 
         request = ippNewRequest(IPP_OP_CREATE_JOB);
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
@@ -472,8 +494,8 @@ main(int  argc,				/* I - Number of command-line args */
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "job-name", NULL, job_name);
 
         response = cupsDoRequest(http, request, resource);
-        if ((attr = ippFindAttribute(response, "job-id", IPP_TAG_INTEGER)) != NULL)
-	  job_id = ippGetInteger(attr, 0);
+        job_id   = ippGetInteger(ippFindAttribute(response, "job-id", IPP_TAG_INTEGER), 0);
+
         ippDelete(response);
 
 	if (cupsLastError() > IPP_STATUS_OK_EVENTS_COMPLETE)
@@ -502,6 +524,7 @@ main(int  argc,				/* I - Number of command-line args */
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, device_uri);
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
 	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format", NULL, output_type);
+	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "job-name", NULL, job_name);
 	if (gzip)
 	  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression", NULL, "gzip");
       }
@@ -532,11 +555,9 @@ main(int  argc,				/* I - Number of command-line args */
     httpAddrFreeList(list);
   }
 
- /*
-  * Do transform...
-  */
-
-  status = xform_document(filename, content_type, output_type, resolutions, sheet_back, types, num_options, options, write_cb, write_ptr);
+  // Do transform...
+  if (!xform_document(filename, content_type, output_type, resolutions, sheet_back, types, num_options, options, write_cb, write_ptr))
+    status = 1;
 
   if (http)
   {
@@ -660,7 +681,7 @@ monitor_ipp(const char *device_uri)	/* I - Device URI */
 
   while ((http = httpConnect(host, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
   {
-    fprintf(stderr, "ERROR: Unable to connect to \"%s\" on port %d: %s\n", host, port, cupsLastErrorString());
+    fprintf(stderr, "ERROR: Unable to connect to '%s' on port %d: %s\n", host, port, cupsLastErrorString());
     sleep(30);
   }
 
@@ -1203,6 +1224,161 @@ pcl_write_line(
 }
 
 
+//
+// 'prepare_documents()' - Prepare one or more documents for printing.
+//
+// This function generates a single PDF file containing the union of the input
+// documents and any job sheets.
+//
+
+static char *				// O - Output filename or `NULL` on error
+prepare_documents(
+    size_t           num_documents,	// I - Number of input documents
+    xform_document_t *documents,	// I - Input documents
+    size_t           num_options,	// I - Number of options
+    cups_option_t    *options,		// I - Options
+    cups_size_t      *outmedia,		// I - Output media
+    char             *outfile,		// I - Output filename buffer
+    size_t           outsize,		// I - Output filename buffer size
+    unsigned         *outpages)		// O - Number of pages
+{
+}
+
+
+//
+// 'prepare_media()' - Prepare output media information.
+//
+
+static bool				// O - `true` on success, `false` on failure
+prepare_media(size_t        num_options,// I - Number of options
+              cups_option_t *options,	// I - Options
+              cups_size_t   *outmedia)	// O - Output media
+{
+  const char	*media = NULL,		// "media" option
+		*media_col;		// "media-col" option
+  pwg_media_t	*pwg_media = NULL;	// PWG media value
+
+
+  // Initialize the output media with default margins and size...
+  memset(outmedia, 0, sizeof(cups_size_t));
+
+  outmedia->bottom = 1270;
+  outmedia->left   = 635;
+  outmedia->right  = 635;
+  outmedia->top    = 1270;
+
+  if ((media_col = cupsGetOption("media-col", num_options, options)) == NULL)
+  {
+    if ((media = cupsGetOption("media", num_options, options)) == NULL)
+    {
+      media     = getenv("IPP_MEDIA_DEFAULT");
+      media_col = getenv("IPP_MEDIA_COL_DEFAULT");
+    }
+  }
+
+  // Get the media information...
+  if (media_col)
+  {
+    size_t		num_cols;	// Number of collection values
+    cups_option_t	*cols;		// Collection values
+    const char		*bottom_margin,	// media-bottom-margin
+  			*color,		// media-color
+			*left_margin,	// media-left-margin
+			*right_margin,	// media-right-margin
+			*size,		// media-size
+			*size_name,	// media-size-name
+			*source,	// media-source
+			*top_margin,	// media-top-margin
+			*type;		// media-type
+
+    num_cols = cupsParseOptions(media_col, 0, &cols);
+    if ((size_name = cupsGetOption("media-size-name", num_cols, cols)) != NULL)
+    {
+      if ((pwg_media = pwgMediaForPWG(size_name)) == NULL)
+      {
+	fprintf(stderr, "ERROR: Unknown \"media-size-name\" value '%s'.\n", size_name);
+	cupsFreeOptions(num_cols, cols);
+	return (false);
+      }
+    }
+    else if ((size = cupsGetOption("media-size", num_cols, cols)) != NULL)
+    {
+      size_t		num_sizes;	// Number of collection values
+      cups_option_t	*sizes;		// Collection values
+      const char	*x_dim,		// x-dimension
+			*y_dim;		// y-dimension
+
+      num_sizes = cupsParseOptions(size, 0, &sizes);
+      if ((x_dim = cupsGetOption("x-dimension", num_sizes, sizes)) != NULL && (y_dim = cupsGetOption("y-dimension", num_sizes, sizes)) != NULL)
+      {
+        pwg_media = pwgMediaForSize(atoi(x_dim), atoi(y_dim));
+      }
+      else
+      {
+        fprintf(stderr, "ERROR: Bad \"media-size\" value '%s'.\n", size);
+	cupsFreeOptions(num_sizes, sizes);
+	cupsFreeOptions(num_cols, cols);
+	return (false);
+      }
+
+      cupsFreeOptions(num_sizes, sizes);
+    }
+
+    // Get other media-col values...
+    if ((bottom_margin = cupsGetOption("media-bottom-margin", num_cols, cols)) != NULL)
+      outmedia->bottom = atoi(bottom_margin);
+    if ((left_margin = cupsGetOption("media-left-margin", num_cols, cols)) != NULL)
+      outmedia->left = atoi(left_margin);
+    if ((right_margin = cupsGetOption("media-right-margin", num_cols, cols)) != NULL)
+      outmedia->right = atoi(right_margin);
+    if ((top_margin = cupsGetOption("media-top-margin", num_cols, cols)) != NULL)
+      outmedia->top = atoi(top_margin);
+
+    if ((color = cupsGetOption("media-color", num_cols, cols)) != NULL)
+      cupsCopyString(outmedia->color, color, sizeof(outmedia->color));
+    if ((source = cupsGetOption("media-source", num_cols, cols)) != NULL)
+      cupsCopyString(outmedia->source, source, sizeof(outmedia->source));
+    if ((type = cupsGetOption("media-type", num_cols, cols)) != NULL)
+      cupsCopyString(outmedia->type, type, sizeof(outmedia->type));
+
+    cupsFreeOptions(num_cols, cols);
+  }
+  else if (media)
+  {
+    if ((pwg_media = pwgMediaForPWG(media)) == NULL)
+      pwg_media = pwgMediaForLegacy(media);
+
+    if (!pwg_media)
+    {
+      fprintf(stderr, "ERROR: Unknown \"media\" value '%s'.\n", media);
+      return (false);
+    }
+  }
+  else
+  {
+    pwg_media = pwgMediaForPWG("na_letter_8.5x11in");
+  }
+
+  cupsCopyString(outmedia->media, pwg_media->pwg, sizeof(outmedia->media));
+  outmedia->width  = pwg_media->width;
+  outmedia->length = pwg_media->length;
+
+ /*
+  * Map certain photo sizes (4x6, 5x7, 8x10) to borderless...
+  */
+
+  if ((XFORM_MATCH(outmedia->width, 10160) && XFORM_MATCH(outmedia->length, 15240)) || (XFORM_MATCH(outmedia->width, 12700) && XFORM_MATCH(outmedia->length, 17780)) || (XFORM_MATCH(outmedia->width, 20320) && XFORM_MATCH(outmedia->length, 25400)))
+  {
+    outmedia->bottom = 0;
+    outmedia->left   = 0;
+    outmedia->right  = 0;
+    outmedia->top    = 0;
+  }
+
+  return (true);
+}
+
+
 /*
  * 'raster_end_job()' - End a raster "job".
  */
@@ -1461,7 +1637,7 @@ write_fd(int                 *fd,	/* I - File descriptor */
  * 'xform_document()' - Transform a file for printing.
  */
 
-static int				/* O - 0 on success, 1 on error */
+static bool				/* O - `true` on success, `false` on error */
 xform_document(
     const char       *filename,		/* I - File to transform */
     const char       *informat,		/* I - Input document (MIME media type */
@@ -1515,7 +1691,7 @@ xform_document(
   if ((url = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault, (const UInt8 *)filename, (CFIndex)strlen(filename), false)) == NULL)
   {
     fputs("ERROR: Unable to create CFURL for file.\n", stderr);
-    return (1);
+    return (false);
   }
 
   if (!strcmp(informat, "application/pdf"))
@@ -1530,7 +1706,7 @@ xform_document(
     if (!document)
     {
       fputs("ERROR: Unable to create CFPDFDocument for file.\n", stderr);
-      return (1);
+      return (false);
     }
 
     if (CGPDFDocumentIsEncrypted(document))
@@ -1543,7 +1719,7 @@ xform_document(
       {
 	fputs("ERROR: Document is encrypted and cannot be unlocked.\n", stderr);
 	CGPDFDocumentRelease(document);
-	return (1);
+	return (false);
       }
     }
 
@@ -1551,7 +1727,7 @@ xform_document(
     {
       fputs("ERROR: Document does not allow printing.\n", stderr);
       CGPDFDocumentRelease(document);
-      return (1);
+      return (false);
     }
 
    /*
@@ -1564,7 +1740,7 @@ xform_document(
       {
 	fprintf(stderr, "ERROR: Bad \"page-ranges\" value '%s'.\n", page_ranges);
 	CGPDFDocumentRelease(document);
-	return (1);
+	return (false);
       }
 
       pages = (unsigned)CGPDFDocumentGetNumberOfPages(document);
@@ -1572,7 +1748,7 @@ xform_document(
       {
 	fputs("ERROR: \"page-ranges\" value does not include any pages to print in the document.\n", stderr);
 	CGPDFDocumentRelease(document);
-	return (1);
+	return (false);
       }
 
       if (last > pages)
@@ -1596,7 +1772,7 @@ xform_document(
     {
       CFRelease(url);
       fputs("ERROR: Unable to create CFImageSourceRef for file.\n", stderr);
-      return (1);
+      return (false);
     }
 
     if ((image = CGImageSourceCreateImageAtIndex(src, 0, NULL)) == NULL)
@@ -1605,7 +1781,7 @@ xform_document(
       CFRelease(url);
 
       fputs("ERROR: Unable to create CFImageRef for file.\n", stderr);
-      return (1);
+      return (false);
     }
 
     CFRelease(src);
@@ -1618,7 +1794,7 @@ xform_document(
   * Setup the raster context...
   */
 
-  if (xform_setup(&ras, outformat, resolutions, sheet_back, types, color, pages, num_options, options))
+  if (!xform_setup(&ras, outformat, resolutions, sheet_back, types, color, pages, num_options, options))
   {
     if (document)
       CGPDFDocumentRelease(document);
@@ -1626,7 +1802,7 @@ xform_document(
     if (image)
       CFRelease(image);
 
-    return (1);
+    return (false);
   }
 
   if (ras.header.cupsBitsPerPixel <= 8)
@@ -1933,7 +2109,6 @@ xform_document(
 	image_xscale = image_yscale;
       else
 	image_yscale = image_xscale;
-
     }
     else
     {
@@ -2066,7 +2241,7 @@ xform_document(
  * 'xform_document()' - Transform a file for printing.
  */
 
-static int				/* O - 0 on success, 1 on error */
+static bool				/* O - `true` on success, `false` on error */
 xform_document(
     const char       *filename,		/* I - File to transform */
     const char       *informat,		/* I - Input format (MIME media type) */
@@ -2090,7 +2265,7 @@ xform_document(
   (void)cb;
   (void)ctx;
 
-  return (0);
+  return (true);
 }
 #endif /* HAVE_COREGRAPHICS */
 
@@ -2099,7 +2274,7 @@ xform_document(
  * 'xform_setup()' - Setup a raster context for printing.
  */
 
-static int				/* O - 0 on success, -1 on failure */
+static bool				/* O - `true` on success, `false` on error */
 xform_setup(xform_raster_t *ras,	/* I - Raster information */
             const char     *format,	/* I - Output format (MIME media type) */
 	    const char     *resolutions,/* I - Supported resolutions */
@@ -2151,7 +2326,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     if (temp < 1 || temp > 9999)
     {
       fprintf(stderr, "ERROR: Invalid \"copies\" value '%s'.\n", copies);
-      return (-1);
+      return (false);
     }
 
     ras->copies = (unsigned)temp;
@@ -2171,7 +2346,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     if (!pwg_media)
     {
       fprintf(stderr, "ERROR: Unknown \"media\" value '%s'.\n", media);
-      return (-1);
+      return (false);
     }
   }
   else if ((media_col = cupsGetOption("media-col", num_options, options)) != NULL)
@@ -2192,7 +2367,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
       {
 	fprintf(stderr, "ERROR: Unknown \"media-size-name\" value '%s'.\n", media_size_name);
 	cupsFreeOptions(num_cols, cols);
-	return (-1);
+	return (false);
       }
     }
     else if ((media_size = cupsGetOption("media-size", num_cols, cols)) != NULL)
@@ -2212,7 +2387,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
         fprintf(stderr, "ERROR: Bad \"media-size\" value '%s'.\n", media_size);
 	cupsFreeOptions(num_sizes, sizes);
 	cupsFreeOptions(num_cols, cols);
-	return (-1);
+	return (false);
       }
 
       cupsFreeOptions(num_sizes, sizes);
@@ -2226,7 +2401,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
         (media_left_margin = cupsGetOption("media-left-margin", num_cols, cols)) != NULL && !strcmp(media_left_margin, "0") &&
         (media_right_margin = cupsGetOption("media-right-margin", num_cols, cols)) != NULL && !strcmp(media_right_margin, "0") &&
         (media_top_margin = cupsGetOption("media-top-margin", num_cols, cols)) != NULL && !strcmp(media_top_margin, "0"))
-      ras->borderless = 1;
+      ras->borderless = true;
 
     cupsFreeOptions(num_cols, cols);
   }
@@ -2246,7 +2421,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     if ((pwg_media = pwgMediaForPWG(media_default)) == NULL)
     {
       fprintf(stderr, "ERROR: Unknown \"media-default\" value '%s'.\n", media_default);
-      return (-1);
+      return (false);
     }
   }
 
@@ -2254,8 +2429,8 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   * Map certain photo sizes (4x6, 5x7, 8x10) to borderless...
   */
 
-  if ((pwg_media->width == 10160 && pwg_media->length == 15240) ||(pwg_media->width == 12700 && pwg_media->length == 17780) ||(pwg_media->width == 20320 && pwg_media->length == 25400))
-    ras->borderless = 1;
+  if ((pwg_media->width == 10160 && pwg_media->length == 15240) || (pwg_media->width == 12700 && pwg_media->length == 17780) ||(pwg_media->width == 20320 && pwg_media->length == 25400))
+    ras->borderless = true;
 
  /*
   * Figure out the proper resolution, etc.
@@ -2302,7 +2477,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   if (!printer_resolution)
   {
     fputs("ERROR: No \"printer-resolution\" or \"pwg-raster-document-resolution-supported\" value.\n", stderr);
-    return (-1);
+    return (false);
   }
 
  /*
@@ -2318,7 +2493,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     else
     {
       fprintf(stderr, "ERROR: Bad resolution value '%s'.\n", printer_resolution);
-      return (-1);
+      return (false);
     }
   }
 
@@ -2420,7 +2595,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   if (!type)
   {
     fputs("ERROR: No supported raster types are available.\n", stderr);
-    return (-1);
+    return (false);
   }
 
  /*
@@ -2441,7 +2616,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
   if (!cupsRasterInitPWGHeader(&(ras->header), pwg_media, type, xdpi, ydpi, sides, NULL))
   {
     fprintf(stderr, "ERROR: Unable to initialize raster context: %s\n", cupsRasterErrorString());
-    return (-1);
+    return (false);
   }
 
   if (pages > 1)
@@ -2449,7 +2624,7 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     if (!cupsRasterInitPWGHeader(&(ras->back_header), pwg_media, type, xdpi, ydpi, sides, sheet_back))
     {
       fprintf(stderr, "ERROR: Unable to initialize back side raster context: %s\n", cupsRasterErrorString());
-      return (-1);
+      return (false);
     }
   }
 
@@ -2474,5 +2649,5 @@ xform_setup(xform_raster_t *ras,	/* I - Raster information */
     fprintf(stderr, "DEBUG: cupsHeight=%u\n", ras->header.cupsHeight);
   }
 
-  return (0);
+  return (true);
 }

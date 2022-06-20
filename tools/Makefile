@@ -11,6 +11,7 @@ include ../Makedefs
 
 
 OBJS		=	\
+			ipp-options.o \
 			ipp3dprinter.o \
 			ippdoclint.o \
 			ippproxy.o \
@@ -114,9 +115,9 @@ ippproxy:	ippproxy.o ../libcups/cups/libcups.a
 # ipptransform
 #
 
-ipptransform:	ipptransform.o ../libcups/cups/libcups.a
+ipptransform:	ipptransform.o ipp-options.o ../libcups/cups/libcups.a
 	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ ipptransform.o $(LIBS)
+	$(CC) $(LDFLAGS) -o $@ ipptransform.o ipp-options.o $(LIBS)
 
 
 #
