@@ -4697,10 +4697,10 @@ process_job(ipp3d_job_t *job)		/* I - Job */
   else
   {
    /*
-    * Sleep for a random amount of time to simulate job processing.
+    * Sleep for a semi-random amount of time to simulate job processing.
     */
 
-    sleep((unsigned)(5 + (rand() % 11)));
+    sleep((unsigned)(5 + (time(NULL) % 11)));
   }
 
   if (job->cancel)
