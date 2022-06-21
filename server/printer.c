@@ -971,7 +971,7 @@ serverCreatePrinter(
     printer->pinfo.attrs = ippNew();
 
   existing = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
-  for (attr = ippFirstAttribute(printer->pinfo.attrs); attr; attr = ippNextAttribute(printer->pinfo.attrs))
+  for (attr = ippGetFirstAttribute(printer->pinfo.attrs); attr; attr = ippGetNextAttribute(printer->pinfo.attrs))
   {
     const char *attrname = ippGetName(attr);/* Attribute name */
 

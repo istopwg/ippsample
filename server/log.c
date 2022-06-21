@@ -77,9 +77,7 @@ serverLogAttributes(
     serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s status-code=%s(%04x)", title, ippErrorString(ippGetStatusCode(ipp)), ippGetStatusCode(ipp));
   serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "%s request-id=%d", title, ippGetRequestId(ipp));
 
-  for (attr = ippFirstAttribute(ipp), group_tag = IPP_TAG_ZERO;
-       attr;
-       attr = ippNextAttribute(ipp))
+  for (attr = ippGetFirstAttribute(ipp), group_tag = IPP_TAG_ZERO; attr; attr = ippGetNextAttribute(ipp))
   {
     if (ippGetGroupTag(attr) != group_tag)
     {

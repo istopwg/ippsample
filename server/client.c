@@ -110,7 +110,7 @@ serverCreateListeners(const char *host,	/* I - Hostname, IP address, or NULL for
     {
       char temp[256];			/* Numeric address */
 
-      serverLog(SERVER_LOGLEVEL_ERROR, "Unable to listen on address \"%s\": %s", httpAddrString(&(addr->addr), temp, sizeof(temp)), cupsLastErrorString());
+      serverLog(SERVER_LOGLEVEL_ERROR, "Unable to listen on address \"%s\": %s", httpAddrGetString(&(addr->addr), temp, sizeof(temp)), cupsLastErrorString());
       continue;
     }
 
@@ -188,7 +188,7 @@ serverProcessClient(
       {
         serverLogClient(SERVER_LOGLEVEL_INFO, client, "Starting HTTPS session.");
 
-	if (httpEncryption(client->http, HTTP_ENCRYPTION_ALWAYS))
+	if (httpSetEncryption(client->http, HTTP_ENCRYPTION_ALWAYS))
 	{
 	  serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Unable to encrypt connection: %s", cupsLastErrorString());
 	  break;
@@ -366,7 +366,7 @@ serverProcessHTTP(
 
       serverLogClient(SERVER_LOGLEVEL_INFO, client, "Upgrading to encrypted connection.");
 
-      if (httpEncryption(client->http, HTTP_ENCRYPTION_REQUIRED))
+      if (httpSetEncryption(client->http, HTTP_ENCRYPTION_REQUIRED))
       {
         serverLogClient(SERVER_LOGLEVEL_ERROR, client,
         "Unable to encrypt connection: %s", cupsLastErrorString());
@@ -692,7 +692,7 @@ serverRespondHTTP(
     * 100-continue doesn't send any headers...
     */
 
-    return (httpWriteResponse(client->http, HTTP_STATUS_CONTINUE) == 0);
+    return (httpWriteResponse(client->http, HTTP_STATUS_CONTINUE));
   }
 
  /*
@@ -740,7 +740,7 @@ serverRespondHTTP(
 
   httpSetLength(client->http, length);
 
-  if (httpWriteResponse(client->http, code) < 0)
+  if (!httpWriteResponse(client->http, code))
     return (0);
 
  /*

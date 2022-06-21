@@ -440,7 +440,7 @@ serverCopyAttributes(
   filter.pa        = pa;
   filter.group_tag = group_tag;
 
-  ippCopyAttributes(to, from, quickcopy, (ipp_copycb_t)filter_cb, &filter);
+  ippCopyAttributes(to, from, quickcopy, (ipp_copy_cb_t)filter_cb, &filter);
 }
 
 
@@ -493,7 +493,7 @@ apply_template_attributes(
   * Loop through the attributes, validate, and copy as needed...
   */
 
-  for (fromattr = ippFirstAttribute(from); fromattr; fromattr = ippNextAttribute(from))
+  for (fromattr = ippGetFirstAttribute(from); fromattr; fromattr = ippGetNextAttribute(from))
   {
     name      = ippGetName(fromattr);
     value_tag = ippGetValueTag(fromattr);
@@ -570,7 +570,7 @@ copy_doc_attributes(
 
   serverCopyAttributes(client->response, job->doc_attrs, ra, pa, IPP_TAG_DOCUMENT, 0);
 
-  for (srcattr = ippFirstAttribute(job->attrs); srcattr; srcattr = ippNextAttribute(job->attrs))
+  for (srcattr = ippGetFirstAttribute(job->attrs); srcattr; srcattr = ippGetNextAttribute(job->attrs))
   {
     if (ippGetGroupTag(srcattr) != IPP_TAG_JOB || (name = ippGetName(srcattr)) == NULL)
       continue;
@@ -792,7 +792,7 @@ copy_document_uri(
 
     httpClearFields(http);
     httpSetField(http, HTTP_FIELD_ACCEPT_LANGUAGE, "en");
-    if (httpGet(http, resource))
+    if (!httpWriteRequest(http, "GET", resource))
     {
       serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to GET URI: %s", strerror(errno));
 
@@ -1089,8 +1089,8 @@ copy_printer_attributes(
     char		lang[32];	/* Copy of language string */
     server_lang_t	key, *match;	/* Localization key and match */
 
-    ippFirstAttribute(client->request);
-    attr = ippNextAttribute(client->request);
+    ippGetFirstAttribute(client->request);
+    attr = ippGetNextAttribute(client->request);
     cupsCopyString(lang, ippGetString(attr, 0, NULL), sizeof(lang));
     key.lang = lang;
     if ((match = cupsArrayFind(printer->pinfo.strings, &key)) == NULL && lang[2])
@@ -2637,7 +2637,7 @@ ipp_create_printer(
 
   serverCopyAttributes(pinfo.attrs, client->request, NULL, NULL, IPP_TAG_PRINTER, 0);
 
-  for (attr = ippFirstAttribute(pinfo.attrs); attr; attr = ippNextAttribute(pinfo.attrs))
+  for (attr = ippGetFirstAttribute(pinfo.attrs); attr; attr = ippGetNextAttribute(pinfo.attrs))
   {
     const char		*aname = ippGetName(attr);
 					/* Attribute name */
@@ -2980,9 +2980,9 @@ ipp_create_xxx_subscriptions(
   * Skip past the initial attributes to the first subscription group.
   */
 
-  attr = ippFirstAttribute(client->request);
+  attr = ippGetFirstAttribute(client->request);
   while (attr && ippGetGroupTag(attr) != IPP_TAG_SUBSCRIPTION)
-    attr = ippNextAttribute(client->request);
+    attr = ippGetNextAttribute(client->request);
 
   while (attr)
   {
@@ -3106,7 +3106,7 @@ ipp_create_xxx_subscriptions(
           interval = ippGetInteger(attr, 0);
       }
 
-      attr = ippNextAttribute(client->request);
+      attr = ippGetNextAttribute(client->request);
     }
 
     if (status)
@@ -3644,7 +3644,7 @@ ipp_fetch_document(
       httpSetField(client->http, HTTP_FIELD_CONTENT_TYPE, "application/ipp");
 
       httpSetLength(client->http, 0);
-      if (httpWriteResponse(client->http, HTTP_STATUS_OK) < 0)
+      if (!httpWriteResponse(client->http, HTTP_STATUS_OK))
 	return;
 
       serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sending %d bytes of IPP response.", (int)ippLength(client->response));
@@ -5022,8 +5022,8 @@ ipp_get_system_attributes(
     char		lang[32];	/* Copy of language string */
     server_lang_t	key, *match;	/* Localization key and match */
 
-    ippFirstAttribute(client->request);
-    attr = ippNextAttribute(client->request);
+    ippGetFirstAttribute(client->request);
+    attr = ippGetNextAttribute(client->request);
     cupsCopyString(lang, ippGetString(attr, 0, NULL), sizeof(lang));
     key.lang = lang;
     if ((match = cupsArrayFind(printer->pinfo.strings, &key)) == NULL && lang[2])
@@ -6833,7 +6833,7 @@ ipp_set_document_attributes(
 
   cupsRWLockWrite(&job->rwlock);
 
-  for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
+  for (attr = ippGetFirstAttribute(client->request); attr; attr = ippGetNextAttribute(client->request))
   {
     ipp_attribute_t	*old_attr;	/* Old attribute value */
 
@@ -6913,7 +6913,7 @@ ipp_set_job_attributes(
   * Set the values...
   */
 
-  for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
+  for (attr = ippGetFirstAttribute(client->request); attr; attr = ippGetNextAttribute(client->request))
   {
     name = ippGetName(attr);
 
@@ -7039,7 +7039,7 @@ ipp_set_printer_attributes(
 
       col = ippGetCollection(attr, i);
 
-      for (colattr = ippFirstAttribute(col); colattr; colattr = ippNextAttribute(col))
+      for (colattr = ippGetFirstAttribute(col); colattr; colattr = ippGetNextAttribute(col))
       {
 	colname = ippGetName(colattr);
 	coltag  = ippGetValueTag(colattr);
@@ -7080,7 +7080,7 @@ ipp_set_printer_attributes(
   * Set the values...
   */
 
-  for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
+  for (attr = ippGetFirstAttribute(client->request); attr; attr = ippGetNextAttribute(client->request))
   {
     ipp_attribute_t	*old_attr;	/* Old attribute */
 
@@ -7217,7 +7217,7 @@ ipp_set_system_attributes(
 					/* Collection value */
     ipp_attribute_t	*member;	/* Member attribute */
 
-    for (member = ippFirstAttribute(col); member; member = ippNextAttribute(col))
+    for (member = ippGetFirstAttribute(col); member; member = ippGetNextAttribute(col))
     {
       const char *mname = ippGetName(member);
 
@@ -7236,7 +7236,7 @@ ipp_set_system_attributes(
     }
   }
 
-  for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
+  for (attr = ippGetFirstAttribute(client->request); attr; attr = ippGetNextAttribute(client->request))
   {
     const char		*name = ippGetName(attr);
 					/* Attribute name */
@@ -7829,11 +7829,11 @@ ipp_update_output_device_attributes(
 
   cupsRWLockWrite(&device->rwlock);
 
-  attr = ippFirstAttribute(client->request);
+  attr = ippGetFirstAttribute(client->request);
   while (attr && ippGetGroupTag(attr) != IPP_TAG_PRINTER)
-    attr = ippNextAttribute(client->request);
+    attr = ippGetNextAttribute(client->request);
 
-  for (; attr; attr = ippNextAttribute(client->request))
+  for (; attr; attr = ippGetNextAttribute(client->request))
   {
     const char	*attrname = ippGetName(attr),
 					/* Attribute name */
@@ -8210,7 +8210,7 @@ serverProcessIPP(
     serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Bad request-id %d.", ippGetRequestId(client->request));
     goto send_response;
   }
-  else if (!ippFirstAttribute(client->request))
+  else if (!ippGetFirstAttribute(client->request))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "No attributes in request.");
     goto send_response;
@@ -8222,7 +8222,7 @@ serverProcessIPP(
     * don't repeat groups...
     */
 
-    for (attr = ippFirstAttribute(client->request), group = ippGetGroupTag(attr); attr; attr = ippNextAttribute(client->request))
+    for (attr = ippGetFirstAttribute(client->request), group = ippGetGroupTag(attr); attr; attr = ippGetNextAttribute(client->request))
     {
       if (ippGetGroupTag(attr) < group && ippGetGroupTag(attr) != IPP_TAG_ZERO)
       {
@@ -8245,14 +8245,14 @@ serverProcessIPP(
     *     printer-uri/job-uri
     */
 
-    attr = ippFirstAttribute(client->request);
+    attr = ippGetFirstAttribute(client->request);
     name = ippGetName(attr);
     if (attr && name && !strcmp(name, "attributes-charset") && ippGetGroupTag(attr) == IPP_TAG_OPERATION && ippGetValueTag(attr) == IPP_TAG_CHARSET)
       charset = attr;
     else
       charset = NULL;
 
-    attr = ippNextAttribute(client->request);
+    attr = ippGetNextAttribute(client->request);
     name = ippGetName(attr);
 
     if (attr && name && !strcmp(name, "attributes-natural-language") && ippGetGroupTag(attr) == IPP_TAG_OPERATION && ippGetValueTag(attr) == IPP_TAG_LANGUAGE)
@@ -8260,7 +8260,7 @@ serverProcessIPP(
     else
       language = NULL;
 
-    attr = ippNextAttribute(client->request);
+    attr = ippGetNextAttribute(client->request);
     name = ippGetName(attr);
 
     if (attr && name && (!strcmp(name, "system-uri") || !strcmp(name, "printer-uri") || !strcmp(name, "job-uri")) && ippGetGroupTag(attr) == IPP_TAG_OPERATION && ippGetValueTag(attr) == IPP_TAG_URI)
@@ -9426,7 +9426,7 @@ valid_values(
 
   if (supported)
   {
-    for (attr = ippFirstAttribute(client->request); attr; attr = ippNextAttribute(client->request))
+    for (attr = ippGetFirstAttribute(client->request); attr; attr = ippGetNextAttribute(client->request))
     {
       const char *name = ippGetName(attr);/* Attribute name */
 

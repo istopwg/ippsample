@@ -134,7 +134,7 @@ serverTransformJob(
   if (format && asprintf(myenvp + myenvc, "OUTPUT_TYPE=%s", format) > 0)
     myenvc ++;
 
-  for (attr = ippFirstAttribute(job->printer->dev_attrs); attr && myenvc < (int)(sizeof(myenvp) / sizeof(myenvp[0]) - 1); attr = ippNextAttribute(job->printer->dev_attrs))
+  for (attr = ippGetFirstAttribute(job->printer->dev_attrs); attr && myenvc < (int)(sizeof(myenvp) / sizeof(myenvp[0]) - 1); attr = ippGetNextAttribute(job->printer->dev_attrs))
   {
    /*
     * Convert "attribute-name-default" to "IPP_ATTRIBUTE_NAME_DEFAULT=" and
@@ -169,7 +169,7 @@ serverTransformJob(
     myenvp[myenvc++] = strdup(val);
   }
 
-  for (attr = ippFirstAttribute(job->printer->pinfo.attrs); attr && myenvc < (int)(sizeof(myenvp) / sizeof(myenvp[0]) - 1); attr = ippNextAttribute(job->printer->pinfo.attrs))
+  for (attr = ippGetFirstAttribute(job->printer->pinfo.attrs); attr && myenvc < (int)(sizeof(myenvp) / sizeof(myenvp[0]) - 1); attr = ippGetNextAttribute(job->printer->pinfo.attrs))
   {
    /*
     * Convert "attribute-name-default" to "IPP_ATTRIBUTE_NAME_DEFAULT=" and
@@ -214,7 +214,7 @@ serverTransformJob(
   else
     myenvp[myenvc ++] = strdup("SERVER_LOGLEVEL=error");
 
-  for (attr = ippFirstAttribute(job->doc_attrs); attr && myenvc < (int)(sizeof(myenvp) / sizeof(myenvp[0]) - 1); attr = ippNextAttribute(job->doc_attrs))
+  for (attr = ippGetFirstAttribute(job->doc_attrs); attr && myenvc < (int)(sizeof(myenvp) / sizeof(myenvp[0]) - 1); attr = ippGetNextAttribute(job->doc_attrs))
   {
    /*
     * Convert "attribute-name" to "IPP_ATTRIBUTE_NAME=" and then add the
@@ -245,7 +245,7 @@ serverTransformJob(
     myenvp[myenvc++] = strdup(val);
   }
 
-  for (attr = ippFirstAttribute(job->attrs); attr && myenvc < (int)(sizeof(myenvp) / sizeof(myenvp[0]) - 1); attr = ippNextAttribute(job->attrs))
+  for (attr = ippGetFirstAttribute(job->attrs); attr && myenvc < (int)(sizeof(myenvp) / sizeof(myenvp[0]) - 1); attr = ippGetNextAttribute(job->attrs))
   {
    /*
     * Convert "attribute-name" to "IPP_ATTRIBUTE_NAME=" and then add the

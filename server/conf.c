@@ -2910,7 +2910,7 @@ print_ipp_attr(
 	  ipp_t *col = ippGetCollection(attr, i);
 
 	  cupsFilePuts(fp, i ? ",{\n" : " {\n");
-	  for (colattr = ippFirstAttribute(col); colattr; colattr = ippNextAttribute(col))
+	  for (colattr = ippGetFirstAttribute(col); colattr; colattr = ippGetNextAttribute(col))
 	    print_ipp_attr(fp, colattr, indent + 4);
 	  cupsFilePrintf(fp, "%*s}", indent, "");
 	}
@@ -2984,7 +2984,7 @@ save_printer(
       print_escaped_string(fp, icc->resource->filename, strlen(icc->resource->filename));
       cupsFilePuts(fp, " {\n");
 
-      for (attr = ippFirstAttribute(icc->attrs); attr; attr = ippNextAttribute(icc->attrs))
+      for (attr = ippGetFirstAttribute(icc->attrs); attr; attr = ippGetNextAttribute(icc->attrs))
       {
         name = ippGetName(attr);
 
@@ -3004,7 +3004,7 @@ save_printer(
 
     cupsFilePutConf(fp, "WebForms", printer->pinfo.web_forms ? "Yes" : "No");
 
-    for (attr = ippFirstAttribute(printer->pinfo.attrs); attr; attr = ippNextAttribute(printer->pinfo.attrs))
+    for (attr = ippGetFirstAttribute(printer->pinfo.attrs); attr; attr = ippGetNextAttribute(printer->pinfo.attrs))
     {
       if (ippGetGroupTag(attr) != IPP_TAG_PRINTER || (aname = ippGetName(attr)) == NULL || !attr_cb(NULL, NULL, aname))
         continue;
