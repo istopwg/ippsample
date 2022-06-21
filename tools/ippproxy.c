@@ -1339,7 +1339,7 @@ run_printer(
     if (verbosity)
       plogf(NULL, "notify-get-interval=%d", get_interval);
 
-    for (attr = ippFirstAttribute(response); attr; attr = ippNextAttribute(response))
+    for (attr = ippGetFirstAttribute(response); attr; attr = ippGetNextAttribute(response))
     {
       if (ippGetGroupTag(attr) != IPP_TAG_EVENT_NOTIFICATION || !ippGetName(attr))
         continue;
@@ -1366,7 +1366,7 @@ run_printer(
 	else if (!strcmp(name, "printer-state-reasons") && ippContainsString(attr, "identify-printer-requested"))
 	  acknowledge_identify_printer(http, printer_uri, resource, device_uuid);
 
-        attr = ippNextAttribute(response);
+        attr = ippGetNextAttribute(response);
       }
 
       if (event && job_id)
@@ -1667,7 +1667,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
     {
       plogf(pjob, "%s", ippOpString(ippGetOperation(request)));
 
-      for (attr = ippFirstAttribute(request); attr; attr = ippNextAttribute(request))
+      for (attr = ippGetFirstAttribute(request); attr; attr = ippGetNextAttribute(request))
       {
         const char *name = ippGetName(attr);	/* Attribute name */
 
@@ -1710,7 +1710,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
       {
 	plogf(pjob, "%s", ippOpString(ippGetOperation(request)));
 
-	for (attr = ippFirstAttribute(request); attr; attr = ippNextAttribute(request))
+	for (attr = ippGetFirstAttribute(request); attr; attr = ippGetNextAttribute(request))
 	{
 	  const char *name = ippGetName(attr);	/* Attribute name */
 
@@ -1845,7 +1845,7 @@ update_device_attrs(
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, device_uuid);
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
 
-  for (attr = ippFirstAttribute(new_attrs); attr; attr = ippNextAttribute(new_attrs))
+  for (attr = ippGetFirstAttribute(new_attrs); attr; attr = ippGetNextAttribute(new_attrs))
   {
    /*
     * Add any attributes that have changed...

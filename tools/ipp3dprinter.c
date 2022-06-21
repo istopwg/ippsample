@@ -646,7 +646,7 @@ copy_attributes(ipp_t        *to,	/* I - Destination request */
   filter.ra        = ra;
   filter.group_tag = group_tag;
 
-  ippCopyAttributes(to, from, quickcopy, (ipp_copycb_t)filter_cb, &filter);
+  ippCopyAttributes(to, from, quickcopy, (ipp_copy_cb_t)filter_cb, &filter);
 }
 
 
@@ -1620,9 +1620,9 @@ debug_attributes(const char *title,	/* I - Title */
             ippErrorString(ippGetStatusCode(ipp)), ippGetStatusCode(ipp));
   fprintf(stderr, "  request-id=%d\n\n", ippGetRequestId(ipp));
 
-  for (attr = ippFirstAttribute(ipp), group_tag = IPP_TAG_ZERO;
+  for (attr = ippGetFirstAttribute(ipp), group_tag = IPP_TAG_ZERO;
        attr;
-       attr = ippNextAttribute(ipp))
+       attr = ippGetNextAttribute(ipp))
   {
     if (ippGetGroupTag(attr) != group_tag)
     {
@@ -2241,7 +2241,7 @@ finish_document_uri(
 
     httpClearFields(http);
     httpSetField(http, HTTP_FIELD_ACCEPT_LANGUAGE, "en");
-    if (httpGet(http, resource))
+    if (!httpWriteRequest(http, "GET", resource))
     {
       respond_ipp(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to GET URI: %s", strerror(errno));
 
@@ -3704,7 +3704,7 @@ process_client(ipp3d_client_t *client)	/* I - Client */
       {
         fprintf(stderr, "%s Starting HTTPS session.\n", client->hostname);
 
-	if (httpEncryption(client->http, HTTP_ENCRYPTION_ALWAYS))
+	if (httpSetEncryption(client->http, HTTP_ENCRYPTION_ALWAYS))
 	{
 	  fprintf(stderr, "%s Unable to encrypt connection: %s\n", client->hostname, cupsLastErrorString());
 	  break;
@@ -3876,7 +3876,7 @@ process_http(ipp3d_client_t *client)	/* I - Client connection */
 
       fprintf(stderr, "%s Upgrading to encrypted connection.\n", client->hostname);
 
-      if (httpEncryption(client->http, HTTP_ENCRYPTION_REQUIRED))
+      if (httpSetEncryption(client->http, HTTP_ENCRYPTION_REQUIRED))
       {
         fprintf(stderr, "%s Unable to encrypt connection: %s\n", client->hostname, cupsLastErrorString());
 	return (0);
@@ -4093,7 +4093,7 @@ process_ipp(ipp3d_client_t *client)	/* I - Client */
   {
     respond_ipp(client, IPP_STATUS_ERROR_BAD_REQUEST, "Bad request-id %d.", ippGetRequestId(client->request));
   }
-  else if (!ippFirstAttribute(client->request))
+  else if (!ippGetFirstAttribute(client->request))
   {
     respond_ipp(client, IPP_STATUS_ERROR_BAD_REQUEST, "No attributes in request.");
   }
@@ -4104,10 +4104,10 @@ process_ipp(ipp3d_client_t *client)	/* I - Client */
     * don't repeat groups...
     */
 
-    for (attr = ippFirstAttribute(client->request),
+    for (attr = ippGetFirstAttribute(client->request),
              group = ippGetGroupTag(attr);
 	 attr;
-	 attr = ippNextAttribute(client->request))
+	 attr = ippGetNextAttribute(client->request))
     {
       if (ippGetGroupTag(attr) < group && ippGetGroupTag(attr) != IPP_TAG_ZERO)
       {
@@ -4134,7 +4134,7 @@ process_ipp(ipp3d_client_t *client)	/* I - Client */
       *     printer-uri/job-uri
       */
 
-      attr = ippFirstAttribute(client->request);
+      attr = ippGetFirstAttribute(client->request);
       name = ippGetName(attr);
       if (attr && name && !strcmp(name, "attributes-charset") &&
 	  ippGetValueTag(attr) == IPP_TAG_CHARSET)
@@ -4142,7 +4142,7 @@ process_ipp(ipp3d_client_t *client)	/* I - Client */
       else
 	charset = NULL;
 
-      attr = ippNextAttribute(client->request);
+      attr = ippGetNextAttribute(client->request);
       name = ippGetName(attr);
 
       if (attr && name && !strcmp(name, "attributes-natural-language") &&
@@ -4356,7 +4356,7 @@ process_job(ipp3d_job_t *job)		/* I - Job */
       myenvp[myenvc ++] = strdup(val);
     }
 
-    for (attr = ippFirstAttribute(job->printer->attrs); attr && myenvc < (int)(sizeof(myenvp) / sizeof(myenvp[0]) - 1); attr = ippNextAttribute(job->printer->attrs))
+    for (attr = ippGetFirstAttribute(job->printer->attrs); attr && myenvc < (int)(sizeof(myenvp) / sizeof(myenvp[0]) - 1); attr = ippGetNextAttribute(job->printer->attrs))
     {
      /*
       * Convert "attribute-name-default" to "IPP_ATTRIBUTE_NAME_DEFAULT=" and
@@ -4391,7 +4391,7 @@ process_job(ipp3d_job_t *job)		/* I - Job */
       myenvp[myenvc++] = strdup(val);
     }
 
-    for (attr = ippFirstAttribute(job->attrs); attr && myenvc < (int)(sizeof(myenvp) / sizeof(myenvp[0]) - 1); attr = ippNextAttribute(job->attrs))
+    for (attr = ippGetFirstAttribute(job->attrs); attr && myenvc < (int)(sizeof(myenvp) / sizeof(myenvp[0]) - 1); attr = ippGetNextAttribute(job->attrs))
     {
      /*
       * Convert "attribute-name" to "IPP_ATTRIBUTE_NAME=" and then add the
@@ -5063,7 +5063,7 @@ respond_http(
     * 100-continue doesn't send any headers...
     */
 
-    return (httpWriteResponse(client->http, HTTP_STATUS_CONTINUE) == 0);
+    return (httpWriteResponse(client->http, HTTP_STATUS_CONTINUE));
   }
 
  /*
@@ -5104,7 +5104,7 @@ respond_http(
 
   httpSetLength(client->http, length);
 
-  if (httpWriteResponse(client->http, code) < 0)
+  if (!httpWriteResponse(client->http, code))
     return (0);
 
  /*
