@@ -525,7 +525,7 @@ parse_media(const char  *value,		// I - "media" or "media-col" value
 {
   bool		margins_set = false,	// Have margins been set?
 		ret = true;		// Return value
-  pwg_media_t	*pwg;			// PWG media values
+  pwg_media_t	*pwg = NULL;		// PWG media values
 
 
   // Initialize media
