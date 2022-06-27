@@ -16,6 +16,7 @@
 #include <cups/raster.h>
 #include <cups/thread.h>
 #include <pdfio.h>
+#include <pdfio-content.h>
 
 #ifdef HAVE_COREGRAPHICS
 #  include <CoreGraphics/CoreGraphics.h>
@@ -57,7 +58,7 @@ typedef struct xform_document_s		// Document information
 		*format;		// Document format
   char		tempfile[1024];		// Temporary PDF file, if any
   const char	*pdf_filename;		// PDF filename
-  pdf_file_t	*pdf;			// PDF file for document
+  pdfio_file_t	*pdf;			// PDF file for document
   int		first_page,		// First page number in document
 		last_page,		// Last page number in document
 		num_pages;		// Number of pages to print in document
@@ -71,25 +72,20 @@ typedef struct xform_page_s		// Output page
   pdfio_obj_t	*input[XFORM_MAX_NUP];	// Input page object
 } xform_page_t;
 
-typedef struct xform_rect_s		// Rectangle
-{
-  double	x, y,			// Bottom left corner
-		width, height;		// Width and height
-} xform_rect_t;
-
 typedef struct xform_prepare_s		// Preparation data
 {
   ipp_options_t	*options;		// Print options
   cups_array_t	*errors;		// Error messages
-  int		num_inpages;		// Number of input pages
-  pdfio_file_t	*pdf;			// PDF file
+  int		document,		// Current document
+		num_inpages;		// Number of input pages
+  pdfio_file_t	*pdf;			// Output PDF file
   pdfio_rect_t	media;			// Default media box
   pdfio_rect_t	crop;			// Default crop box
   size_t	num_outpages;		// Number of output pages
   xform_page_t	outpages[XFORM_MAX_PAGES];
 					// Output pages
   size_t	num_layout;		// Number of layout rectangles
-  xform_rect_t	layout[XFORM_MAX_NUP];	// Layout rectangles
+  pdfio_rect_t	layout[XFORM_MAX_NUP];	// Layout rectangles
 } xform_prepare_t;
 
 typedef struct xform_raster_s xform_raster_t;
@@ -135,7 +131,6 @@ static int	Verbosity = 0;		// Log level
 static bool	convert_image(xform_prepare_t *p, xform_document_t *d, int document);
 static bool	convert_raster(xform_prepare_t *p, xform_document_t *d, int document);
 static bool	convert_text(xform_prepare_t *p, xform_document_t *d, int document);
-static bool	copy_page(xform_prepare_t *p, xform_page_t *page);
 static bool	generate_job_error_sheet(xform_prepare_t *p);
 static bool	generate_job_sheets(xform_prepare_t *p);
 static void	*monitor_ipp(const char *device_uri);
@@ -153,7 +148,7 @@ static void	pcl_write_line(xform_raster_t *ras, unsigned y, const unsigned char 
 static bool	pdfio_error_cb(pdfio_file_t *pdf, const char *message, void *cb_data);
 static const char *pdfio_password_cb(void *cb_data, const char *filename);
 static bool	prepare_documents(size_t num_documents, xform_document_t *documents, ipp_options_t *options, char *outfile, size_t outsize, unsigned *outpages);
-static void	prepare_error(xform_prepare_t *p, const char *message, ...);
+static void	prepare_log(xform_prepare_t *p, bool error, const char *message, ...);
 static void	prepare_number_up(xform_prepare_t *p);
 static void	prepare_pages(xform_prepare_t *p, size_t num_documents, xform_document_t *documents);
 static void	raster_end_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
@@ -162,11 +157,11 @@ static void	raster_init(xform_raster_t *ras);
 static void	raster_start_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	raster_start_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	raster_write_line(xform_raster_t *ras, unsigned y, const unsigned char *line, xform_write_cb_t cb, void *ctx);
-static void	size_to_rect(cups_size_t *size, pdf_rect_t *media, pdf_rect_t *crop);
+static void	size_to_rect(cups_size_t *size, pdfio_rect_t *media, pdfio_rect_t *crop);
 static void	usage(int status) _CUPS_NORETURN;
 static ssize_t	write_fd(int *fd, const unsigned char *buffer, size_t bytes);
-static bool	xform_document(const char *filename, unsigned pages, ipp_options_t *ipp_options, const char *outformat, const char *resolutions, const char *sheet_back, const char *types, xform_write_cb_t cb, void *ctx);
-static bool	xform_setup(xform_raster_t *ras, ipp_options_t *ipp_options, const char *outformat, const char *resolutions, const char *types, const char *sheet_back, bool color, unsigned pages);
+static bool	xform_document(const char *filename, unsigned pages, ipp_options_t *options, const char *outformat, const char *resolutions, const char *sheet_back, const char *types, xform_write_cb_t cb, void *ctx);
+static bool	xform_setup(xform_raster_t *ras, ipp_options_t *options, const char *outformat, const char *resolutions, const char *types, const char *sheet_back, bool color, unsigned pages);
 
 
 //
@@ -652,6 +647,11 @@ convert_image(
     xform_document_t *d,		// I - Document
     int              document)		// I - Document number
 {
+  // TODO: Implement convert_image
+  (void)p;
+  (void)d;
+  (void)document;
+  return (false);
 }
 
 
@@ -665,6 +665,11 @@ convert_raster(
     xform_document_t *d,		// I - Document
     int              document)		// I - Document number
 {
+  // TODO: Implement convert_raster
+  (void)p;
+  (void)d;
+  (void)document;
+  return (false);
 }
 
 
@@ -725,7 +730,7 @@ convert_text(
   while (cupsFileGets(fp, line, sizeof(line)))
   {
     // Loop through the line and write lines...
-    for (column = 0, lineptr = line, outptr = out; *lineptr; lineptr ++)
+    for (column = 0, lineptr = line, outptr = outline; *lineptr; lineptr ++)
     {
       if (*lineptr == '\t')
       {
@@ -739,9 +744,45 @@ convert_text(
         }
         while (column & 7);
       }
+      else if ((*lineptr & 0xe0) == 0xc0 && (lineptr[1] & 0xc0) == 0x80)
+      {
+        // 2-byte UTF-8 character...
+        if (outptr < (outline + sizeof(outline) - 2))
+        {
+          memcpy(outptr, lineptr, 2);
+          outptr += 2;
+        }
+
+        lineptr ++;
+        column ++;
+      }
+      else if ((*lineptr & 0xf0) == 0xe0 && (lineptr[1] & 0xc0) == 0x80 && (lineptr[2] & 0xc0) == 0x80)
+      {
+        // 3-byte UTF-8 character...
+        if (outptr < (outline + sizeof(outline) - 3))
+        {
+          memcpy(outptr, lineptr, 3);
+          outptr += 3;
+        }
+
+        lineptr += 2;
+        column ++;
+      }
+      else if ((*lineptr & 0xf8) == 0xf0 && (lineptr[1] & 0xc0) == 0x80 && (lineptr[2] & 0xc0) == 0x80 && (lineptr[3] & 0xc0) == 0x80)
+      {
+        // 4-byte UTF-8 character...
+        if (outptr < (outline + sizeof(outline) - 4))
+        {
+          memcpy(outptr, lineptr, 4);
+          outptr += 4;
+        }
+
+        lineptr += 3;
+        column ++;
+      }
       else
       {
-        // Regular character...
+        // ASCII character...
         if (outptr < (outline + sizeof(outline) - 1))
 	  *outptr++ = *lineptr;
 
@@ -792,22 +833,9 @@ convert_text(
   pdfioFileClose(pdf);
   cupsFileClose(fp);
 
-  d->pdf_filename = d->tempname;
+  d->pdf_filename = d->tempfile;
 
   return (true);
-}
-
-
-//
-// 'copy_pdf()' - Copy pages from a PDF file for printing.
-//
-
-static bool				// O - `true` on success, `false` on failure
-copy_pdf(
-    xform_prepare_t  *p,		// I - Preparation data
-    xform_document_t *d,		// I - Document
-    int              document)		// I - Document number
-{
 }
 
 
@@ -1435,14 +1463,16 @@ pcl_write_line(
 static bool				// O - `false` to stop
 pdfio_error_cb(pdfio_file_t *pdf,	// I - PDF file (unused)
                const char   *message,	// I - Error message
-               void         *cb_data)	// I - Callback data (document number or NULL for output)
+               void         *cb_data)	// I - Preparation data
 {
-  (void)pdf;
+  xform_prepare_t	*p = (xform_prepare_t *)cb_data;
+					// Preparation data
 
-  if (cb_data)
-    fprintf(stderr, "ERROR: Input Document %d: %s\n", message, *((int *)cb_data));
+
+  if (pdf != p->pdf)
+    prepare_log(p, true, "Input Document %d: %s", p->document, message);
   else
-    fprintf(stderr, "ERROR: Output Document: %s\n", message);
+    prepare_log(p, true, "Output Document: %s", message);
 
   return (false);
 }
@@ -1481,7 +1511,7 @@ pdfio_password_cb(void       *cb_data,	// I - Document number
 // documents and any job sheets.
 //
 
-static char *				// O - Output filename or `NULL` on error
+static bool				// O - `true` on success, `false` on failure
 prepare_documents(
     size_t           num_documents,	// I - Number of input documents
     xform_document_t *documents,	// I - Input documents
@@ -1608,13 +1638,13 @@ prepare_documents(
 
   cupsArrayDelete(p.errors);
 
-  for (i = p.num_pages, p = p.pages; i > 0; i --, p ++)
+  for (i = p.num_outpages, outpage = p.outpages; i > 0; i --, outpage ++)
   {
-    if (p->output)
-      pdfioStreamClose(p->output);
+    if (outpage->output)
+      pdfioStreamClose(outpage->output);
   }
 
-  if (!pdfioFileClose(page.pdf))
+  if (!pdfioFileClose(p.pdf))
     ret = false;
 
   if (!ret)
@@ -1638,31 +1668,15 @@ prepare_documents(
 
 
 //
-// 'prepare_image()' - Add an image to a PDF file.
-//
-
-static bool				// O - `true` on success, `false` on failure
-prepare_image(
-    xform_prepare_t  *p,		// I - Preparation data
-    xform_document_t *file,		// I - File to add
-    int              document)		// I - Document number (starting at 1)
-{
-  (void)p;
-  (void)file;
-  (void)document;
-
-  return (true);
-}
-
-
-//
-// 'prepare_error()' - Log an error while preparing documents for printing.
+// 'prepare_log()' - Log an informational or error message while preparing
+//                   documents for printing.
 //
 
 static void
-prepare_error(xform_prepare_t *p,	// I - Preparation data
-              const char      *message,	// I - Printf-style message string
-              ...)			// I - Addition arguments as needed
+prepare_log(xform_prepare_t *p,		// I - Preparation data
+            bool            error,	// I - `true` for error, `false` for info
+	    const char      *message,	// I - Printf-style message string
+	    ...)			// I - Addition arguments as needed
 {
   va_list	ap;			// Argument pointer
   char		buffer[1024];		// Output buffer
@@ -1674,7 +1688,10 @@ prepare_error(xform_prepare_t *p,	// I - Preparation data
 
   cupsArrayAdd(p->errors, buffer);
 
-  fprintf(stderr, "INFO: %s\n", buffer);
+  if (error)
+    fprintf(stderr, "ERROR: %s\n", buffer);
+  else
+    fprintf(stderr, "INFO: %s\n", buffer);
 }
 
 
@@ -1756,40 +1773,40 @@ prepare_number_up(xform_prepare_t *p)	// I - Preparation data
     default : // Portrait or "none"...
         for (i = 0, r = p->layout; i < p->num_layout; i ++, r ++)
         {
-          r->width  = width;
-          r->height = height;
-          r->x      = p->crop.x1 + r->width * (i % cols);
-          r->y      = p->crop.y1 + r->height * (rows - 1 - i / cols);
+          r->x1 = p->crop.x1 + width * (i % cols);
+          r->y1 = p->crop.y1 + height * (rows - 1 - i / cols);
+          r->x2 = r->x1 + width;
+          r->y2 = r->y1 + height;
         }
         break;
 
     case IPP_ORIENT_LANDSCAPE : // Landscape
         for (i = 0, r = p->layout; i < p->num_layout; i ++, r ++)
         {
-          r->width  = width;
-          r->height = height;
-          r->x      = p->crop.x1 + r->width * (cols - 1 - i / rows);
-          r->y      = p->crop.y1 + r->height * (rows - 1 - (i % rows));
+          r->x1 = p->crop.x1 + width * (cols - 1 - i / rows);
+          r->y1 = p->crop.y1 + height * (rows - 1 - (i % rows));
+          r->x2 = r->x1 + width;
+          r->y2 = r->y1 + height;
         }
         break;
 
     case IPP_ORIENT_REVERSE_PORTRAIT : // Reverse portrait
         for (i = 0, r = p->layout; i < p->num_layout; i ++, r ++)
         {
-          r->width  = width;
-          r->height = height;
-          r->x      = p->crop.x1 + r->width * (cols - 1 - (i % cols));
-          r->y      = p->crop.y1 + r->height * (i / cols);
+          r->x1 = p->crop.x1 + width * (cols - 1 - (i % cols));
+          r->y1 = p->crop.y1 + height * (i / cols);
+          r->x2 = r->x1 + width;
+          r->y2 = r->y1 + height;
         }
         break;
 
     case IPP_ORIENT_REVERSE_LANDSCAPE : // Reverse landscape
         for (i = 0, r = p->layout; i < p->num_layout; i ++, r ++)
         {
-          r->width  = width;
-          r->height = height;
-          r->x      = p->crop.x1 + r->width * (i / rows);
-          r->y      = p->crop.y1 + r->height * (i % rows);
+          r->x1 = p->crop.x1 + width * (i / rows);
+          r->y1 = p->crop.y1 + height * (i % rows);
+          r->x2 = r->x1 + width;
+          r->y2 = r->y1 + height;
         }
         break;
   }
@@ -1827,10 +1844,10 @@ prepare_pages(
     {
       while (page <= d->last_page)
       {
-	if (options->multiple_document_handling < IPPOPT_HANDLING_SINGLE_DOCUMENT)
-	  use_page = ippOptionsCheckPage(options, page - d->first_page + 1);
+	if (p->options->multiple_document_handling < IPPOPT_HANDLING_SINGLE_DOCUMENT)
+	  use_page = ippOptionsCheckPage(p->options, page - d->first_page + 1);
 	else
-	  use_page = ippOptionsCheckPage(options, page);
+	  use_page = ippOptionsCheckPage(p->options, page);
 
         if (use_page)
         {
@@ -1858,10 +1875,10 @@ prepare_pages(
     {
       while (page <= d->last_page)
       {
-	if (options->multiple_document_handling < IPPOPT_HANDLING_SINGLE_DOCUMENT)
-	  use_page = ippOptionsCheckPage(options, page - d->first_page + 1);
+	if (p->options->multiple_document_handling < IPPOPT_HANDLING_SINGLE_DOCUMENT)
+	  use_page = ippOptionsCheckPage(p->options, page - d->first_page + 1);
 	else
-	  use_page = ippOptionsCheckPage(options, page);
+	  use_page = ippOptionsCheckPage(p->options, page);
 
         if (use_page)
         {
@@ -1889,7 +1906,7 @@ prepare_pages(
 	  layout = 0;
         }
       }
-      else if (p->options->multiple_document_handling == IPPOPT_HANDLING_SINGLE_DOCUMENT_NEW_SHEET && (current & 1))
+      else if (p->options->multiple_document_handling == IPPOPT_HANDLING_SINGLE_NEW_SHEET && (current & 1))
       {
 	current ++;
 	outpage ++;
@@ -1902,42 +1919,6 @@ prepare_pages(
 
     p->num_outpages = current;
   }
-}
-
-
-//
-// 'prepare_pdf()' - Add pages from a PDF file to a PDF file.
-//
-
-static bool				// O - `true` on success, `false` on failure
-prepare_pdf(
-    xform_prepare_t  *p,		// I - Preparation data
-    xform_document_t *file,		// I - File to add
-    int              document)		// I - Document number (starting at 1)
-{
-  (void)p;
-  (void)file;
-  (void)document;
-
-  return (true);
-}
-
-
-//
-// 'prepare_text()' - Add plain text to a PDF file.
-//
-
-static bool				// O - `true` on success, `false` on failure
-prepare_text(
-    xform_prepare_t  *p,		// I - Preparation data
-    xform_document_t *file,		// I - File to add
-    int              document)		// I - Document number (starting at 1)
-{
-  (void)p;
-  (void)file;
-  (void)document;
-
-  return (true);
 }
 
 
@@ -2130,9 +2111,9 @@ raster_write_line(
 //
 
 static void
-size_to_rect(cups_size_t *size,		// I - CUPS media size information
-             pdf_rect_t  *media,	// O - PDF MediaBox value
-             pdf_rect_t  *crop)		// O - PDF CropBox value
+size_to_rect(cups_size_t  *size,	// I - CUPS media size information
+             pdfio_rect_t *media,	// O - PDF MediaBox value
+             pdfio_rect_t *crop)	// O - PDF CropBox value
 {
   // cups_size_t uses hundredths of millimeters, pdf_rect_t uses points...
   media->x1 = 0.0;
@@ -2225,7 +2206,7 @@ static bool				// O - `true` on success, `false` on error
 xform_document(
     const char       *filename,		// I - File to transform
     unsigned         pages,		// I - Number of pages
-    ipp_options_t    *ipp_options,	// I - IPP options
+    ipp_options_t    *options,		// I - IPP options
     const char       *outformat,	// I - Output format (MIME media type)
     const char       *resolutions,	// I - Supported resolutions
     const char       *sheet_back,	// I - Back side transform
@@ -2248,31 +2229,21 @@ xform_document(
   CGAffineTransform 	transform,	// Transform for page
 			back_transform;	// Transform for back side
   CGRect		dest;		// Destination rectangle
-  unsigned		pages = 1;	// Number of pages
   bool			color = true;	// Does the PDF have color?
-  const char		*page_ranges;	// "page-ranges" option
-  unsigned		first = 1,	// First page of range
-			last = 1;	// Last page of range
   unsigned		copy;		// Current copy
   unsigned		page;		// Current page
   unsigned		media_sheets = 0,
 			impressions = 0;// Page/sheet counters
 
 
- /*
-  * Open the file...
-  */
-
+  // Open the file...
   if ((url = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault, (const UInt8 *)filename, (CFIndex)strlen(filename), false)) == NULL)
   {
     fputs("ERROR: Unable to create CFURL for file.\n", stderr);
     return (false);
   }
 
- /*
-  * Open the PDF...
-  */
-
+  // Open the PDF...
   document = CGPDFDocumentCreateWithURL(url);
   CFRelease(url);
 
@@ -2282,102 +2253,8 @@ xform_document(
     return (false);
   }
 
-  if (CGPDFDocumentIsEncrypted(document))
-  {
-   /*
-    * Only support encrypted PDFs with a blank password...
-    */
-
-    if (!CGPDFDocumentUnlockWithPassword(document, ""))
-    {
-      fputs("ERROR: Document is encrypted and cannot be unlocked.\n", stderr);
-      CGPDFDocumentRelease(document);
-      return (false);
-    }
-  }
-
-  if (!CGPDFDocumentAllowsPrinting(document))
-  {
-    fputs("ERROR: Document does not allow printing.\n", stderr);
-    CGPDFDocumentRelease(document);
-    return (false);
-  }
-
- /*
-  * Check page ranges...
-  */
-
-  if ((page_ranges = cupsGetOption("page-ranges", num_options, options)) != NULL)
-  {
-    if (sscanf(page_ranges, "%u-%u", &first, &last) != 2 || first > last)
-    {
-      fprintf(stderr, "ERROR: Bad \"page-ranges\" value '%s'.\n", page_ranges);
-      CGPDFDocumentRelease(document);
-      return (false);
-    }
-
-    pages = (unsigned)CGPDFDocumentGetNumberOfPages(document);
-    if (first > pages)
-    {
-      fputs("ERROR: \"page-ranges\" value does not include any pages to print in the document.\n", stderr);
-      CGPDFDocumentRelease(document);
-      return (false);
-    }
-
-    if (last > pages)
-      last = pages;
-  }
-  else
-  {
-    first = 1;
-    last  = (unsigned)CGPDFDocumentGetNumberOfPages(document);
-  }
-
-  pages = last - first + 1;
-
-#if 0
-  {
-   /*
-    * Open the image...
-    */
-
-    CGImageSourceRef	src;		// Image reader
-    CGImageRef		image = NULL;	// Image
-    const char		*print_scaling;	// print-scaling option
-    size_t		image_width,	// Image width
-			image_height;	// Image height
-    int			image_rotation;	// Image rotation
-    double		image_xscale,	// Image scaling
-			image_yscale;
-
-    if ((src = CGImageSourceCreateWithURL(url, NULL)) == NULL)
-    {
-      CFRelease(url);
-      fputs("ERROR: Unable to create CFImageSourceRef for file.\n", stderr);
-      return (false);
-    }
-
-    if ((image = CGImageSourceCreateImageAtIndex(src, 0, NULL)) == NULL)
-    {
-      CFRelease(src);
-      CFRelease(url);
-
-      fputs("ERROR: Unable to create CFImageRef for file.\n", stderr);
-      return (false);
-    }
-
-    CFRelease(src);
-    CFRelease(url);
-
-    pages = 1;
-  }
-#endif // 0
-
- /*
-  * Setup the raster context...
-  */
-
-  if (!xform_setup(&ras, outformat, resolutions, sheet_back, types, color, pages, num_options, options))
+  // Setup the raster context...
+  if (!xform_setup(&ras, options, outformat, resolutions, sheet_back, types, color, pages))
   {
     CGPDFDocumentRelease(document);
 
@@ -2386,10 +2263,7 @@ xform_document(
 
   if (ras.header.cupsBitsPerPixel <= 8)
   {
-   /*
-    * Grayscale output...
-    */
-
+    // Grayscale output...
     ras.band_bpp = 1;
     info         = kCGImageAlphaNone;
     cs           = CGColorSpaceCreateWithName(ras.header.cupsColorSpace == CUPS_CSPACE_SW ? kCGColorSpaceGenericGrayGamma2_2 : kCGColorSpaceLinearGray);
@@ -2397,10 +2271,7 @@ xform_document(
   }
   else if (ras.header.cupsBitsPerPixel == 24)
   {
-   /*
-    * Color (sRGB or AdobeRGB) output...
-    */
-
+    // Color (sRGB or AdobeRGB) output...
     ras.band_bpp = 4;
     info         = kCGImageAlphaNoneSkipLast;
     cs           = CGColorSpaceCreateWithName(ras.header.cupsColorSpace == CUPS_CSPACE_SRGB ? kCGColorSpaceSRGB : kCGColorSpaceAdobeRGB1998);
@@ -2408,10 +2279,7 @@ xform_document(
   }
   else if (ras.header.cupsBitsPerPixel == 32)
   {
-   /*
-    * Color (CMYK) output...
-    */
-
+    // Color (CMYK) output...
     ras.band_bpp = 4;
     info         = kCGImageAlphaNone;
     cs           = CGColorSpaceCreateWithName(kCGColorSpaceGenericCMYK);
@@ -2419,10 +2287,7 @@ xform_document(
   }
   else
   {
-   /*
-    * Color (AdobeRGB) output...
-    */
-
+    // Color (AdobeRGB) output...
     ras.band_bpp = 8;
     info         = kCGImageAlphaNoneSkipLast;
     cs           = CGColorSpaceCreateWithName(kCGColorSpaceAdobeRGB1998);
@@ -2464,20 +2329,7 @@ xform_document(
   dest.size.width  = ras.header.cupsWidth * 72.0 / ras.header.HWResolution[0];
   dest.size.height = ras.header.cupsHeight * 72.0 / ras.header.HWResolution[1];
 
-#if 0
- /*
-  * Get print-scaling value...
-  */
-
-  if ((print_scaling = cupsGetOption("print-scaling", num_options, options)) == NULL)
-    if ((print_scaling = getenv("IPP_PRINT_SCALING_DEFAULT")) == NULL)
-      print_scaling = "auto";
-#endif // 0
-
- /*
-  * Start the conversion...
-  */
-
+  // Start the conversion...
   fprintf(stderr, "ATTR: job-impressions=%d\n", pages);
   fprintf(stderr, "ATTR: job-pages=%d\n", pages);
 
@@ -2491,16 +2343,10 @@ xform_document(
 
   (*(ras.start_job))(&ras, cb, ctx);
 
- /*
-  * Render pages in the PDF...
-  */
-
+  // Render pages in the PDF...
   if (pages > 1 && sheet_back && ras.header.Duplex)
   {
-   /*
-    * Setup the back page transform...
-    */
-
+    // Setup the back page transform...
     if (!strcmp(sheet_back, "flipped"))
     {
       if (ras.header.Tumble)
@@ -2521,24 +2367,21 @@ xform_document(
   if (Verbosity > 1)
     fprintf(stderr, "DEBUG: back_transform=[%g %g %g %g %g %g]\n", back_transform.a, back_transform.b, back_transform.c, back_transform.d, back_transform.tx, back_transform.ty);
 
- /*
-  * Draw all of the pages...
-  */
-
-  for (copy = 0; copy < ras.ipp_options->copies; copy ++)
+  // Draw all of the pages...
+  for (copy = 0; copy < options->copies; copy ++)
   {
     for (page = 1; page <= pages; page ++)
     {
-      unsigned	y,		// Current line
-		      band_starty = 0,// Start line of band
-		      band_endy = 0;	// End line of band
+      unsigned		y,		// Current line
+			band_starty = 0,// Start line of band
+			band_endy = 0;	// End line of band
       unsigned char	*lineptr;	// Pointer to line
 
-      pdf_page  = CGPDFDocumentGetPage(document, page + first - 1);
+      pdf_page  = CGPDFDocumentGetPage(document, page);
       transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox,dest, 0, true);
 
       if (Verbosity > 1)
-	fprintf(stderr, "DEBUG: Printing copy %d/%d, page %d/%d, transform=[%g %g %g %g %g %g]\n", copy + 1, ras.ipp_options->copies, page, pages, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
+	fprintf(stderr, "DEBUG: Printing copy %d/%d, page %d/%d, transform=[%g %g %g %g %g %g]\n", copy + 1, options->copies, page, pages, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
 
       (*(ras.start_page))(&ras, page, cb, ctx);
 
@@ -2546,10 +2389,7 @@ xform_document(
       {
 	if (y >= band_endy)
 	{
-	 /*
-	  * Draw the next band of raster data...
-	  */
-
+	  // Draw the next band of raster data...
 	  band_starty = y;
 	  band_endy   = y + ras.band_height;
 	  if (band_endy > ras.bottom)
@@ -2581,10 +2421,7 @@ xform_document(
 	  CGContextRestoreGState(context);
 	}
 
-       /*
-	* Prepare and write a line...
-	*/
-
+        // Prepare and write a line...
 	lineptr = ras.band_buffer + (y - band_starty) * band_size + ras.left * ras.band_bpp;
 	if (ras.header.cupsBitsPerPixel == 24)
 	  pack_rgba(lineptr, ras.right - ras.left);
@@ -2605,12 +2442,9 @@ xform_document(
       }
     }
 
-    if (ras.ipp_options->copies > 1 && (pages & 1) && ras.header.Duplex)
+    if (options->copies > 1 && (pages & 1) && ras.header.Duplex)
     {
-     /*
-      * Duplex printing, add a blank back side image...
-      */
-
+      // Duplex printing, add a blank back side image...
       unsigned	y;		// Current line
 
       if (Verbosity > 1)
@@ -2636,183 +2470,15 @@ xform_document(
   }
 
   CGPDFDocumentRelease(document);
-
-#if 0
-  {
-   /*
-    * Render copies of the image...
-    */
-
-    image_width  = CGImageGetWidth(image);
-    image_height = CGImageGetHeight(image);
-
-    if ((image_height < image_width && ras.header.cupsWidth < ras.header.cupsHeight) ||
-	 (image_width < image_height && ras.header.cupsHeight < ras.header.cupsWidth))
-    {
-     /*
-      * Rotate image 90 degrees...
-      */
-
-      image_rotation = 90;
-    }
-    else
-    {
-     /*
-      * Leave image as-is...
-      */
-
-      image_rotation = 0;
-    }
-
-    if (Verbosity > 1)
-      fprintf(stderr, "DEBUG: image_width=%u, image_height=%u, image_rotation=%d\n", (unsigned)image_width, (unsigned)image_height, image_rotation);
-
-    if ((!strcmp(print_scaling, "auto") && ras.borderless) || !strcmp(print_scaling, "fill"))
-    {
-     /*
-      * Scale to fill...
-      */
-
-      if (image_rotation)
-      {
-	image_xscale = ras.header.cupsPageSize[0] / (double)image_height;
-	image_yscale = ras.header.cupsPageSize[1] / (double)image_width;
-      }
-      else
-      {
-	image_xscale = ras.header.cupsPageSize[0] / (double)image_width;
-	image_yscale = ras.header.cupsPageSize[1] / (double)image_height;
-      }
-
-      if (image_xscale < image_yscale)
-	image_xscale = image_yscale;
-      else
-	image_yscale = image_xscale;
-    }
-    else
-    {
-     /*
-      * Scale to fit with 1/4" margins...
-      */
-
-      if (image_rotation)
-      {
-	image_xscale = (ras.header.cupsPageSize[0] - 36.0) / (double)image_height;
-	image_yscale = (ras.header.cupsPageSize[1] - 36.0) / (double)image_width;
-      }
-      else
-      {
-	image_xscale = (ras.header.cupsPageSize[0] - 36.0) / (double)image_width;
-	image_yscale = (ras.header.cupsPageSize[1] - 36.0) / (double)image_height;
-      }
-
-      if (image_xscale > image_yscale)
-	image_xscale = image_yscale;
-      else
-	image_yscale = image_xscale;
-    }
-
-    if (image_rotation)
-    {
-      transform = CGAffineTransformMake(image_xscale, 0, 0, image_yscale, 0.5 * (ras.header.cupsPageSize[0] - image_xscale * image_height), 0.5 * (ras.header.cupsPageSize[1] - image_yscale * image_width));
-    }
-    else
-    {
-      transform = CGAffineTransformMake(image_xscale, 0, 0, image_yscale, 0.5 * (ras.header.cupsPageSize[0] - image_xscale * image_width), 0.5 * (ras.header.cupsPageSize[1] - image_yscale * image_height));
-    }
-
-   /*
-    * Draw all of the copies...
-    */
-
-    for (copy = 0; copy < ras.ipp_options->copies; copy ++)
-    {
-      unsigned		y,		// Current line
-			band_starty = 0,// Start line of band
-			band_endy = 0;	// End line of band
-      unsigned char	*lineptr;	// Pointer to line
-
-      if (Verbosity > 1)
-	fprintf(stderr, "DEBUG: Printing copy %d/%d, transform=[%g %g %g %g %g %g]\n", copy + 1, ras.ipp_options->copies, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
-
-      (*(ras.start_page))(&ras, 1, cb, ctx);
-
-      for (y = ras.top; y < ras.bottom; y ++)
-      {
-	if (y >= band_endy)
-	{
-	 /*
-	  * Draw the next band of raster data...
-	  */
-
-	  band_starty = y;
-	  band_endy   = y + ras.band_height;
-	  if (band_endy > ras.bottom)
-	    band_endy = ras.bottom;
-
-	  if (Verbosity > 1)
-	    fprintf(stderr, "DEBUG: Drawing band from %u to %u.\n", band_starty, band_endy);
-
-	  CGContextSaveGState(context);
-	    if (ras.header.cupsNumColors == 1)
-	      CGContextSetGrayFillColor(context, 1., 1.);
-	    else
-	      CGContextSetRGBFillColor(context, 1., 1., 1., 1.);
-
-	    CGContextSetCTM(context, CGAffineTransformIdentity);
-	    CGContextFillRect(context, CGRectMake(0., 0., ras.header.cupsWidth, ras.band_height));
-	  CGContextRestoreGState(context);
-
-	  CGContextSaveGState(context);
-	    if (Verbosity > 1)
-	      fprintf(stderr, "DEBUG: Band translate 0.0,%g\n", y / yscale);
-	    CGContextTranslateCTM(context, 0.0, y / yscale);
-	    CGContextConcatCTM(context, transform);
-
-	    if (image_rotation)
-	      CGContextConcatCTM(context, CGAffineTransformMake(0, -1, 1, 0, 0, image_width));
-
-	    CGContextDrawImage(context, CGRectMake(0, 0, image_width, image_height), image);
-	  CGContextRestoreGState(context);
-	}
-
-       /*
-	* Prepare and write a line...
-	*/
-
-	lineptr = ras.band_buffer + (y - band_starty) * band_size + ras.left * ras.band_bpp;
-	if (ras.header.cupsBitsPerPixel == 24)
-	  pack_rgba(lineptr, ras.right - ras.left);
-	else if (ras.header.cupsBitsPerPixel == 48)
-	  pack_rgba16(lineptr, ras.right - ras.left);
-
-	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
-      }
-
-      (*(ras.end_page))(&ras, 1, cb, ctx);
-
-      impressions ++;
-      fprintf(stderr, "ATTR: job-impressions-completed=%u\n", impressions);
-      media_sheets ++;
-      fprintf(stderr, "ATTR: job-media-sheets-completed=%u\n", media_sheets);
-    }
-
-    CFRelease(image);
-  }
-#endif // 0
-
   (*(ras.end_job))(&ras, cb, ctx);
 
- /*
-  * Clean up...
-  */
-
+  // Clean up...
   CGContextRelease(context);
 
   free(ras.band_buffer);
   ras.band_buffer = NULL;
 
-  return (0);
+  return (true);
 }
 
 
@@ -2825,7 +2491,7 @@ static bool				// O - `true` on success, `false` on error
 xform_document(
     const char       *filename,		// I - File to transform
     unsigned         pages,		// I - Number of pages
-    ipp_options_t    *ipp_options,	// I - IPP options
+    ipp_options_t    *options,		// I - IPP options
     const char       *outformat,	// I - Output format (MIME media type)
     const char       *resolutions,	// I - Supported resolutions
     const char       *sheet_back,	// I - Back side transform
@@ -2854,7 +2520,7 @@ xform_document(
 
 static bool				// O - `true` on success, `false` on error
 xform_setup(xform_raster_t *ras,	// I - Raster information
-            ipp_options_t  *ipp_options,// I - IPP options
+            ipp_options_t  *options,	// I - IPP options
             const char     *format,	// I - Output format (MIME media type)
 	    const char     *resolutions,// I - Supported resolutions
 	    const char     *sheet_back,	// I - Back side transform
@@ -2879,7 +2545,7 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
     raster_init(ras);
 
   // Figure out the proper resolution, etc.
-  if (!ras->ipp_options->printer_resolution[0])
+  if (!options->printer_resolution[0])
   {
     // Choose a supported resolution from the list...
     const char *printer_resolution;	// Printer resolution string
@@ -2887,7 +2553,7 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
 
     res_array = cupsArrayNewStrings(resolutions, ',');
 
-    switch (ras->ipp_options->print_quality)
+    switch (options->print_quality)
     {
       case IPP_QUALITY_DRAFT :
 	  printer_resolution = cupsArrayGetElement(res_array, 0);
@@ -2916,28 +2582,28 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
       }
     }
 
-    ras->ipp_options->printer_resolution[0] = xdpi;
-    ras->ipp_options->printer_resolution[1] = ydpi;
+    options->printer_resolution[0] = xdpi;
+    options->printer_resolution[1] = ydpi;
 
     cupsArrayDelete(res_array);
   }
 
   // Now figure out the color space to use...
-  if (!strcmp(ras->ipp_options->print_color_mode, "monochrome") || !strcmp(ras->ipp_options->print_color_mode, "process-monochrome") || !strcmp(ras->ipp_options->print_color_mode, "auto-monochrome"))
+  if (!strcmp(options->print_color_mode, "monochrome") || !strcmp(options->print_color_mode, "process-monochrome") || !strcmp(options->print_color_mode, "auto-monochrome"))
   {
     color = false;
   }
-  else if (!strcmp(ras->ipp_options->print_color_mode, "bi-level") || !strcmp(ras->ipp_options->print_color_mode, "process-bi-level"))
+  else if (!strcmp(options->print_color_mode, "bi-level") || !strcmp(options->print_color_mode, "process-bi-level"))
   {
     color = false;
-    ras->ipp_options->print_quality = IPP_QUALITY_DRAFT;
+    options->print_quality = IPP_QUALITY_DRAFT;
   }
 
   type_array = cupsArrayNewStrings(types, ',');
 
   if (color)
   {
-    if (ras->ipp_options->print_quality == IPP_QUALITY_HIGH)
+    if (options->print_quality == IPP_QUALITY_HIGH)
     {
 #ifdef HAVE_COREGRAPHICS
       if (cupsArrayFind(type_array, "adobe-rgb_16"))
@@ -2955,7 +2621,7 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
 
   if (!type)
   {
-    if (ras->ipp_options->print_quality == IPP_QUALITY_DRAFT)
+    if (options->print_quality == IPP_QUALITY_DRAFT)
     {
       if (cupsArrayFind(type_array, "black_1"))
 	type = "black_1";
@@ -3006,12 +2672,12 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
   if (pages == 1)
     sides = "one-sided";
   else
-    sides = ras->ipp_options->sides;
+    sides = options->sides;
 
-  if (ras->ipp_options->copies > 1 && (pages & 1) && strcmp(sides, "one-sided"))
+  if (options->copies > 1 && (pages & 1) && strcmp(sides, "one-sided"))
     pages ++;
 
-  if (!cupsRasterInitPWGHeader(&(ras->header), pwgMediaForPWG(ras->ipp_options->media.media), type, ras->ipp_options->printer_resolution[0], ras->ipp_options->printer_resolution[1], sides, NULL))
+  if (!cupsRasterInitPWGHeader(&(ras->header), pwgMediaForPWG(options->media.media), type, options->printer_resolution[0], options->printer_resolution[1], sides, NULL))
   {
     fprintf(stderr, "ERROR: Unable to initialize raster context: %s\n", cupsRasterErrorString());
     return (false);
@@ -3019,7 +2685,7 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
 
   if (pages > 1)
   {
-    if (!cupsRasterInitPWGHeader(&(ras->back_header), pwgMediaForPWG(ras->ipp_options->media.media), type, ras->ipp_options->printer_resolution[0], ras->ipp_options->printer_resolution[1], sides, sheet_back))
+    if (!cupsRasterInitPWGHeader(&(ras->back_header), pwgMediaForPWG(options->media.media), type, options->printer_resolution[0], options->printer_resolution[1], sides, sheet_back))
     {
       fprintf(stderr, "ERROR: Unable to initialize back side raster context: %s\n", cupsRasterErrorString());
       return (false);
@@ -3028,14 +2694,14 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
 
   if (ras->header.cupsBitsPerPixel == 1)
   {
-    if (!strcmp(ras->ipp_options->print_color_mode, "bi-level") || !strcmp(ras->ipp_options->print_color_mode, "process-bi-level"))
+    if (!strcmp(options->print_color_mode, "bi-level") || !strcmp(options->print_color_mode, "process-bi-level"))
       memset(ras->dither, 127, sizeof(ras->dither));
     else
       memcpy(ras->dither, threshold, sizeof(ras->dither));
   }
 
-  ras->header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount]      = ras->ipp_options->copies * pages;
-  ras->back_header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount] = ras->ipp_options->copies * pages;
+  ras->header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount]      = options->copies * pages;
+  ras->back_header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount] = options->copies * pages;
 
   if (Verbosity)
   {
