@@ -33,7 +33,7 @@ extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
 
 
 // Constants...
-#define XFORM_MAX_NUP		16
+#define XFORM_MAX_LAYOUT		16
 #define XFORM_MAX_PAGES		10000
 #define XFORM_MAX_RASTER	16777216
 
@@ -66,10 +66,18 @@ typedef struct xform_document_s		// Document information
 
 typedef struct xform_page_s		// Output page
 {
+  pdfio_file_t	*pdf;			// Output PDF file
+  size_t	layout;			// Current layout cell
   pdfio_rect_t	media;			// Media box
   pdfio_rect_t	crop;			// Crop box
+  pdfio_obj_t	*input[XFORM_MAX_LAYOUT];
+					// Input page objects
+  pdfio_dict_t	*pagedict;		// Page dictionary
+  pdfio_dict_t	*resdict;		// Resource dictionary
+  pdfio_dict_t	*resmap[XFORM_MAX_LAYOUT];
+					// Resource name map
+  pdfio_dict_t	*restype;		// Current resource type dictionary
   pdfio_stream_t *output;		// Output page stream
-  pdfio_obj_t	*input[XFORM_MAX_NUP];	// Input page object
 } xform_page_t;
 
 typedef struct xform_prepare_s		// Preparation data
@@ -85,7 +93,7 @@ typedef struct xform_prepare_s		// Preparation data
   xform_page_t	outpages[XFORM_MAX_PAGES];
 					// Output pages
   size_t	num_layout;		// Number of layout rectangles
-  pdfio_rect_t	layout[XFORM_MAX_NUP];	// Layout rectangles
+  pdfio_rect_t	layout[XFORM_MAX_LAYOUT];	// Layout rectangles
 } xform_prepare_t;
 
 typedef struct xform_raster_s xform_raster_t;
@@ -131,6 +139,7 @@ static int	Verbosity = 0;		// Log level
 static bool	convert_image(xform_prepare_t *p, xform_document_t *d, int document);
 static bool	convert_raster(xform_prepare_t *p, xform_document_t *d, int document);
 static bool	convert_text(xform_prepare_t *p, xform_document_t *d, int document);
+static void	copy_page(xform_prepare_t *p, xform_page_t *outpage, size_t layout);
 static bool	generate_job_error_sheet(xform_prepare_t *p);
 static bool	generate_job_sheets(xform_prepare_t *p);
 static void	*monitor_ipp(const char *device_uri);
@@ -138,6 +147,7 @@ static void	*monitor_ipp(const char *device_uri);
 static void	pack_rgba(unsigned char *row, size_t num_pixels);
 static void	pack_rgba16(unsigned char *row, size_t num_pixels);
 #endif // HAVE_COREGRAPHICS
+static bool	page_dict_cb(pdfio_dict_t *dict, const char *key, xform_page_t *outpage);
 static void	pcl_end_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	pcl_end_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	pcl_init(xform_raster_t *ras);
@@ -157,6 +167,7 @@ static void	raster_init(xform_raster_t *ras);
 static void	raster_start_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	raster_start_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	raster_write_line(xform_raster_t *ras, unsigned y, const unsigned char *line, xform_write_cb_t cb, void *ctx);
+static bool	resource_dict_cb(pdfio_dict_t *dict, const char *key, xform_page_t *outpage);
 static void	size_to_rect(cups_size_t *size, pdfio_rect_t *media, pdfio_rect_t *crop);
 static void	usage(int status) _CUPS_NORETURN;
 static ssize_t	write_fd(int *fd, const unsigned char *buffer, size_t bytes);
@@ -840,6 +851,146 @@ convert_text(
 
 
 //
+// 'copy_page()' - Copy the input page to the output page.
+//
+
+static void
+copy_page(xform_prepare_t *p,		// I - Preparation data
+          xform_page_t    *outpage,	// I - Output page
+          size_t          layout)	// I - Layout cell
+{
+  pdfio_rect_t	*cell = p->layout + layout;
+					// Layout cell
+  pdfio_dict_t	*idict;			// Input page dictionary
+  pdfio_rect_t	irect;			// Input page rectangle
+  double	cwidth,			// Cell width
+		cheight,		// Cell height
+		iwidth,			// Input page width
+		iheight,		// Input page height
+		scaling,		// Scaling factor
+		rotation;		// Rotation
+  size_t	i,			// Looping var
+		count;			// Number of input page streams
+  pdfio_stream_t *st;			// Input page stream
+  char		buffer[8192];		// Token buffer
+  const char	*resname;		// Resource name
+
+
+  // Skip if this cell is empty...
+  if (!outpage->input[layout])
+    return;
+
+  // Save state for this cell...
+  pdfioContentSave(outpage->output);
+
+  // Clip to cell...
+  pdfioContentPathRect(outpage->output, cell->x1, cell->y1, cell->x2 - cell->x1, cell->y2 - cell->y1);
+  pdfioContentClip(outpage->output, false);
+
+  // Transform input page to output cell...
+  idict = pdfioObjGetDict(outpage->input[layout]);
+
+  if (!pdfioDictGetRect(idict, "CropBox", &irect))
+  {
+    // No crop box, use media box...
+    if (!pdfioDictGetRect(idict, "MediaBox", &irect))
+    {
+      // No media box, use output page size...
+      irect = outpage->media;
+    }
+  }
+
+  cwidth  = cell->x2 - cell->x1;
+  cheight = cell->y2 - cell->y1;
+
+  iwidth  = irect.x2 - irect.x1;
+  iheight = irect.y2 - irect.y1;
+
+  if ((iwidth > iheight && cwidth < cheight) || (iwidth < iheight && cwidth > cheight))
+  {
+    // Need to rotate...
+    rotation = 90.0;
+    iwidth   = irect.y2 - irect.y1;
+    iheight  = irect.x2 - irect.x1;
+  }
+  else
+  {
+    // No rotation...
+    rotation = 0.0;
+  }
+
+  scaling = iwidth / cwidth;
+  if (p->options->print_scaling == IPPOPT_SCALING_FILL)
+  {
+    // Scale to fill...
+    if ((iheight * scaling) < cheight)
+      scaling = iheight / cheight;
+  }
+  else
+  {
+    // Scale to fit...
+    if ((iheight * scaling) > cheight)
+      scaling = iheight / cheight;
+  }
+
+  pdfioContentMatrixTranslate(outpage->output, -0.5 * (irect.x1 + irect.x2), -0.5 * (irect.y1 + irect.y2));
+  if (scaling != 1.0)
+    pdfioContentMatrixScale(outpage->output, scaling, scaling);
+  if (rotation != 0.0)
+    pdfioContentMatrixRotate(outpage->output, rotation);
+  pdfioContentMatrixTranslate(outpage->output, 0.5 * (cell->x1 + cell->x2), 0.5 * (cell->y1 + cell->y2));
+
+  // Copy content streams...
+  for (i = 0, count = pdfioPageGetNumStreams(outpage->input[layout]); i < count; i ++)
+  {
+    if ((st = pdfioPageOpenStream(outpage->input[layout], i, true)) != NULL)
+    {
+      if (outpage->resdict)
+      {
+        // Need to map resource names...
+	while (pdfioStreamGetToken(st, buffer, sizeof(buffer)))
+	{
+	  if (buffer[0] == '/')
+	  {
+	    // Name, see if it needs to be mapped...
+	    if ((resname = pdfioDictGetName(outpage->resdict, buffer + 1)) == NULL)
+	      resname = buffer + 1;
+	    pdfioStreamPrintf(outpage->output, "/%s", resname);
+	  }
+	  else if (buffer[0] == '(')
+	  {
+	    // TODO: escape string
+	    pdfioStreamPrintf(outpage->output, "%s)", buffer);
+	  }
+	  else if (buffer[0] == '<')
+	  {
+	    pdfioStreamPrintf(outpage->output, "%s>", buffer);
+	  }
+	  else
+	  {
+	    pdfioStreamPrintf(outpage->output, " %s", buffer);
+	  }
+	}
+      }
+      else
+      {
+        // Copy page stream verbatim...
+        ssize_t	bytes;			// Bytes read
+
+        while ((bytes = pdfioStreamRead(st, buffer, sizeof(buffer))) > 0)
+          pdfioStreamWrite(outpage->output, buffer, (size_t)bytes);
+      }
+
+      pdfioStreamClose(st);
+    }
+  }
+
+  // Restore state...
+  pdfioContentRestore(outpage->output);
+}
+
+
+//
 // 'generate_job_error_sheet()' - Generate a job error sheet.
 //
 
@@ -1070,6 +1221,75 @@ pack_rgba16(unsigned char *row,		// I - Row of pixels to pack
   }
 }
 #endif // HAVE_COREGRAPHICS
+
+
+//
+// 'page_dict_cb()' - Merge page dictionaries from multiple input pages.
+//
+// This function detects resource conflicts and maps conflicting names as
+// needed.
+//
+
+static bool
+page_dict_cb(pdfio_dict_t *dict,	// I - Dictionary
+             const char   *key,		// I - Dictionary key
+             xform_page_t *outpage)	// I - Output page
+{
+  pdfio_array_t	*arrayres;		// Array resource
+  pdfio_array_t	*arrayval;		// Array value
+  pdfio_dict_t	*dictval;		// Dictionary value
+
+
+  switch (pdfioDictGetType(dict, key))
+  {
+    case PDFIO_VALTYPE_ARRAY : // Array resource
+        arrayval = pdfioDictGetArray(dict, key);
+
+        if ((arrayres = pdfioDictGetArray(outpage->resdict, key)) == NULL)
+        {
+          pdfioDictSetArray(outpage->resdict, key, pdfioArrayCopy(outpage->pdf, arrayval));
+        }
+        else if (!strcmp(key, "ProcSet"))
+        {
+          size_t	i, j,		// Looping var
+			ic, jc;		// Counts
+          const char	*iv, *jv;	// Values
+
+          for (i = 0, ic = pdfioArrayGetSize(arrayval); i < ic; i ++)
+          {
+            if ((iv = pdfioArrayGetName(arrayval, i)) == NULL)
+              continue;
+
+            for (j = 0, jc = pdfioArrayGetSize(arrayres); j < jc; j ++)
+            {
+	      if ((jv = pdfioArrayGetName(arrayres, j)) == NULL)
+	        continue;
+
+	      if (!strcmp(iv, jv))
+	        break;
+            }
+
+            if (j >= jc)
+              pdfioArrayAppendName(arrayres, iv);
+          }
+        }
+        break;
+
+    case PDFIO_VALTYPE_DICT : // Dictionary resource
+        dictval = pdfioDictGetDict(dict, key);
+
+        if ((outpage->restype = pdfioDictGetDict(outpage->resdict, key)) == NULL)
+          pdfioDictSetDict(outpage->resdict, key, pdfioDictCopy(outpage->pdf, dictval));
+        else
+          pdfioDictIterateKeys(dictval, (pdfio_dict_cb_t)resource_dict_cb, outpage);
+        break;
+
+    default :
+        break;
+  }
+
+  return (true);
+}
 
 
 //
@@ -1616,10 +1836,47 @@ prepare_documents(
   prepare_pages(&p, num_documents, documents);
 
   // Copy pages to the output file...
-  for (i = p.num_outpages, outpage = p.outpages; i > 0; i --, outpage ++)
+  if (p.num_layout == 1)
   {
-    for (layout = 0; layout < p.num_layout; layout ++)
+    // Simple path - no layout of pages so we can just copy the pages quickly.
+    for (i = p.num_outpages, outpage = p.outpages; i > 0; i --, outpage ++)
+      pdfioPageCopy(p.pdf, outpage->input[0]);
+  }
+  else
+  {
+    // Layout path - merge page resources and do mapping of resources as needed
+    for (i = p.num_outpages, outpage = p.outpages; i > 0; i --, outpage ++)
     {
+      // Create a page dictionary that merges the resources from each of the
+      // input pages...
+      outpage->pagedict = pdfioDictCreate(p.pdf);
+      outpage->resdict  = pdfioDictCreate(p.pdf);
+
+      pdfioDictSetRect(outpage->pagedict, "CropBox", &outpage->crop);
+      pdfioDictSetRect(outpage->pagedict, "MediaBox", &outpage->media);
+      pdfioDictSetDict(outpage->pagedict, "Resources", outpage->resdict);
+      pdfioDictSetName(outpage->pagedict, "Type", "Page");
+
+      for (layout = 0; layout < p.num_layout; layout ++)
+      {
+        if (!outpage->input[layout])
+          continue;
+
+        outpage->layout  = layout;
+        outpage->restype = NULL;
+        pdfioDictIterateKeys(pdfioDictGetDict(pdfioObjGetDict(outpage->input[layout]), "Resources"), (pdfio_dict_cb_t)page_dict_cb, outpage);
+        // TODO: Handle inherited resources from parent page objects...
+      }
+
+      // Now copy the content streams to build the composite page, using the
+      // resource map for any named resources...
+      outpage->output = pdfioFileCreatePage(p.pdf, outpage->pagedict);
+
+      for (layout = 0; layout < p.num_layout; layout ++)
+        copy_page(&p, outpage, layout);
+
+      pdfioStreamClose(outpage->output);
+      outpage->output = NULL;
     }
   }
 
@@ -1851,6 +2108,7 @@ prepare_pages(
 
         if (use_page)
         {
+          outpage->pdf           = p->pdf;
           outpage->input[layout] = pdfioFileGetPage(d->pdf, (size_t)(page - d->first_page));
           layout = 1 - layout;
           current ++;
@@ -1882,6 +2140,7 @@ prepare_pages(
 
         if (use_page)
         {
+          outpage->pdf           = p->pdf;
           outpage->input[layout] = pdfioFileGetPage(d->pdf, (size_t)(page - d->first_page));
           layout ++;
           if (layout == p->num_layout)
@@ -2103,6 +2362,84 @@ raster_write_line(
   {
     cupsRasterWritePixels(ras->ras, (unsigned char *)line, ras->header.cupsBytesPerLine);
   }
+}
+
+
+//
+// 'resource_dict_cb()' - Merge resource dictionaries from multiple input pages.
+//
+// This function detects resource conflicts and maps conflicting names as
+// needed.
+//
+
+static bool
+resource_dict_cb(
+    pdfio_dict_t *dict,			// I - Dictionary
+    const char   *key,			// I - Dictionary key
+    xform_page_t *outpage)		// I - Output page
+{
+  pdfio_array_t	*arrayval;		// Array value
+  pdfio_dict_t	*dictval;		// Dictionary value
+  const char	*nameval,		// Name value
+		*curval;		// Current name value
+  pdfio_obj_t	*objval;		// Object value
+  char		mapname[256];		// Mapped resource name
+
+
+  snprintf(mapname, sizeof(mapname), "%c%s", (int)('a' + outpage->layout), key);
+
+  switch (pdfioDictGetType(dict, key))
+  {
+    case PDFIO_VALTYPE_ARRAY : // Array
+        arrayval = pdfioDictGetArray(dict, key);
+        if (pdfioDictGetArray(outpage->restype, key) == arrayval)
+          break;
+
+        if (!outpage->resmap[outpage->layout])
+          outpage->resmap[outpage->layout] = pdfioDictCreate(outpage->pdf);
+
+        pdfioDictSetName(outpage->resmap[outpage->layout], key, mapname);
+        pdfioDictSetArray(outpage->restype, mapname, arrayval);
+        break;
+
+    case PDFIO_VALTYPE_DICT : // Dictionary
+        dictval = pdfioDictGetDict(dict, key);
+        if (pdfioDictGetDict(outpage->restype, key) == dictval)
+          break;
+
+        if (!outpage->resmap[outpage->layout])
+          outpage->resmap[outpage->layout] = pdfioDictCreate(outpage->pdf);
+
+        pdfioDictSetName(outpage->resmap[outpage->layout], key, mapname);
+        pdfioDictSetDict(outpage->restype, mapname, dictval);
+        break;
+
+    case PDFIO_VALTYPE_NAME : // Name
+        nameval = pdfioDictGetName(dict, key);
+        if ((curval = pdfioDictGetName(outpage->restype, key)) != NULL && !strcmp(nameval, curval))
+          break;
+
+        if (!outpage->resmap[outpage->layout])
+          outpage->resmap[outpage->layout] = pdfioDictCreate(outpage->pdf);
+
+        pdfioDictSetName(outpage->resmap[outpage->layout], key, mapname);
+        pdfioDictSetName(outpage->restype, mapname, nameval);
+        break;
+
+    case PDFIO_VALTYPE_INDIRECT : // Object reference
+        objval = pdfioDictGetObj(dict, key);
+        if (pdfioDictGetObj(outpage->restype, key) == objval)
+          break;
+
+        if (!outpage->resmap[outpage->layout])
+          outpage->resmap[outpage->layout] = pdfioDictCreate(outpage->pdf);
+
+        pdfioDictSetName(outpage->resmap[outpage->layout], key, mapname);
+        pdfioDictSetObj(outpage->restype, mapname, objval);
+        break;
+  }
+
+  return (true);
 }
 
 
