@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <errno.h>
 #include "ipp-options.h"
 #include <cups/raster.h>
 #include <cups/thread.h>
@@ -636,7 +637,9 @@ main(int  argc,				// I - Number of command-line args
     httpClose(http);
   }
   else if (fd != 1)
+  {
     close(fd);
+  }
 
   if (monitor)
     cupsThreadCancel(monitor);
@@ -2775,6 +2778,7 @@ xform_document(
 
       (*(ras.end_page))(&ras, page, cb, ctx);
 
+      // Log progress...
       impressions ++;
       fprintf(stderr, "ATTR: job-impressions-completed=%u\n", impressions);
       if (!ras.header.Duplex || !(page & 1))
@@ -2841,15 +2845,111 @@ xform_document(
     xform_write_cb_t cb,		// I - Write callback
     void             *ctx)		// I - Write context
 {
-  (void)filename;
-  (void)pages;
-  (void)ipp_options;
-  (void)outformat;
-  (void)resolutions;
-  (void)sheet_back;
-  (void)types;
-  (void)cb;
-  (void)ctx;
+  xform_raster_t ras;			// Raster information
+  unsigned	copy,			// Current copy
+		page = 0,		// Current page
+		media_sheets = 0,
+		impressions = 0;	// Page/sheet counters
+  char		command[1024];		// pdftoppm command
+  FILE		*fp;			// Pipe for output
+  char		header[256];		// Header from file
+  unsigned char	*line;			// Pixel line from file
+
+
+  // Setup the raster headers...
+  if (!xform_setup(&ras, options, outformat, resolutions, sheet_back, types, true, pages))
+    return (false);
+
+  if ((line = malloc(ras.header.cupsBytesPerLine)) == NULL)
+  {
+    fprintf(stderr, "ERROR: Unable to allocate %u bytes for line.\n", ras.header.cupsBytesPerLine);
+    return (false);
+  }
+
+  fprintf(stderr, "ATTR: job-impressions=%d\n", pages);
+  fprintf(stderr, "ATTR: job-pages=%d\n", pages);
+
+  if (ras.header.Duplex)
+    fprintf(stderr, "ATTR: job-media-sheets=%d\n", (pages + 1) / 2);
+  else
+    fprintf(stderr, "ATTR: job-media-sheets=%d\n", pages);
+
+  if (Verbosity > 1)
+    fprintf(stderr, "DEBUG: cupsPageSize=[%g %g]\n", ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
+
+  (*(ras.start_job))(&ras, cb, ctx);
+
+  for (copy = 0; copy < options->copies; copy ++)
+  {
+    // Run the pdftoppm command:
+    //
+    //   pdftoppm [-mono] [-gray] -aa no -r resolution filename -
+    snprintf(command, sizeof(command), "pdftoppm %s -aa no -r %u '%s' -", ras.header.cupsBitsPerPixel == 1 ? "-mono" : ras.header.cupsBitsPerPixel == 8 ? "-gray" : "", ras.header.HWResolution[0], filename);
+    fprintf(stderr, "DEBUG: Running \"%s\"\n", command);
+    if ((fp = popen(command, "r")) == NULL)
+    {
+      fprintf(stderr, "ERROR: Unable to run pdftoppm command: %s\n", strerror(errno));
+      return (false);
+    }
+
+    // Read lines from the file...
+    while (fgets(header, sizeof(header), fp))
+    {
+      // Got the P4/5/6 header, now get the bitmap dimensions...
+      unsigned	y;			// Current Y position
+      unsigned	width, height;		// Width and height from image...
+
+      if (strcmp(header, "P4\n") && strcmp(header, "P5\n") && strcmp(header, "P6\n"))
+      {
+        fprintf(stderr, "ERROR: Bad page header - %s", header);
+        break;
+      }
+
+      if (!fgets(header, sizeof(header), fp))
+        break;
+
+      if (sscanf(header, "%u%u", &width, &height) != 2)
+      {
+        fprintf(stderr, "ERROR: Bad page dimensions - %s", header);
+        break;
+      }
+      else if (width != ras.header.cupsWidth || height != ras.header.cupsHeight)
+      {
+        fprintf(stderr, "ERROR: Unexpected page dimensions - %ux%u.\n", width, height);
+        break;
+      }
+
+      // Send the page to the driver...
+      // TODO: Add pdftoppm support for different duplex modes...
+      page ++;
+
+      (*(ras.start_page))(&ras, page, cb, ctx);
+
+      for (y = 0; y < height; y ++)
+      {
+        if (fread(line, ras.header.cupsBytesPerLine, 1, fp))
+          (*(ras.write_line))(&ras, y, line, cb, ctx);
+      }
+
+      (*(ras.end_page))(&ras, page, cb, ctx);
+
+      // Log progress...
+      impressions ++;
+      fprintf(stderr, "ATTR: job-impressions-completed=%u\n", impressions);
+      if (!ras.header.Duplex || !(page & 1))
+      {
+	media_sheets ++;
+	fprintf(stderr, "ATTR: job-media-sheets-completed=%u\n", media_sheets);
+      }
+    }
+
+    // Close things out...
+    pclose(fp);
+  }
+
+  (*(ras.end_job))(&ras, cb, ctx);
+
+  free(line);
 
   return (true);
 }
