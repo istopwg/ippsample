@@ -709,7 +709,7 @@ convert_text(
   }
 
   // Create a temporary PDF file...
-  if ((pdf = pdfioFileCreateTemporary(d->tempfile, sizeof(d->tempfile), "1.7", &p->media, &p->crop, pdfio_error_cb, &document)) == NULL)
+  if ((pdf = pdfioFileCreateTemporary(d->tempfile, sizeof(d->tempfile), "1.7", &p->media, &p->crop, pdfio_error_cb, p)) == NULL)
   {
     cupsFileClose(fp);
     return (false);
@@ -1539,7 +1539,7 @@ prepare_documents(
 
   size_to_rect(&options->media, &p.media, &p.crop);
 
-  if ((p.pdf = pdfioFileCreateTemporary(outfile, outsize, "1.7", &p.media, &p.crop, pdfio_error_cb, NULL)) == NULL)
+  if ((p.pdf = pdfioFileCreateTemporary(outfile, outsize, "1.7", &p.media, &p.crop, pdfio_error_cb, &p)) == NULL)
     return (false);
 
   // Loop through the input documents to count pages, etc.
@@ -1569,7 +1569,7 @@ prepare_documents(
         goto done;
     }
 
-    if ((d->pdf = pdfioFileOpen(d->pdf_filename, pdfio_password_cb, &document, pdfio_error_cb, &document)) == NULL)
+    if ((d->pdf = pdfioFileOpen(d->pdf_filename, pdfio_password_cb, &document, pdfio_error_cb, &p)) == NULL)
       goto done;
 
     d->first_page = page;
