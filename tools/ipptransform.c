@@ -1720,7 +1720,7 @@ prepare_number_up(xform_prepare_t *p)	// I - Preparation data
     p->layout[1].y1 = p->media.y2 / 2.0;
 
     if (p->options->number_up != 1)
-      fprintf(stderr, "INFO: Ignoring \"number-up\" = '%d'.\n", p->options->number_up);
+      prepare_log(p, false, "Ignoring \"number-up\" = '%d'.", p->options->number_up);
   }
   else
   {
@@ -1732,7 +1732,7 @@ prepare_number_up(xform_prepare_t *p)	// I - Preparation data
   {
     default : // 1-up or unknown
 	if (p->options->number_up != 1)
-	  fprintf(stderr, "INFO: Ignoring \"number-up\" = '%d'.\n", p->options->number_up);
+	  prepare_log(p, false, "Ignoring \"number-up\" = '%d'.", p->options->number_up);
 
         p->num_layout = 1;
         p->layout[0]  = p->crop;
