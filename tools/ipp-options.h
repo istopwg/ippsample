@@ -71,6 +71,21 @@ typedef enum ippopt_imgpos_e		// "x/y-image-position" values
   IPPOPT_IMGPOS_TOP_RIGHT		// 'top' or 'right'
 } ippopt_imgpos_t;
 
+typedef struct ippopt_range_s		// rangeOfInteger value
+{
+  int		lower,			// Lower value
+		upper;			// Upper value
+} ippopt_range_t;
+
+typedef enum ippopt_scaling_e		// "print-scaling" values
+{
+  IPPOPT_SCALING_AUTO,			// 'auto'
+  IPPOPT_SCALING_AUTO_FIT,		// 'auto-fit'
+  IPPOPT_SCALING_FILL,			// 'fill'
+  IPPOPT_SCALING_FIT,			// 'fit'
+  IPPOPT_SCALING_NONE			// 'none'
+} ippopt_scaling_t;
+
 typedef enum ippopt_septype_e		// "separator-sheets-type" values
 {
   IPPOPT_SEPTYPE_NONE,			// 'none'
@@ -99,11 +114,11 @@ typedef struct ipp_options_s		// All IPP options in one structure
   ipp_orient_t	orientation_requested;	// "orientation-requested" value
   cups_array_t	*overrides;		// "overrides" value(s)
   ippopt_delivery_t page_delivery;	// "page-delivery" value
-  int		first_page,		// "page-ranges" value
-		last_page;
+  size_t	num_page_ranges;	// Number of "page-ranges" values
+  ippopt_range_t page_ranges[100];	// "page-ranges" values
   char		print_color_mode[128];	// "print-color-mode" value
   ipp_quality_t	print_quality;		// "print-quality" value
-  char		print_scaling[128];	// "print-scaling" value
+  ippopt_scaling_t print_scaling;	// "print-scaling" value
   int		printer_resolution[2];	// "printer-resolution" values (DPI)
   ippopt_septype_t separator_type;	// "separator-sheets-type" value
   cups_size_t	separator_media;	// "separator-sheets" "media" or "media-col" value
@@ -121,7 +136,10 @@ typedef struct ipp_options_s		// All IPP options in one structure
 // Functions...
 //
 
+extern bool		ippOptionsCheckPage(ipp_options_t *ippo, int page);
 extern void		ippOptionsDelete(ipp_options_t *ippo);
+extern int		ippOptionsGetFirstPage(ipp_options_t *ippo);
+extern int		ippOptionsGetLastPage(ipp_options_t *ippo);
 extern ipp_orient_t	ippOptionGetOverrides(ipp_options_t *ippo, int document, int page, cups_size_t *media);
 extern ipp_options_t	*ippOptionsNew(size_t num_options, cups_option_t *options);
 

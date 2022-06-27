@@ -23,7 +23,6 @@ TARGETS         =       \
                         $(SBIN_TARGETS)
 COMMAND_TARGETS	=	\
 			ippdoclint \
-			$(IPPTRANSFORM_BIN) \
 			$(IPPTRANSFORM3D_BIN)
 BIN_TARGETS	=	\
 			ipp3dprinter

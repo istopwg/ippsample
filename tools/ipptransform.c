@@ -1,12 +1,12 @@
-/*
- * Utility for converting PDF and JPEG files to raster data or HP PCL.
- *
- * Copyright © 2016-2022 by the IEEE-ISTO Printer Working Group.
- * Copyright © 2016-2019 by Apple Inc.
- *
- * Licensed under Apache License v2.0.  See the file "LICENSE" for more
- * information.
- */
+//
+// Utility for converting PDF and JPEG files to raster data or HP PCL.
+//
+// Copyright © 2016-2022 by the IEEE-ISTO Printer Working Group.
+// Copyright © 2016-2019 by Apple Inc.
+//
+// Licensed under Apache License v2.0.  See the file "LICENSE" for more
+// information.
+//
 
 #include <config.h>
 #include <stdio.h>
@@ -32,7 +32,12 @@ extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
 
 
 // Constants...
+#define XFORM_MAX_NUP		16
+#define XFORM_MAX_PAGES		10000
 #define XFORM_MAX_RASTER	16777216
+
+#define XFORM_TEXT_SIZE		12.0	// Point size of plain text output
+#define XFORM_TEXT_WIDTH	0.6	// Width of Courier characters
 
 #define XFORM_RED_MASK		0x000000ff
 #define XFORM_GREEN_MASK	0x0000ff00
@@ -50,7 +55,42 @@ typedef struct xform_document_s		// Document information
 {
   const char	*filename,		// Document filename
 		*format;		// Document format
+  char		tempfile[1024];		// Temporary PDF file, if any
+  const char	*pdf_filename;		// PDF filename
+  pdf_file_t	*pdf;			// PDF file for document
+  int		first_page,		// First page number in document
+		last_page,		// Last page number in document
+		num_pages;		// Number of pages to print in document
 } xform_document_t;
+
+typedef struct xform_page_s		// Output page
+{
+  pdfio_rect_t	media;			// Media box
+  pdfio_rect_t	crop;			// Crop box
+  pdfio_stream_t *output;		// Output page stream
+  pdfio_obj_t	*input[XFORM_MAX_NUP];	// Input page object
+} xform_page_t;
+
+typedef struct xform_rect_s		// Rectangle
+{
+  double	x, y,			// Bottom left corner
+		width, height;		// Width and height
+} xform_rect_t;
+
+typedef struct xform_prepare_s		// Preparation data
+{
+  ipp_options_t	*options;		// Print options
+  cups_array_t	*errors;		// Error messages
+  int		num_inpages;		// Number of input pages
+  pdfio_file_t	*pdf;			// PDF file
+  pdfio_rect_t	media;			// Default media box
+  pdfio_rect_t	crop;			// Default crop box
+  size_t	num_outpages;		// Number of output pages
+  xform_page_t	outpages[XFORM_MAX_PAGES];
+					// Output pages
+  size_t	num_layout;		// Number of layout rectangles
+  xform_rect_t	layout[XFORM_MAX_NUP];	// Layout rectangles
+} xform_prepare_t;
 
 typedef struct xform_raster_s xform_raster_t;
 					// Raster context
@@ -58,9 +98,6 @@ typedef struct xform_raster_s xform_raster_t;
 struct xform_raster_s			// Raster context
 {
   const char		*format;	// Output format
-  ipp_options_t		*ipp_options;	// IPP options
-  size_t		num_options;	// Number of job options
-  cups_option_t		*options;	// Job options
   cups_page_header_t	header;		// Page header
   cups_page_header_t	back_header;	// Page header for back side
   bool			borderless;	// Borderless media?
@@ -95,6 +132,12 @@ static int	Verbosity = 0;		// Log level
 
 
 // Local functions...
+static bool	convert_image(xform_prepare_t *p, xform_document_t *d, int document);
+static bool	convert_raster(xform_prepare_t *p, xform_document_t *d, int document);
+static bool	convert_text(xform_prepare_t *p, xform_document_t *d, int document);
+static bool	copy_page(xform_prepare_t *p, xform_page_t *page);
+static bool	generate_job_error_sheet(xform_prepare_t *p);
+static bool	generate_job_sheets(xform_prepare_t *p);
 static void	*monitor_ipp(const char *device_uri);
 #ifdef HAVE_COREGRAPHICS
 static void	pack_rgba(unsigned char *row, size_t num_pixels);
@@ -107,19 +150,23 @@ static void	pcl_printf(xform_write_cb_t cb, void *ctx, const char *format, ...) 
 static void	pcl_start_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	pcl_start_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	pcl_write_line(xform_raster_t *ras, unsigned y, const unsigned char *line, xform_write_cb_t cb, void *ctx);
-#if 0
-static char	*prepare_documents(size_t num_documents, xform_document_t *documents, size_t num_options, cups_option_t *options, cups_size_t *outmedia, char *outfile, size_t outsize, unsigned *outpages);
-#endif // 0
+static bool	pdfio_error_cb(pdfio_file_t *pdf, const char *message, void *cb_data);
+static const char *pdfio_password_cb(void *cb_data, const char *filename);
+static bool	prepare_documents(size_t num_documents, xform_document_t *documents, ipp_options_t *options, char *outfile, size_t outsize, unsigned *outpages);
+static void	prepare_error(xform_prepare_t *p, const char *message, ...);
+static void	prepare_number_up(xform_prepare_t *p);
+static void	prepare_pages(xform_prepare_t *p, size_t num_documents, xform_document_t *documents);
 static void	raster_end_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	raster_end_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	raster_init(xform_raster_t *ras);
 static void	raster_start_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	raster_start_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	raster_write_line(xform_raster_t *ras, unsigned y, const unsigned char *line, xform_write_cb_t cb, void *ctx);
+static void	size_to_rect(cups_size_t *size, pdf_rect_t *media, pdf_rect_t *crop);
 static void	usage(int status) _CUPS_NORETURN;
 static ssize_t	write_fd(int *fd, const unsigned char *buffer, size_t bytes);
-static bool	xform_document(const char *filename, const char *outformat, const char *resolutions, const char *sheet_back, const char *types, size_t num_options, cups_option_t *options, xform_write_cb_t cb, void *ctx);
-static bool	xform_setup(xform_raster_t *ras, const char *outformat, const char *resolutions, const char *types, const char *sheet_back, bool color, unsigned pages, size_t num_options, cups_option_t *options);
+static bool	xform_document(const char *filename, unsigned pages, ipp_options_t *ipp_options, const char *outformat, const char *resolutions, const char *sheet_back, const char *types, xform_write_cb_t cb, void *ctx);
+static bool	xform_setup(xform_raster_t *ras, ipp_options_t *ipp_options, const char *outformat, const char *resolutions, const char *types, const char *sheet_back, bool color, unsigned pages);
 
 
 //
@@ -141,6 +188,9 @@ main(int  argc,				// I - Number of command-line args
   xform_document_t files[1000];		// Files to convert
   size_t	num_options = 0;	// Number of options
   cups_option_t	*options = NULL;	// Options
+  ipp_options_t	*ipp_options;		// IPP options
+  char		pdf_file[1024];		// Temporary PDF filename
+  unsigned	pdf_pages;		// Number of pages in PDF file
   int		fd = 1;			// Output file/socket
   http_t	*http = NULL;		// Output HTTP connection
   void		*write_ptr = &fd;	// Pointer to file/socket/HTTP connection
@@ -152,10 +202,7 @@ main(int  argc,				// I - Number of command-line args
   cups_thread_t monitor = 0;		// Monitoring thread ID
 
 
- /*
-  * Process the command-line...
-  */
-
+  // Process the command-line...
   memset(files, 0, sizeof(files));
 
   device_uri   = getenv("DEVICE_URI");
@@ -376,12 +423,15 @@ main(int  argc,				// I - Number of command-line args
     usage(1);
   }
 
-  if (!resolutions)
-    resolutions = "300dpi";
-  if (!sheet_back)
-    sheet_back = "normal";
-  if (!types)
-    types = "sgray_8";
+  // Prepare a PDF file for printing...
+  ipp_options = ippOptionsNew(num_options, options);
+
+  if (!prepare_documents(num_files, files, ipp_options, pdf_file, sizeof(pdf_file), &pdf_pages))
+  {
+    // Unable to prepare documents, exit...
+    ippOptionsDelete(ipp_options);
+    return (1);
+  }
 
   // If the device URI is specified, open the connection...
   if (device_uri)
@@ -555,9 +605,17 @@ main(int  argc,				// I - Number of command-line args
   }
 
   // Do transform...
-  // TODO: filter input files to a single PDF file for printing...
-  if (!xform_document(files[0].filename, output_type, resolutions, sheet_back, types, num_options, options, write_cb, write_ptr))
+  if (!resolutions)
+    resolutions = "300dpi";
+  if (!sheet_back)
+    sheet_back = "normal";
+  if (!types)
+    types = "sgray_8";
+
+  if (!xform_document(pdf_file, pdf_pages, ipp_options, output_type, resolutions, sheet_back, types, write_cb, write_ptr))
     status = 1;
+
+  ippOptionsDelete(ipp_options);
 
   if (http)
   {
@@ -581,9 +639,209 @@ main(int  argc,				// I - Number of command-line args
 }
 
 
-/*
- * 'monitor_ipp()' - Monitor IPP printer status.
- */
+//
+// 'convert_image()' - Convert an image to a PDF file.
+//
+// This function handles scaling and cropping the image to the output media
+// size, as needed.
+//
+
+static bool				// O - `true` on success, `false` on failure
+convert_image(
+    xform_prepare_t  *p,		// I - Preparation data
+    xform_document_t *d,		// I - Document
+    int              document)		// I - Document number
+{
+}
+
+
+//
+// 'convert_raster()' - Convert a PWG or Apple raster file to a PDF file.
+//
+
+static bool				// O - `true` on success, `false` on failure
+convert_raster(
+    xform_prepare_t  *p,		// I - Preparation data
+    xform_document_t *d,		// I - Document
+    int              document)		// I - Document number
+{
+}
+
+
+//
+// 'convert_text()' - Convert a plain text file to a PDF file.
+//
+// Text is rendered as 12pt Courier, 8 columns per tab, with no special
+// formatting.
+//
+
+static bool				// O - `true` on success, `false` on failure
+convert_text(
+    xform_prepare_t  *p,		// I - Preparation data
+    xform_document_t *d,		// I - Document
+    int              document)		// I - Document number
+{
+  pdfio_file_t	*pdf;			// Temporary PDF file
+  pdfio_stream_t *st = NULL;		// Page stream
+  pdfio_obj_t	*courier;		// Courier font
+  pdfio_dict_t	*dict;			// Page dictionary
+  cups_file_t	*fp;			// File
+  char		line[1024],		// Line from file
+		*lineptr,		// Pointer into line
+		outline[1024],		// Output line
+		*outptr;		// Pointer into output line
+  unsigned	column = 0,		// Column on line
+		columns,		// Columns per line
+		linenum = 0,		// Current line
+		lines;			// Number of lines per page
+
+
+  // Open the text file...
+  if ((fp = cupsFileOpen(d->filename, "r")) == NULL)
+  {
+    fprintf(stderr, "ERROR: Input Document %d: %s\n", document, strerror(errno));
+    return (false);
+  }
+
+  // Create a temporary PDF file...
+  if ((pdf = pdfioFileCreateTemporary(d->tempfile, sizeof(d->tempfile), "1.7", &p->media, &p->crop, pdfio_error_cb, &document)) == NULL)
+  {
+    cupsFileClose(fp);
+    return (false);
+  }
+
+  // Calculate columns and rows based on media margins...
+  // (Default margins are 0.5" at the top and bottom and 0.25" on the sides)
+  columns = (int)((p->crop.x2 - p->crop.x1) / (XFORM_TEXT_WIDTH * XFORM_TEXT_SIZE));
+  lines   = (int)((p->crop.y2 - p->crop.y1) / XFORM_TEXT_SIZE);
+
+  // Create font and page dictionaries...
+  courier = pdfioFileCreateFontObjFromBase(pdf, "Courier");
+  dict    = pdfioDictCreate(pdf);
+
+  pdfioPageDictAddFont(dict, "F1", courier);
+
+  // Read lines from the text file...
+  while (cupsFileGets(fp, line, sizeof(line)))
+  {
+    // Loop through the line and write lines...
+    for (column = 0, lineptr = line, outptr = out; *lineptr; lineptr ++)
+    {
+      if (*lineptr == '\t')
+      {
+        // Tab every 8 columns...
+        do
+        {
+          if (outptr < (outline + sizeof(outline) - 1))
+            *outptr++ = ' ';
+
+	  column ++;
+        }
+        while (column & 7);
+      }
+      else
+      {
+        // Regular character...
+        if (outptr < (outline + sizeof(outline) - 1))
+	  *outptr++ = *lineptr;
+
+	column ++;
+      }
+
+      if (column >= columns || !lineptr[1])
+      {
+        // End of line, write it out...
+        *outptr = '\0';
+        outptr  = outline;
+
+        if (!st)
+        {
+          // Start new page...
+          st = pdfioFileCreatePage(pdf, dict);
+          pdfioContentTextBegin(st);
+          pdfioContentSetTextFont(st, "F1", XFORM_TEXT_SIZE);
+          pdfioContentSetTextLeading(st, XFORM_TEXT_SIZE);
+          pdfioContentTextMoveTo(st, p->crop.x1, p->crop.y2 - XFORM_TEXT_SIZE);
+          pdfioContentSetFillColorDeviceGray(st, 0.0);
+        }
+
+        pdfioContentTextShow(st, false, outline);
+
+	linenum ++;
+	column = 0;
+      }
+
+      if (linenum >= lines)
+      {
+        // End of page...
+        pdfioContentTextEnd(st);
+        pdfioStreamClose(st);
+        st = NULL;
+      }
+    }
+  }
+
+  // Finish current page, if any...
+  if (st)
+  {
+    pdfioContentTextEnd(st);
+    pdfioStreamClose(st);
+  }
+
+  // Close Files...
+  pdfioFileClose(pdf);
+  cupsFileClose(fp);
+
+  d->pdf_filename = d->tempname;
+
+  return (true);
+}
+
+
+//
+// 'copy_pdf()' - Copy pages from a PDF file for printing.
+//
+
+static bool				// O - `true` on success, `false` on failure
+copy_pdf(
+    xform_prepare_t  *p,		// I - Preparation data
+    xform_document_t *d,		// I - Document
+    int              document)		// I - Document number
+{
+}
+
+
+//
+// 'generate_job_error_sheet()' - Generate a job error sheet.
+//
+
+static bool				// O - `true` on success, `false` on failure
+generate_job_error_sheet(
+    xform_prepare_t  *p)		// I - Preparation data
+{
+  (void)p;
+
+  return (true);
+}
+
+
+//
+// 'generate_job_sheets()' - Generate a job banner sheet.
+//
+
+static bool				// O - `true` on success, `false` on failure
+generate_job_sheets(
+    xform_prepare_t  *p)		// I - Preparation data
+{
+  (void)p;
+
+  return (true);
+}
+
+
+//
+// 'monitor_ipp()' - Monitor IPP printer status.
+//
 
 static void *				// O - Thread exit status
 monitor_ipp(const char *device_uri)	// I - Device URI
@@ -699,11 +957,11 @@ monitor_ipp(const char *device_uri)	// I - Device URI
 
 
 #ifdef HAVE_COREGRAPHICS
-/*
- * 'pack_rgba()' - Pack RGBX scanlines into RGB scanlines.
- *
- * This routine is suitable only for 8 bit RGBX data packed into RGB bytes.
- */
+//
+// 'pack_rgba()' - Pack RGBX scanlines into RGB scanlines.
+//
+// This routine is suitable only for 8 bit RGBX data packed into RGB bytes.
+//
 
 static void
 pack_rgba(unsigned char *row,		// I - Row of pixels to pack
@@ -752,11 +1010,11 @@ pack_rgba(unsigned char *row,		// I - Row of pixels to pack
 }
 
 
-/*
- * 'pack_rgba16()' - Pack 16 bit per component RGBX scanlines into RGB scanlines.
- *
- * This routine is suitable only for 16 bit RGBX data packed into RGB bytes.
- */
+//
+// 'pack_rgba16()' - Pack 16 bit per component RGBX scanlines into RGB scanlines.
+//
+// This routine is suitable only for 16 bit RGBX data packed into RGB bytes.
+//
 
 static void
 pack_rgba16(unsigned char *row,		// I - Row of pixels to pack
@@ -786,9 +1044,9 @@ pack_rgba16(unsigned char *row,		// I - Row of pixels to pack
 #endif // HAVE_COREGRAPHICS
 
 
-/*
- * 'pcl_end_job()' - End a PCL "job".
- */
+//
+// 'pcl_end_job()' - End a PCL "job".
+//
 
 static void
 pcl_end_job(xform_raster_t   *ras,	// I - Raster information
@@ -805,9 +1063,9 @@ pcl_end_job(xform_raster_t   *ras,	// I - Raster information
 }
 
 
-/*
- * 'pcl_end_page()' - End of PCL page.
- */
+//
+// 'pcl_end_page()' - End of PCL page.
+//
 
 static void
 pcl_end_page(xform_raster_t   *ras,	// I - Raster information
@@ -837,9 +1095,9 @@ pcl_end_page(xform_raster_t   *ras,	// I - Raster information
 }
 
 
-/*
- * 'pcl_init()' - Initialize callbacks for PCL output.
- */
+//
+// 'pcl_init()' - Initialize callbacks for PCL output.
+//
 
 static void
 pcl_init(xform_raster_t *ras)		// I - Raster information
@@ -852,9 +1110,9 @@ pcl_init(xform_raster_t *ras)		// I - Raster information
 }
 
 
-/*
- * 'pcl_printf()' - Write a formatted string.
- */
+//
+// 'pcl_printf()' - Write a formatted string.
+//
 
 static void
 pcl_printf(xform_write_cb_t cb,		// I - Write callback
@@ -874,9 +1132,9 @@ pcl_printf(xform_write_cb_t cb,		// I - Write callback
 }
 
 
-/*
- * 'pcl_start_job()' - Start a PCL "job".
- */
+//
+// 'pcl_start_job()' - Start a PCL "job".
+//
 
 static void
 pcl_start_job(xform_raster_t   *ras,	// I - Raster information
@@ -893,9 +1151,9 @@ pcl_start_job(xform_raster_t   *ras,	// I - Raster information
 }
 
 
-/*
- * 'pcl_start_page()' - Start a PCL page.
- */
+//
+// 'pcl_start_page()' - Start a PCL page.
+//
 
 static void
 pcl_start_page(xform_raster_t   *ras,	// I - Raster information
@@ -1029,9 +1287,9 @@ pcl_start_page(xform_raster_t   *ras,	// I - Raster information
 }
 
 
-/*
- * 'pcl_write_line()' - Write a line of raster data.
- */
+//
+// 'pcl_write_line()' - Write a line of raster data.
+//
 
 static void
 pcl_write_line(
@@ -1170,7 +1428,52 @@ pcl_write_line(
 }
 
 
-#if 0
+//
+// 'pdfio_error_cb()' - Log an error from the PDFio library.
+//
+
+static bool				// O - `false` to stop
+pdfio_error_cb(pdfio_file_t *pdf,	// I - PDF file (unused)
+               const char   *message,	// I - Error message
+               void         *cb_data)	// I - Callback data (document number or NULL for output)
+{
+  (void)pdf;
+
+  if (cb_data)
+    fprintf(stderr, "ERROR: Input Document %d: %s\n", message, *((int *)cb_data));
+  else
+    fprintf(stderr, "ERROR: Output Document: %s\n", message);
+
+  return (false);
+}
+
+
+//
+// 'pdfio_password_cb()' - Return the password, if any, for the input document.
+//
+
+static const char *			// O - Document password
+pdfio_password_cb(void       *cb_data,	// I - Document number
+                  const char *filename)	// I - Filename (unused)
+{
+  int	document = *((int *)cb_data);	// Document number
+  char	name[128];			// Environment variable name
+
+
+  (void)filename;
+
+  if (document > 1)
+  {
+    snprintf(name, sizeof(name), "IPP_DOCUMENT_PASSWORD%d", document);
+    return (getenv(name));
+  }
+  else
+  {
+    return (getenv("IPP_DOCUMENT_PASSWORD"));
+  }
+}
+
+
 //
 // 'prepare_documents()' - Prepare one or more documents for printing.
 //
@@ -1182,31 +1485,465 @@ static char *				// O - Output filename or `NULL` on error
 prepare_documents(
     size_t           num_documents,	// I - Number of input documents
     xform_document_t *documents,	// I - Input documents
-    size_t           num_options,	// I - Number of options
-    cups_option_t    *options,		// I - Options
-    cups_size_t      *outmedia,		// I - Output media
+    ipp_options_t    *options,		// I - IPP options
     char             *outfile,		// I - Output filename buffer
     size_t           outsize,		// I - Output filename buffer size
     unsigned         *outpages)		// O - Number of pages
 {
-  // TODO: Implement me
-  (void)num_documents;
-  (void)documents;
-  (void)num_options;
-  (void)options;
-  (void)outmedia;
-  (void)outfile;
-  (void)outsize;
-  (void)outpages;
+  bool			ret = false;	// Return value
+  size_t		i;		// Looping var
+  xform_prepare_t	p;		// Preparation data
+  xform_document_t	*d;		// Current document
+  xform_page_t		*outpage;	// Current output page
+  size_t		layout;		// Layout cell
+  int			document;	// Document number
+  int			page;		// Current page number
+  bool			duplex = !strncmp(options->sides, "two-sided-", 10);
+					// Doing two-sided printing?
 
-  return (NULL);
+
+  // Initialize data for preparing input files for transform...
+  memset(&p, 0, sizeof(p));
+  p.options = options;
+  p.errors  = cupsArrayNew(NULL, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
+
+  size_to_rect(&options->media, &p.media, &p.crop);
+
+  if ((p.pdf = pdfioFileCreateTemporary(outfile, outsize, "1.7", &p.media, &p.crop, pdfio_error_cb, NULL)) == NULL)
+    return (false);
+
+  // Loop through the input documents to count pages, etc.
+  for (i = num_documents, d = documents, document = 1, page = 1; i > 0; i --, d ++, document ++)
+  {
+    if (!strcmp(d->format, "application/pdf"))
+    {
+      // PDF file...
+      d->pdf_filename = d->filename;
+    }
+    else if (!strcmp(d->format, "image/jpeg") || !strcmp(d->format, "image/png"))
+    {
+      // JPEG or PNG image...
+      if (!convert_image(&p, d, document))
+        goto done;
+    }
+    else if (!strcmp(d->format, "text/plain"))
+    {
+      // Plain text file...
+      if (!convert_text(&p, d, document))
+        goto done;
+    }
+    else
+    {
+      // PWG or Apple raster file...
+      if (!convert_raster(&p, d, document))
+        goto done;
+    }
+
+    if ((d->pdf = pdfioFileOpen(d->pdf_filename, pdfio_password_cb, &document, pdfio_error_cb, &document)) == NULL)
+      goto done;
+
+    d->first_page = page;
+    d->last_page  = page + (int)pdfioFileGetNumPages(d->pdf);
+
+    while (page <= d->last_page)
+    {
+      if (options->multiple_document_handling < IPPOPT_HANDLING_SINGLE_DOCUMENT)
+      {
+        if (ippOptionsCheckPage(options, page - d->first_page + 1))
+          d->num_pages ++;
+      }
+      else if (ippOptionsCheckPage(options, page))
+      {
+        d->num_pages ++;
+      }
+    }
+
+    if ((d->last_page & 1) && duplex && options->multiple_document_handling != IPPOPT_HANDLING_SINGLE_DOCUMENT)
+    {
+      d->last_page ++;
+      page ++;
+    }
+
+    if ((d->num_pages & 1) && duplex && options->multiple_document_handling != IPPOPT_HANDLING_SINGLE_DOCUMENT)
+      d->num_pages ++;
+
+    p.num_inpages += d->num_pages;
+  }
+
+  // Prepare output layout...
+  prepare_number_up(&p);
+
+  // When doing N-up or booklet printing, the default is to scale to fit unless
+  // fill is explicitly chosen...
+  if (p.num_layout > 1 && options->print_scaling != IPPOPT_SCALING_FILL)
+    options->print_scaling = IPPOPT_SCALING_FIT;
+
+  // Add job-sheets content...
+  if (options->job_sheets[0] && strcmp(options->job_sheets, "none"))
+    generate_job_sheets(&p);
+
+  // Prepare output pages and write them out...
+  prepare_pages(&p, num_documents, documents);
+
+  // Copy pages to the output file...
+  for (i = p.num_outpages, outpage = p.outpages; i > 0; i --, outpage ++)
+  {
+    for (layout = 0; layout < p.num_layout; layout ++)
+    {
+    }
+  }
+
+  // Add final job-sheets content...
+  if (options->job_sheets[0] && strcmp(options->job_sheets, "none"))
+    generate_job_sheets(&p);
+
+  // Add job-error-sheet content as needed...
+  if (options->job_error_sheet.report == IPPOPT_ERROR_REPORT_ALWAYS || (options->job_error_sheet.report == IPPOPT_ERROR_REPORT_ALWAYS && cupsArrayGetCount(p.errors) > 0))
+    generate_job_error_sheet(&p);
+
+  ret = true;
+
+  // Finalize the output and return...
+  done:
+
+  cupsArrayDelete(p.errors);
+
+  for (i = p.num_pages, p = p.pages; i > 0; i --, p ++)
+  {
+    if (p->output)
+      pdfioStreamClose(p->output);
+  }
+
+  if (!pdfioFileClose(page.pdf))
+    ret = false;
+
+  if (!ret)
+  {
+    // Remove temporary file...
+    unlink(outfile);
+    *outfile = '\0';
+  }
+
+  // Close and delete intermediate files...
+  for (i = num_documents, d = documents; i > 0; i --, d ++)
+  {
+    pdfioFileClose(d->pdf);
+    if (d->tempfile[0])
+      unlink(d->tempfile);
+  }
+
+  // Return success/fail status...
+  return (ret);
 }
-#endif // 0
 
 
-/*
- * 'raster_end_job()' - End a raster "job".
- */
+//
+// 'prepare_image()' - Add an image to a PDF file.
+//
+
+static bool				// O - `true` on success, `false` on failure
+prepare_image(
+    xform_prepare_t  *p,		// I - Preparation data
+    xform_document_t *file,		// I - File to add
+    int              document)		// I - Document number (starting at 1)
+{
+  (void)p;
+  (void)file;
+  (void)document;
+
+  return (true);
+}
+
+
+//
+// 'prepare_error()' - Log an error while preparing documents for printing.
+//
+
+static void
+prepare_error(xform_prepare_t *p,	// I - Preparation data
+              const char      *message,	// I - Printf-style message string
+              ...)			// I - Addition arguments as needed
+{
+  va_list	ap;			// Argument pointer
+  char		buffer[1024];		// Output buffer
+
+
+  va_start(ap, message);
+  vsnprintf(buffer, sizeof(buffer), message, ap);
+  va_end(ap);
+
+  cupsArrayAdd(p->errors, buffer);
+
+  fprintf(stderr, "INFO: %s\n", buffer);
+}
+
+
+//
+// 'prepare_number_up()' - Prepare the layout rectangles based on the number-up and orientation-requested values.
+//
+
+static void
+prepare_number_up(xform_prepare_t *p)	// I - Preparation data
+{
+  size_t	i,			// Looping var
+		cols,			// Number of columns
+		rows;			// Number of rows
+  pdfio_rect_t	*r;			// Current layout rectangle...
+  double	width,			// Width of layout rectangle
+		height;			// Height of layout rectangle
+
+
+  if (!strcmp(p->options->imposition_template, "booklet"))
+  {
+    // "imposition-template" = 'booklet' forces 2-up output...
+    p->num_layout   = 2;
+    p->layout[0]    = p->media;
+    p->layout[0].y2 = p->media.y2 / 2.0;
+    p->layout[1]    = p->media;
+    p->layout[1].y1 = p->media.y2 / 2.0;
+
+    if (p->options->number_up != 1)
+      fprintf(stderr, "INFO: Ignoring \"number-up\" = '%d'.\n", p->options->number_up);
+  }
+  else
+  {
+    p->num_layout = (size_t)p->options->number_up;
+  }
+
+  // Figure out the number of rows and columns...
+  switch (p->num_layout)
+  {
+    default : // 1-up or unknown
+	if (p->options->number_up != 1)
+	  fprintf(stderr, "INFO: Ignoring \"number-up\" = '%d'.\n", p->options->number_up);
+
+        p->num_layout = 1;
+        p->layout[0]  = p->crop;
+        return;
+
+    case 2 : // 2-up
+        cols = 1;
+        rows = 2;
+        break;
+    case 4 : // 4-up
+        cols = 2;
+        rows = 2;
+        break;
+    case 6 : // 6-up
+        cols = 2;
+        rows = 3;
+        break;
+    case 9 : // 9-up
+        cols = 3;
+        rows = 3;
+        break;
+    case 12 : // 12-up
+        cols = 3;
+        rows = 4;
+        break;
+    case 16 : // 16-up
+        cols = 4;
+        rows = 4;
+        break;
+  }
+
+  // Then arrange the page rectangles evenly across the page...
+  width  = (p->crop.x2 - p->crop.x1) / cols;
+  height = (p->crop.y2 - p->crop.y1) / rows;
+
+  switch (p->options->orientation_requested)
+  {
+    default : // Portrait or "none"...
+        for (i = 0, r = p->layout; i < p->num_layout; i ++, r ++)
+        {
+          r->width  = width;
+          r->height = height;
+          r->x      = p->crop.x1 + r->width * (i % cols);
+          r->y      = p->crop.y1 + r->height * (rows - 1 - i / cols);
+        }
+        break;
+
+    case IPP_ORIENT_LANDSCAPE : // Landscape
+        for (i = 0, r = p->layout; i < p->num_layout; i ++, r ++)
+        {
+          r->width  = width;
+          r->height = height;
+          r->x      = p->crop.x1 + r->width * (cols - 1 - i / rows);
+          r->y      = p->crop.y1 + r->height * (rows - 1 - (i % rows));
+        }
+        break;
+
+    case IPP_ORIENT_REVERSE_PORTRAIT : // Reverse portrait
+        for (i = 0, r = p->layout; i < p->num_layout; i ++, r ++)
+        {
+          r->width  = width;
+          r->height = height;
+          r->x      = p->crop.x1 + r->width * (cols - 1 - (i % cols));
+          r->y      = p->crop.y1 + r->height * (i / cols);
+        }
+        break;
+
+    case IPP_ORIENT_REVERSE_LANDSCAPE : // Reverse landscape
+        for (i = 0, r = p->layout; i < p->num_layout; i ++, r ++)
+        {
+          r->width  = width;
+          r->height = height;
+          r->x      = p->crop.x1 + r->width * (i / rows);
+          r->y      = p->crop.y1 + r->height * (i % rows);
+        }
+        break;
+  }
+}
+
+
+//
+// 'prepare_pages()' - Prepare the pages for the output document.
+//
+
+static void
+prepare_pages(
+    xform_prepare_t  *p,		// I - Preparation data
+    size_t           num_documents,	// I - Number of documents
+    xform_document_t *documents)	// I - Documents
+{
+  int		page;			// Current page number in output
+  size_t	i,			// Looping var
+		current,		// Current output page index
+		layout;			// Current layout cell
+  xform_page_t	*outpage;		// Current output page
+  xform_document_t *d;			// Current document
+  bool		use_page;		// Use this page?
+
+
+  if (!strcmp(p->options->imposition_template, "booklet"))
+  {
+    // Booklet printing arranges input pages so that the folded output can be
+    // stapled along the midline...
+    p->num_outpages = (p->num_inpages + 1) / 2;
+    if (p->num_outpages & 1)
+      p->num_outpages ++;
+
+    for (current = 0, outpage = p->outpages, layout = 0, page = 1, i = num_documents, d = documents; i > 0; i --, d ++)
+    {
+      while (page <= d->last_page)
+      {
+	if (options->multiple_document_handling < IPPOPT_HANDLING_SINGLE_DOCUMENT)
+	  use_page = ippOptionsCheckPage(options, page - d->first_page + 1);
+	else
+	  use_page = ippOptionsCheckPage(options, page);
+
+        if (use_page)
+        {
+          outpage->input[layout] = pdfioFileGetPage(d->pdf, (size_t)(page - d->first_page));
+          layout = 1 - layout;
+          current ++;
+
+          if (current > p->num_outpages)
+            outpage --;
+          else
+            outpage ++;
+        }
+
+        page ++;
+      }
+
+      if (p->options->multiple_document_handling < IPPOPT_HANDLING_SINGLE_DOCUMENT)
+        page = 1;
+    }
+  }
+  else
+  {
+    // Normal printing lays out N input pages on each output page...
+    for (current = 0, outpage = p->outpages, layout = 0, page = 1, i = num_documents, d = documents; i > 0; i --, d ++)
+    {
+      while (page <= d->last_page)
+      {
+	if (options->multiple_document_handling < IPPOPT_HANDLING_SINGLE_DOCUMENT)
+	  use_page = ippOptionsCheckPage(options, page - d->first_page + 1);
+	else
+	  use_page = ippOptionsCheckPage(options, page);
+
+        if (use_page)
+        {
+          outpage->input[layout] = pdfioFileGetPage(d->pdf, (size_t)(page - d->first_page));
+          layout ++;
+          if (layout == p->num_layout)
+          {
+            current ++;
+            outpage ++;
+            layout = 0;
+          }
+        }
+
+        page ++;
+      }
+
+      if (p->options->multiple_document_handling < IPPOPT_HANDLING_SINGLE_DOCUMENT)
+      {
+        page = 1;
+
+        if (layout)
+        {
+	  current ++;
+	  outpage ++;
+	  layout = 0;
+        }
+      }
+      else if (p->options->multiple_document_handling == IPPOPT_HANDLING_SINGLE_DOCUMENT_NEW_SHEET && (current & 1))
+      {
+	current ++;
+	outpage ++;
+	layout = 0;
+      }
+    }
+
+    if (layout)
+      current ++;
+
+    p->num_outpages = current;
+  }
+}
+
+
+//
+// 'prepare_pdf()' - Add pages from a PDF file to a PDF file.
+//
+
+static bool				// O - `true` on success, `false` on failure
+prepare_pdf(
+    xform_prepare_t  *p,		// I - Preparation data
+    xform_document_t *file,		// I - File to add
+    int              document)		// I - Document number (starting at 1)
+{
+  (void)p;
+  (void)file;
+  (void)document;
+
+  return (true);
+}
+
+
+//
+// 'prepare_text()' - Add plain text to a PDF file.
+//
+
+static bool				// O - `true` on success, `false` on failure
+prepare_text(
+    xform_prepare_t  *p,		// I - Preparation data
+    xform_document_t *file,		// I - File to add
+    int              document)		// I - Document number (starting at 1)
+{
+  (void)p;
+  (void)file;
+  (void)document;
+
+  return (true);
+}
+
+
+//
+// 'raster_end_job()' - End a raster "job".
+//
 
 static void
 raster_end_job(xform_raster_t   *ras,	// I - Raster information
@@ -1220,9 +1957,9 @@ raster_end_job(xform_raster_t   *ras,	// I - Raster information
 }
 
 
-/*
- * 'raster_end_page()' - End of raster page.
- */
+//
+// 'raster_end_page()' - End of raster page.
+//
 
 static void
 raster_end_page(xform_raster_t   *ras,	// I - Raster information
@@ -1242,9 +1979,9 @@ raster_end_page(xform_raster_t   *ras,	// I - Raster information
 }
 
 
-/*
- * 'raster_init()' - Initialize callbacks for raster output.
- */
+//
+// 'raster_init()' - Initialize callbacks for raster output.
+//
 
 static void
 raster_init(xform_raster_t *ras)	// I - Raster information
@@ -1257,9 +1994,9 @@ raster_init(xform_raster_t *ras)	// I - Raster information
 }
 
 
-/*
- * 'raster_start_job()' - Start a raster "job".
- */
+//
+// 'raster_start_job()' - Start a raster "job".
+//
 
 static void
 raster_start_job(xform_raster_t   *ras,	// I - Raster information
@@ -1270,9 +2007,9 @@ raster_start_job(xform_raster_t   *ras,	// I - Raster information
 }
 
 
-/*
- * 'raster_start_page()' - Start a raster page.
- */
+//
+// 'raster_start_page()' - Start a raster page.
+//
 
 static void
 raster_start_page(xform_raster_t   *ras,// I - Raster information
@@ -1301,9 +2038,9 @@ raster_start_page(xform_raster_t   *ras,// I - Raster information
 }
 
 
-/*
- * 'raster_write_line()' - Write a line of raster data.
- */
+//
+// 'raster_write_line()' - Write a line of raster data.
+//
 
 static void
 raster_write_line(
@@ -1388,9 +2125,31 @@ raster_write_line(
 }
 
 
-/*
- * 'usage()' - Show program usage.
- */
+//
+// 'size_to_rect()' - Convert `cups_size_t` to `pdfio_rect_t` for media and crop boxes.
+//
+
+static void
+size_to_rect(cups_size_t *size,		// I - CUPS media size information
+             pdf_rect_t  *media,	// O - PDF MediaBox value
+             pdf_rect_t  *crop)		// O - PDF CropBox value
+{
+  // cups_size_t uses hundredths of millimeters, pdf_rect_t uses points...
+  media->x1 = 0.0;
+  media->y1 = 0.0;
+  media->x2 = 72.0 * size->width / 2540.0;
+  media->y2 = 72.0 * size->length / 2540.0;
+
+  crop->x1  = 72.0 * size->left / 2540.0;
+  crop->y1  = 72.0 * size->bottom / 2540.0;
+  crop->x2  = 72.0 * (size->width - size->right) / 2540.0;
+  crop->y2  = 72.0 * (size->length - size->top) / 2540.0;
+}
+
+
+//
+// 'usage()' - Show program usage.
+//
 
 static void
 usage(int status)			// I - Exit status
@@ -1424,9 +2183,9 @@ usage(int status)			// I - Exit status
 }
 
 
-/*
- * 'write_fd()' - Write to a file/socket.
- */
+//
+// 'write_fd()' - Write to a file/socket.
+//
 
 static ssize_t				// O - Number of bytes written or -1 on error
 write_fd(int                 *fd,	// I - File descriptor
@@ -1458,19 +2217,19 @@ write_fd(int                 *fd,	// I - File descriptor
 
 
 #ifdef HAVE_COREGRAPHICS
-/*
- * 'xform_document()' - Transform a file for printing.
- */
+//
+// 'xform_document()' - Transform a file for printing.
+//
 
 static bool				// O - `true` on success, `false` on error
 xform_document(
     const char       *filename,		// I - File to transform
+    unsigned         pages,		// I - Number of pages
+    ipp_options_t    *ipp_options,	// I - IPP options
     const char       *outformat,	// I - Output format (MIME media type)
     const char       *resolutions,	// I - Supported resolutions
     const char       *sheet_back,	// I - Back side transform
     const char       *types,		// I - Supported types
-    size_t           num_options,	// I - Number of options
-    cups_option_t    *options,		// I - Options
     xform_write_cb_t cb,		// I - Write callback
     void             *ctx)		// I - Write context
 {
@@ -2058,31 +2817,29 @@ xform_document(
 
 
 #else
-/*
- * 'xform_document()' - Transform a file for printing.
- */
+//
+// 'xform_document()' - Transform a file for printing.
+//
 
 static bool				// O - `true` on success, `false` on error
 xform_document(
     const char       *filename,		// I - File to transform
-    const char       *informat,		// I - Input format (MIME media type)
+    unsigned         pages,		// I - Number of pages
+    ipp_options_t    *ipp_options,	// I - IPP options
     const char       *outformat,	// I - Output format (MIME media type)
     const char       *resolutions,	// I - Supported resolutions
     const char       *sheet_back,	// I - Back side transform
     const char       *types,		// I - Supported types
-    size_t           num_options,	// I - Number of options
-    cups_option_t    *options,		// I - Options
     xform_write_cb_t cb,		// I - Write callback
     void             *ctx)		// I - Write context
 {
   (void)filename;
-  (void)informat;
+  (void)pages;
+  (void)ipp_options;
   (void)outformat;
   (void)resolutions;
   (void)sheet_back;
   (void)types;
-  (void)num_options;
-  (void)options;
   (void)cb;
   (void)ctx;
 
@@ -2091,20 +2848,19 @@ xform_document(
 #endif // HAVE_COREGRAPHICS
 
 
-/*
- * 'xform_setup()' - Setup a raster context for printing.
- */
+//
+// 'xform_setup()' - Setup a raster context for printing.
+//
 
 static bool				// O - `true` on success, `false` on error
 xform_setup(xform_raster_t *ras,	// I - Raster information
+            ipp_options_t  *ipp_options,// I - IPP options
             const char     *format,	// I - Output format (MIME media type)
 	    const char     *resolutions,// I - Supported resolutions
 	    const char     *sheet_back,	// I - Back side transform
 	    const char     *types,	// I - Supported types
 	    bool           color,	// I - Document contains color?
-            unsigned       pages,	// I - Number of pages
-            size_t         num_options,	// I - Number of options
-            cups_option_t  *options)	// I - Options
+            unsigned       pages)	// I - Number of pages
 {
   const char	*sides,			// Final "sides" value
 		*type = NULL;		// Raster type to use
@@ -2115,10 +2871,7 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
   // Initialize raster information...
   memset(ras, 0, sizeof(xform_raster_t));
 
-  ras->format      = format;
-  ras->ipp_options = ippOptionsNew(num_options, options);
-  ras->num_options = num_options;
-  ras->options     = options;
+  ras->format = format;
 
   if (!strcmp(format, "application/vnd.hp-pcl"))
     pcl_init(ras);

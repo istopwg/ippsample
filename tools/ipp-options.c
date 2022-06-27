@@ -40,6 +40,30 @@ static bool			parse_media(const char *value, cups_size_t *media);
 
 
 //
+// 'ippOptionsCheckPage()' - Check whether a page number is included in the "page-ranges" value(s).
+//
+
+bool					// O - `true` if page in ranges, `false` otherwise
+ippOptionsCheckPage(ipp_options_t *ippo,// I - IPP options
+                    int           page)	// I - Page number (starting at 1)
+{
+  size_t	i;			// Looping var
+
+
+  if (!ippo || ippo->num_page_ranges == 0)
+    return (true);
+
+  for (i = 0; i < ippo->num_page_ranges; i ++)
+  {
+    if (page >= ippo->page_ranges[i].lower && page <= ippo->page_ranges[i].upper)
+      return (true);
+  }
+
+  return (false);
+}
+
+
+//
 // 'ippOptionsDelete()' - Free memory used by IPP options.
 //
 
@@ -54,6 +78,36 @@ ippOptionsDelete(ipp_options_t *ippo)	// I - IPP options
   cupsArrayDelete(ippo->insert_sheet);
   cupsArrayDelete(ippo->overrides);
   free(ippo);
+}
+
+
+//
+// 'ippOptionsGetFirstPage()' - Get the first page to be printed.
+//
+
+int					// O - First page number (starting at 1
+ippOptionsGetFirstPage(
+    ipp_options_t *ippo)		// I - IPP options
+{
+  if (!ippo || ippo->num_page_ranges == 0)
+    return (1);
+  else
+    return (ippo->page_ranges[0].lower);
+}
+
+
+//
+// 'ippOptionsGetLastPage()' - Get the last page to be printed.
+//
+
+int					// O - Last page number (starting at 1
+ippOptionsGetLastPage(
+    ipp_options_t *ippo)		// I - IPP options
+{
+  if (!ippo || ippo->num_page_ranges == 0)
+    return (INT_MAX);
+  else
+    return (ippo->page_ranges[ippo->num_page_ranges - 1].upper);
 }
 
 
@@ -136,8 +190,6 @@ ippOptionsNew(size_t        num_options,// I - Number of command-line options
     return (NULL);
 
   ippo->copies                     = 1;
-  ippo->first_page                 = 1;
-  ippo->last_page                  = INT_MAX;
   ippo->image_orientation          = IPP_ORIENT_NONE;
   ippo->multiple_document_handling = IPPOPT_HANDLING_COLLATED_COPIES;
   ippo->number_up                  = 1;
@@ -273,12 +325,29 @@ ippOptionsNew(size_t        num_options,// I - Number of command-line options
 
   if ((value = get_option("page-ranges", num_options, options)) != NULL)
   {
-    int	first, last;			// First and last page
+    // Parse comma-delimited page ranges...
+    const char	*ptr;			// Pointer into value
+    int		first, last;		// First and last page
 
-    if (sscanf(value, "%d-%d", &first, &last) == 2 && first >= 1 && last >= first)
+    ptr = value;
+    while (ptr && *ptr && isdigit(*ptr & 255))
     {
-      ippo->first_page = first;
-      ippo->last_page  = last;
+      first = (int)strtol(ptr, (char **)&ptr, 10);
+
+      if (ptr && *ptr == '-')
+        last = (int)strtol(ptr + 1, (char **)&ptr, 10);
+      else
+        last = first;
+
+      if (ippo->num_page_ranges < (sizeof(ippo->page_ranges) / sizeof(ippo->page_ranges[0])))
+      {
+        ippo->page_ranges[ippo->num_page_ranges].lower = first;
+        ippo->page_ranges[ippo->num_page_ranges].upper = last;
+        ippo->num_page_ranges ++;
+      }
+
+      if (ptr && *ptr == ',')
+        ptr ++;
     }
   }
 
@@ -289,7 +358,25 @@ ippOptionsNew(size_t        num_options,// I - Number of command-line options
     ippo->print_quality = (ipp_quality_t)intvalue;
 
   if ((value = get_option("print-scaling", num_options, options)) != NULL)
-    cupsCopyString(ippo->print_scaling, value, sizeof(ippo->print_scaling));
+  {
+    static const char * const scalings[] =
+    {					// "print-scaling" values
+      "auto",
+      "auto-fit",
+      "fill",
+      "fit",
+      "none"
+    };
+
+    for (i = 0; i < (sizeof(scalings) / sizeof(scalings[0])); i ++)
+    {
+      if (!strcmp(value, scalings[i]))
+      {
+        ippo->print_scaling = (ippopt_scaling_t)i;
+        break;
+      }
+    }
+  }
 
   if ((value = get_option("printer-resolution", num_options, options)) != NULL)
   {
