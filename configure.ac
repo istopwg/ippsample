@@ -68,14 +68,6 @@ AC_PATH_PROG([LN], [ln])
 
 
 dnl PDF support
-dnl Transform utility...
-IPPTRANSFORM_BIN=""
-IPPTRANSFORM_HTML=""
-IPPTRANSFORM_MAN=""
-AC_SUBST([IPPTRANSFORM_BIN])
-AC_SUBST([IPPTRANSFORM_HTML])
-AC_SUBST([IPPTRANSFORM_MAN])
-
 AC_ARG_WITH([pdfrip], AS_HELP_STRING([--with-pdfrip=...], [set PDF RIP to use (auto, coregraphics, pdftoppm, none)]))
 
 AS_IF([test "x$with_pdfrip" = x -o "x$with_pdfrip" = xauto], [
@@ -93,9 +85,6 @@ AS_CASE(["$use_pdfrip"], [coregraphics], [
     LIBS="-framework CoreGraphics -framework ImageIO $LIBS"
     AC_CHECK_HEADER([CoreGraphics/CoreGraphics.h], [
 	AC_DEFINE([HAVE_COREGRAPHICS], [1], [CoreGraphics support])
-	IPPTRANSFORM_BIN="ipptransform"
-	IPPTRANSFORM_HTML="ipptransform.html"
-	IPPTRANSFORM_MAN="ipptransform.7"
     ], [
 	LIBS="$SAVELIBS"
 	AS_IF([test "x$with_pdfrip" = xcoregraphics], [

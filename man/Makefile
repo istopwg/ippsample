@@ -18,7 +18,7 @@ MAN1		=	\
 			ipp3dprinter.1
 MAN7		=	\
 			ippdoclint.7 \
-			$(IPPTRANSFORM_MAN) \
+			ipptransform.7 \
 			$(IPPTRANSFORM3D_MAN)
 MAN8		=	\
 			ippproxy.8 \
@@ -28,7 +28,7 @@ HTML		=	\
 			ippdoclint.html \
 			ippproxy.html \
 			ippserver.html \
-			$(IPPTRANSFORM_HTML) \
+			ipptransform.html \
 			$(IPPTRANSFORM3D_HTML)
 
 

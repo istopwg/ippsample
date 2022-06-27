@@ -660,9 +660,6 @@ IPPTRANSFORM3D_MAN
 IPPTRANSFORM3D_HTML
 IPPTRANSFORM3D_BIN
 PDFTOPPM
-IPPTRANSFORM_MAN
-IPPTRANSFORM_HTML
-IPPTRANSFORM_BIN
 LN
 RMDIR
 RM
@@ -3776,13 +3773,6 @@ fi
 
 
 
-IPPTRANSFORM_BIN=""
-IPPTRANSFORM_HTML=""
-IPPTRANSFORM_MAN=""
-
-
-
-
 
 # Check whether --with-pdfrip was given.
 if test ${with_pdfrip+y}
@@ -3855,9 +3845,6 @@ then :
 
 printf "%s\n" "#define HAVE_COREGRAPHICS 1" >>confdefs.h
 
-	IPPTRANSFORM_BIN="ipptransform"
-	IPPTRANSFORM_HTML="ipptransform.html"
-	IPPTRANSFORM_MAN="ipptransform.7"
 
 else $as_nop
 
