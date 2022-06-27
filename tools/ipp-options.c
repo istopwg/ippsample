@@ -588,7 +588,7 @@ get_option(const char    *name,		// I - Attribute name
     // Try finding "IPP_NAME" in the environment...
     snprintf(temp, sizeof(temp), "IPP_%s", name);
     for (ptr = temp + 4; *ptr; ptr ++)
-      *ptr = toupper(*ptr);
+      *ptr = (char)toupper(*ptr);
 
     if ((value = getenv(temp)) == NULL)
     {

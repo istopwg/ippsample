@@ -728,8 +728,8 @@ convert_text(
 
   // Calculate columns and rows based on media margins...
   // (Default margins are 0.5" at the top and bottom and 0.25" on the sides)
-  columns = (int)((p->crop.x2 - p->crop.x1) / (XFORM_TEXT_WIDTH * XFORM_TEXT_SIZE));
-  lines   = (int)((p->crop.y2 - p->crop.y1) / XFORM_TEXT_SIZE);
+  columns = (unsigned)((p->crop.x2 - p->crop.x1) / (XFORM_TEXT_WIDTH * XFORM_TEXT_SIZE));
+  lines   = (unsigned)((p->crop.y2 - p->crop.y1) / XFORM_TEXT_SIZE);
 
   // Create font and page dictionaries...
   courier = pdfioFileCreateFontObjFromBase(pdf, "Courier");
@@ -1890,6 +1890,8 @@ prepare_documents(
 
   ret = true;
 
+  *outpages = (unsigned)pdfioFileGetNumPages(p.pdf);
+
   // Finalize the output and return...
   done:
 
@@ -2093,7 +2095,7 @@ prepare_pages(
   {
     // Booklet printing arranges input pages so that the folded output can be
     // stapled along the midline...
-    p->num_outpages = (p->num_inpages + 1) / 2;
+    p->num_outpages = (size_t)(p->num_inpages + 1) / 2;
     if (p->num_outpages & 1)
       p->num_outpages ++;
 
@@ -2436,6 +2438,9 @@ resource_dict_cb(
 
         pdfioDictSetName(outpage->resmap[outpage->layout], key, mapname);
         pdfioDictSetObj(outpage->restype, mapname, objval);
+        break;
+
+    default :
         break;
   }
 
@@ -3037,8 +3042,8 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
       memcpy(ras->dither, threshold, sizeof(ras->dither));
   }
 
-  ras->header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount]      = options->copies * pages;
-  ras->back_header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount] = options->copies * pages;
+  ras->header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount]      = (unsigned)options->copies * pages;
+  ras->back_header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount] = (unsigned)options->copies * pages;
 
   if (Verbosity)
   {

@@ -109,6 +109,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\tools\ipptransform.c" />
+    <ClCompile Include="..\tools\ipp-options.c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\libcups\vcnet\dnssdstub.vcxproj">
