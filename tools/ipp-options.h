@@ -16,13 +16,6 @@
 // Structures and types...
 //
 
-typedef enum ippopt_error_report_e	// Combination of "job-error-sheet-type" and "job-error-sheet-when" values
-{
-  IPPOPT_ERROR_REPORT_NONE,		// "job-error-sheet-type" = 'none'
-  IPPOPT_ERROR_REPORT_ON_ERROR,		// "job-error-sheet-type" = 'standard' and "job-error-sheet-when" = 'on-error'
-  IPPOPT_ERROR_REPORT_ALWAYS		// "job-error-sheet-type" = 'standard' and "job-error-sheet-when" = 'always'
-} ippopt_report_t;
-
 typedef enum ippopt_delivery_e		// "page-delivery" values
 {
   IPPOPT_DELIVERY_SAME_ORDER_FACE_DOWN,	// 'same-order-face-down'
@@ -32,9 +25,16 @@ typedef enum ippopt_delivery_e		// "page-delivery" values
   IPPOPT_DELIVERY_REVERSE_ORDER_FACE_UP	// 'reverse-order-face-up'
 } ippopt_delivery_t;
 
+typedef enum ippopt_error_report_e	// Combination of "job-error-sheet-type" and "job-error-sheet-when" values
+{
+  IPPOPT_ERROR_REPORT_NONE,		// "job-error-sheet-type" = 'none'
+  IPPOPT_ERROR_REPORT_ON_ERROR,		// "job-error-sheet-type" = 'standard' and "job-error-sheet-when" = 'on-error'
+  IPPOPT_ERROR_REPORT_ALWAYS		// "job-error-sheet-type" = 'standard' and "job-error-sheet-when" = 'always'
+} ippopt_error_report_t;
+
 typedef struct ippopt_error_sheet_s	// "job-error-sheet" value
 {
-  ippopt_report_t report;		// "job-error-sheet-type/when" value
+  ippopt_error_report_t report;		// "job-error-sheet-type/when" value
   cups_size_t	media;			// "media" or "media-col" value, if any
 } ippopt_error_sheet_t;
 
@@ -98,6 +98,8 @@ typedef enum ippopt_septype_e		// "separator-sheets-type" values
 typedef struct ipp_options_s		// All IPP options in one structure
 {
   int		copies;			// "copies" value
+  size_t	num_force_front_side;	// Number of "force-front-side" values
+  int		force_front_side[100];	// "force-front-side" values
   ipp_orient_t	image_orientation;	// "image-orientation" value
   char		imposition_template[128];
 					// "imposition-template" value, if any

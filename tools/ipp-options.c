@@ -220,6 +220,20 @@ ippOptionsNew(size_t        num_options,// I - Number of command-line options
   if ((value = get_option("copies", num_options, options)) != NULL && (intvalue = atoi(value)) >= 1 && intvalue <= 999)
     ippo->copies = intvalue;
 
+  if ((value = get_option("force-front-side", num_options, options)) != NULL)
+  {
+    const char	*ptr;			// Pointer into value
+
+    ptr = value;
+    while (ptr && *ptr && isdigit(*ptr & 255) && ippo->num_force_front_side < (sizeof(ippo->force_front_side) / sizeof(ippo->force_front_side[0])))
+    {
+      ippo->force_front_side[ippo->num_force_front_side ++] = (int)strtol(ptr, (char **)&ptr, 10);
+
+      if (ptr && *ptr == ',')
+        ptr ++;
+    }
+  }
+
   if ((value = get_option("image-orientation", num_options, options)) != NULL && (intvalue = atoi(value)) >= IPP_ORIENT_PORTRAIT && intvalue <= IPP_ORIENT_NONE)
     ippo->image_orientation = (ipp_orient_t)intvalue;
 
