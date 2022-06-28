@@ -37,6 +37,8 @@
 #define lstat		stat
 #define mkdir(d,p)	_mkdir(d)
 #define open		_open
+#define pclose		_pclose
+#define popen		_popen
 #define read	        _read
 #define rmdir		_rmdir
 #define strdup		_strdup

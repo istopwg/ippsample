@@ -39,6 +39,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ippproxy", "ippproxy.vcxproj", "{804CB893-644A-4530-B094-580A2A3F8FE9}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ipptransform", "ipptransform.vcxproj", "{EA456D34-0C21-460C-BEC3-4F6FE3F5AB73}"
+	ProjectSection(ProjectDependencies) = postProject
+		{98F2DE9E-2978-4387-AF71-82532BEDB29E} = {98F2DE9E-2978-4387-AF71-82532BEDB29E}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

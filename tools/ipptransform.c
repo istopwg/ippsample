@@ -2886,7 +2886,7 @@ xform_document(
     //   pdftoppm [-mono] [-gray] -aa no -r resolution filename -
     snprintf(command, sizeof(command), "pdftoppm %s -aa no -r %u '%s' -", ras.header.cupsBitsPerPixel == 1 ? "-mono" : ras.header.cupsBitsPerPixel == 8 ? "-gray" : "", ras.header.HWResolution[0], filename);
     fprintf(stderr, "DEBUG: Running \"%s\"\n", command);
-    if ((fp = popen(command, "r")) == NULL)
+    if ((fp = popen(command, "rb")) == NULL)
     {
       fprintf(stderr, "ERROR: Unable to run pdftoppm command: %s\n", strerror(errno));
       return (false);

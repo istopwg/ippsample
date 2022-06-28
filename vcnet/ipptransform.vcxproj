@@ -118,6 +118,9 @@
     <ProjectReference Include="..\libcups\vcnet\libcups3.vcxproj">
       <Project>{cb4aa6f2-3e84-45be-b505-95cd375e8be3}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\pdfio\pdfio.vcxproj">
+      <Project>{98f2de9e-2978-4387-af71-82532bedb29e}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
