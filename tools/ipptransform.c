@@ -50,7 +50,7 @@ extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
 
 
 // Local types...
-typedef ssize_t (*xform_write_cb_t)(void *, const unsigned char *, size_t);
+typedef ssize_t (*xform_write_cb_t)(void *, const void *, size_t);
 					// Write callback
 
 typedef struct xform_document_s		// Document information
@@ -611,16 +611,46 @@ main(int  argc,				// I - Number of command-line args
     httpAddrFreeList(list);
   }
 
-  // Do transform...
-  if (!resolutions)
-    resolutions = "300dpi";
-  if (!sheet_back)
-    sheet_back = "normal";
-  if (!types)
-    types = "sgray_8";
+  if (strcmp(output_type, "application/pdf"))
+  {
+    // Do raster transform...
+    if (!resolutions)
+      resolutions = "300dpi";
+    if (!sheet_back)
+      sheet_back = "normal";
+    if (!types)
+      types = "sgray_8";
 
-  if (!xform_document(pdf_file, pdf_pages, ipp_options, output_type, resolutions, sheet_back, types, write_cb, write_ptr))
-    status = 1;
+    if (!xform_document(pdf_file, pdf_pages, ipp_options, output_type, resolutions, sheet_back, types, write_cb, write_ptr))
+      status = 1;
+  }
+  else
+  {
+    // Send PDF...
+    cups_file_t	*fp;			// PDF file
+    char	buffer[32768];		// Buffer
+    ssize_t	bytes;			// Number of bytes
+
+    if ((fp = cupsFileOpen(pdf_file, "r")) == NULL)
+    {
+      fprintf(stderr, "ERROR: Unable to open '%s': %s\n", pdf_file, strerror(errno));
+      status = 1;
+    }
+    else
+    {
+      while ((bytes = cupsFileRead(fp, buffer, sizeof(buffer))) > 0)
+      {
+        if ((write_cb)(write_ptr, buffer, (size_t)bytes) < 0)
+        {
+          fputs("ERROR: Unable to send data.\n", stderr);
+          status = 1;
+          break;
+	}
+      }
+
+      cupsFileClose(fp);
+    }
+  }
 
   ippOptionsDelete(ipp_options);
 
