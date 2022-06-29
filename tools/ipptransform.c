@@ -691,10 +691,255 @@ convert_image(
     xform_document_t *d,		// I - Document
     int              document)		// I - Document number
 {
-  // TODO: Implement convert_image
-  (void)p;
-  (void)d;
-  (void)document;
+  pdfio_file_t	*pdf;			// Temporary PDF file
+  pdfio_obj_t	*image;			// Image object
+  pdfio_dict_t	*dict;			// Page dictionary
+  char		iname[32];		// Image object name
+  pdfio_stream_t *st;			// Page stream
+  double	x, y, w, h;		// Image rectangle
+  double	cx, cy, cw, ch;		// Crop box rectangle
+  double	iw, ih;			// Original image width/height
+  int		irot;			// Image rotation
+  double	ratio;			// Scaling factor for image
+  ippopt_scaling_t scaling;		// Actual print-scaling to use
+
+
+  // Create a temporary PDF file...
+  if ((pdf = pdfioFileCreateTemporary(d->tempfile, sizeof(d->tempfile), "1.7", &p->media, &p->crop, pdfio_error_cb, p)) == NULL)
+  {
+    return (false);
+  }
+
+  // Create an image object for the file...
+  if ((image = pdfioFileCreateImageObjFromFile(pdf, d->filename, false)) == NULL)
+  {
+    prepare_log(p, true, "Input Document %d: Unable to open '%s' - %s", document, d->filename, strerror(errno));
+    goto error;
+  }
+
+  // Figure out where to print the image...
+  iw = pdfioImageGetWidth(image);
+  ih = pdfioImageGetHeight(image);
+
+  cx = p->crop.x1;
+  cy = p->crop.y1;
+  cw = p->crop.x2 - cx;
+  ch = p->crop.y2 - cy;
+
+  switch (p->options->image_orientation)
+  {
+    case IPP_ORIENT_PORTRAIT :
+        irot = 0;
+        break;
+    case IPP_ORIENT_LANDSCAPE :
+        irot = 1;
+        break;
+    case IPP_ORIENT_REVERSE_PORTRAIT :
+        irot = 2;
+        break;
+    case IPP_ORIENT_REVERSE_LANDSCAPE :
+        irot = 3;
+        break;
+    case IPP_ORIENT_NONE : // Auto
+        if ((iw > ih && cw < ch) || (iw < ih && cw > ch))
+          irot = 1;
+	else
+	  irot = 0;
+	break;
+  }
+
+  if (p->options->print_scaling == IPPOPT_SCALING_AUTO)
+  {
+    if (irot & 1)
+    {
+      if (iw > ch || ih > cw)
+      {
+        if (cx == 0.0 && cy == 0.0)
+          scaling = IPPOPT_SCALING_FIT;
+	else
+	  scaling = IPPOPT_SCALING_FILL;
+      }
+      else
+      {
+        scaling = IPPOPT_SCALING_NONE;
+      }
+    }
+    else
+    {
+      if (iw > cw || ih > ch)
+      {
+        if (cx == 0.0 && cy == 0.0)
+          scaling = IPPOPT_SCALING_FIT;
+	else
+	  scaling = IPPOPT_SCALING_FILL;
+      }
+      else
+      {
+        scaling = IPPOPT_SCALING_NONE;
+      }
+    }
+  }
+  else if (p->options->print_scaling == IPPOPT_SCALING_AUTO_FIT)
+  {
+    if (irot & 1)
+    {
+      if (iw > ch || ih > cw)
+	scaling = IPPOPT_SCALING_FIT;
+      else
+        scaling = IPPOPT_SCALING_NONE;
+    }
+    else
+    {
+      if (iw > cw || ih > ch)
+	scaling = IPPOPT_SCALING_FIT;
+      else
+        scaling = IPPOPT_SCALING_NONE;
+    }
+  }
+  else
+  {
+    scaling = p->options->print_scaling;
+  }
+
+  if (scaling == IPPOPT_SCALING_NONE)
+  {
+    // No scaling...
+    ratio = 1.0;
+  }
+  else
+  {
+    if (irot & 1)
+      ratio = ch / iw;
+    else
+      ratio = cw / iw;
+
+    if (scaling == IPPOPT_SCALING_FIT)
+    {
+      // Scale to fit...
+      if (irot & 1)
+      {
+        if ((ih * ratio) > cw)
+          ratio = cw / ih;
+      }
+      else
+      {
+        if ((ih * ratio) > ch)
+          ratio = ch / ih;
+      }
+    }
+    else
+    {
+      // Scale to fill...
+      if (irot & 1)
+      {
+        if ((ih * ratio) > cw)
+          ratio = cw / ih;
+      }
+      else
+      {
+        if ((ih * ratio) > ch)
+          ratio = ch / ih;
+      }
+    }
+  }
+
+  if (irot & 1)
+  {
+    w = ih * ratio;
+    h = iw * ratio;
+  }
+  else
+  {
+    w = iw * ratio;
+    h = ih * ratio;
+  }
+
+  switch (p->options->x_image_position)
+  {
+    case IPPOPT_IMGPOS_NONE :
+        x = cx;
+        break;
+    case IPPOPT_IMGPOS_CENTER :
+        x = cx + (cw - w - 72.0 * p->options->x_side1_image_shift / 2540.0) / 2.0;
+        break;
+    case IPPOPT_IMGPOS_BOTTOM_LEFT :
+        x = cx + 72.0 * p->options->x_side1_image_shift / 2540.0;
+        break;
+    case IPPOPT_IMGPOS_TOP_RIGHT :
+        x = cx + cw - w - 72.0 * p->options->x_side1_image_shift / 2540.0;
+        break;
+  }
+
+  switch (p->options->y_image_position)
+  {
+    case IPPOPT_IMGPOS_NONE :
+        y = cy;
+        break;
+    case IPPOPT_IMGPOS_CENTER :
+        y = cy + (ch - h - 72.0 * p->options->y_side1_image_shift / 2540.0) / 2.0;
+        break;
+    case IPPOPT_IMGPOS_BOTTOM_LEFT :
+        y = cy + 72.0 * p->options->y_side1_image_shift / 2540.0;
+        break;
+    case IPPOPT_IMGPOS_TOP_RIGHT :
+        y = cy + ch - h - 72.0 * p->options->y_side1_image_shift / 2540.0;
+        break;
+  }
+
+  // Create a page dictionary for the image...
+  if ((dict = pdfioDictCreate(pdf)) == NULL)
+  {
+    prepare_log(p, true, "Input Document %d: Unable to create page dictionary.", document);
+    goto error;
+  }
+
+  snprintf(iname, sizeof(iname), "IM%d", document);
+  pdfioPageDictAddImage(dict, iname, image);
+
+  // Create the page...
+  if ((st = pdfioFileCreatePage(pdf, dict)) == NULL)
+  {
+    prepare_log(p, true, "Input Document %d: Unable to create page object.", document);
+    goto error;
+  }
+
+  // Draw the image, cropped...
+  pdfioContentSave(st);
+
+  pdfioContentPathRect(st, cx, cy, cw, ch);
+  pdfioContentClip(st, false);
+
+  if (irot & 1)
+  {
+    pdfioContentSave(st);
+    pdfioContentMatrixTranslate(st, -0.5 * iw, -0.5 * ih);
+    pdfioContentMatrixRotate(st, 90.0 * irot);
+    pdfioContentMatrixScale(st, w, h);
+    pdfioContentMatrixTranslate(st, x + 0.5 * w, y + 0.5 * h);
+    pdfioStreamPrintf(st, "/%s Do\n", iname);
+    pdfioContentRestore(st);
+  }
+  else
+  {
+    pdfioContentDrawImage(st, iname, x, y, w, h);
+  }
+
+  pdfioContentRestore(st);
+
+  // Close the page and file...
+  pdfioStreamClose(st);
+  pdfioFileClose(pdf);
+
+  return (true);
+
+  // If we get here something bad happened...
+  error:
+
+  pdfioFileClose(pdf);
+
+  unlink(d->tempfile);
+  d->tempfile[0] = '\0';
+
   return (false);
 }
 
