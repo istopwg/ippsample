@@ -38,7 +38,8 @@ extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
 #define XFORM_MAX_PAGES		10000
 #define XFORM_MAX_RASTER	16777216
 
-#define XFORM_TEXT_SIZE		12.0	// Point size of plain text output
+#define XFORM_TEXT_SIZE		10.0	// Point size of plain text output
+#define XFORM_TEXT_HEIGHT	12.0	// Point height of plain text output
 #define XFORM_TEXT_WIDTH	0.6	// Width of Courier characters
 
 #define XFORM_RED_MASK		0x000000ff
@@ -388,7 +389,7 @@ main(int  argc,				// I - Number of command-line args
 	    files[num_files].format = "application/vnd.hp-PCLXL";
 	  else if (!strcmp(opt, ".pwg"))
 	    files[num_files].format = "image/pwg-raster";
-	  else if (!strcmp(opt, ".txt"))
+	  else if (!strcmp(opt, ".txt") || !strcmp(opt, ".md"))
 	    files[num_files].format = "text/plain";
 	  else if (!strcmp(opt, ".urf"))
 	    files[num_files].format = "image/urf";
@@ -705,7 +706,7 @@ convert_image(
 
 
   // Create a temporary PDF file...
-  if ((pdf = pdfioFileCreateTemporary(d->tempfile, sizeof(d->tempfile), "1.7", &p->media, &p->crop, pdfio_error_cb, p)) == NULL)
+  if ((pdf = pdfioFileCreateTemporary(d->tempfile, sizeof(d->tempfile), "1.7", &p->media, &p->media, pdfio_error_cb, p)) == NULL)
   {
     return (false);
   }
@@ -930,6 +931,8 @@ convert_image(
   pdfioStreamClose(st);
   pdfioFileClose(pdf);
 
+  d->pdf_filename = d->tempfile;
+
   return (true);
 
   // If we get here something bad happened...
@@ -998,7 +1001,7 @@ convert_text(
   }
 
   // Create a temporary PDF file...
-  if ((pdf = pdfioFileCreateTemporary(d->tempfile, sizeof(d->tempfile), "1.7", &p->media, &p->crop, pdfio_error_cb, p)) == NULL)
+  if ((pdf = pdfioFileCreateTemporary(d->tempfile, sizeof(d->tempfile), "1.7", &p->media, &p->media, pdfio_error_cb, p)) == NULL)
   {
     cupsFileClose(fp);
     return (false);
@@ -1007,7 +1010,13 @@ convert_text(
   // Calculate columns and rows based on media margins...
   // (Default margins are 0.5" at the top and bottom and 0.25" on the sides)
   columns = (unsigned)((p->crop.x2 - p->crop.x1) / (XFORM_TEXT_WIDTH * XFORM_TEXT_SIZE));
-  lines   = (unsigned)((p->crop.y2 - p->crop.y1) / XFORM_TEXT_SIZE);
+  lines   = (unsigned)((p->crop.y2 - p->crop.y1) / XFORM_TEXT_HEIGHT);
+
+  if (Verbosity)
+  {
+    fprintf(stderr, "DEBUG: CropBox=[%g %g %g %g]\n", p->crop.x1, p->crop.y1, p->crop.x2, p->crop.y2);
+    fprintf(stderr, "DEBUG: Converting text, %u lines of %u columns per page.\n", lines, columns);
+  }
 
   // Create font and page dictionaries...
   courier = pdfioFileCreateFontObjFromBase(pdf, "Courier");
@@ -1018,6 +1027,13 @@ convert_text(
   // Read lines from the text file...
   while (cupsFileGets(fp, line, sizeof(line)))
   {
+    // Make sure the line contains at least one space...
+    if (!line[0])
+    {
+      line[0] = ' ';
+      line[1] = '\0';
+    }
+
     // Loop through the line and write lines...
     for (column = 0, lineptr = line, outptr = outline; *lineptr; lineptr ++)
     {
@@ -1090,12 +1106,12 @@ convert_text(
           st = pdfioFileCreatePage(pdf, dict);
           pdfioContentTextBegin(st);
           pdfioContentSetTextFont(st, "F1", XFORM_TEXT_SIZE);
-          pdfioContentSetTextLeading(st, XFORM_TEXT_SIZE);
-          pdfioContentTextMoveTo(st, p->crop.x1, p->crop.y2 - XFORM_TEXT_SIZE);
+          pdfioContentSetTextLeading(st, XFORM_TEXT_HEIGHT);
+          pdfioContentTextMoveTo(st, p->crop.x1, p->crop.y2 - XFORM_TEXT_HEIGHT);
           pdfioContentSetFillColorDeviceGray(st, 0.0);
         }
 
-        pdfioContentTextShow(st, false, outline);
+        pdfioContentTextShowf(st, false, "%s\n", outline);
 
 	linenum ++;
 	column = 0;
@@ -1107,6 +1123,7 @@ convert_text(
         pdfioContentTextEnd(st);
         pdfioStreamClose(st);
         st = NULL;
+        linenum = 0;
       }
     }
   }
@@ -2037,12 +2054,15 @@ prepare_documents(
 
   size_to_rect(&options->media, &p.media, &p.crop);
 
-  if ((p.pdf = pdfioFileCreateTemporary(outfile, outsize, "1.7", &p.media, &p.crop, pdfio_error_cb, &p)) == NULL)
+  if ((p.pdf = pdfioFileCreateTemporary(outfile, outsize, "1.7", &p.media, &p.media, pdfio_error_cb, &p)) == NULL)
     return (false);
 
   // Loop through the input documents to count pages, etc.
   for (i = num_documents, d = documents, document = 1, page = 1; i > 0; i --, d ++, document ++)
   {
+    if (Verbosity)
+      fprintf(stderr, "DEBUG: Preparing document %d: '%s' (%s)\n", document, d->filename, d->format);
+
     if (!strcmp(d->format, "application/pdf"))
     {
       // PDF file...
@@ -2067,11 +2087,17 @@ prepare_documents(
         goto done;
     }
 
+    if (Verbosity)
+      fprintf(stderr, "DEBUG: Opening prepared document %d: '%s'.\n", document, d->pdf_filename);
+
     if ((d->pdf = pdfioFileOpen(d->pdf_filename, pdfio_password_cb, &document, pdfio_error_cb, &p)) == NULL)
       goto done;
 
     d->first_page = page;
     d->last_page  = page + (int)pdfioFileGetNumPages(d->pdf);
+
+    if (Verbosity)
+      fprintf(stderr, "DEBUG: Document %d: pages %d to %d.\n", document, d->first_page, d->last_page);
 
     while (page <= d->last_page)
     {
@@ -2084,6 +2110,8 @@ prepare_documents(
       {
         d->num_pages ++;
       }
+
+      page ++;
     }
 
     if ((d->last_page & 1) && duplex && options->multiple_document_handling != IPPOPT_HANDLING_SINGLE_DOCUMENT)
@@ -2117,12 +2145,21 @@ prepare_documents(
   if (p.num_layout == 1)
   {
     // Simple path - no layout of pages so we can just copy the pages quickly.
+    if (Verbosity)
+      fputs("DEBUG: Doing fast copy of pages.\n", stderr);
+
     for (i = p.num_outpages, outpage = p.outpages; i > 0; i --, outpage ++)
-      pdfioPageCopy(p.pdf, outpage->input[0]);
+    {
+      if (outpage->input[0])
+        pdfioPageCopy(p.pdf, outpage->input[0]);
+    }
   }
   else
   {
     // Layout path - merge page resources and do mapping of resources as needed
+    if (Verbosity)
+      fputs("DEBUG: Doing full layout of pages.\n", stderr);
+
     for (i = p.num_outpages, outpage = p.outpages; i > 0; i --, outpage ++)
     {
       // Create a page dictionary that merges the resources from each of the
@@ -2768,16 +2805,14 @@ usage(int status)			// I - Exit status
   puts("  -t type[,...,type]");
   puts("  -v\n");
   puts("Device URIs: socket://address[:port], ipp://address[:port]/resource, ipps://address[:port]/resource");
-  puts("Input Formats: application/pdf, image/jpeg");
-  puts("Output Formats: application/vnd.hp-pcl, image/pwg-raster, image/urf");
-  puts("Options: copies, media, media-col, page-ranges, print-color-mode, print-quality, print-scaling, printer-resolution, sides");
+  puts("Input Formats: application/pdf, image/jpeg, image/png, image/pwg-raster, text/plain");
+  puts("Output Formats: application/pdf, application/vnd.hp-pcl, image/pwg-raster, image/urf");
+  puts("Options: copies, force-front-side, image-orientation, imposition-template, insert-sheet, job-error-sheet, job-pages-per-set, job-sheet-message, job-sheets, job-sheets-col, media, media-col, multiple-document-handling, number-up, orientation-requested, overrides, page-delivery, page-ranges, print-color-mode, print-quality, print-scaling, printer-resolution, separator-sheets, sides, x-image-position, x-image-shift, x-side1-image-shift, x-side2-image-position, y-image-position, y-image-shift, y-side1-image-shift, y-side2-image-position");
   puts("Resolutions: NNNdpi or NNNxNNNdpi");
 #ifdef HAVE_COREGRAPHICS
   puts("Types: adobe-rgb_8, adobe-rgb_16, black_1, black_8, cmyk_8, sgray_1, sgray_8, srgb_8");
-#elif defined(HAVE_FZ_CMM_ENGINE_LCMS)
-  puts("Types: adobe-rgb_8, black_1, black_8, cmyk_8, sgray_1, sgray_8, srgb_8");
 #else
-  puts("Types: black_1, black_8, cmyk_8, sgray_1, sgray_8, srgb_8");
+  puts("Types: black_1, black_8, sgray_1, sgray_8, srgb_8");
 #endif // HAVE_COREGRAPHICS
 
   exit(status);
