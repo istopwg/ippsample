@@ -910,19 +910,20 @@ convert_image(
   pdfioContentPathRect(st, cx, cy, cw, ch);
   pdfioContentClip(st, false);
 
-  if (irot & 1)
+  switch (irot)
   {
-    pdfioContentSave(st);
-    pdfioContentMatrixTranslate(st, -0.5 * iw, -0.5 * ih);
-    pdfioContentMatrixRotate(st, 90.0 * irot);
-    pdfioContentMatrixScale(st, w, h);
-    pdfioContentMatrixTranslate(st, x + 0.5 * w, y + 0.5 * h);
-    pdfioStreamPrintf(st, "/%s Do\n", iname);
-    pdfioContentRestore(st);
-  }
-  else
-  {
-    pdfioContentDrawImage(st, iname, x, y, w, h);
+    case 0 :
+	pdfioContentDrawImage(st, iname, x, y, w, h);
+	break;
+    case 1 :
+        pdfioStreamPrintf(st, "q 0 %g %g 0 %g %g cm /%s Do Q\n", -h, w, x, y + h, iname);
+        break;
+    case 2 :
+        pdfioStreamPrintf(st, "q 0 %g %g 0 %g %g cm /%s Do Q\n", -w, -h, x + w, y + h, iname);
+        break;
+    case 3 :
+        pdfioStreamPrintf(st, "q 0 %g %g 0 %g %g cm /%s Do Q\n", h, -w, x + w, y, iname);
+        break;
   }
 
   pdfioContentRestore(st);
