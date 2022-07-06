@@ -6,3 +6,5 @@ queries:
   - exclude: cpp/tainted-format-string
   - exclude: cpp/tainted-format-string-through-global
   - exclude: cpp/toctou-race-condition
+  - exclude: cpp/command-line-injection
+

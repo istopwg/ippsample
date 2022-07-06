@@ -4135,7 +4135,7 @@ ipp_get_notifications(
 {
   ipp_attribute_t	*sub_ids,	/* notify-subscription-ids */
 			*seq_nums;	/* notify-sequence-numbers */
-  bool			notify_wait;	/* Wait for events? */
+  int			notify_wait;	/* Wait for events? */
   size_t		i,		/* Looping vars */
 			count;		/* Number of IDs */
   int			seq_num;	/* Sequence number */
@@ -4162,7 +4162,7 @@ ipp_get_notifications(
 
   count       = ippGetCount(sub_ids);
   seq_nums    = ippFindAttribute(client->request, "notify-sequence-numbers", IPP_TAG_INTEGER);
-  notify_wait = ippGetBoolean(ippFindAttribute(client->request, "notify-wait", IPP_TAG_BOOLEAN), 0);
+  notify_wait = ippGetBoolean(ippFindAttribute(client->request, "notify-wait", IPP_TAG_BOOLEAN), 0) ? 1 : 0;
 
   if (seq_nums && count != ippGetCount(seq_nums))
   {
