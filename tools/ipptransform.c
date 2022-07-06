@@ -742,7 +742,7 @@ convert_image(
         break;
     case IPP_ORIENT_NONE : // Auto
         if ((iw > ih && cw < ch) || (iw < ih && cw > ch))
-          irot = 1;
+          irot = 3;
 	else
 	  irot = 0;
 	break;
@@ -1270,24 +1270,24 @@ copy_page(xform_prepare_t *p,		// I - Preparation data
   if (p->options->print_scaling == IPPOPT_SCALING_FILL)
   {
     // Scale to fill...
-    if ((cheight * scaling) < iheight)
+    if ((iheight * scaling) < cheight)
       scaling = cheight / iheight;
   }
   else
   {
     // Scale to fit...
-    if ((cheight * scaling) > iheight)
+    if ((iheight * scaling) > cheight)
       scaling = cheight / iheight;
   }
 
   if (rotate)
   {
     cm[0][0] = 0.0;
-    cm[0][1] = scaling;
-    cm[1][0] = -scaling;
+    cm[0][1] = -scaling;
+    cm[1][0] = scaling;
     cm[1][1] = 0.0;
     cm[2][0] = cell->x1;
-    cm[2][1] = cell->y1;
+    cm[2][1] = cell->y2;
   }
   else
   {
