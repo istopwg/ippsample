@@ -2557,6 +2557,8 @@ prepare_number_up(xform_prepare_t *p)	// I - Preparation data
 
     if (p->options->number_up != 1)
       prepare_log(p, false, "Ignoring \"number-up\" = '%d'.", p->options->number_up);
+
+    return;
   }
   else
   {
@@ -2676,7 +2678,7 @@ prepare_pages(
     if (p->num_outpages & 1)
       p->num_outpages ++;
 
-    for (current = 0, outpage = p->outpages, layout = 0, page = 1, i = num_documents, d = documents; i > 0; i --, d ++)
+    for (current = 0, layout = 0, page = 1, i = num_documents, d = documents; i > 0; i --, d ++)
     {
       while (page <= d->last_page)
       {
@@ -2687,16 +2689,16 @@ prepare_pages(
 
         if (use_page)
         {
-          outpage->pdf           = p->pdf;
-          outpage->input[layout] = pdfioFileGetPage(d->pdf, (size_t)(page - d->first_page));
-          layout = 1 - layout;
-          current ++;
+	  if (current < p->num_outpages)
+	    outpage = p->outpages + current;
+	  else
+	    outpage = p->outpages + 2 * p->num_outpages - current - 1;
 
-          if (current > p->num_outpages)
-            outpage --;
-          else
-            outpage ++;
-        }
+	  outpage->pdf           = p->pdf;
+	  outpage->input[layout] = pdfioFileGetPage(d->pdf, (size_t)(page - d->first_page));
+	  layout = 1 - layout;
+	  current ++;
+	}
 
         page ++;
       }
