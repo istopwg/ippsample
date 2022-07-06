@@ -1222,14 +1222,17 @@ copy_page(xform_prepare_t *p,		// I - Preparation data
   pdfioContentSave(outpage->output);
 
   // Clip to cell...
-  pdfioContentPathRect(outpage->output, cell->x1, cell->y1, cell->x2 - cell->x1, cell->y2 - cell->y1);
   if (getenv("IPPTRANSFORM_DEBUG"))
   {
     // Draw a box around the cell for debugging...
     pdfioContentSetStrokeColorDeviceGray(outpage->output, 0.0);
+    pdfioContentPathRect(outpage->output, cell->x1, cell->y1, cell->x2 - cell->x1, cell->y2 - cell->y1);
     pdfioContentStroke(outpage->output);
   }
+
+  pdfioContentPathRect(outpage->output, cell->x1, cell->y1, cell->x2 - cell->x1, cell->y2 - cell->y1);
   pdfioContentClip(outpage->output, false);
+  pdfioContentPathEnd(outpage->output);
 
   // Transform input page to output cell...
   idict = pdfioObjGetDict(outpage->input[layout]);

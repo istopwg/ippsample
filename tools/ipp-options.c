@@ -311,7 +311,7 @@ ippOptionsNew(size_t        num_options,// I - Number of command-line options
     }
   }
 
-  if ((value = get_option("number-up", num_options, options)) != NULL && ((intvalue = atoi(value)) == 1 || intvalue == 2 || intvalue == 4))
+  if ((value = get_option("number-up", num_options, options)) != NULL && (intvalue = atoi(value)) >= 1)
     ippo->number_up = intvalue;
 
   if ((value = get_option("orientation-requested", num_options, options)) != NULL && (intvalue = atoi(value)) >= IPP_ORIENT_PORTRAIT && intvalue <= IPP_ORIENT_NONE)
