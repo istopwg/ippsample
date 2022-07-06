@@ -105,6 +105,9 @@ typedef struct ipp_options_s		// All IPP options in one structure
 					// "imposition-template" value, if any
   cups_array_t	*insert_sheet;		// "insert-sheet" value(s)
   ippopt_error_sheet_t job_error_sheet;	// "job-error-sheet" value
+  char		job_name[256];		// "job-name" value
+  char		job_originating_user_name[256];
+					// "job-originating-user-name" value
   int		job_pages_per_set;	// "job-pages-per-set" value
   char		job_sheet_message[1024];// "job-sheet-message" value
   char		job_sheets[128];	// "job-sheets" value

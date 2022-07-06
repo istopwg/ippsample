@@ -195,6 +195,8 @@ ippOptionsNew(size_t        num_options,// I - Number of command-line options
   ippo->number_up                  = 1;
   ippo->orientation_requested      = IPP_ORIENT_NONE;
 
+  cupsCopyString(ippo->job_name, "Untitled", sizeof(ippo->job_name));
+  cupsCopyString(ippo->job_originating_user_name, "Guest", sizeof(ippo->job_originating_user_name));
   cupsCopyString(ippo->job_sheets, "none", sizeof(ippo->job_sheets));
   cupsCopyString(ippo->sides, "one-sided", sizeof(ippo->sides));
 
@@ -240,7 +242,7 @@ ippOptionsNew(size_t        num_options,// I - Number of command-line options
   if ((value = get_option("imposition-template", num_options, options)) != NULL)
     cupsCopyString(ippo->imposition_template, value, sizeof(ippo->imposition_template));
 
-  if ((value = get_option("insert->sheets", num_options, options)) != NULL && *value == '{')
+  if ((value = get_option("insert-sheets", num_options, options)) != NULL && *value == '{')
   {
     // Parse "insert-sheets" collection value(s)...
     // TODO: Implement me
@@ -252,7 +254,7 @@ ippOptionsNew(size_t        num_options,// I - Number of command-line options
     // Parse job-error-sheet collection value...
     num_col = cupsParseOptions(value, 0, &col);
 
-    if ((value = cupsGetOption("job-error-sheet-type", num_col, col)) != NULL)
+    if ((value = cupsGetOption("job-error-sheet-when", num_col, col)) != NULL)
     {
       if (!strcmp(value, "always"))
         ippo->job_error_sheet.report = IPPOPT_ERROR_REPORT_ALWAYS;
@@ -262,6 +264,12 @@ ippOptionsNew(size_t        num_options,// I - Number of command-line options
 
     cupsFreeOptions(num_col, col);
   }
+
+  if ((value = get_option("job-name", num_options, options)) != NULL)
+    cupsCopyString(ippo->job_name, value, sizeof(ippo->job_name));
+
+  if ((value = get_option("job-originating-user-name", num_options, options)) != NULL)
+    cupsCopyString(ippo->job_originating_user_name, value, sizeof(ippo->job_originating_user_name));
 
   if ((value = get_option("job-pages-per-set", num_options, options)) != NULL && (intvalue = atoi(value)) >= 1)
     ippo->job_pages_per_set = intvalue;

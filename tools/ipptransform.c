@@ -1509,7 +1509,45 @@ static bool				// O - `true` on success, `false` on failure
 generate_job_error_sheet(
     xform_prepare_t  *p)		// I - Preparation data
 {
-  (void)p;
+  pdfio_stream_t *st;			// Page stream
+  pdfio_obj_t	*courier;		// Courier font
+  pdfio_dict_t	*dict;			// Page dictionary
+  const char	*error;			// Current error message
+
+
+  // Create a page dictionary with the Courier font...
+  courier = pdfioFileCreateFontObjFromBase(p->pdf, "Courier");
+  dict    = pdfioDictCreate(p->pdf);
+
+  pdfioPageDictAddFont(dict, "F1", courier);
+
+  // Create the error sheet...
+  st = pdfioFileCreatePage(p->pdf, dict);
+
+  // The job error sheet is a banner with the following information:
+  //
+  //     Title: job-title
+  //      User: job-originating-user-name
+  //     Pages: job-media-sheets
+  //   Message: job-sheet-message
+
+  pdfioContentTextBegin(st);
+  pdfioContentSetTextFont(st, "F1", XFORM_TEXT_SIZE);
+  pdfioContentSetTextLeading(st, XFORM_TEXT_HEIGHT);
+  pdfioContentTextMoveTo(st, p->crop.x1, p->crop.y2 - XFORM_TEXT_SIZE);
+  pdfioContentSetFillColorDeviceGray(st, 0.0);
+
+  if (cupsArrayGetCount(p->errors) > 0)
+  {
+    pdfioContentTextShow(st, false, "Errors:\n");
+    for (error = (const char *)cupsArrayGetFirst(p->errors); error; error = (const char *)cupsArrayGetNext(p->errors))
+      pdfioContentTextShowf(st, false, "  %s\n", error);
+  }
+  else
+    pdfioContentTextShow(st, false, "No Errors\n");
+
+  pdfioContentTextEnd(st);
+  pdfioStreamClose(st);
 
   return (true);
 }
@@ -1523,7 +1561,51 @@ static bool				// O - `true` on success, `false` on failure
 generate_job_sheets(
     xform_prepare_t  *p)		// I - Preparation data
 {
-  (void)p;
+  pdfio_stream_t *st;			// Page stream
+  pdfio_obj_t	*courier;		// Courier font
+  pdfio_dict_t	*dict;			// Page dictionary
+  size_t	i,			// Looping var
+		count;			// Number of pages
+
+  // Create a page dictionary with the Courier font...
+  courier = pdfioFileCreateFontObjFromBase(p->pdf, "Courier");
+  dict    = pdfioDictCreate(p->pdf);
+
+  pdfioPageDictAddFont(dict, "F1", courier);
+
+  // Figure out how many impressions to produce...
+  if (!strcmp(p->options->sides, "one-sided"))
+    count = 1;
+  else
+    count = 2;
+
+  // Create pages...
+  for (i = 0; i < count; i ++)
+  {
+    st = pdfioFileCreatePage(p->pdf, dict);
+
+    // The job sheet is a banner with the following information:
+    //
+    //     Title: job-title
+    //      User: job-originating-user-name
+    //     Pages: job-media-sheets
+    //   Message: job-sheet-message
+
+    pdfioContentTextBegin(st);
+    pdfioContentSetTextFont(st, "F1", 2.0 * XFORM_TEXT_SIZE);
+    pdfioContentSetTextLeading(st, 2.0 * XFORM_TEXT_HEIGHT);
+    pdfioContentTextMoveTo(st, p->media.x2 / 8.0, p->media.y2 / 2.0 + 2 * (XFORM_TEXT_HEIGHT + XFORM_TEXT_SIZE));
+    pdfioContentSetFillColorDeviceGray(st, 0.0);
+
+    pdfioContentTextShowf(st, false, "  Title: %s\n", p->options->job_name);
+    pdfioContentTextShowf(st, false, "   User: %s\n", p->options->job_originating_user_name);
+    pdfioContentTextShowf(st, false, "  Pages: %u\n", (unsigned)(p->num_outpages / count));
+    if (p->options->job_sheet_message[0])
+      pdfioContentTextShowf(st, false, "Message: %s\n", p->options->job_sheet_message);
+
+    pdfioContentTextEnd(st);
+    pdfioStreamClose(st);
+  }
 
   return (true);
 }
@@ -2394,12 +2476,12 @@ prepare_documents(
   if (p.num_layout > 1 && options->print_scaling != IPPOPT_SCALING_FILL)
     options->print_scaling = IPPOPT_SCALING_FIT;
 
+  // Prepare output pages...
+  prepare_pages(&p, num_documents, documents);
+
   // Add job-sheets content...
   if (options->job_sheets[0] && strcmp(options->job_sheets, "none"))
     generate_job_sheets(&p);
-
-  // Prepare output pages and write them out...
-  prepare_pages(&p, num_documents, documents);
 
   // Copy pages to the output file...
   if (options->page_delivery < IPPOPT_DELIVERY_REVERSE_ORDER_FACE_DOWN)
@@ -2474,7 +2556,7 @@ prepare_documents(
     generate_job_sheets(&p);
 
   // Add job-error-sheet content as needed...
-  if (options->job_error_sheet.report == IPPOPT_ERROR_REPORT_ALWAYS || (options->job_error_sheet.report == IPPOPT_ERROR_REPORT_ALWAYS && cupsArrayGetCount(p.errors) > 0))
+  if (options->job_error_sheet.report == IPPOPT_ERROR_REPORT_ALWAYS || (options->job_error_sheet.report == IPPOPT_ERROR_REPORT_ON_ERROR && cupsArrayGetCount(p.errors) > 0))
     generate_job_error_sheet(&p);
 
   ret = true;
