@@ -2293,6 +2293,7 @@ prepare_documents(
   xform_prepare_t	p;		// Preparation data
   xform_document_t	*d;		// Current document
   xform_page_t		*outpage;	// Current output page
+  int			outdir;		// Output direction
   size_t		layout;		// Layout cell
   int			document;	// Document number
   int			page;		// Current page number
@@ -2401,13 +2402,24 @@ prepare_documents(
   prepare_pages(&p, num_documents, documents);
 
   // Copy pages to the output file...
+  if (options->page_delivery < IPPOPT_DELIVERY_REVERSE_ORDER_FACE_DOWN)
+  {
+    outpage = p.outpages;
+    outdir  = 1;
+  }
+  else
+  {
+    outpage = p.outpages + p.num_outpages - 1;
+    outdir  = -1;
+  }
+
   if (p.num_layout == 1)
   {
     // Simple path - no layout of pages so we can just copy the pages quickly.
     if (Verbosity)
       fputs("DEBUG: Doing fast copy of pages.\n", stderr);
 
-    for (i = p.num_outpages, outpage = p.outpages; i > 0; i --, outpage ++)
+    for (i = p.num_outpages; i > 0; i --, outpage += outdir)
     {
       if (outpage->input[0])
         pdfioPageCopy(p.pdf, outpage->input[0]);
@@ -2419,7 +2431,7 @@ prepare_documents(
     if (Verbosity)
       fprintf(stderr, "DEBUG: Doing full layout of %u pages.\n", (unsigned)p.num_outpages);
 
-    for (i = p.num_outpages, outpage = p.outpages; i > 0; i --, outpage ++)
+    for (i = p.num_outpages; i > 0; i --, outpage += outdir)
     {
       // Create a page dictionary that merges the resources from each of the
       // input pages...
