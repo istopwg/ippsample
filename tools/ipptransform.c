@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <ctype.h>
 #include "ipp-options.h"
 #include <cups/raster.h>
 #include <cups/thread.h>
