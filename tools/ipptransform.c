@@ -1203,7 +1203,13 @@ copy_page(xform_prepare_t *p,		// I - Preparation data
   size_t	i,			// Looping var
 		count;			// Number of input page streams
   pdfio_stream_t *st;			// Input page stream
-  char		buffer[65536];		// Token buffer
+  char		buffer[65536],		// Copy buffer
+		*bufptr,		// Pointer into buffer
+		*bufstart,		// Start of current sequence
+		*bufend,		// End of buffer
+		name[256],		// Name buffer
+		*nameptr;		// Pointer into name
+  ssize_t	bytes;			// Bytes read
   const char	*resname;		// Resource name
 
 
@@ -1305,77 +1311,179 @@ copy_page(xform_prepare_t *p,		// I - Preparation data
       if (outpage->resmap[layout])
       {
         // Need to map resource names...
-	while (pdfioStreamGetToken(st, buffer, sizeof(buffer)))
+	while ((bytes = pdfioStreamRead(st, buffer, sizeof(buffer))) > 0)
 	{
-	  if (buffer[0] == '/')
+	  for (bufptr = buffer, bufstart = buffer, bufend = buffer + bytes; bufptr < bufend;)
 	  {
-	    // Name, see if it needs to be mapped...
-	    if ((resname = pdfioDictGetName(outpage->resmap[layout], buffer + 1)) == NULL)
-	      resname = buffer + 1;
-//	    else if (Verbosity)
-//	      fprintf(stderr, "DEBUG: Mapping %s to /%s...\n", buffer, resname);
-
-	    pdfioStreamPrintf(outpage->output, "/%s ", resname);
-	  }
-	  else if (buffer[0] == '(')
-	  {
-            const char	*start,		// Start of fragment
-			*end;		// End of fragment
-
-	    pdfioStreamPuts(outpage->output, "(");
-
-	    for (start = buffer + 1; *start; start = end)
+	    if (*bufptr == '/')
 	    {
-	      // Find the next character that needs to be quoted...
-	      for (end = start; *end; end ++)
-	      {
-		if (*end == '\\' || *end == '(' || *end == ')' || (*end & 255) < ' ')
-		  break;
-	      }
+	      // Start of name...
+	      bool done = false;		// Done with name?
 
-	      if (end > start)
-	      {
-		// Write unquoted (safe) characters...
-		pdfioStreamWrite(outpage->output, start, (size_t)(end - start));
-	      }
+	      bufptr ++;
+	      pdfioStreamWrite(outpage->output, bufstart, (size_t)(bufptr - bufstart));
 
-	      if (*end)
-	      {
-		// Quote this character...
-		if (*end == '\\' || *end == '(' || *end == ')')
-		  pdfioStreamPrintf(outpage->output, "\\%c", *end);
+              nameptr = name;
+
+              do
+              {
+		if (bufptr >= bufend)
+		{
+		  // Read another buffer's worth...
+		  if ((bytes = pdfioStreamRead(st, buffer, sizeof(buffer))) <= 0)
+		    break;
+
+                  bufptr = buffer;
+                  bufend = buffer + bytes;
+		}
+
+		if (strchr("<>(){}[]/% \t\n\r", *bufptr))
+		{
+		  // Delimiting character...
+		  done = true;
+		}
+		else if (*bufptr == '#')
+		{
+		  int	j,			// Looping var
+			ch = 0;			// Escaped character
+
+                  for (j = 0; j < 2; j ++)
+                  {
+		    bufptr ++;
+		    if (bufptr >= bufend)
+		    {
+		      // Read another buffer's worth...
+		      if ((bytes = pdfioStreamRead(st, buffer, sizeof(buffer))) <= 0)
+			break;
+
+		      bufptr = buffer;
+		      bufend = buffer + bytes;
+		    }
+
+		    if (!isxdigit(*bufptr & 255))
+		      break;
+		    else if (isdigit(*bufptr))
+		      ch = (ch << 4) | (*bufptr - '0');
+		    else
+		      ch = (ch << 4) | (tolower(*bufptr) - 'a' + 10);
+		  }
+
+                  if (nameptr < (name + sizeof(name) - 1))
+                  {
+                    // Save escaped character...
+                    *nameptr++ = (char)ch;
+		    bufptr ++;
+		  }
+		  else
+		  {
+		    // Not enough room...
+		    break;
+		  }
+		}
+		else if (nameptr < (name + sizeof(name) - 1))
+		{
+		  // Save literal character...
+		  *nameptr++ = *bufptr++;
+		}
 		else
-		  pdfioStreamPrintf(outpage->output, "\\%03o", *end);
-
-		end ++;
+		{
+		  // Not enough room...
+		  break;
+		}
 	      }
-	    }
+	      while (!done);
 
-	    pdfioStreamPuts(outpage->output, ")");
+              bufstart = bufptr;
+	      *nameptr = '\0';
+
+	      // See if it needs to be mapped...
+	      if ((resname = pdfioDictGetName(outpage->resmap[layout], name)) == NULL)
+		resname = name;
+
+	      pdfioStreamPuts(outpage->output, resname);
+	    }
+	    else if (buffer[0] == '(')
+	    {
+	      // Skip string...
+	      bool	done = false;		// Are we done yet?
+	      int	parens = 0;		// Number of parenthesis
+
+	      do
+	      {
+		bufptr ++;
+		if (bufptr >= bufend)
+		{
+		  // Save what has been skipped so far...
+		  pdfioStreamWrite(outpage->output, bufstart, (size_t)(bufptr - bufstart));
+
+                  // Read another buffer's worth...
+		  if ((bytes = pdfioStreamRead(st, buffer, sizeof(buffer))) <= 0)
+		    break;
+
+		  bufptr   = buffer;
+		  bufstart = buffer;
+		  bufend   = buffer + bytes;
+		}
+
+		if (*bufptr == ')')
+		{
+		  if (parens > 0)
+		    parens --;
+		  else
+		    done = true;
+
+		  bufptr ++;
+		}
+		else if (*bufptr == '(')
+		{
+		  parens ++;
+		  bufptr ++;
+		}
+		else if (*bufptr == '\\')
+		{
+		  // Skip escaped character...
+		  bufptr ++;
+
+		  if (bufptr >= bufend)
+		  {
+		    // Save what has been skipped so far...
+		    pdfioStreamWrite(outpage->output, bufstart, (size_t)(bufptr - bufstart));
+
+		    // Read another buffer's worth...
+		    if ((bytes = pdfioStreamRead(st, buffer, sizeof(buffer))) <= 0)
+		      break;
+
+		    bufptr   = buffer;
+		    bufstart = buffer;
+		    bufend   = buffer + bytes;
+		  }
+
+                  bufptr ++;
+		}
+		else
+		{
+		  bufptr ++;
+		}
+	      }
+	      while (!done);
+	    }
+	    else
+	    {
+	      // Skip one character...
+	      bufptr ++;
+	    }
 	  }
-	  else if (buffer[0] == '<')
+
+	  if (bufptr > bufstart)
 	  {
-	    pdfioStreamPrintf(outpage->output, "%s>", buffer);
-	  }
-	  else if (isdigit(buffer[0] & 255) || buffer[0] == '-')
-	  {
-	    pdfioStreamPrintf(outpage->output, "%s ", buffer);
-	  }
-	  else if (isalpha(buffer[0] & 255))
-	  {
-	    pdfioStreamPrintf(outpage->output, "%s\n", buffer);
-	  }
-	  else
-	  {
-	    pdfioStreamPuts(outpage->output, buffer);
+	    // Write the remainder...
+	    pdfioStreamWrite(outpage->output, bufstart, (size_t)(bufptr - bufstart));
 	  }
 	}
       }
       else
       {
         // Copy page stream verbatim...
-        ssize_t	bytes;			// Bytes read
-
         while ((bytes = pdfioStreamRead(st, buffer, sizeof(buffer))) > 0)
           pdfioStreamWrite(outpage->output, buffer, (size_t)bytes);
       }
