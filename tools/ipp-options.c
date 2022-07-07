@@ -325,6 +325,9 @@ ippOptionsNew(size_t        num_options,// I - Number of command-line options
   if ((value = get_option("orientation-requested", num_options, options)) != NULL && (intvalue = atoi(value)) >= IPP_ORIENT_PORTRAIT && intvalue <= IPP_ORIENT_NONE)
     ippo->orientation_requested = (ipp_orient_t)intvalue;
 
+  if ((value = get_option("output-bin", num_options, options)) != NULL)
+    cupsCopyString(ippo->output_bin, value, sizeof(ippo->output_bin));
+
   if ((value = get_option("page-delivery", num_options, options)) != NULL)
   {
     static const char * const deliveries[] =

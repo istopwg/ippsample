@@ -117,6 +117,7 @@ typedef struct ipp_options_s		// All IPP options in one structure
 					// "multiple-document-handling" value
   int		number_up;		// "number-up" value
   ipp_orient_t	orientation_requested;	// "orientation-requested" value
+  char		output_bin[128];	// "output-bin" value
   cups_array_t	*overrides;		// "overrides" value(s)
   ippopt_delivery_t page_delivery;	// "page-delivery" value
   size_t	num_page_ranges;	// Number of "page-ranges" values

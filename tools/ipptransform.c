@@ -2376,6 +2376,7 @@ prepare_documents(
   xform_document_t	*d;		// Current document
   xform_page_t		*outpage;	// Current output page
   int			outdir;		// Output direction
+  bool			reverse_order;	// Should output be in reverse order?
   size_t		layout;		// Layout cell
   int			document;	// Document number
   int			page;		// Current page number
@@ -2484,15 +2485,19 @@ prepare_documents(
     generate_job_sheets(&p);
 
   // Copy pages to the output file...
-  if (options->page_delivery < IPPOPT_DELIVERY_REVERSE_ORDER_FACE_DOWN)
-  {
-    outpage = p.outpages;
-    outdir  = 1;
-  }
-  else
+  reverse_order = !strcmp(options->output_bin, "face-up");
+  if (options->page_delivery >= IPPOPT_DELIVERY_REVERSE_ORDER_FACE_DOWN)
+    reverse_order = !reverse_order;
+
+  if (reverse_order)
   {
     outpage = p.outpages + p.num_outpages - 1;
     outdir  = -1;
+  }
+  else
+  {
+    outpage = p.outpages;
+    outdir  = 1;
   }
 
   if (p.num_layout == 1)
