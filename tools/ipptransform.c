@@ -1517,8 +1517,10 @@ generate_job_error_sheet(
   pdfio_stream_t *st;			// Page stream
   pdfio_obj_t	*courier;		// Courier font
   pdfio_dict_t	*dict;			// Page dictionary
+  size_t	i,			// Looping var
+		count;			// Number of pages
   const char	*msg;			// Current message
-  size_t	count;			// Number of messages
+  size_t	mcount;			// Number of messages
 
 
   // Create a page dictionary with the Courier font...
@@ -1527,61 +1529,71 @@ generate_job_error_sheet(
 
   pdfioPageDictAddFont(dict, "F1", courier);
 
-  // Create the error sheet...
-  st = pdfio_start_page(p, dict);
+  // Figure out how many impressions to produce...
+  if (!strcmp(p->options->sides, "one-sided"))
+    count = 1;
+  else
+    count = 2;
 
-  // The job error sheet is a banner with the following information:
-  //
-  //   Errors:
-  //     ...
-  //
-  //   Warnings:
-  //     ...
-
-  pdfioContentSetFillColorDeviceGray(st, 0.0);
-  pdfioContentTextBegin(st);
-  pdfioContentTextMoveTo(st, p->crop.x1, p->crop.y2 - 2.0 * XFORM_TEXT_SIZE);
-  pdfioContentSetTextFont(st, "F1", 2.0 * XFORM_TEXT_SIZE);
-  pdfioContentSetTextLeading(st, 2.0 * XFORM_TEXT_HEIGHT);
-  pdfioContentTextShow(st, false, "Errors:\n");
-
-  pdfioContentSetTextFont(st, "F1", XFORM_TEXT_SIZE);
-  pdfioContentSetTextLeading(st, XFORM_TEXT_HEIGHT);
-
-  for (msg = (const char *)cupsArrayGetFirst(p->errors), count = 0; msg; msg = (const char *)cupsArrayGetNext(p->errors))
+  // Create pages...
+  for (i = 0; i < count; i ++)
   {
-    if (*msg == 'E')
+    // Create the error sheet...
+    st = pdfio_start_page(p, dict);
+
+    // The job error sheet is a banner with the following information:
+    //
+    //   Errors:
+    //     ...
+    //
+    //   Warnings:
+    //     ...
+
+    pdfioContentSetFillColorDeviceGray(st, 0.0);
+    pdfioContentTextBegin(st);
+    pdfioContentTextMoveTo(st, p->crop.x1, p->crop.y2 - 2.0 * XFORM_TEXT_SIZE);
+    pdfioContentSetTextFont(st, "F1", 2.0 * XFORM_TEXT_SIZE);
+    pdfioContentSetTextLeading(st, 2.0 * XFORM_TEXT_HEIGHT);
+    pdfioContentTextShow(st, false, "Errors:\n");
+
+    pdfioContentSetTextFont(st, "F1", XFORM_TEXT_SIZE);
+    pdfioContentSetTextLeading(st, XFORM_TEXT_HEIGHT);
+
+    for (msg = (const char *)cupsArrayGetFirst(p->errors), mcount = 0; msg; msg = (const char *)cupsArrayGetNext(p->errors))
     {
-      pdfioContentTextShowf(st, false, "  %s\n", msg + 1);
-      count ++;
+      if (*msg == 'E')
+      {
+	pdfioContentTextShowf(st, false, "  %s\n", msg + 1);
+	mcount ++;
+      }
     }
-  }
 
-  if (count == 0)
-    pdfioContentTextShow(st, false, "  No Errors\n");
+    if (mcount == 0)
+      pdfioContentTextShow(st, false, "  No Errors\n");
 
-  pdfioContentSetTextFont(st, "F1", 2.0 * XFORM_TEXT_SIZE);
-  pdfioContentSetTextLeading(st, 2.0 * XFORM_TEXT_HEIGHT);
-  pdfioContentTextShow(st, false, "\n");
-  pdfioContentTextShow(st, false, "Warnings:\n");
+    pdfioContentSetTextFont(st, "F1", 2.0 * XFORM_TEXT_SIZE);
+    pdfioContentSetTextLeading(st, 2.0 * XFORM_TEXT_HEIGHT);
+    pdfioContentTextShow(st, false, "\n");
+    pdfioContentTextShow(st, false, "Warnings:\n");
 
-  pdfioContentSetTextFont(st, "F1", XFORM_TEXT_SIZE);
-  pdfioContentSetTextLeading(st, XFORM_TEXT_HEIGHT);
+    pdfioContentSetTextFont(st, "F1", XFORM_TEXT_SIZE);
+    pdfioContentSetTextLeading(st, XFORM_TEXT_HEIGHT);
 
-  for (msg = (const char *)cupsArrayGetFirst(p->errors), count = 0; msg; msg = (const char *)cupsArrayGetNext(p->errors))
-  {
-    if (*msg == 'I')
+    for (msg = (const char *)cupsArrayGetFirst(p->errors), mcount = 0; msg; msg = (const char *)cupsArrayGetNext(p->errors))
     {
-      pdfioContentTextShowf(st, false, "  %s\n", msg + 1);
-      count ++;
+      if (*msg == 'I')
+      {
+	pdfioContentTextShowf(st, false, "  %s\n", msg + 1);
+	mcount ++;
+      }
     }
+
+    if (mcount == 0)
+      pdfioContentTextShow(st, false, "  No Warnings\n");
+
+    pdfioContentTextEnd(st);
+    pdfio_end_page(p, st);
   }
-
-  if (count == 0)
-    pdfioContentTextShow(st, false, "  No Warnings\n");
-
-  pdfioContentTextEnd(st);
-  pdfio_end_page(p, st);
 
   return (true);
 }
