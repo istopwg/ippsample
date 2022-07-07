@@ -1512,7 +1512,8 @@ generate_job_error_sheet(
   pdfio_stream_t *st;			// Page stream
   pdfio_obj_t	*courier;		// Courier font
   pdfio_dict_t	*dict;			// Page dictionary
-  const char	*error;			// Current error message
+  const char	*msg;			// Current message
+  size_t	count;			// Number of messages
 
 
   // Create a page dictionary with the Courier font...
@@ -1526,25 +1527,53 @@ generate_job_error_sheet(
 
   // The job error sheet is a banner with the following information:
   //
-  //     Title: job-title
-  //      User: job-originating-user-name
-  //     Pages: job-media-sheets
-  //   Message: job-sheet-message
+  //   Errors:
+  //     ...
+  //
+  //   Warnings:
+  //     ...
 
+  pdfioContentSetFillColorDeviceGray(st, 0.0);
   pdfioContentTextBegin(st);
+  pdfioContentTextMoveTo(st, p->crop.x1, p->crop.y2 - 2.0 * XFORM_TEXT_SIZE);
+  pdfioContentSetTextFont(st, "F1", 2.0 * XFORM_TEXT_SIZE);
+  pdfioContentSetTextLeading(st, 2.0 * XFORM_TEXT_HEIGHT);
+  pdfioContentTextShow(st, false, "Errors:\n");
+
   pdfioContentSetTextFont(st, "F1", XFORM_TEXT_SIZE);
   pdfioContentSetTextLeading(st, XFORM_TEXT_HEIGHT);
-  pdfioContentTextMoveTo(st, p->crop.x1, p->crop.y2 - XFORM_TEXT_SIZE);
-  pdfioContentSetFillColorDeviceGray(st, 0.0);
 
-  if (cupsArrayGetCount(p->errors) > 0)
+  for (msg = (const char *)cupsArrayGetFirst(p->errors), count = 0; msg; msg = (const char *)cupsArrayGetNext(p->errors))
   {
-    pdfioContentTextShow(st, false, "Errors:\n");
-    for (error = (const char *)cupsArrayGetFirst(p->errors); error; error = (const char *)cupsArrayGetNext(p->errors))
-      pdfioContentTextShowf(st, false, "  %s\n", error);
+    if (*msg == 'E')
+    {
+      pdfioContentTextShowf(st, false, "  %s\n", msg + 1);
+      count ++;
+    }
   }
-  else
-    pdfioContentTextShow(st, false, "No Errors\n");
+
+  if (count == 0)
+    pdfioContentTextShow(st, false, "  No Errors\n");
+
+  pdfioContentSetTextFont(st, "F1", 2.0 * XFORM_TEXT_SIZE);
+  pdfioContentSetTextLeading(st, 2.0 * XFORM_TEXT_HEIGHT);
+  pdfioContentTextShow(st, false, "\n");
+  pdfioContentTextShow(st, false, "Warnings:\n");
+
+  pdfioContentSetTextFont(st, "F1", XFORM_TEXT_SIZE);
+  pdfioContentSetTextLeading(st, XFORM_TEXT_HEIGHT);
+
+  for (msg = (const char *)cupsArrayGetFirst(p->errors), count = 0; msg; msg = (const char *)cupsArrayGetNext(p->errors))
+  {
+    if (*msg == 'I')
+    {
+      pdfioContentTextShowf(st, false, "  %s\n", msg + 1);
+      count ++;
+    }
+  }
+
+  if (count == 0)
+    pdfioContentTextShow(st, false, "  No Warnings\n");
 
   pdfioContentTextEnd(st);
   pdfioStreamClose(st);
@@ -2618,15 +2647,17 @@ prepare_log(xform_prepare_t *p,		// I - Preparation data
 
 
   va_start(ap, message);
-  vsnprintf(buffer, sizeof(buffer), message, ap);
+  vsnprintf(buffer + 1, sizeof(buffer) - 1, message, ap);
   va_end(ap);
+
+  buffer[0] = error ? 'E' : 'I';
 
   cupsArrayAdd(p->errors, buffer);
 
   if (error)
-    fprintf(stderr, "ERROR: %s\n", buffer);
+    fprintf(stderr, "ERROR: %s\n", buffer + 1);
   else
-    fprintf(stderr, "INFO: %s\n", buffer);
+    fprintf(stderr, "INFO: %s\n", buffer + 1);
 }
 
 
