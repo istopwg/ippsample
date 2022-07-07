@@ -94,7 +94,10 @@ typedef struct xform_prepare_s		// Preparation data
   xform_page_t	outpages[XFORM_MAX_PAGES];
 					// Output pages
   size_t	num_layout;		// Number of layout rectangles
-  pdfio_rect_t	layout[XFORM_MAX_LAYOUT];	// Layout rectangles
+  pdfio_rect_t	layout[XFORM_MAX_LAYOUT];
+					// Layout rectangles
+  bool		use_duplex_xform;	// Use the back side transform matrix?
+  pdfio_matrix_t duplex_xform;		// Back side transform matrix
 } xform_prepare_t;
 
 typedef struct xform_raster_s xform_raster_t;
@@ -156,9 +159,11 @@ static void	pcl_printf(xform_write_cb_t cb, void *ctx, const char *format, ...) 
 static void	pcl_start_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static void	pcl_start_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	pcl_write_line(xform_raster_t *ras, unsigned y, const unsigned char *line, xform_write_cb_t cb, void *ctx);
+static void	pdfio_end_page(xform_prepare_t *p, pdfio_stream_t *st);
 static bool	pdfio_error_cb(pdfio_file_t *pdf, const char *message, void *cb_data);
 static const char *pdfio_password_cb(void *cb_data, const char *filename);
-static bool	prepare_documents(size_t num_documents, xform_document_t *documents, ipp_options_t *options, char *outfile, size_t outsize, unsigned *outpages);
+static pdfio_stream_t *pdfio_start_page(xform_prepare_t *p, pdfio_dict_t *dict);
+static bool	prepare_documents(size_t num_documents, xform_document_t *documents, ipp_options_t *options, const char *sheet_back, char *outfile, size_t outsize, unsigned *outpages);
 static void	prepare_log(xform_prepare_t *p, bool error, const char *message, ...);
 static void	prepare_number_up(xform_prepare_t *p);
 static void	prepare_pages(xform_prepare_t *p, size_t num_documents, xform_document_t *documents);
@@ -433,7 +438,7 @@ main(int  argc,				// I - Number of command-line args
   // Prepare a PDF file for printing...
   ipp_options = ippOptionsNew(num_options, options);
 
-  if (!prepare_documents(num_files, files, ipp_options, pdf_file, sizeof(pdf_file), &pdf_pages))
+  if (!prepare_documents(num_files, files, ipp_options, sheet_back, pdf_file, sizeof(pdf_file), &pdf_pages))
   {
     // Unable to prepare documents, exit...
     ippOptionsDelete(ipp_options);
@@ -1523,7 +1528,7 @@ generate_job_error_sheet(
   pdfioPageDictAddFont(dict, "F1", courier);
 
   // Create the error sheet...
-  st = pdfioFileCreatePage(p->pdf, dict);
+  st = pdfio_start_page(p, dict);
 
   // The job error sheet is a banner with the following information:
   //
@@ -1576,7 +1581,7 @@ generate_job_error_sheet(
     pdfioContentTextShow(st, false, "  No Warnings\n");
 
   pdfioContentTextEnd(st);
-  pdfioStreamClose(st);
+  pdfio_end_page(p, st);
 
   return (true);
 }
@@ -1611,7 +1616,7 @@ generate_job_sheets(
   // Create pages...
   for (i = 0; i < count; i ++)
   {
-    st = pdfioFileCreatePage(p->pdf, dict);
+    st = pdfio_start_page(p, dict);
 
     // The job sheet is a banner with the following information:
     //
@@ -1633,7 +1638,7 @@ generate_job_sheets(
       pdfioContentTextShowf(st, false, "Message: %s\n", p->options->job_sheet_message);
 
     pdfioContentTextEnd(st);
-    pdfioStreamClose(st);
+    pdfio_end_page(p, st);
   }
 
   return (true);
@@ -2336,6 +2341,23 @@ pcl_write_line(
 
 
 //
+// 'pdfio_end_page()' - End a page.
+//
+// This function restores graphics state when ending a back side page.
+//
+
+static void
+pdfio_end_page(xform_prepare_t *p,	// I - Preparation data
+               pdfio_stream_t  *st)	// I - Page content stream
+{
+  if (p->use_duplex_xform && !(pdfioFileGetNumPages(p->pdf) & 1))
+    pdfioContentRestore(st);
+
+  pdfioStreamClose(st);
+}
+
+
+//
 // 'pdfio_error_cb()' - Log an error from the PDFio library.
 //
 
@@ -2384,6 +2406,32 @@ pdfio_password_cb(void       *cb_data,	// I - Document number
 
 
 //
+// 'pdfio_start_page()' - Start a page.
+//
+// This function applies a transform on the back side pages.
+//
+
+static pdfio_stream_t *			// O - Page content stream
+pdfio_start_page(xform_prepare_t *p,	// I - Preparation data
+                 pdfio_dict_t    *dict)	// I - Page dictionary
+{
+  pdfio_stream_t	*st;		// Page content stream
+
+
+  if ((st = pdfioFileCreatePage(p->pdf, dict)) != NULL)
+  {
+    if (p->use_duplex_xform && !(pdfioFileGetNumPages(p->pdf) & 1))
+    {
+      pdfioContentSave(st);
+      pdfioContentMatrixConcat(st, p->duplex_xform);
+    }
+  }
+
+  return (st);
+}
+
+
+//
 // 'prepare_documents()' - Prepare one or more documents for printing.
 //
 // This function generates a single PDF file containing the union of the input
@@ -2395,6 +2443,7 @@ prepare_documents(
     size_t           num_documents,	// I - Number of input documents
     xform_document_t *documents,	// I - Input documents
     ipp_options_t    *options,		// I - IPP options
+    const char       *sheet_back,	// I - Back side transform
     char             *outfile,		// I - Output filename buffer
     size_t           outsize,		// I - Output filename buffer size
     unsigned         *outpages)		// O - Number of pages
@@ -2420,6 +2469,44 @@ prepare_documents(
 
   size_to_rect(&options->media, &p.media, &p.crop);
   prepare_number_up(&p);
+
+  if (!strncmp(options->sides, "two-sided-", 10) && sheet_back && strcmp(sheet_back, "normal"))
+  {
+    // Need to do a transform on the back side of pages...
+    if (!strcmp(sheet_back, "flipped"))
+    {
+      if (!strcmp(options->sides, "two-sided-short-edge"))
+      {
+	p.use_duplex_xform   = true;
+        p.duplex_xform[0][0] = -1.0;
+        p.duplex_xform[0][1] = 0.0;
+        p.duplex_xform[1][0] = 0.0;
+        p.duplex_xform[1][1] = 1.0;
+        p.duplex_xform[2][0] = p.media.x2;
+        p.duplex_xform[2][1] = 0.0;
+      }
+      else
+      {
+	p.use_duplex_xform   = true;
+        p.duplex_xform[0][0] = 1.0;
+        p.duplex_xform[0][1] = 0.0;
+        p.duplex_xform[1][0] = 0.0;
+        p.duplex_xform[1][1] = -1.0;
+        p.duplex_xform[2][0] = 0.0;
+        p.duplex_xform[2][1] = p.media.y2;
+      }
+    }
+    else if ((!strcmp(sheet_back, "manual-tumble") && !strcmp(options->sides, "two-sided-short-edge")) || (!strcmp(sheet_back, "rotated") && !strcmp(options->sides, "two-sided-long-edge")))
+    {
+      p.use_duplex_xform   = true;
+      p.duplex_xform[0][0] = -1.0;
+      p.duplex_xform[0][1] = 0.0;
+      p.duplex_xform[1][0] = 0.0;
+      p.duplex_xform[1][1] = -1.0;
+      p.duplex_xform[2][0] = p.media.x2;
+      p.duplex_xform[2][1] = p.media.y2;
+    }
+  }
 
   if ((p.pdf = pdfioFileCreateTemporary(outfile, outsize, "1.7", &p.media, &p.media, pdfio_error_cb, &p)) == NULL)
     return (false);
@@ -2575,12 +2662,12 @@ prepare_documents(
 
       // Now copy the content streams to build the composite page, using the
       // resource map for any named resources...
-      outpage->output = pdfioFileCreatePage(p.pdf, outpage->pagedict);
+      outpage->output = pdfio_start_page(&p, outpage->pagedict);
 
       for (layout = 0; layout < p.num_layout; layout ++)
         copy_page(&p, outpage, layout);
 
-      pdfioStreamClose(outpage->output);
+      pdfio_end_page(&p, outpage->output);
       outpage->output = NULL;
     }
   }
@@ -3292,8 +3379,7 @@ xform_document(
   CGBitmapInfo		info;		// Bitmap flags
   size_t		band_size;	// Size of band line
   double		xscale, yscale;	// Scaling factor
-  CGAffineTransform 	transform,	// Transform for page
-			back_transform;	// Transform for back side
+  CGAffineTransform 	transform;	// Transform for page
   CGRect		dest;		// Destination rectangle
   bool			color = true;	// Does the PDF have color?
   unsigned		copy;		// Current copy
@@ -3410,30 +3496,6 @@ xform_document(
   (*(ras.start_job))(&ras, cb, ctx);
 
   // Render pages in the PDF...
-  if (pages > 1 && sheet_back && ras.header.Duplex)
-  {
-    // Setup the back page transform...
-    if (!strcmp(sheet_back, "flipped"))
-    {
-      if (ras.header.Tumble)
-	back_transform = CGAffineTransformMake(-1, 0, 0, 1, ras.header.cupsPageSize[0], 0);
-      else
-	back_transform = CGAffineTransformMake(1, 0, 0, -1, 0, ras.header.cupsPageSize[1]);
-    }
-    else if (!strcmp(sheet_back, "manual-tumble") && ras.header.Tumble)
-      back_transform = CGAffineTransformMake(-1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
-    else if (!strcmp(sheet_back, "rotated") && !ras.header.Tumble)
-      back_transform = CGAffineTransformMake(-1, 0, 0, -1, ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
-    else
-      back_transform = CGAffineTransformMake(1, 0, 0, 1, 0, 0);
-  }
-  else
-    back_transform = CGAffineTransformMake(1, 0, 0, 1, 0, 0);
-
-  if (Verbosity > 1)
-    fprintf(stderr, "DEBUG: back_transform=[%g %g %g %g %g %g]\n", back_transform.a, back_transform.b, back_transform.c, back_transform.d, back_transform.tx, back_transform.ty);
-
-  // Draw all of the pages...
   for (copy = 0; copy < options->copies; copy ++)
   {
     for (page = 1; page <= pages; page ++)
@@ -3478,8 +3540,6 @@ xform_document(
 	    if (Verbosity > 1)
 	      fprintf(stderr, "DEBUG: Band translate 0.0,%g\n", y / yscale);
 	    CGContextTranslateCTM(context, 0.0, y / yscale);
-	    if (!(page & 1) && ras.header.Duplex)
-	      CGContextConcatCTM(context, back_transform);
 	    CGContextConcatCTM(context, transform);
 
 	    CGContextClipToRect(context, CGPDFPageGetBoxRect(pdf_page, kCGPDFCropBox));
@@ -3641,7 +3701,6 @@ xform_document(
       }
 
       // Send the page to the driver...
-      // TODO: Add pdftoppm support for different duplex modes...
       page ++;
 
       (*(ras.start_page))(&ras, page, cb, ctx);
