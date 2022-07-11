@@ -379,8 +379,14 @@ ippOptionsNew(size_t        num_options,// I - Number of command-line options
   if ((value = get_option("print-color-mode", num_options, options)) != NULL)
     cupsCopyString(ippo->print_color_mode, value, sizeof(ippo->print_color_mode));
 
+  if ((value = get_option("print-content-optimize", num_options, options)) != NULL)
+    cupsCopyString(ippo->print_content_optimize, value, sizeof(ippo->print_content_optimize));
+
   if ((value = get_option("print-quality", num_options, options)) != NULL && (intvalue = atoi(value)) >= IPP_QUALITY_DRAFT && intvalue <= IPP_QUALITY_HIGH)
     ippo->print_quality = (ipp_quality_t)intvalue;
+
+  if ((value = get_option("print-rendering-intent", num_options, options)) != NULL)
+    cupsCopyString(ippo->print_rendering_intent, value, sizeof(ippo->print_rendering_intent));
 
   if ((value = get_option("print-scaling", num_options, options)) != NULL)
   {

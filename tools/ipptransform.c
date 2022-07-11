@@ -108,6 +108,7 @@ struct xform_raster_s			// Raster context
   const char		*format;	// Output format
   cups_page_header_t	header;		// Page header
   cups_page_header_t	back_header;	// Page header for back side
+  cups_page_header_t	sep_header;	// Separator page header
   bool			borderless;	// Borderless media?
   unsigned char		*band_buffer;	// Band buffer
   unsigned		band_height;	// Band height
@@ -178,6 +179,7 @@ static void	size_to_rect(cups_size_t *size, pdfio_rect_t *media, pdfio_rect_t *c
 static void	usage(int status) _CUPS_NORETURN;
 static ssize_t	write_fd(int *fd, const unsigned char *buffer, size_t bytes);
 static bool	xform_document(const char *filename, unsigned pages, ipp_options_t *options, const char *outformat, const char *resolutions, const char *sheet_back, const char *types, xform_write_cb_t cb, void *ctx);
+static bool	xform_separator(xform_raster_t *ras, xform_write_cb_t cb, void *ctx);
 static bool	xform_setup(xform_raster_t *ras, ipp_options_t *options, const char *outformat, const char *resolutions, const char *types, const char *sheet_back, bool color, unsigned pages);
 
 
@@ -3505,11 +3507,29 @@ xform_document(
   if (Verbosity > 1)
     fprintf(stderr, "DEBUG: cupsPageSize=[%g %g]\n", ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
 
-  (*(ras.start_job))(&ras, cb, ctx);
+  (ras.start_job)(&ras, cb, ctx);
 
   // Render pages in the PDF...
   for (copy = 0; copy < options->copies; copy ++)
   {
+    // Write a separator sheet as needed...
+    switch (options->separator_type)
+    {
+      case IPPOPT_SEPTYPE_NONE :
+      case IPPOPT_SEPTYPE_END_SHEET :
+          break;
+
+      case IPPOPT_SEPTYPE_SLIP_SHEETS :
+          if (copy == 0)
+            break;
+
+      case IPPOPT_SEPTYPE_START_SHEET :
+      case IPPOPT_SEPTYPE_BOTH_SHEETS :
+          xform_separator(&ras, cb, ctx);
+          break;
+    }
+
+    // Render pages in the PDF...
     for (page = 1; page <= pages; page ++)
     {
       unsigned		y,		// Current line
@@ -3523,7 +3543,7 @@ xform_document(
       if (Verbosity > 1)
 	fprintf(stderr, "DEBUG: Printing copy %d/%d, page %d/%d, transform=[%g %g %g %g %g %g]\n", copy + 1, options->copies, page, pages, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
 
-      (*(ras.start_page))(&ras, page, cb, ctx);
+      (ras.start_page)(&ras, page, cb, ctx);
 
       for (y = ras.top; y < ras.bottom; y ++)
       {
@@ -3566,10 +3586,10 @@ xform_document(
 	else if (ras.header.cupsBitsPerPixel == 48)
 	  pack_rgba16(lineptr, ras.right - ras.left);
 
-	(*(ras.write_line))(&ras, y, lineptr, cb, ctx);
+	(ras.write_line)(&ras, y, lineptr, cb, ctx);
       }
 
-      (*(ras.end_page))(&ras, page, cb, ctx);
+      (ras.end_page)(&ras, page, cb, ctx);
 
       // Log progress...
       impressions ++;
@@ -3591,12 +3611,12 @@ xform_document(
 
       memset(ras.band_buffer, 255, ras.header.cupsBytesPerLine);
 
-      (*(ras.start_page))(&ras, page, cb, ctx);
+      (ras.start_page)(&ras, page, cb, ctx);
 
       for (y = ras.top; y < ras.bottom; y ++)
-	(*(ras.write_line))(&ras, y, ras.band_buffer, cb, ctx);
+	(ras.write_line)(&ras, y, ras.band_buffer, cb, ctx);
 
-      (*(ras.end_page))(&ras, page, cb, ctx);
+      (ras.end_page)(&ras, page, cb, ctx);
 
       impressions ++;
       fprintf(stderr, "ATTR: job-impressions-completed=%u\n", impressions);
@@ -3606,10 +3626,24 @@ xform_document(
 	fprintf(stderr, "ATTR: job-media-sheets-completed=%u\n", media_sheets);
       }
     }
+
+    // Write a separator sheet as needed...
+    switch (options->separator_type)
+    {
+      case IPPOPT_SEPTYPE_NONE :
+      case IPPOPT_SEPTYPE_START_SHEET :
+      case IPPOPT_SEPTYPE_SLIP_SHEETS :
+	  break;
+
+      case IPPOPT_SEPTYPE_END_SHEET :
+      case IPPOPT_SEPTYPE_BOTH_SHEETS :
+          xform_separator(&ras, cb, ctx);
+          break;
+    }
   }
 
   CGPDFDocumentRelease(document);
-  (*(ras.end_job))(&ras, cb, ctx);
+  (ras.end_job)(&ras, cb, ctx);
 
   // Clean up...
   CGContextRelease(context);
@@ -3670,10 +3704,27 @@ xform_document(
   if (Verbosity > 1)
     fprintf(stderr, "DEBUG: cupsPageSize=[%g %g]\n", ras.header.cupsPageSize[0], ras.header.cupsPageSize[1]);
 
-  (*(ras.start_job))(&ras, cb, ctx);
+  (ras.start_job)(&ras, cb, ctx);
 
   for (copy = 0; copy < options->copies; copy ++)
   {
+    // Write a separator sheet as needed...
+    switch (options->separator_type)
+    {
+      case IPPOPT_SEPTYPE_NONE :
+      case IPPOPT_SEPTYPE_END_SHEET :
+          break;
+
+      case IPPOPT_SEPTYPE_SLIP_SHEETS :
+          if (copy == 0)
+            break;
+
+      case IPPOPT_SEPTYPE_START_SHEET :
+      case IPPOPT_SEPTYPE_BOTH_SHEETS :
+          xform_separator(&ras, cb, ctx);
+          break;
+    }
+
     // Run the pdftoppm command:
     //
     //   pdftoppm [-mono] [-gray] -aa no -r resolution filename -
@@ -3715,15 +3766,15 @@ xform_document(
       // Send the page to the driver...
       page ++;
 
-      (*(ras.start_page))(&ras, page, cb, ctx);
+      (ras.start_page)(&ras, page, cb, ctx);
 
       for (y = 0; y < height; y ++)
       {
         if (fread(line, ras.header.cupsBytesPerLine, 1, fp))
-          (*(ras.write_line))(&ras, y, line, cb, ctx);
+          (ras.write_line)(&ras, y, line, cb, ctx);
       }
 
-      (*(ras.end_page))(&ras, page, cb, ctx);
+      (ras.end_page)(&ras, page, cb, ctx);
 
       // Log progress...
       impressions ++;
@@ -3737,15 +3788,107 @@ xform_document(
 
     // Close things out...
     pclose(fp);
+
+    // Write a separator sheet as needed...
+    switch (options->separator_type)
+    {
+      case IPPOPT_SEPTYPE_NONE :
+      case IPPOPT_SEPTYPE_START_SHEET :
+      case IPPOPT_SEPTYPE_SLIP_SHEETS :
+	  break;
+
+      case IPPOPT_SEPTYPE_END_SHEET :
+      case IPPOPT_SEPTYPE_BOTH_SHEETS :
+          xform_separator(&ras, cb, ctx);
+          break;
+    }
   }
 
-  (*(ras.end_job))(&ras, cb, ctx);
+  (ras.end_job)(&ras, cb, ctx);
 
   free(line);
 
   return (true);
 }
 #endif // HAVE_COREGRAPHICS
+
+
+//
+// 'xform_separator()' - Write a separator sheet.
+//
+
+static bool				// O - `true` on success, `false` on failure
+xform_separator(xform_raster_t   *ras,	// I - Raster information
+                xform_write_cb_t cb,	// I - Write callback
+                void             *ctx)	// I - Callback data
+{
+  bool		ret = false;		// Return value
+  unsigned	i,			// Current page
+		count,			// Number of pages
+		y;			// Current line on page
+  unsigned char	*line;			// Line for page(s)
+
+
+  // Allocate memory for line on separator page...
+  if ((line = malloc(ras->sep_header.cupsBytesPerLine)) == NULL)
+    goto done;
+
+  // Clear to white...
+  switch (ras->sep_header.cupsColorSpace)
+  {
+    default :
+        goto done;
+
+    case CUPS_CSPACE_W :
+    case CUPS_CSPACE_RGB :
+    case CUPS_CSPACE_SW :
+    case CUPS_CSPACE_SRGB :
+    case CUPS_CSPACE_ADOBERGB :
+        memset(line, 0xff, ras->sep_header.cupsBytesPerLine);
+        break;
+
+    case CUPS_CSPACE_K :
+    case CUPS_CSPACE_CMYK :
+    case CUPS_CSPACE_DEVICE1 :
+    case CUPS_CSPACE_DEVICE2 :
+    case CUPS_CSPACE_DEVICE3 :
+    case CUPS_CSPACE_DEVICE4 :
+    case CUPS_CSPACE_DEVICE5 :
+    case CUPS_CSPACE_DEVICE6 :
+    case CUPS_CSPACE_DEVICE7 :
+    case CUPS_CSPACE_DEVICE8 :
+    case CUPS_CSPACE_DEVICE9 :
+    case CUPS_CSPACE_DEVICEA :
+    case CUPS_CSPACE_DEVICEB :
+    case CUPS_CSPACE_DEVICEC :
+    case CUPS_CSPACE_DEVICED :
+    case CUPS_CSPACE_DEVICEE :
+    case CUPS_CSPACE_DEVICEF :
+        memset(line, 0, ras->sep_header.cupsBytesPerLine);
+        break;
+  }
+
+  // Produce 1 or 2 blank pages...
+  count = ras->sep_header.Duplex ? 2 : 1;
+
+  for (i = 0; i < count; i ++)
+  {
+    (ras->start_page)(ras, i + 1, cb, ctx);
+
+    for (y = 0; y < ras->sep_header.cupsHeight; y ++)
+      (ras->write_line)(ras, y, line, cb, ctx);
+
+    (ras->end_page)(ras, i + 1, cb, ctx);
+  }
+
+  ret = true;
+
+  done:
+
+  free(line);
+
+  return (ret);
+}
 
 
 //
@@ -3782,8 +3925,8 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
   if (!options->printer_resolution[0])
   {
     // Choose a supported resolution from the list...
-    const char *printer_resolution;	// Printer resolution string
-    int xdpi, ydpi;			// X/Y resolution values (DPI)
+    const char	*printer_resolution;	// Printer resolution string
+    int		xdpi, ydpi;		// X/Y resolution values (DPI)
 
     res_array = cupsArrayNewStrings(resolutions, ',');
 
@@ -3793,6 +3936,7 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
 	  printer_resolution = cupsArrayGetElement(res_array, 0);
 	  break;
 
+      default :
       case IPP_QUALITY_NORMAL :
 	  printer_resolution = cupsArrayGetElement(res_array, cupsArrayGetCount(res_array) / 2);
 	  break;
@@ -3803,9 +3947,9 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
     }
 
     // Parse the "printer-resolution" value...
-    if (sscanf(printer_resolution, "%ux%udpi", &xdpi, &ydpi) != 2)
+    if (sscanf(printer_resolution, "%dx%ddpi", &xdpi, &ydpi) != 2)
     {
-      if (sscanf(printer_resolution, "%udpi", &xdpi) == 1)
+      if (sscanf(printer_resolution, "%ddpi", &xdpi) == 1)
       {
 	ydpi = xdpi;
       }
@@ -3911,15 +4055,24 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
   if (options->copies > 1 && (pages & 1) && strcmp(sides, "one-sided"))
     pages ++;
 
-  if (!cupsRasterInitPWGHeader(&(ras->header), pwgMediaForPWG(options->media.media), type, options->printer_resolution[0], options->printer_resolution[1], sides, NULL))
+  if (!cupsRasterInitHeader(&ras->header, &options->media, options->print_content_optimize, options->print_quality, options->print_rendering_intent, options->orientation_requested, sides, type, options->printer_resolution[0], options->printer_resolution[1], NULL))
   {
     fprintf(stderr, "ERROR: Unable to initialize raster context: %s\n", cupsRasterErrorString());
     return (false);
   }
 
+  if (options->separator_type != IPPOPT_SEPTYPE_NONE)
+  {
+    if (!cupsRasterInitHeader(&ras->sep_header, &options->separator_media, options->print_content_optimize, options->print_quality, options->print_rendering_intent, options->orientation_requested, sides, type, options->printer_resolution[0], options->printer_resolution[1], NULL))
+    {
+      fprintf(stderr, "ERROR: Unable to initialize separator raster context: %s\n", cupsRasterErrorString());
+      return (false);
+    }
+  }
+
   if (pages > 1)
   {
-    if (!cupsRasterInitPWGHeader(&(ras->back_header), pwgMediaForPWG(options->media.media), type, options->printer_resolution[0], options->printer_resolution[1], sides, sheet_back))
+    if (!cupsRasterInitHeader(&ras->back_header, &options->media, options->print_content_optimize, options->print_quality, options->print_rendering_intent, options->orientation_requested, sides, type, options->printer_resolution[0], options->printer_resolution[1], sheet_back))
     {
       fprintf(stderr, "ERROR: Unable to initialize back side raster context: %s\n", cupsRasterErrorString());
       return (false);

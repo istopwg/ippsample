@@ -123,7 +123,11 @@ typedef struct ipp_options_s		// All IPP options in one structure
   size_t	num_page_ranges;	// Number of "page-ranges" values
   ippopt_range_t page_ranges[100];	// "page-ranges" values
   char		print_color_mode[128];	// "print-color-mode" value
+  char		print_content_optimize[128];
+					// "print-content-optimize" value
   ipp_quality_t	print_quality;		// "print-quality" value
+  char		print_rendering_intent[128];
+					// "print-rendering-intent" value
   ippopt_scaling_t print_scaling;	// "print-scaling" value
   int		printer_resolution[2];	// "printer-resolution" values (DPI)
   ippopt_septype_t separator_type;	// "separator-sheets-type" value
