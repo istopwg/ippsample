@@ -3681,15 +3681,21 @@ xform_document(
   FILE		*fp;			// Pipe for output
   char		header[256];		// Header from file
   unsigned char	*line;			// Pixel line from file
+  size_t	linesize;		// Size of a line...
 
 
   // Setup the raster headers...
   if (!xform_setup(&ras, options, outformat, resolutions, sheet_back, types, true, pages))
     return (false);
 
-  if ((line = malloc(ras.header.cupsBytesPerLine)) == NULL)
+  if (ras.header.cupsBitsPerPixel <= 8)
+    linesize = ras.header.cupsWidth;
+  else
+    linesize = 3 * ras.header.cupsWidth;
+
+  if ((line = malloc(linesize)) == NULL)
   {
-    fprintf(stderr, "ERROR: Unable to allocate %u bytes for line.\n", ras.header.cupsBytesPerLine);
+    fprintf(stderr, "ERROR: Unable to allocate %u bytes for line.\n", (unsigned)linesize);
     return (false);
   }
 
@@ -3728,9 +3734,13 @@ xform_document(
     // Run the pdftoppm command:
     //
     //   pdftoppm [-mono] [-gray] -aa no -r resolution filename -
-    snprintf(command, sizeof(command), "pdftoppm %s -aa no -r %u '%s' -", ras.header.cupsBitsPerPixel == 1 ? "-mono" : ras.header.cupsBitsPerPixel == 8 ? "-gray" : "", ras.header.HWResolution[0], filename);
+    snprintf(command, sizeof(command), "pdftoppm %s -aa no -r %u '%s' -", ras.header.cupsBitsPerPixel <= 8 ? "-gray" : "", ras.header.HWResolution[0], filename);
     fprintf(stderr, "DEBUG: Running \"%s\"\n", command);
+#if _WIN32
     if ((fp = popen(command, "rb")) == NULL)
+#else
+    if ((fp = popen(command, "r")) == NULL)
+#endif // _WIN32
     {
       fprintf(stderr, "ERROR: Unable to run pdftoppm command: %s\n", strerror(errno));
       return (false);
@@ -3739,29 +3749,34 @@ xform_document(
     // Read lines from the file...
     while (fgets(header, sizeof(header), fp))
     {
-      // Got the P4/5/6 header, now get the bitmap dimensions...
+      // Got the P4/5/6 header...
       unsigned	y;			// Current Y position
       unsigned	width, height;		// Width and height from image...
 
       if (strcmp(header, "P4\n") && strcmp(header, "P5\n") && strcmp(header, "P6\n"))
       {
-        fprintf(stderr, "ERROR: Bad page header - %s", header);
+        fprintf(stderr, "ERROR: Bad page header - <%02X%02X%02X%02X%02X%02X%02X%02X>", header[0] & 255, header[1] & 255, header[2] & 255, header[3] & 255, header[4] & 255, header[5] & 255, header[6] & 255, header[7] & 255);
         break;
       }
 
+      // Now get the bitmap dimensions...
       if (!fgets(header, sizeof(header), fp))
         break;
 
       if (sscanf(header, "%u%u", &width, &height) != 2)
       {
-        fprintf(stderr, "ERROR: Bad page dimensions - %s", header);
+        fprintf(stderr, "ERROR: Bad page dimensions - <%02X%02X%02X%02X%02X%02X%02X%02X>", header[0] & 255, header[1] & 255, header[2] & 255, header[3] & 255, header[4] & 255, header[5] & 255, header[6] & 255, header[7] & 255);
         break;
       }
       else if (width != ras.header.cupsWidth || height != ras.header.cupsHeight)
       {
-        fprintf(stderr, "ERROR: Unexpected page dimensions - %ux%u.\n", width, height);
+        fprintf(stderr, "ERROR: Unexpected page dimensions - %ux%u instead of %ux%u.\n", width, height, ras.header.cupsWidth, ras.header.cupsHeight);
         break;
       }
+
+      // Skip max value line...
+      if (!fgets(header, sizeof(header), fp))
+        break;
 
       // Send the page to the driver...
       page ++;
@@ -3770,7 +3785,7 @@ xform_document(
 
       for (y = 0; y < height; y ++)
       {
-        if (fread(line, ras.header.cupsBytesPerLine, 1, fp))
+        if (fread(line, linesize, 1, fp))
           (ras.write_line)(&ras, y, line, cb, ctx);
       }
 
@@ -3827,10 +3842,16 @@ xform_separator(xform_raster_t   *ras,	// I - Raster information
 		count,			// Number of pages
 		y;			// Current line on page
   unsigned char	*line;			// Line for page(s)
+  size_t	linesize;		// Size of a line...
 
 
   // Allocate memory for line on separator page...
-  if ((line = malloc(ras->sep_header.cupsBytesPerLine)) == NULL)
+  if (ras->sep_header.cupsBitsPerPixel <= 8)
+    linesize = ras->sep_header.cupsWidth;
+  else
+    linesize = 3 * ras->sep_header.cupsWidth;
+
+  if ((line = malloc(linesize)) == NULL)
     goto done;
 
   // Clear to white...
@@ -3844,7 +3865,7 @@ xform_separator(xform_raster_t   *ras,	// I - Raster information
     case CUPS_CSPACE_SW :
     case CUPS_CSPACE_SRGB :
     case CUPS_CSPACE_ADOBERGB :
-        memset(line, 0xff, ras->sep_header.cupsBytesPerLine);
+        memset(line, 0xff, linesize);
         break;
 
     case CUPS_CSPACE_K :
@@ -3864,7 +3885,7 @@ xform_separator(xform_raster_t   *ras,	// I - Raster information
     case CUPS_CSPACE_DEVICED :
     case CUPS_CSPACE_DEVICEE :
     case CUPS_CSPACE_DEVICEF :
-        memset(line, 0, ras->sep_header.cupsBytesPerLine);
+        memset(line, 0, linesize);
         break;
   }
 
