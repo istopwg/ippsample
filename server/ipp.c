@@ -129,6 +129,9 @@ static void		respond_unsettable(server_client_t *client, ipp_attribute_t *attr);
 static bool		valid_doc_attributes(server_client_t *client);
 static bool		valid_filename(const char *filename);
 static bool		valid_job_attributes(server_client_t *client);
+static bool		valid_media(server_client_t *client, ipp_attribute_t *attr);
+static bool		valid_media_col(server_client_t *client, ipp_attribute_t *attr);
+static bool		valid_orientation(server_client_t *client, ipp_attribute_t *attr);
 static bool		valid_values(server_client_t *client, ipp_tag_t group_tag, ipp_attribute_t *supported, size_t num_values, server_value_t *values);
 static float		wgs84_distance(const char *a, const char *b);
 
@@ -9223,94 +9226,14 @@ valid_job_attributes(
 
   if ((attr = ippFindAttribute(client->request, "media", IPP_TAG_ZERO)) != NULL)
   {
-    if ((supported = ippFindAttribute(client->printer->dev_attrs, "media-supported", IPP_TAG_KEYWORD)) == NULL)
-      supported = ippFindAttribute(client->printer->pinfo.attrs, "media-supported", IPP_TAG_KEYWORD);
-
-    if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
-    {
-      serverRespondUnsupported(client, attr);
+    if (!valid_media(client, attr))
       valid = false;
-    }
   }
 
   if ((attr = ippFindAttribute(client->request, "media-col", IPP_TAG_ZERO)) != NULL)
   {
-    ipp_t		*col,		/* media-col collection */
-			*size;		/* media-size collection */
-    ipp_attribute_t	*member,	/* Member attribute */
-			*x_dim,		/* x-dimension */
-			*y_dim;		/* y-dimension */
-    int			x_value,	/* y-dimension value */
-			y_value;	/* x-dimension value */
-
-    col = ippGetCollection(attr, 0);
-
-    if ((member = ippFindAttribute(col, "media-size-name", IPP_TAG_ZERO)) != NULL)
-    {
-      if (ippGetCount(member) != 1 ||
-	  (ippGetValueTag(member) != IPP_TAG_NAME &&
-	   ippGetValueTag(member) != IPP_TAG_NAMELANG &&
-	   ippGetValueTag(member) != IPP_TAG_KEYWORD))
-      {
-	serverRespondUnsupported(client, attr);
-	valid = false;
-      }
-      else
-      {
-        if ((supported = ippFindAttribute(client->printer->dev_attrs, "media-supported", IPP_TAG_KEYWORD)) == NULL)
-	  supported = ippFindAttribute(client->printer->pinfo.attrs, "media-supported", IPP_TAG_KEYWORD);
-
-	if (!ippContainsString(supported, ippGetString(member, 0, NULL)))
-	{
-	  serverRespondUnsupported(client, attr);
-	  valid = false;
-	}
-      }
-    }
-    else if ((member = ippFindAttribute(col, "media-size", IPP_TAG_BEGIN_COLLECTION)) != NULL)
-    {
-      if (ippGetCount(member) != 1)
-      {
-	serverRespondUnsupported(client, attr);
-	valid = false;
-      }
-      else
-      {
-	size = ippGetCollection(member, 0);
-
-	if ((supported = ippFindAttribute(client->printer->dev_attrs, "media-size-supported", IPP_TAG_BEGIN_COLLECTION)) == NULL)
-	  supported = ippFindAttribute(client->printer->pinfo.attrs, "media-size-supported", IPP_TAG_BEGIN_COLLECTION);
-
-	if ((x_dim = ippFindAttribute(size, "x-dimension", IPP_TAG_INTEGER)) == NULL || ippGetCount(x_dim) != 1 ||
-	    (y_dim = ippFindAttribute(size, "y-dimension", IPP_TAG_INTEGER)) == NULL || ippGetCount(y_dim) != 1)
-	{
-	  serverRespondUnsupported(client, attr);
-	  valid = false;
-	}
-	else if (supported)
-	{
-	  x_value   = ippGetInteger(x_dim, 0);
-	  y_value   = ippGetInteger(y_dim, 0);
-	  count     = ippGetCount(supported);
-
-	  for (i = 0; i < count ; i ++)
-	  {
-	    size  = ippGetCollection(supported, i);
-	    x_dim = ippFindAttribute(size, "x-dimension", IPP_TAG_ZERO);
-	    y_dim = ippFindAttribute(size, "y-dimension", IPP_TAG_ZERO);
-
-	    if (ippContainsInteger(x_dim, x_value) && ippContainsInteger(y_dim, y_value))
-	      break;
-	  }
-
-	  if (i >= count)
-	  {
-	    serverRespondUnsupported(client, attr);
-	    valid = false;
-	  }
-	}
-      }
-    }
+    if (!valid_media_col(client, attr))
+      valid = false;
   }
 
   if ((attr = ippFindAttribute(client->request, "multiple-document-handling", IPP_TAG_ZERO)) != NULL)
@@ -9326,12 +9249,64 @@ valid_job_attributes(
 
   if ((attr = ippFindAttribute(client->request, "orientation-requested", IPP_TAG_ZERO)) != NULL)
   {
-    supported = ippFindAttribute(client->printer->pinfo.attrs, "orientation-requested-supported", IPP_TAG_ENUM);
+    if (!valid_orientation(client, attr))
+      valid = false;
+  }
 
-    if (!ippContainsInteger(supported, ippGetInteger(attr, 0)))
+  if ((attr = ippFindAttribute(client->request, "overrides", IPP_TAG_ZERO)) != NULL)
+  {
+    if (ippGetGroupTag(attr) != IPP_TAG_JOB || ippGetValueTag(attr) != IPP_TAG_BEGIN_COLLECTION)
     {
       serverRespondUnsupported(client, attr);
       valid = false;
+    }
+    else
+    {
+      ipp_t		*col;		// Current collection
+      ipp_attribute_t	*colattr;	// Current collection attribute
+
+      for (i = 0, count = ippGetCount(attr); i < count; i ++)
+      {
+        col = ippGetCollection(attr, i);
+
+        if (!ippFindAttribute(col, "pages", IPP_TAG_RANGE))
+        {
+	  serverRespondUnsupported(client, attr);
+	  valid = false;
+        }
+        else
+        {
+	  for (colattr = ippGetFirstAttribute(col); colattr; colattr = ippGetNextAttribute(col))
+	  {
+	    const char *name = ippGetName(colattr);
+
+            if (!strcmp(name, "media"))
+            {
+	      if (!valid_media(client, colattr))
+	        break;
+            }
+            else if (!strcmp(name, "media-col"))
+            {
+	      if (!valid_media(client, colattr))
+	        break;
+            }
+            else if (!strcmp(name, "orientation-requested"))
+            {
+              if (!valid_orientation(client, colattr))
+                break;
+            }
+            else if (strcmp(name, "pages") && strcmp(name, "document-numbers"))
+            {
+	      serverRespondUnsupported(client, attr);
+	      valid = false;
+	      break;
+            }
+	  }
+
+	  if (colattr)
+	    break;
+	}
+      }
     }
   }
 
@@ -9398,6 +9373,159 @@ valid_job_attributes(
   }
 
   return (valid);
+}
+
+
+//
+// 'valid_media()' - Validate a media attribute.
+//
+
+static bool				// O - `true` if valid, `false` if not
+valid_media(
+    server_client_t *client,		// I - Client connection
+    ipp_attribute_t *attr)		// I - Attribute
+{
+  ipp_attribute_t	*supported;	// "orientation-requested-supported" attribute
+
+
+  if ((supported = ippFindAttribute(client->printer->dev_attrs, "media-supported", IPP_TAG_KEYWORD)) == NULL)
+    supported = ippFindAttribute(client->printer->pinfo.attrs, "media-supported", IPP_TAG_KEYWORD);
+
+  if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
+  {
+    serverRespondUnsupported(client, attr);
+    return (false);
+  }
+  else
+  {
+    return (true);
+  }
+}
+
+
+//
+// 'valid_media_col()' - Validate a media-col attribute.
+//
+
+static bool				// O - `true` if valid, `false` if not
+valid_media_col(
+    server_client_t *client,		// I - Client connection
+    ipp_attribute_t *attr)		// I - Attribute
+{
+  size_t	i,			// Looping var
+		count;			// Number of values
+  ipp_attribute_t *supported;		// "xxx-supported" attribute
+  ipp_t		*col,			// media-col collection
+		*size;			// media-size collection
+  ipp_attribute_t *member,		// Member attribute
+		*x_dim,			// x-dimension
+		*y_dim;			// y-dimension
+  int		x_value,		// y-dimension value
+		y_value;		// x-dimension value
+
+
+  if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_BEGIN_COLLECTION)
+  {
+    serverRespondUnsupported(client, attr);
+    return (false);
+  }
+
+  col = ippGetCollection(attr, 0);
+
+  if ((member = ippFindAttribute(col, "media-size-name", IPP_TAG_ZERO)) != NULL)
+  {
+    if (ippGetCount(member) != 1 ||
+	(ippGetValueTag(member) != IPP_TAG_NAME &&
+	 ippGetValueTag(member) != IPP_TAG_NAMELANG &&
+	 ippGetValueTag(member) != IPP_TAG_KEYWORD))
+    {
+      serverRespondUnsupported(client, attr);
+      return (false);
+    }
+    else
+    {
+      if ((supported = ippFindAttribute(client->printer->dev_attrs, "media-supported", IPP_TAG_KEYWORD)) == NULL)
+	supported = ippFindAttribute(client->printer->pinfo.attrs, "media-supported", IPP_TAG_KEYWORD);
+
+      if (!ippContainsString(supported, ippGetString(member, 0, NULL)))
+      {
+	serverRespondUnsupported(client, attr);
+	return (false);
+      }
+    }
+  }
+  else if ((member = ippFindAttribute(col, "media-size", IPP_TAG_BEGIN_COLLECTION)) != NULL)
+  {
+    if (ippGetCount(member) != 1)
+    {
+      serverRespondUnsupported(client, attr);
+      return (false);
+    }
+    else
+    {
+      size = ippGetCollection(member, 0);
+
+      if ((supported = ippFindAttribute(client->printer->dev_attrs, "media-size-supported", IPP_TAG_BEGIN_COLLECTION)) == NULL)
+	supported = ippFindAttribute(client->printer->pinfo.attrs, "media-size-supported", IPP_TAG_BEGIN_COLLECTION);
+
+      if ((x_dim = ippFindAttribute(size, "x-dimension", IPP_TAG_INTEGER)) == NULL || ippGetCount(x_dim) != 1 ||
+	  (y_dim = ippFindAttribute(size, "y-dimension", IPP_TAG_INTEGER)) == NULL || ippGetCount(y_dim) != 1)
+      {
+	serverRespondUnsupported(client, attr);
+	return (false);
+      }
+      else if (supported)
+      {
+	x_value   = ippGetInteger(x_dim, 0);
+	y_value   = ippGetInteger(y_dim, 0);
+	count     = ippGetCount(supported);
+
+	for (i = 0; i < count ; i ++)
+	{
+	  size  = ippGetCollection(supported, i);
+	  x_dim = ippFindAttribute(size, "x-dimension", IPP_TAG_ZERO);
+	  y_dim = ippFindAttribute(size, "y-dimension", IPP_TAG_ZERO);
+
+	  if (ippContainsInteger(x_dim, x_value) && ippContainsInteger(y_dim, y_value))
+	    break;
+	}
+
+	if (i >= count)
+	{
+	  serverRespondUnsupported(client, attr);
+	  return (false);
+	}
+      }
+    }
+  }
+
+  return (true);
+}
+
+
+//
+// 'valid_orientation()' - Validate an orientation-requested attribute.
+//
+
+static bool				// O - `true` if valid, `false` if not
+valid_orientation(
+    server_client_t *client,		// I - Client connection
+    ipp_attribute_t *attr)		// I - Attribute
+{
+  ipp_attribute_t	*supported;	// "orientation-requested-supported" attribute
+
+
+  supported = ippFindAttribute(client->printer->pinfo.attrs, "orientation-requested-supported", IPP_TAG_ENUM);
+
+  if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_ENUM || !ippContainsInteger(supported, ippGetInteger(attr, 0)))
+  {
+    serverRespondUnsupported(client, attr);
+    return (false);
+  }
+  else
+  {
+    return (true);
+  }
 }
 
 
