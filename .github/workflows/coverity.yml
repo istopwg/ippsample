@@ -8,6 +8,8 @@ jobs:
     environment: Coverity
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: update build environment
         run: sudo apt-get update --fix-missing -y
       - name: install prerequisites
