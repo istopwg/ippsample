@@ -16,4 +16,4 @@ ENTRYPOINT ["/usr/bin/entrypoint.sh"]
 
 # Copy source files to image
 COPY . /root/ippsample/
-RUN cd /root/ippsample; ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var; make; make install
+RUN cd /root/ippsample; ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var; make clean; make; make install
