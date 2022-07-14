@@ -65,9 +65,16 @@ serverAddEventNoLock(
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_CHARSET, "notify-charset", NULL, sub->charset);
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_LANGUAGE, "notify-natural-language", NULL, sub->language);
       if (printer)
-	ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_URI, "notify-printer-uri", NULL, printer->default_uri);
+      {
+        char uri[1024];			// URI value
+
+        httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), Encryption == HTTP_ENCRYPTION_NEVER ? "ipp" : "ipps", NULL, ServerName, DefaultPort, printer->resource);
+	ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_URI, "notify-printer-uri", NULL, uri);
+      }
       else
+      {
 	ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_URI, "notify-system-uri", NULL, DefaultSystemURI);
+      }
 
       if (job)
 	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-job-id", job->id);
@@ -148,6 +155,7 @@ serverCreateSubscription(
   server_subscription_t	*sub;		/* Subscription */
   ipp_attribute_t	*attr;		/* Subscription attribute */
   char			uuid[64];	/* notify-subscription-uuid value */
+  char			uri[1024];	// URI
 
 
  /*
@@ -198,9 +206,15 @@ serverCreateSubscription(
   sub->uuid = ippGetString(attr, 0, NULL);
 
   if (client->printer)
-    ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-printer-uri", NULL, client->printer->default_uri);
+  {
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), Encryption == HTTP_ENCRYPTION_NEVER ? "ipp" : "ipps", NULL, client->host_field, client->host_port, client->printer->resource);
+    ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-printer-uri", NULL, uri);
+  }
   else
-    ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-system-uri", NULL, DefaultSystemURI);
+  {
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), Encryption == HTTP_ENCRYPTION_NEVER ? "ipp" : "ipps", NULL, client->host_field, client->host_port, "/ipp/system");
+    ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-system-uri", NULL, uri);
+  }
 
   if (client->job)
     ippAddInteger(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-job-id", client->job->id);

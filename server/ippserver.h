@@ -484,8 +484,7 @@ typedef struct server_printer_s		/**** Printer data ****/
 			printer_ref;	/* DNS-SD LPD service */
 #endif /* HAVE_AVAHI */
   server_loc_t		geo_ref;	/* DNS-SD geo-location */
-  char			*default_uri,	/* Default/first URI */
-			*dns_sd_name,	/* printer-dns-sd-name */
+  char			*dns_sd_name,	/* printer-dns-sd-name */
 			*name,		/* printer-name */
 			*resource;	/* Resource path */
   size_t		resourcelen;	/* Length of resource path */
@@ -601,7 +600,9 @@ typedef struct server_client_s		/**** Client data ****/
 			*options;	/* URI options */
   http_addr_t		addr;		/* Client address */
   char			hostname[256],	/* Client hostname */
-			username[32];	/* Client authenticated username */
+			username[32],	/* Client authenticated username */
+			host_field[256];/* Host: hostname */
+  int			host_port;	/* Host: port number */
   server_printer_t	*printer;	/* Printer */
   server_job_t		*job;		/* Current job, if any */
   server_resource_t	*resource;	/* Current resource, if any */

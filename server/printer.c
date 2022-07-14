@@ -153,17 +153,8 @@ serverCreatePrinter(
   server_printer_t	*printer;	/* Printer */
   cups_array_t		*existing;	/* Existing attributes cache */
   char			title[256];	/* Title for attributes */
-  server_listener_t	*lis;		/* Current listener */
-  cups_array_t		*uris;		/* Array of URIs */
-  size_t		num_uris;	/* Number of URIs */
   int			is_print3d;	/* 3D printer? */
-  char			uri[1024],	/* Printer URI */
-			*uriptr,	/* Current URI */
-			**uriptrs,	/* All URIs */
-			icons[1024],	/* printer-icons URI */
-			adminurl[1024],	/* printer-more-info URI */
-			supplyurl[1024],/* printer-supply-info-uri URI */
-			device_id[1024],/* printer-device-id */
+  char			device_id[1024],/* printer-device-id */
 			make_model[128],/* printer-make-and-model */
 			uuid[128],	/* printer-uuid */
 			spooldir[1024];	/* Per-printer spool directory */
@@ -179,13 +170,11 @@ serverCreatePrinter(
 					/* Name of -supported attribute */
   ipp_attribute_t	*format_sup = NULL,
 					/* document-format-supported */
-			*xri_sup,	/* printer-xri-supported */
 			*media_col_database,
 					/* media-col-database value */
 			*media_size_supported;
 					/* media-size-supported value */
-  ipp_t			*media_col,	/* media-col-default value */
-			*xri_col;	/* printer-xri-supported value */
+  ipp_t			*media_col;	/* media-col-default value */
   int			k_supported;	/* Maximum file size supported */
 #ifdef HAVE_STATVFS
   struct statvfs	spoolinfo;	/* FS info for spool directory */
@@ -195,7 +184,6 @@ serverCreatePrinter(
   double		spoolsize;	/* FS size */
 #endif /* HAVE_STATVFS */
   ipp_attribute_t	*attr;		/* Attribute */
-  const char		*webscheme;	/* HTTP/HTTPS */
   static const char * const versions[] =/* ipp-versions-supported values */
   {
     "1.0",
@@ -751,6 +739,21 @@ serverCreatePrinter(
     "W8",
     "DM1"
   };
+  static const char * const uri_authentication_none[2] =
+  {					/* uri-authentication-supported values for none */
+    "none",
+    "none"
+  };
+  static const char * const uri_authentication_basic[2] =
+  {					/* uri-authentication-supported values for basic */
+    "basic",
+    "basic"
+  };
+  static const char * const uri_security_supported[2] =
+  {					/* uri-security-supported values */
+    "none",
+    "tls"
+  };
   static const char * const which_jobs[] =
   {					/* which-jobs-supported values */
     "aborted",
@@ -782,6 +785,11 @@ serverCreatePrinter(
     "left",
     "none",
     "right"
+  };
+  static const char * const xri_scheme_supported[] =
+  {					// xri-scheme-supported values
+    "ipp",
+    "ipps"
   };
   static const char * const y_image_position_supported[] =
   {					// y-image-position-supported values
@@ -848,21 +856,6 @@ serverCreatePrinter(
     printer->pinfo.strings          = cupsArrayDup(pinfo->strings);
   }
 
-  uris = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
-  for (lis = cupsArrayGetFirst(Listeners); lis; lis = cupsArrayGetNext(Listeners))
-  {
-    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPP_SCHEME, NULL, lis->host, lis->port, resource);
-
-    if (!cupsArrayFind(uris, uri))
-      cupsArrayAdd(uris, uri);
-  }
-
-  num_uris = cupsArrayGetCount(uris);
-
-  uriptrs = calloc((size_t)num_uris, sizeof(char *));
-  for (i = 0, uriptr = cupsArrayGetFirst(uris); uriptr; i ++, uriptr = cupsArrayGetNext(uris))
-    uriptrs[i] = uriptr;
-
   if (printer->pinfo.ppm == 0)
   {
     printer->pinfo.ppm = ippGetInteger(ippFindAttribute(printer->pinfo.attrs, "pages-per-minute", IPP_TAG_INTEGER), 0);
@@ -887,34 +880,11 @@ serverCreatePrinter(
   * Prepare values for the printer attributes...
   */
 
-  lis = cupsArrayGetFirst(Listeners);
-
-  if (Encryption != HTTP_ENCRYPTION_NEVER)
-  {
-    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPPS_SCHEME, NULL, lis->host, lis->port, resource);
-    webscheme = SERVER_HTTPS_SCHEME;
-  }
-  else
-  {
-    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPP_SCHEME, NULL, lis->host, lis->port, resource);
-    webscheme = SERVER_HTTP_SCHEME;
-  }
-
-  printer->default_uri = strdup(uri);
-
   if (printer->pinfo.icon)
   {
     printer->icon_resource = serverCreateResource(NULL, printer->pinfo.icon, "image/png", "icon", "Printer Icon", "static-image", NULL);
     serverAllocatePrinterResource(printer, printer->icon_resource);
   }
-
-  httpAssembleURIf(HTTP_URI_CODING_ALL, icons, sizeof(icons), webscheme, NULL, lis->host, lis->port, "%s/icon.png", resource);
-  httpAssembleURI(HTTP_URI_CODING_ALL, adminurl, sizeof(adminurl), webscheme, NULL, lis->host, lis->port, resource);
-  httpAssembleURIf(HTTP_URI_CODING_ALL, supplyurl, sizeof(supplyurl), webscheme, NULL, lis->host, lis->port, "%s/supplies", resource);
-
-  serverLogPrinter(SERVER_LOGLEVEL_INFO, printer, "printer-uri=\"%s\"", (char *)cupsArrayGetFirst(uris));
-  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-more-info=\"%s\"", adminurl);
-  serverLogPrinter(SERVER_LOGLEVEL_DEBUG, printer, "printer-supply-info-uri=\"%s\"", supplyurl);
 
   if (printer->pinfo.document_formats)
   {
@@ -1337,9 +1307,7 @@ serverCreatePrinter(
   ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "multiple-operation-time-out-action", NULL, "abort-job");
 
   /* natural-language-configured */
-  ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER,
-               IPP_CONST_TAG(IPP_TAG_LANGUAGE),
-               "natural-language-configured", NULL, "en");
+  ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_LANGUAGE), "natural-language-configured", NULL, "en");
 
   /* notify-attributes-supported */
   ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "notify-attributes-supported", sizeof(notify_attributes) / sizeof(notify_attributes[0]), NULL, notify_attributes);
@@ -1523,9 +1491,6 @@ serverCreatePrinter(
     }
   }
 
-  /* printer-icons */
-  ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-icons", NULL, icons);
-
   /* printer-info */
   if (!cupsArrayFind(existing, (void *)"printer-info"))
     ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "printer-info", NULL, info);
@@ -1572,9 +1537,6 @@ serverCreatePrinter(
 
     ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "printer-mandatory-job-attributes", (int)(sizeof(names) / sizeof(names[0])), NULL, names);
   }
-
-  /* printer-more-info */
-  ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-more-info", NULL, adminurl);
 
   /* printer-name */
   if (!cupsArrayFind(existing, (void *)"printer-name"))
@@ -1656,42 +1618,14 @@ serverCreatePrinter(
     /* printer-supply-description */
     if (!cupsArrayFind(existing, (void *)"printer-supply-description"))
       ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_TEXT), "printer-supply-description", printer->pinfo.ppm_color > 0 ? 5 : 2, NULL, printer_supply_desc);
-
-    /* printer-supply-info-uri */
-    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-supply-info-uri", NULL, supplyurl);
   }
-
-  /* printer-uri-supported */
-  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uri-supported", num_uris, NULL, (const char **)uriptrs);
 
   /* printer-uuid */
   if (!cupsArrayFind(existing, (void *)"printer-uuid"))
   {
-    httpAssembleUUID(lis->host, lis->port, name, 0, uuid, sizeof(uuid));
+    httpAssembleUUID(ServerName, DefaultPort, name, 0, uuid, sizeof(uuid));
     ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "printer-uuid", NULL, uuid);
   }
-
-  /* printer-xri-supported */
-  xri_sup = ippAddCollections(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-xri-supported", num_uris, NULL);
-  for (i = 0; i < num_uris; i ++)
-  {
-    xri_col = ippNew();
-
-    ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
-
-    if (Encryption != HTTP_ENCRYPTION_NEVER)
-      ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "tls");
-    else
-      ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "none");
-
-    ippAddString(xri_col, IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uriptrs[i]);
-
-    ippSetCollection(printer->pinfo.attrs, &xri_sup, i, xri_col);
-    ippDelete(xri_col);
-  }
-
-  cupsArrayDelete(uris);
-  free(uriptrs);
 
   /* pwg-raster-document-xxx-supported */
   for (i = 0; i < num_formats; i ++)
@@ -1743,23 +1677,10 @@ serverCreatePrinter(
     ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_TAG_KEYWORD, "urf-supported", (int)(sizeof(urf_supported) / sizeof(urf_supported[0])) - !printer->pinfo.duplex, NULL, urf_supported);
 
   /* uri-authentication-supported */
-  attr = ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-authentication-supported", num_uris, NULL, NULL);
-  for (i = 0; i < num_uris; i ++)
-    ippSetString(printer->pinfo.attrs, &attr, i, Authentication ? "basic"  : "none");
+  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-authentication-supported", Encryption == HTTP_ENCRYPTION_NEVER ? 1 : 2, NULL, Authentication ? uri_authentication_basic : uri_authentication_none);
 
   /* uri-security-supported */
-  if (Encryption != HTTP_ENCRYPTION_NEVER)
-  {
-    attr = ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", num_uris, NULL, NULL);
-    for (i = 0; i < num_uris; i ++)
-      ippSetString(printer->pinfo.attrs, &attr, i, "tls");
-  }
-  else
-  {
-    attr = ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", num_uris, NULL, NULL);
-    for (i = 0; i < num_uris; i ++)
-      ippSetString(printer->pinfo.attrs, &attr, i, "none");
-  }
+  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "uri-security-supported", Encryption == HTTP_ENCRYPTION_NEVER ? 1 : 2, NULL, uri_security_supported);
 
   /* which-jobs-supported */
   if (printer->pinfo.proxy_group != SERVER_GROUP_NONE || printer->pinfo.max_devices > 0)
@@ -1819,19 +1740,13 @@ serverCreatePrinter(
   }
 
   /* xri-authentication-supported */
-  ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication-supported", NULL, Authentication ? "basic" : "none");
+  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication-supported", Encryption == HTTP_ENCRYPTION_NEVER ? 1 : 2, NULL, Authentication ? uri_authentication_basic : uri_authentication_none);
 
   /* xri-security-supported */
-  if (Encryption != HTTP_ENCRYPTION_NEVER)
-    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "tls");
-  else
-    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "none");
+  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", Encryption == HTTP_ENCRYPTION_NEVER ? 1 : 2, NULL, uri_security_supported);
 
   /* xri-uri-scheme-supported */
-  if (Encryption != HTTP_ENCRYPTION_NEVER)
-    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipps");
-  else
-    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipp");
+  ippAddStrings(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-scheme-supported", Encryption == HTTP_ENCRYPTION_NEVER ? 1 : 2, NULL, xri_scheme_supported);
 
   if (num_formats > 0)
     free(formats[0]);
@@ -1965,20 +1880,12 @@ serverDeletePrinter(
     }
   }
 
-  if (printer->default_uri)
-    free(printer->default_uri);
-  if (printer->resource)
-    free(printer->resource);
-  if (printer->dns_sd_name)
-    free(printer->dns_sd_name);
-  if (printer->name)
-    free(printer->name);
-  if (printer->pinfo.icon)
-    free(printer->pinfo.icon);
-  if (printer->pinfo.command)
-    free(printer->pinfo.command);
-  if (printer->pinfo.device_uri)
-    free(printer->pinfo.device_uri);
+  free(printer->resource);
+  free(printer->dns_sd_name);
+  free(printer->name);
+  free(printer->pinfo.icon);
+  free(printer->pinfo.command);
+  free(printer->pinfo.device_uri);
 
   cupsArrayDelete(printer->pinfo.profiles);
   cupsArrayDelete(printer->pinfo.strings);
@@ -1996,8 +1903,7 @@ serverDeletePrinter(
   cupsArrayDelete(printer->completed_jobs);
   cupsArrayDelete(printer->jobs);
 
-  if (printer->identify_message)
-    free(printer->identify_message);
+  free(printer->identify_message);
 
   cupsRWDestroy(&printer->rwlock);
 

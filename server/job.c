@@ -200,7 +200,9 @@ serverCreateJob(
 {
   server_job_t		*job;		/* Job */
   ipp_attribute_t	*attr;		/* Job attribute */
-  char			uri[1024],	/* job-uri value */
+  char			job_uri[1024],	/* job-uri value */
+			printer_uri[1024],
+					/* job-printer-uri value */
 			uuid[64];	/* job-uuid value */
   server_listener_t	*lis = (server_listener_t *)cupsArrayGetFirst(Listeners);
 					/* First listener */
@@ -275,17 +277,22 @@ serverCreateJob(
 
   job->id = client->printer->next_job_id ++;
 
-  snprintf(uri, sizeof(uri), "%s/%d", client->printer->default_uri, job->id);
+  httpAssembleURIf(HTTP_URI_CODING_ALL, job_uri, sizeof(job_uri), Encryption == HTTP_ENCRYPTION_NEVER ? "ipp" : "ipps", NULL, client->host_field, client->host_port, "%s/%d", client->printer->resource, job->id);
   httpAssembleUUID(lis->host, lis->port, client->printer->name, job->id, uuid, sizeof(uuid));
 
   ippAddDate(job->attrs, IPP_TAG_JOB, "date-time-at-creation", ippTimeToDate(time(&job->created)));
   ippAddInteger(job->attrs, IPP_TAG_JOB, IPP_TAG_INTEGER, "job-id", job->id);
-  ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_URI, "job-uri", NULL, uri);
+  ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_URI, "job-uri", NULL, job_uri);
   ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_URI, "job-uuid", NULL, uuid);
   if ((attr = ippFindAttribute(client->request, "printer-uri", IPP_TAG_URI)) != NULL)
+  {
     ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_URI, "job-printer-uri", NULL, ippGetString(attr, 0, NULL));
+  }
   else
-    ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_URI, "job-printer-uri", NULL, client->printer->default_uri);
+  {
+    httpAssembleURI(HTTP_URI_CODING_ALL, printer_uri, sizeof(printer_uri), Encryption == HTTP_ENCRYPTION_NEVER ? "ipp" : "ipps", NULL, client->host_field, client->host_port, client->printer->resource);
+    ippAddString(job->attrs, IPP_TAG_JOB, IPP_TAG_URI, "job-printer-uri", NULL, printer_uri);
+  }
   ippAddInteger(job->attrs, IPP_TAG_JOB, IPP_TAG_INTEGER, "time-at-creation", (int)(job->created - client->printer->start_time));
 
   cupsArrayAdd(client->printer->jobs, job);

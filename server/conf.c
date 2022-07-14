@@ -1248,12 +1248,8 @@ create_system_attributes(void)
   size_t		i;		/* Looping var */
   ipp_t			*col;		/* Collection value */
   const char		*setting;	/* System setting value */
-  char			vcard[1024];	/* VCARD value */
-  server_listener_t	*lis;		/* Current listener */
-  cups_array_t		*uris;		/* Array of URIs */
-  char			uri[1024];	/* URI */
-  size_t		num_values = 0;	/* Number of values */
-  ipp_t			*values[32];	/* Collection values */
+  char			vcard[1024],	/* VCARD value */
+			uri[1024];	/* URI value */
 #ifndef _WIN32
   size_t		alloc_groups,	/* Allocated groups */
 			num_groups;	/* Number of groups */
@@ -1608,6 +1604,26 @@ create_system_attributes(void)
     "system-name",
     "system-owner-col"
   };
+  static const char * const xri_authentication_none[2] =
+  {					/* xri-authentication-supported values for none */
+    "none",
+    "none"
+  };
+  static const char * const xri_authentication_basic[2] =
+  {					/* xri-authentication-supported values for basic */
+    "basic",
+    "basic"
+  };
+  static const char * const xri_scheme_supported[] =
+  {					// xri-scheme-supported values
+    "ipp",
+    "ipps"
+  };
+  static const char * const xri_security_supported[2] =
+  {					/* xri-security-supported values */
+    "none",
+    "tls"
+  };
 
 
   SystemAttributes = ippNew();
@@ -1851,8 +1867,7 @@ create_system_attributes(void)
   /* system-uuid */
   if ((setting = cupsGetOption("UUID", SystemNumSettings, SystemSettings)) == NULL)
   {
-    lis = cupsArrayGetFirst(Listeners);
-    httpAssembleUUID(lis->host, lis->port, "", 0, uuid, sizeof(uuid));
+    httpAssembleUUID(ServerName, DefaultPort, "", 0, uuid, sizeof(uuid));
     setting = uuid;
   }
   else if (strncmp(setting, "urn:uuid:", 9))
@@ -1863,58 +1878,14 @@ create_system_attributes(void)
 
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_URI, "system-uuid", NULL, setting);
 
-  /* system-xri-supported */
-  uris = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
-  for (lis = cupsArrayGetFirst(Listeners); lis && num_values < (int)(sizeof(values) / sizeof(values[0])); lis = cupsArrayGetNext(Listeners))
-  {
-    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), SERVER_IPP_SCHEME, NULL, lis->host, lis->port, "/ipp/system");
-
-    if (!DefaultSystemURI)
-      DefaultSystemURI = strdup(uri);
-
-    if (!cupsArrayFind(uris, uri))
-    {
-      cupsArrayAdd(uris, uri);
-
-      col = ippNew();
-
-      ippAddString(col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
-
-      if (Encryption != HTTP_ENCRYPTION_NEVER)
-        ippAddString(col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "tls");
-      else
-        ippAddString(col, IPP_TAG_ZERO, IPP_TAG_KEYWORD, "xri-security", NULL, "none");
-
-      ippAddString(col, IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uri);
-
-      values[num_values ++] = col;
-    }
-  }
-
-  if (num_values > 0)
-  {
-    ippAddCollections(SystemAttributes, IPP_TAG_SYSTEM, "system-xri-supported", num_values, (const ipp_t **)values);
-
-    for (i = 0; i < num_values; i ++)
-      ippDelete(values[i]);
-  }
-
-  cupsArrayDelete(uris);
-
   /* xri-authentication-supported */
-  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication-supported", NULL, Authentication ? "basic" : "none");
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication-supported", Encryption == HTTP_ENCRYPTION_NEVER ? 1 : 2, NULL, Authentication ? xri_authentication_basic : xri_authentication_none);
 
   /* xri-security-supported */
-  if (Encryption != HTTP_ENCRYPTION_NEVER)
-    ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "tls");
-  else
-    ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", NULL, "none");
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", Encryption == HTTP_ENCRYPTION_NEVER ? 1 : 2, NULL, xri_security_supported);
 
   /* xri-uri-scheme-supported */
-  if (Encryption != HTTP_ENCRYPTION_NEVER)
-    ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipps");
-  else
-    ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", NULL, "ipp");
+  ippAddStrings(SystemAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-scheme-supported", Encryption == HTTP_ENCRYPTION_NEVER ? 1 : 2, NULL, xri_scheme_supported);
 }
 
 
@@ -2641,34 +2612,51 @@ load_system(const char *conf)		/* I - Configuration file */
 
 	if (ptr)
 	{
+	  // Use the port number from the Listen line...
 	  *ptr++ = '\0';
 	  port   = atoi(ptr);
 	}
-	else if (DefaultPort)
-	{
-	  port = DefaultPort;
-	}
 	else
 	{
-#ifdef _WIN32
-          port = 8631;
-#else
-	  port = 8000 + ((int)getuid() % 1000);
-#endif /* _WIN32 */
+	  // Use the default port number...
+	  port = DefaultPort;
 	}
 
-        if (!DefaultPort)
-          DefaultPort = port;
-
-	if (!serverCreateListeners(host, port))
+        if (port)
+        {
+          // Use the specified port number...
+	  status = serverCreateListeners(host, port);
+        }
+	else
 	{
-	  status = 0;
-	  break;
+	  // Automatically choose a port number...
+#ifdef _WIN32
+          port = 7999;
+#else
+	  port = 7999 + ((int)getuid() % 1000);
+#endif /* _WIN32 */
+
+          do
+          {
+            port ++;
+
+	    status = serverCreateListeners(host, port);
+	  }
+	  while (!status && port < 10000);
+
+	  if (status && !DefaultPort)
+	    DefaultPort = port;
 	}
+
+        if (!status)
+          break;
       }
 
       if (!status)
+      {
+	serverLog(SERVER_LOGLEVEL_ERROR, "Unable to listen on address \"%s\": %s", host, cupsLastErrorString());
         break;
+      }
     }
     else if (!strcasecmp(line, "LogFile"))
     {

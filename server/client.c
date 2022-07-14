@@ -80,6 +80,7 @@ int					/* O - 1 on success, 0 on error */
 serverCreateListeners(const char *host,	/* I - Hostname, IP address, or NULL for any address */
                       int        port)	/* I - Port number */
 {
+  int			count = 0;	/* Number of sockets */
   int			sock;		/* Listener socket */
   http_addrlist_t	*addrlist,	/* Listen address(es) */
 			*addr;		/* Current address */
@@ -107,12 +108,9 @@ serverCreateListeners(const char *host,	/* I - Hostname, IP address, or NULL for
   for (addr = addrlist; addr; addr = addr->next)
   {
     if ((sock = httpAddrListen(&(addr->addr), port)) < 0)
-    {
-      char temp[256];			/* Numeric address */
-
-      serverLog(SERVER_LOGLEVEL_ERROR, "Unable to listen on address \"%s\": %s", httpAddrGetString(&(addr->addr), temp, sizeof(temp)), cupsLastErrorString());
       continue;
-    }
+
+    count ++;
 
     lis = calloc(1, sizeof(server_listener_t));
     lis->fd = sock;
@@ -127,7 +125,7 @@ serverCreateListeners(const char *host,	/* I - Hostname, IP address, or NULL for
 
   httpAddrFreeList(addrlist);
 
-  return (cupsArrayGetCount(Listeners) > 0);
+  return (count > 0);
 }
 
 
@@ -229,31 +227,13 @@ serverProcessHTTP(
   ipp_state_t		ipp_state;	/* State of IPP transfer */
   char			scheme[32],	/* Method/scheme */
 			userpass[128],	/* Username:password */
-			hostname[HTTP_MAX_HOST];
+			hostname[HTTP_MAX_HOST],
 					/* Hostname */
+			*ptr;		/* Pointer into Host: header */
   int			port;		/* Port number */
   const char		*authorization;	/* Authorization value */
   const char		*encoding;	/* Content-Encoding value */
   server_resource_t	*res;		/* Resource */
-  static const char * const http_states[] =
-  {					/* Strings for logging HTTP method */
-    "WAITING",
-    "OPTIONS",
-    "GET",
-    "GET_SEND",
-    "HEAD",
-    "POST",
-    "POST_RECV",
-    "POST_SEND",
-    "PUT",
-    "PUT_RECV",
-    "DELETE",
-    "TRACE",
-    "CONNECT",
-    "STATUS",
-    "UNKNOWN_METHOD",
-    "UNKNOWN_VERSION"
-  };
 
 
  /*
@@ -271,8 +251,7 @@ serverProcessHTTP(
   * Read a request from the connection...
   */
 
-  while ((http_state = httpReadRequest(client->http, uri,
-                                       sizeof(uri))) == HTTP_STATE_WAITING)
+  while ((http_state = httpReadRequest(client->http, uri, sizeof(uri))) == HTTP_STATE_WAITING)
     usleep(1);
 
  /*
@@ -301,17 +280,13 @@ serverProcessHTTP(
     return (0);
   }
 
-  serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s %s", http_states[http_state],
-          uri);
+  serverLogClient(SERVER_LOGLEVEL_INFO, client, "%s %s", httpStateString(http_state), uri);
 
  /*
   * Separate the URI into its components...
   */
 
-  if (httpSeparateURI(HTTP_URI_CODING_MOST, uri, scheme, sizeof(scheme),
-		      userpass, sizeof(userpass),
-		      hostname, sizeof(hostname), &port,
-		      client->uri, sizeof(client->uri)) < HTTP_URI_STATUS_OK &&
+  if (httpSeparateURI(HTTP_URI_CODING_MOST, uri, scheme, sizeof(scheme), userpass, sizeof(userpass), hostname, sizeof(hostname), &port, client->uri, sizeof(client->uri)) < HTTP_URI_STATUS_OK &&
       (http_state != HTTP_STATE_OPTIONS || strcmp(uri, "*")))
   {
     serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Bad URI \"%s\".", uri);
@@ -352,12 +327,29 @@ serverProcessHTTP(
     return (0);
   }
 
+  cupsCopyString(client->host_field, httpGetField(client->http, HTTP_FIELD_HOST), sizeof(client->host_field));
+  if ((ptr = strrchr(client->host_field, ':')) != NULL)
+  {
+    char *end;				// End of port number
+
+    // Grab port number from Host: header...
+    *ptr++ = '\0';
+    client->host_port = (int)strtol(ptr, &end, 10);
+
+    if (errno == ERANGE || *end)
+      client->host_port = DefaultPort;
+  }
+  else
+  {
+    // Use the default port number...
+    client->host_port = DefaultPort;
+  }
+
  /*
   * Handle HTTP Upgrade...
   */
 
-  if (!strcasecmp(httpGetField(client->http, HTTP_FIELD_CONNECTION),
-                        "Upgrade"))
+  if (!strcasecmp(httpGetField(client->http, HTTP_FIELD_CONNECTION), "Upgrade"))
   {
     if (strstr(httpGetField(client->http, HTTP_FIELD_UPGRADE), "TLS/") != NULL && !httpIsEncrypted(client->http) && Encryption != HTTP_ENCRYPTION_NEVER)
     {
