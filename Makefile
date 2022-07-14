@@ -68,7 +68,7 @@ depend:
 install:
 	for dir in $(DIRS) examples man; do \
 		echo Installing in $$dir...; \
-		(cd $$dir; $(MAKE) $(MFLAGS) install) || exit 1; \
+		(cd $$dir; $(MAKE) $(MFLAGS) prefix=$(prefix) install) || exit 1; \
 	done
 
 
