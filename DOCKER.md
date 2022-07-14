@@ -2,7 +2,8 @@ Docker Support for IPP Sample Code
 ==================================
 
 This repository includes a sample Dockerfile for compiling and running
-`ippserver` in a Docker container.
+`ippserver` in a Docker container, and a docker-compose.yml file for running
+commands via "docker compose".
 
 
 Building and Running on Docker
@@ -19,6 +20,26 @@ You now can run the container with a bash terminal and go to the
     docker run -it ippsample bash
 
 You can also run one of the IPP binaries instead of the bash terminal.
+
+
+Building and Running with Docker Compose
+----------------------------------------
+
+To start the IPP server:
+
+    docker compose up ippserver
+
+Run the IPP Everywhere test:
+
+    docker compose up ipptest
+
+To list all IPP printers:
+
+    docker compose up ippfind
+
+To run the IPP proxy:
+
+    docker compose up ippproxy
 
 
 Fixing The Builds / Debugging Docker Problems
