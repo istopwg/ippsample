@@ -2045,8 +2045,6 @@ serverRegisterPrinter(
 			kind[251],	/* List of printer-kind values */
 			urf[252],	/* List of supported URF values */
 			*ptr;		/* Pointer into string */
-  server_listener_t	*lis = cupsArrayGetFirst(Listeners);
-					/* Listen socket */
   char			regtype[256];	/* DNS-SD service type */
 #  ifdef HAVE_MDNSRESPONDER
   DNSServiceErrorType	error;		/* Error from Bonjour */
@@ -2173,7 +2171,7 @@ serverRegisterPrinter(
     else
       cupsCopyString(regtype, SERVER_IPP_TYPE, sizeof(regtype));
 
-    if ((error = DNSServiceRegister(&(printer->ipp_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, regtype, NULL /* domain */, NULL /* host */, htons(lis->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
+    if ((error = DNSServiceRegister(&(printer->ipp_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, regtype, NULL /* domain */, NULL /* host */, htons(DefaultPort), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
     {
       serverLogPrinter(SERVER_LOGLEVEL_ERROR, printer, "Unable to register \"%s.%s\": %d", printer->dns_sd_name, regtype, error);
       return (0);
@@ -2196,7 +2194,7 @@ serverRegisterPrinter(
     else
       cupsCopyString(regtype, SERVER_IPPS_TYPE, sizeof(regtype));
 
-    if ((error = DNSServiceRegister(&(printer->ipps_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, regtype, NULL /* domain */, NULL /* host */, htons(lis->port), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
+    if ((error = DNSServiceRegister(&(printer->ipps_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, regtype, NULL /* domain */, NULL /* host */, htons(DefaultPort), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
     {
       serverLogPrinter(SERVER_LOGLEVEL_ERROR, printer, "Unable to register \"%s.%s\": %d", printer->dns_sd_name, regtype, error);
       return (0);
@@ -2216,7 +2214,7 @@ serverRegisterPrinter(
 
   printer->http_ref = DNSSDMaster;
 
-  if ((error = DNSServiceRegister(&(printer->http_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, SERVER_WEB_TYPE ",_printer", NULL /* domain */, NULL /* host */, htons(lis->port), 0 /* txtLen */, NULL, /* txtRecord */ (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
+  if ((error = DNSServiceRegister(&(printer->http_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, SERVER_WEB_TYPE ",_printer", NULL /* domain */, NULL /* host */, htons(DefaultPort), 0 /* txtLen */, NULL, /* txtRecord */ (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
   {
     serverLogPrinter(SERVER_LOGLEVEL_ERROR, printer, "Unable to register \"%s.%s\": %d", printer->dns_sd_name, SERVER_WEB_TYPE ",_printer", error);
     return (0);
@@ -2270,7 +2268,7 @@ serverRegisterPrinter(
 
   if (!is_print3d)
   {
-    avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_IPP_TYPE, NULL, NULL, lis->port, ipp_txt);
+    avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_IPP_TYPE, NULL, NULL, DefaultPort, ipp_txt);
     if (DNSSDSubType && *DNSSDSubType)
     {
       char *temptypes = strdup(DNSSDSubType), *start, *end;
@@ -2294,7 +2292,7 @@ serverRegisterPrinter(
   {
     if (is_print3d)
     {
-      avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_IPPS_3D_TYPE, NULL, NULL, lis->port, ipp_txt);
+      avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_IPPS_3D_TYPE, NULL, NULL, DefaultPort, ipp_txt);
       if (DNSSDSubType && *DNSSDSubType)
       {
 	char *temptypes = strdup(DNSSDSubType), *start, *end;
@@ -2315,7 +2313,7 @@ serverRegisterPrinter(
     }
     else
     {
-      avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_IPPS_TYPE, NULL, NULL, lis->port, ipp_txt);
+      avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_IPPS_TYPE, NULL, NULL, DefaultPort, ipp_txt);
       if (DNSSDSubType && *DNSSDSubType)
       {
 	char *temptypes = strdup(DNSSDSubType), *start, *end;
@@ -2346,7 +2344,7 @@ serverRegisterPrinter(
   * Finally _http.tcp (HTTP) for the web interface...
   */
 
-  avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_WEB_TYPE, NULL, NULL, lis->port, NULL);
+  avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_WEB_TYPE, NULL, NULL, DefaultPortort, NULL);
   avahi_entry_group_add_service_subtype(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_WEB_TYPE, NULL, "_printer._sub." SERVER_WEB_TYPE);
 
  /*
