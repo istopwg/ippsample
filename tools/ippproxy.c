@@ -1868,10 +1868,17 @@ update_device_attrs(
     }
   }
 
-  httpReconnect(http, 30000, NULL);
-  ippDelete(cupsDoRequest(http, request, resource));
+  if (httpReconnect(http, 30000, NULL))
+  {
+    ippDelete(cupsDoRequest(http, request, resource));
 
-  if (cupsLastError() != IPP_STATUS_OK)
+    if (cupsLastError() != IPP_STATUS_OK)
+    {
+      plogf(NULL, "Unable to update the output device with '%s': %s", printer_uri, cupsLastErrorString());
+      return (0);
+    }
+  }
+  else
   {
     plogf(NULL, "Unable to update the output device with '%s': %s", printer_uri, cupsLastErrorString());
     return (0);
