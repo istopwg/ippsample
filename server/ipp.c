@@ -7701,7 +7701,7 @@ ipp_update_active_jobs(
 
   if ((job_states = ippFindAttribute(client->request, "output-device-job-states", IPP_TAG_ZERO)) == NULL || ippGetGroupTag(job_states) != IPP_TAG_OPERATION || ippGetValueTag(job_states) != IPP_TAG_ENUM)
   {
-    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, job_ids ? "Bad output-device-job-states attribute." : "Missing required output-device-job-states attribute.");
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, job_states ? "Bad output-device-job-states attribute." : "Missing required output-device-job-states attribute.");
     return;
   }
 
