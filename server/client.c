@@ -110,9 +110,12 @@ serverCreateListeners(const char *host,	/* I - Hostname, IP address, or NULL for
     if ((sock = httpAddrListen(&(addr->addr), port)) < 0)
       continue;
 
-    count ++;
+    if ((lis = calloc(1, sizeof(server_listener_t))) == NULL)
+    {
+      httpAddrClose(&addr->addr, sock);
+      break;
+    }
 
-    lis = calloc(1, sizeof(server_listener_t));
     lis->fd = sock;
     cupsCopyString(lis->host, host, sizeof(lis->host));
     lis->port = port;
@@ -121,6 +124,7 @@ serverCreateListeners(const char *host,	/* I - Hostname, IP address, or NULL for
       Listeners = cupsArrayNew(NULL, NULL, NULL, 0, NULL, NULL);
 
     cupsArrayAdd(Listeners, lis);
+    count ++;
   }
 
   httpAddrFreeList(addrlist);
