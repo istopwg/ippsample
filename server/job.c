@@ -221,6 +221,7 @@ serverCreateJob(
   if ((job = calloc(1, sizeof(server_job_t))) == NULL)
   {
     perror("Unable to allocate memory for job");
+    cupsRWUnlock(&(client->printer->rwlock));
     return (NULL);
   }
 
