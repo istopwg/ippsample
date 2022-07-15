@@ -849,7 +849,7 @@ add_job_privacy(void)
     "imposition-template",
     "insert-sheet",
     "job-account-id",
-    "job-accounting-sheets"
+    "job-accounting-sheets",
     "job-accounting-user-id",
     "job-copies",
     "job-cover-back",
