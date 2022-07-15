@@ -596,9 +596,15 @@ serverProcessHTTP(
 
 	  serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Resource \"%s\" maps to \"%s\".", res->resource, res->filename);
 
-	  if (!stat(res->filename, &fileinfo) && (fd = open(res->filename, O_RDONLY | O_BINARY)) >= 0)
+	  if ((fd = open(res->filename, O_RDONLY | O_BINARY)) >= 0)
 	  {
-	    if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, res->format, (size_t)fileinfo.st_size))
+	    if (fstat(fd, &fileinfo))
+	    {
+	      serverRespondHTTP(client, HTTP_STATUS_SERVER_ERROR, NULL, NULL, 0);
+	      close(fd);
+	      return (0);
+	    }
+	    else if (!serverRespondHTTP(client, HTTP_STATUS_OK, NULL, res->format, (size_t)fileinfo.st_size))
 	    {
 	      close(fd);
 	      return (0);
