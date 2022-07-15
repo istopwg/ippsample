@@ -30,9 +30,6 @@ serverAddResourceFile(
     const char        *filename,	/* I - File */
     const char        *format)		/* I - MIME media type */
 {
-  server_listener_t *lis = (server_listener_t *)cupsArrayGetFirst(Listeners);
-					/* First listener */
-  char		uri[1024];		/* resource-data-uri value */
   struct stat	resinfo;		/* Resource info */
 
 
@@ -57,12 +54,6 @@ serverAddResourceFile(
   }
 
   cupsRWUnlock(&ResourcesRWLock);
-
-  if (Encryption != HTTP_ENCRYPTION_NEVER)
-    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "https", NULL, lis->host, lis->port, res->resource);
-  else
-    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "http", NULL, lis->host, lis->port, res->resource);
-  ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_URI, "resource-data-uri", NULL, uri);
 
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_MIMETYPE, "resource-format", NULL, res->format);
 
@@ -144,8 +135,6 @@ serverCreateResource(
     const char *type,			/* I - Resource type */
     const char *language)		/* I - Resource language or `NULL` */
 {
-  server_listener_t *lis = (server_listener_t *)cupsArrayGetFirst(Listeners);
-					/* First listener */
   server_resource_t	*res;		/* Resource */
   char			uuid[64];	/* resource-uuid value */
   time_t		curtime = time(NULL);
@@ -242,7 +231,7 @@ serverCreateResource(
 
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_KEYWORD, "resource-type", NULL, type);
 
-  httpAssembleUUID(lis->host, lis->port, "_system_", res->id, uuid, sizeof(uuid));
+  httpAssembleUUID(ServerName, DefaultPort, "_system_", res->id, uuid, sizeof(uuid));
   ippAddString(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_URI, "resource-uuid", NULL, uuid);
 
   ippAddOutOfBand(res->attrs, IPP_TAG_RESOURCE, IPP_TAG_NOVALUE, "resource-version");

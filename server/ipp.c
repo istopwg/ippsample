@@ -1240,6 +1240,15 @@ copy_resource_attributes(
 {
   serverCopyAttributes(client->response, resource->attrs, ra, NULL, IPP_TAG_RESOURCE, 0);
 
+  /* resource-data-uri */
+  if (!ra || cupsArrayFind(ra, "resource-data-uri"))
+  {
+    char	uri[1024];		/* URL */
+
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), httpIsEncrypted(client->http) ? "https" : "http", NULL, client->host_field, client->host_port, resource->resource);
+    ippAddString(client->response, IPP_TAG_RESOURCE, IPP_TAG_URI, "resource-data-uri", NULL, uri);
+  }
+
   /* resource-state */
   if (!ra || cupsArrayFind(ra, "resource-state"))
   {

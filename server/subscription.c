@@ -150,12 +150,10 @@ serverCreateSubscription(
     ipp_attribute_t *notify_attributes,	/* I - Attributes to report */
     ipp_attribute_t *notify_user_data)	/* I - User data, if any */
 {
-  server_listener_t *lis = (server_listener_t *)cupsArrayGetFirst(Listeners);
-					/* First listener */
   server_subscription_t	*sub;		/* Subscription */
   ipp_attribute_t	*attr;		/* Subscription attribute */
   char			uuid[64];	/* notify-subscription-uuid value */
-  char			uri[1024];	// URI
+  char			uri[1024];	/* URI */
 
 
  /*
@@ -201,18 +199,18 @@ serverCreateSubscription(
 
   ippAddInteger(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-subscription-id", sub->id);
 
-  httpAssembleUUID(lis->host, lis->port, client->printer ? client->printer->name : "_system_", -sub->id, uuid, sizeof(uuid));
+  httpAssembleUUID(ServerName, DefaultPort, client->printer ? client->printer->name : "_system_", -sub->id, uuid, sizeof(uuid));
   attr = ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-subscription-uuid", NULL, uuid);
   sub->uuid = ippGetString(attr, 0, NULL);
 
   if (client->printer)
   {
-    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), Encryption == HTTP_ENCRYPTION_NEVER ? "ipp" : "ipps", NULL, client->host_field, client->host_port, client->printer->resource);
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), httpIsEncrypted(client->http) ? "ipps" : "ipp", NULL, client->host_field, client->host_port, client->printer->resource);
     ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-printer-uri", NULL, uri);
   }
   else
   {
-    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), Encryption == HTTP_ENCRYPTION_NEVER ? "ipp" : "ipps", NULL, client->host_field, client->host_port, "/ipp/system");
+    httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), httpIsEncrypted(client->http) ? "ipps" : "ipp", NULL, client->host_field, client->host_port, "/ipp/system");
     ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_URI, "notify-system-uri", NULL, uri);
   }
 
