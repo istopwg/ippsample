@@ -7556,6 +7556,8 @@ ipp_startup_all_printers(
     {
       printer->is_shutdown = 0;
       printer->state_reasons &= (server_preason_t)~SERVER_PREASON_PRINTER_SHUTDOWN;
+
+      cupsRWUnlock(&printer->rwlock);
     }
     else
     {
@@ -7563,6 +7565,7 @@ ipp_startup_all_printers(
 
       if (printer->processing_job)
       {
+	cupsRWUnlock(&printer->rwlock);
 	serverStopJob(printer->processing_job);
       }
       else if (printer->state == IPP_PSTATE_STOPPED)
@@ -7570,11 +7573,10 @@ ipp_startup_all_printers(
 	printer->state         = IPP_PSTATE_IDLE;
 	printer->state_reasons = SERVER_PREASON_NONE;
 
+	cupsRWUnlock(&printer->rwlock);
 	serverCheckJobs(printer);
       }
     }
-
-    cupsRWUnlock(&printer->rwlock);
   }
 
   cupsRWUnlock(&PrintersRWLock);
