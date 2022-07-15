@@ -276,7 +276,11 @@ main(int  argc,				// I - Number of command-line args
 	        usage(1);
 	      }
 
-	      freopen(argv[i], "w", stdout);
+	      if (!freopen(argv[i], "w", stdout))
+	      {
+	        fprintf(stderr, "ERROR: Unable to open '%s': %s\n", argv[i], strerror(errno));
+	        return (1);
+	      }
 	      break;
 
 	  case 'i' :
