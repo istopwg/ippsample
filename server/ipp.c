@@ -3360,8 +3360,6 @@ ipp_delete_printer(
     }
   }
 
-  cupsRWUnlock(&client->printer->rwlock);
-
  /*
   * Mark all subscriptions for this printer to expire in 30 seconds...
   */
@@ -3390,6 +3388,8 @@ ipp_delete_printer(
     serverStopJob(client->printer->processing_job);
 
     serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_STATE_CHANGED, "Printer being deleted.");
+
+    cupsRWUnlock(&client->printer->rwlock);
   }
   else
   {
@@ -3398,6 +3398,7 @@ ipp_delete_printer(
 
     serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_DELETED, "Printer deleted.");
 
+    cupsRWUnlock(&client->printer->rwlock);
     serverDeletePrinter(client->printer);
   }
 
