@@ -1136,9 +1136,10 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, info->device_uuid);
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
 
-  httpReconnect(info->http, 30000, NULL);
-
-  job_attrs = cupsDoRequest(info->http, request, info->resource);
+  if (httpReconnect(info->http, 30000, NULL))
+    job_attrs = cupsDoRequest(info->http, request, info->resource);
+  else
+    job_attrs = NULL;
 
   if (!job_attrs || cupsLastError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
   {
