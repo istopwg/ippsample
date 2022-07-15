@@ -3733,6 +3733,7 @@ xform_document(
 #endif // _WIN32
     {
       fprintf(stderr, "ERROR: Unable to run pdftoppm command: %s\n", strerror(errno));
+      free(line);
       return (false);
     }
 
