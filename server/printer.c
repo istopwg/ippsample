@@ -2344,7 +2344,7 @@ serverRegisterPrinter(
   * Finally _http.tcp (HTTP) for the web interface...
   */
 
-  avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_WEB_TYPE, NULL, NULL, DefaultPortort, NULL);
+  avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_WEB_TYPE, NULL, NULL, DefaultPort, NULL);
   avahi_entry_group_add_service_subtype(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_WEB_TYPE, NULL, "_printer._sub." SERVER_WEB_TYPE);
 
  /*
