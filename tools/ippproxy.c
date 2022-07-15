@@ -1511,6 +1511,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
     {
       plogf(pjob, "Unable to connect to '%s': %s", info->device_uri, cupsLastErrorString());
       pjob->local_job_state = IPP_JSTATE_ABORTED;
+      httpAddrFreeList(list);
       return;
     }
 
@@ -1597,6 +1598,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
     if ((http = httpConnect(host, port, list, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
     {
       plogf(pjob, "Unable to connect to '%s': %s\n", info->device_uri, cupsLastErrorString());
+      httpAddrFreeList(list);
       pjob->local_job_state = IPP_JSTATE_ABORTED;
       return;
     }
@@ -1619,6 +1621,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
     {
       plogf(pjob, "Unable to get list of supported operations from printer.");
       pjob->local_job_state = IPP_JSTATE_ABORTED;
+      httpAddrFreeList(list);
       ippDelete(response);
       httpClose(http);
       return;
@@ -1694,6 +1697,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
       {
 	plogf(pjob, "Unable to create local job: %s", cupsLastErrorString());
 	pjob->local_job_state = IPP_JSTATE_ABORTED;
+	httpAddrFreeList(list);
 	httpClose(http);
 	return;
       }
@@ -1752,6 +1756,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
     {
       plogf(pjob, "Unable to create local job: %s", cupsLastErrorString());
       pjob->local_job_state = IPP_JSTATE_ABORTED;
+      httpAddrFreeList(list);
       httpClose(http);
       return;
     }
@@ -1799,6 +1804,8 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
 
     httpClose(http);
   }
+
+  httpAddrFreeList(list);
 
   update_document_status(info, pjob, doc_number, IPP_DSTATE_COMPLETED);
 }
