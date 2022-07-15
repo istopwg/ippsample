@@ -3746,25 +3746,6 @@ process_http(ipp3d_client_t *client)	/* I - Client connection */
 			hostname[HTTP_MAX_HOST];
 					/* Hostname */
   int			port;		/* Port number */
-  static const char * const http_states[] =
-  {					/* Strings for logging HTTP method */
-    "WAITING",
-    "OPTIONS",
-    "GET",
-    "GET_SEND",
-    "HEAD",
-    "POST",
-    "POST_RECV",
-    "POST_SEND",
-    "PUT",
-    "PUT_RECV",
-    "DELETE",
-    "TRACE",
-    "CONNECT",
-    "STATUS",
-    "UNKNOWN_METHOD",
-    "UNKNOWN_VERSION"
-  };
 
 
  /*
@@ -3812,7 +3793,7 @@ process_http(ipp3d_client_t *client)	/* I - Client connection */
     return (0);
   }
 
-  fprintf(stderr, "%s %s %s\n", client->hostname, http_states[http_state], uri);
+  fprintf(stderr, "%s %s %s\n", client->hostname, httpStateString(http_state), uri);
 
  /*
   * Separate the URI into its components...
