@@ -1773,6 +1773,8 @@ ipp_allocate_printer_resources(
   * Allocate resources...
   */
 
+  cupsRWUnlock(&printer->rwlock);
+
   for (i = 0, count = ippGetCount(resource_ids); i < count; i ++)
   {
     resource_id = ippGetInteger(resource_ids, i);
@@ -1780,8 +1782,6 @@ ipp_allocate_printer_resources(
 
     serverAllocatePrinterResource(printer, resource);
   }
-
-  cupsRWUnlock(&printer->rwlock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
