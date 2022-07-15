@@ -75,29 +75,28 @@ serverAddPrinter(
 
 
 /*
- * 'serverAddStringsFile()' - Add a strings file to a printer.
+ * 'serverAddStringsFileNoLock()' - Add a strings file to a printer.
+ *
+ * Note: Caller is responsible for locking the printer object.
  */
 
 void
-serverAddStringsFile(
+serverAddStringsFileNoLock(
     server_printer_t  *printer,		/* I - Printer */
     const char        *language,	/* I - Language */
     server_resource_t *resource)	/* I - Strings resource file */
 {
   server_lang_t	lang;			/* New localization */
 
+
   lang.lang     = (char *)language;
   lang.resource = resource;
-
-  cupsRWLockWrite(&printer->rwlock);
 
   if (!printer->pinfo.strings)
     printer->pinfo.strings = cupsArrayNew((cups_array_cb_t)compare_lang, NULL, NULL, 0, (cups_acopy_cb_t)copy_lang, (cups_afree_cb_t)free_lang);
 
   if (!cupsArrayFind(printer->pinfo.strings, &lang))
     cupsArrayAdd(printer->pinfo.strings, &lang);
-
-  cupsRWUnlock(&printer->rwlock);
 }
 
 

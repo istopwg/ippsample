@@ -843,12 +843,12 @@ convert_image(
       // Scale to fill...
       if (irot & 1)
       {
-        if ((ih * ratio) > cw)
+        if ((ih * ratio) < cw)
           ratio = cw / ih;
       }
       else
       {
-        if ((ih * ratio) > ch)
+        if ((ih * ratio) < ch)
           ratio = ch / ih;
       }
     }

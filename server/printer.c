@@ -59,6 +59,7 @@ serverAllocatePrinterResource(
   * Add the resource to the list...
   */
 
+  cupsRWLockWrite(&printer->rwlock);
   cupsRWLockWrite(&resource->rwlock);
 
   resource->use ++;
@@ -88,10 +89,11 @@ serverAllocatePrinterResource(
 					/* Language for string */
 
     if (language)
-      serverAddStringsFile(printer, language, resource);
+      serverAddStringsFileNoLock(printer, language, resource);
   }
 
   cupsRWUnlock(&resource->rwlock);
+  cupsRWUnlock(&printer->rwlock);
 }
 
 

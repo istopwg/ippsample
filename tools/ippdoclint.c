@@ -396,6 +396,8 @@ lint_jpeg(const char    *filename,	/* I - File to check */
     }
   }
 
+  cupsFileClose(fp);
+
   return (1);
 }
 
