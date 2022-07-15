@@ -4838,8 +4838,7 @@ ipp_get_subscription_attributes(
     server_client_t *client)		/* I - Client */
 {
   server_subscription_t	*sub;		/* Subscription */
-  cups_array_t		*ra = ippCreateRequestedArray(client->request),
-					/* Requested attributes */
+  cups_array_t		*ra,		/* Requested attributes */
 			*pa = NULL;	/* Privacy attributes */
 
 
@@ -4863,6 +4862,8 @@ ipp_get_subscription_attributes(
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this system.");
     return;
   }
+
+  ra = ippCreateRequestedArray(client->request);
 
   if ((sub = serverFindSubscription(client, 0)) == NULL)
   {
@@ -4893,8 +4894,7 @@ ipp_get_subscriptions(
     server_client_t *client)		/* I - Client */
 {
   server_subscription_t	*sub;		/* Current subscription */
-  cups_array_t		*ra = ippCreateRequestedArray(client->request),
-					/* Requested attributes */
+  cups_array_t		*ra,		/* Requested attributes */
 			*pa;		/* Privacy attributes */
   int			job_id,		/* notify-job-id value */
 			limit,		/* limit value, if any */
@@ -4927,6 +4927,7 @@ ipp_get_subscriptions(
   job_id  = ippGetInteger(ippFindAttribute(client->request, "notify-job-id", IPP_TAG_INTEGER), 0);
   limit   = ippGetInteger(ippFindAttribute(client->request, "limit", IPP_TAG_INTEGER), 0);
   my_subs = ippGetBoolean(ippFindAttribute(client->request, "my-subscriptions", IPP_TAG_BOOLEAN), 0);
+  ra      = ippCreateRequestedArray(client->request);
 
   if (client->username[0])
     username = client->username;
