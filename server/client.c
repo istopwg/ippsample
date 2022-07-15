@@ -1596,6 +1596,8 @@ show_materials(
 
   html_footer(client);
 
+  cupsFreeOptions(num_options, options);
+
   return (1);
 }
 
@@ -1929,6 +1931,8 @@ show_media(server_client_t  *client,	/* I - Client connection */
 
   html_footer(client);
 
+  cupsFreeOptions(num_options, options);
+
   return (1);
 }
 
@@ -2251,6 +2255,8 @@ show_supplies(
     html_printf(client, "</table>\n");
 
   html_footer(client);
+
+  cupsFreeOptions(num_options, options);
 
   return (1);
 }
