@@ -888,6 +888,7 @@ create_job(ipp3d_client_t *client)	/* I - Client */
   if ((job = calloc(1, sizeof(ipp3d_job_t))) == NULL)
   {
     perror("Unable to allocate memory for job");
+    cupsRWUnlock(&(client->printer->rwlock));
     return (NULL);
   }
 
