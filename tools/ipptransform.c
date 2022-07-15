@@ -1884,23 +1884,9 @@ page_dict_cb(pdfio_dict_t *dict,	// I - Dictionary
   pdfio_array_t	*arrayval = NULL;	// Array value
   pdfio_dict_t	*dictval = NULL;	// Dictionary value
   pdfio_obj_t	*objval;		// Object value
-  static const char *types[] =
-  {
-    "NONE",				// No value, not set
-    "ARRAY",				// Array
-    "BINARY",				// Binary data
-    "BOOLEAN",				// Boolean
-    "DATE",				// Date/time
-    "DICT",				// Dictionary
-    "INDIRECT",				// Indirect object (N G obj)
-    "NAME",				// Name
-    "NULL",				// Null object
-    "NUMBER",				// Number (integer or real)
-    "STRING"				// String
-  };
 
 
-  fprintf(stderr, "DEBUG: page_dict_cb(dict=%p, key=\"%s\", outpage=%p), type=%s\n", (void *)dict, key, (void *)outpage, types[pdfioDictGetType(dict, key)]);
+  fprintf(stderr, "DEBUG: page_dict_cb(dict=%p, key=\"%s\", outpage=%p), type=%d\n", (void *)dict, key, (void *)outpage, pdfioDictGetType(dict, key));
 
   if (strcmp(key, "ColorSpace") && strcmp(key, "ExtGState") && strcmp(key, "Font") && strcmp(key, "Pattern") && strcmp(key, "ProcSet") && strcmp(key, "Properties") && strcmp(key, "Shading") && strcmp(key, "XObject"))
     return (true);
