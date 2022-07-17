@@ -1137,9 +1137,14 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
 
   if (httpReconnect(info->http, 30000, NULL))
+  {
     job_attrs = cupsDoRequest(info->http, request, info->resource);
+  }
   else
+  {
+    ippDelete(request);
     job_attrs = NULL;
+  }
 
   if (!job_attrs || cupsLastError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
   {
@@ -1888,6 +1893,8 @@ update_device_attrs(
   }
   else
   {
+    ippDelete(request);
+
     plogf(NULL, "Unable to update the output device with '%s': %s", printer_uri, cupsLastErrorString());
     return (0);
   }
