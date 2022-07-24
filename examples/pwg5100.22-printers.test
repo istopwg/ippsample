@@ -1,0 +1,13 @@
+#
+# Printer tests for conformance with PWG 5100.22-2019
+#
+# Usage:
+#
+#   ./ipptool -tIf FILENAME system-uri pwg5100.22-printer.test
+#
+# Copyright © 2022 by the IEEE-ISTO Printer Working Group.
+#
+# Licensed under Apache License v2.0.  See the file "LICENSE" for more
+# information.
+#
+

@@ -42,6 +42,12 @@ TESTFILES	=	\
 			pwg5100.15.test \
 			pwg5100.16.test \
 			pwg5100.17.test \
+			pwg5100.18.test \
+			pwg5100.22.test \
+			pwg5100.22-base.test \
+			pwg5100.22-notifications.test \
+			pwg5100.22-printers.test \
+			pwg5100.22-resources.test \
 			rfc3380.test \
 			rfc3995-3996.test \
 			rfc3998.test \
