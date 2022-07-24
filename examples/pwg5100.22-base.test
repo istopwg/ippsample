@@ -202,12 +202,10 @@
 
     EXPECT system-default-printer-id IN-GROUP system-attributes-tag OF-TYPE integer(1:65535)|no-value COUNT 1
 
-    EXPECT system-device-id IN-GROUP system-attributes-tag OF-TYPE text COUNT 1
-
     EXPECT system-firmware-name IN-GROUP system-attributes-tag OF-TYPE name(MAX)
-    EXPECT system-firmware-patches IN-GROUP system-attributes-tag OF-TYPE SAME-COUNT-AS system-firmware-name
-    EXPECT system-firmware-string-version IN-GROUP system-attributes-tag OF-TYPE SAME-COUNT-AS system-firmware-name
-    EXPECT system-firmware-version IN-GROUP system-attributes-tag OF-TYPE SAME-COUNT-AS system-firmware-name
+    EXPECT system-firmware-patches IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-firmware-name
+    EXPECT system-firmware-string-version IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-firmware-name
+    EXPECT system-firmware-version IN-GROUP system-attributes-tag OF-TYPE octetString(64) SAME-COUNT-AS system-firmware-name
 
     EXPECT system-geo-location IN-GROUP system-attributes-tag OF-TYPE uri|unknown COUNT 1
 
@@ -250,9 +248,9 @@
     EXPECT system-pages-completed-col/monochrome OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_PAGES
 
     EXPECT system-resident-application-name IN-GROUP system-attributes-tag OF-TYPE name(MAX)
-    EXPECT system-resident-application-patches IN-GROUP system-attributes-tag OF-TYPE SAME-COUNT-AS system-resident-application-name
-    EXPECT system-resident-application-string-version IN-GROUP system-attributes-tag OF-TYPE SAME-COUNT-AS system-resident-application-name
-    EXPECT system-resident-application-version IN-GROUP system-attributes-tag OF-TYPE SAME-COUNT-AS system-resident-application-name
+    EXPECT system-resident-application-patches IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-resident-application-name
+    EXPECT system-resident-application-string-version IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-resident-application-name
+    EXPECT system-resident-application-version IN-GROUP system-attributes-tag OF-TYPE octetString(64) SAME-COUNT-AS system-resident-application-name
 
     EXPECT system-serial-number IN-GROUP system-attributes-tag OF-TYPE name(255) COUNT 1
 
@@ -268,9 +266,9 @@
     EXPECT system-strings-uri IN-GROUP system-attributes-tag OF-TYPE uri|no-value COUNT 1 IF-DEFINED HAVE_STRINGS
 
     EXPECT system-user-application-name IN-GROUP system-attributes-tag OF-TYPE name(MAX)
-    EXPECT system-user-application-patches IN-GROUP system-attributes-tag OF-TYPE SAME-COUNT-AS system-user-application-name
-    EXPECT system-user-application-string-version IN-GROUP system-attributes-tag OF-TYPE SAME-COUNT-AS system-user-application-name
-    EXPECT system-user-application-version IN-GROUP system-attributes-tag OF-TYPE SAME-COUNT-AS system-user-application-name
+    EXPECT system-user-application-patches IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-user-application-name
+    EXPECT system-user-application-string-version IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-user-application-name
+    EXPECT system-user-application-version IN-GROUP system-attributes-tag OF-TYPE octetString(64) SAME-COUNT-AS system-user-application-name
 
     EXPECT system-uuid IN-GROUP system-attributes-tag OF-TYPE uri COUNT 1
 
