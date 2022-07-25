@@ -1259,6 +1259,8 @@ create_system_attributes(void)
   struct group		*grp;		/* Current group */
 #endif /* !_WIN32 */
   char			uuid[128];	/* system-uuid */
+  unsigned		numbers[4];	/* Version number components */
+  unsigned char		version[8];	/* system-firmware-version value */
   static const char * const charset_supported[] =
   {					/* Values for charset-supported */
     "us-ascii",
@@ -1309,6 +1311,8 @@ create_system_attributes(void)
     IPP_OP_RENEW_SUBSCRIPTION,
     IPP_OP_CANCEL_SUBSCRIPTION,
     IPP_OP_GET_NOTIFICATIONS,
+    IPP_OP_GET_RESOURCE_ATTRIBUTES,
+    IPP_OP_GET_RESOURCES,
     IPP_OP_ALLOCATE_PRINTER_RESOURCES,
     IPP_OP_CREATE_PRINTER,
     IPP_OP_DEALLOCATE_PRINTER_RESOURCES,
@@ -1334,7 +1338,9 @@ create_system_attributes(void)
     IPP_OP_RESUME_ALL_PRINTERS,
     IPP_OP_SET_SYSTEM_ATTRIBUTES,
     IPP_OP_SHUTDOWN_ALL_PRINTERS,
-    IPP_OP_STARTUP_ALL_PRINTERS
+    IPP_OP_STARTUP_ALL_PRINTERS,
+    IPP_OP_GET_PRINTER_RESOURCES,
+    IPP_OP_RESTART_ONE_PRINTER
   };
   static const char * const printer_creation_attributes_supported[] =
   {					/* Values for printer-creation-attributes-supported */
@@ -1814,6 +1820,46 @@ create_system_attributes(void)
   /* smi2699-device-uri-schemes-supported */
   ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "smi2699-device-uri-schemes-supported", sizeof(smi2699_device_uri_schemes_supported) / sizeof(smi2699_device_uri_schemes_supported[0]), NULL, smi2699_device_uri_schemes_supported);
 
+  /* system-contact-col */
+  col = ippNew();
+
+  setting = cupsGetOption("OwnerEmail", SystemNumSettings, SystemSettings);
+  httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "mailto", NULL, NULL, 0, setting ? setting : "unknown@example.com");
+  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_URI, "owner-uri", NULL, uri);
+
+  setting = cupsGetOption("OwnerName", SystemNumSettings, SystemSettings);
+  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_NAME, "contact-name", NULL, setting ? setting : cupsGetUser());
+
+  serverMakeVCARD(NULL, cupsGetOption("OwnerName", SystemNumSettings, SystemSettings), cupsGetOption("OwnerLocation", SystemNumSettings, SystemSettings), cupsGetOption("OwnerEmail", SystemNumSettings, SystemSettings), cupsGetOption("OwnerPhone", SystemNumSettings, SystemSettings), vcard, sizeof(vcard));
+  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_TEXT, "contact-vcard", NULL, vcard);
+
+  ippAddCollection(SystemAttributes, IPP_TAG_SYSTEM, "system-contact-col", col);
+  ippDelete(col);
+
+  /* system-firmware-name */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_NAME), "system-firmware-name", NULL, "ippserver");
+
+  /* system-firmware-patches */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-firmware-patches", NULL, "");
+
+  /* system-firmware-string-version */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-firmware-string-version", NULL, IPPSAMPLE_VERSION);
+
+  /* system-firmware-version */
+  memset(numbers, 0, sizeof(numbers));
+  sscanf(IPPSAMPLE_VERSION, "%u.%u.%u.%u", numbers + 0, numbers + 1, numbers + 2, numbers + 3);
+
+  version[0] = (unsigned char)(numbers[0] >> 8);
+  version[1] = (unsigned char)(numbers[0] & 255);
+  version[2] = (unsigned char)(numbers[1] >> 8);
+  version[3] = (unsigned char)(numbers[1] & 255);
+  version[4] = (unsigned char)(numbers[2] >> 8);
+  version[5] = (unsigned char)(numbers[2] & 255);
+  version[6] = (unsigned char)(numbers[3] >> 8);
+  version[7] = (unsigned char)(numbers[3] & 255);
+
+  ippAddOctetString(SystemAttributes, IPP_TAG_SYSTEM, "system-firmware-version", version, sizeof(version));
+
   /* system-geo-location */
   setting = cupsGetOption("GeoLocation", SystemNumSettings, SystemSettings);
   if (setting)
@@ -1848,10 +1894,10 @@ create_system_attributes(void)
   ippAddString(col, IPP_TAG_ZERO, IPP_TAG_URI, "owner-uri", NULL, uri);
 
   setting = cupsGetOption("OwnerName", SystemNumSettings, SystemSettings);
-  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_NAME, "owner-name", NULL, setting ? setting : cupsGetUser());
+  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_NAME, "contact-name", NULL, setting ? setting : cupsGetUser());
 
   serverMakeVCARD(NULL, cupsGetOption("OwnerName", SystemNumSettings, SystemSettings), cupsGetOption("OwnerLocation", SystemNumSettings, SystemSettings), cupsGetOption("OwnerEmail", SystemNumSettings, SystemSettings), cupsGetOption("OwnerPhone", SystemNumSettings, SystemSettings), vcard, sizeof(vcard));
-  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_TEXT, "owner-vcard", NULL, vcard);
+  ippAddString(col, IPP_TAG_ZERO, IPP_TAG_TEXT, "contact-vcard", NULL, vcard);
 
   ippAddCollection(SystemAttributes, IPP_TAG_SYSTEM, "system-owner-col", col);
   ippDelete(col);
@@ -1874,6 +1920,9 @@ create_system_attributes(void)
     }
   }
 #endif /* 0 */
+
+  /* system-time-source-configured */
+  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "system-time-source-configured", NULL, "ntp");
 
   /* system-uuid */
   if ((setting = cupsGetOption("UUID", SystemNumSettings, SystemSettings)) == NULL)

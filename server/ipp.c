@@ -5083,8 +5083,8 @@ ipp_get_system_attributes(
 
       for (i = 0; i < count; i ++)
       {
-	ipp_attribute_t *attr;		/* Attribute */
-	ipp_t	*xri_col;		/* Collection value */
+	ipp_t		*xri_cols[2];	/* Collection value */
+        size_t		num_xri = 1;	/* Number of collection values */
 
 	printer = (server_printer_t *)cupsArrayGetElement(Printers, i);
 
@@ -5099,29 +5099,34 @@ ipp_get_system_attributes(
         ippAddInteger(col, IPP_TAG_ZERO, IPP_TAG_ENUM, "printer-state", (int)printer->state);
         serverCopyPrinterStateReasons(col, IPP_TAG_ZERO, printer);
 
-	xri_col = ippNew();
+	xri_cols[0] = ippNew();
 
-	ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
-	ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "none");
+	ippAddString(xri_cols[0], IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
+	ippAddString(xri_cols[0], IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "none");
 	httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "ipp", NULL, client->host_field, client->host_port, printer->resource);
-	ippAddString(xri_col, IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uri);
-	attr = ippAddCollection(col, IPP_TAG_ZERO, "printer-xri-supported", xri_col);
-	ippDelete(xri_col);
+	ippAddString(xri_cols[0], IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uri);
 
 	if (Encryption != HTTP_ENCRYPTION_NEVER)
 	{
-	  xri_col = ippNew();
+	  xri_cols[1] = ippNew();
 
-	  ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
-	  ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "tls");
+	  ippAddString(xri_cols[1], IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
+	  ippAddString(xri_cols[1], IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "tls");
 	  httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "ipps", NULL, client->host_field, client->host_port, printer->resource);
-	  ippAddString(xri_col, IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uri);
-	  ippSetCollection(client->response, &attr, 1, xri_col);
-	  ippDelete(xri_col);
+	  ippAddString(xri_cols[1], IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uri);
+	  num_xri ++;
+	}
+
+	ippAddCollections(col, IPP_TAG_ZERO, "printer-xri-supported", num_xri, (const ipp_t **)xri_cols);
+
+	while (num_xri > 0)
+	{
+	  num_xri --;
+	  ippDelete(xri_cols[num_xri]);
 	}
 
         ippSetCollection(client->response, &printers, i, col);
-//        ippDelete(col);
+        ippDelete(col);
 
         cupsRWUnlock(&printer->rwlock);
       }

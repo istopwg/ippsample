@@ -218,7 +218,7 @@ VALUE({					/* Strings for bits */
   "resource-config-changed",
   "resource-created",
   "resource-installed",
-  "resource-changed",
+  "resource-state-changed",
 
   "printer-created",
   "printer-deleted",

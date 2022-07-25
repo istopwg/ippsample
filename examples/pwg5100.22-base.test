@@ -175,26 +175,29 @@
     EXPECT system-config-changes IN-GROUP system-attributes-tag OF-TYPE integer COUNT 1
 
     EXPECT system-configured-printers IN-GROUP system-attributes-tag OF-TYPE collection|no-value
-    EXPECT system-configured-printers/printer-id OF-TYPE integer(1:65535) COUNT 1
-    EXPECT system-configured-printers/printer-info OF-TYPE text(127) COUNT 1
-    EXPECT system-configured-printers/printer-is-accepting-jobs OF-TYPE boolean COUNT 1
-    EXPECT system-configured-printers/printer-name OF-TYPE name(127) COUNT 1
-    EXPECT system-configured-printers/printer-service-type OF-TYPE keyword COUNT 1
-    EXPECT system-configured-printers/printer-state OF-TYPE enum COUNT 1
-    EXPECT system-configured-printers/printer-state-reasons OF-TYPE keyword
-    EXPECT system-configured-printers/printer-xri-supported OF-TYPE collection
+    EXPECT system-configured-printers OF-TYPE collection DEFINE-MATCH HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-id OF-TYPE integer(1:65535) COUNT 1 IF-DEFINED HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-info OF-TYPE text(127) COUNT 1 IF-DEFINED HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-is-accepting-jobs OF-TYPE boolean COUNT 1 IF-DEFINED HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-name OF-TYPE name(127) COUNT 1 IF-DEFINED HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-service-type OF-TYPE keyword COUNT 1 IF-DEFINED HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-state OF-TYPE enum COUNT 1 IF-DEFINED HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-state-reasons OF-TYPE keyword IF-DEFINED HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-xri-supported OF-TYPE collection IF-DEFINED HAVE_CONFIGURED_PRINTERS
 
     EXPECT system-configured-resources IN-GROUP system-attributes-tag OF-TYPE collection|no-value
-    EXPECT system-configured-resources/resource-format OF-TYPE mimeMediaType COUNT 1
-    EXPECT system-configured-resources/resource-id OF-TYPE integer(1:MAX) COUNT 1
-    EXPECT system-configured-resources/resource-info OF-TYPE text(127) COUNT 1
-    EXPECT system-configured-resources/resource-name OF-TYPE name(127) COUNT 1
-    EXPECT system-configured-resources/resource-state OF-TYPE enum COUNT 1
-    EXPECT system-configured-resources/resource-state-reasons OF-TYPE keyword
-    EXPECT system-configured-resources/resource-type OF-TYPE keyword COUNT 1
+    EXPECT system-configured-resources OF-TYPE collection DEFINE-MATCH HAVE_CONFIGURED_RESOURCES
+    EXPECT system-configured-resources/resource-format OF-TYPE mimeMediaType COUNT 1 IF-DEFINED HAVE_CONFIGURED_RESOURCES
+    EXPECT system-configured-resources/resource-id OF-TYPE integer(1:MAX) COUNT 1 IF-DEFINED HAVE_CONFIGURED_RESOURCES
+    EXPECT system-configured-resources/resource-info OF-TYPE text(127) COUNT 1 IF-DEFINED HAVE_CONFIGURED_RESOURCES
+    EXPECT system-configured-resources/resource-name OF-TYPE name(127) COUNT 1 IF-DEFINED HAVE_CONFIGURED_RESOURCES
+    EXPECT system-configured-resources/resource-state OF-TYPE enum COUNT 1 IF-DEFINED HAVE_CONFIGURED_RESOURCES
+    EXPECT system-configured-resources/resource-state-reasons OF-TYPE keyword IF-DEFINED HAVE_CONFIGURED_RESOURCES
+    EXPECT system-configured-resources/resource-type OF-TYPE keyword COUNT 1 IF-DEFINED HAVE_CONFIGURED_RESOURCES
 
     EXPECT system-contact-col IN-GROUP system-attributes-tag OF-TYPE collection|no-value COUNT 1
-    EXPECT system-contact-col/contact-name OF-TYPE name COUNT 1
+    EXPECT system-contact-col IN-GROUP system-attributes-tag OF-TYPE collection DEFINE-MATCH HAVE_CONTACT_COL
+    EXPECT system-contact-col/contact-name OF-TYPE name COUNT 1 IF-DEFINED HAVE_CONTACT_COL
 
     EXPECT system-current-time IN-GROUP system-attributes-tag OF-TYPE dateTime COUNT 1
     EXPECT system-up-time IN-GROUP system-attributes-tag OF-TYPE integer COUNT 1
@@ -239,18 +242,19 @@
 
     EXPECT system-name IN-GROUP system-attributes-tag OF-TYPE name(127) COUNT 1
 
-    EXPECT system-owner-col IN-GROUP system-attributes-tag OF-TYPE collection COUNT 1
-    EXPECT system-owner-col/contact-name OF-TYPE name COUNT 1
+    EXPECT system-owner-col IN-GROUP system-attributes-tag OF-TYPE collection|no-value COUNT 1
+    EXPECT system-owner-col OF-TYPE collection DEFINE-MATCH HAVE_OWNER_COL
+    EXPECT system-owner-col/contact-name OF-TYPE name COUNT 1 IF-DEFINED HAVE_OWNER_COL
 
     EXPECT ?system-pages-completed IN-GROUP system-attributes-tag OF-TYPE integer(0:MAX) COUNT 1
     EXPECT system-pages-completed-col IN-GROUP system-attributes-tag OF-TYPE integer(0:MAX) COUNT 1 DEFINE-MATCH HAVE_PAGES
     EXPECT system-pages-completed-col/full-color OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_PAGES
     EXPECT system-pages-completed-col/monochrome OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_PAGES
 
-    EXPECT system-resident-application-name IN-GROUP system-attributes-tag OF-TYPE name(MAX)
-    EXPECT system-resident-application-patches IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-resident-application-name
-    EXPECT system-resident-application-string-version IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-resident-application-name
-    EXPECT system-resident-application-version IN-GROUP system-attributes-tag OF-TYPE octetString(64) SAME-COUNT-AS system-resident-application-name
+    EXPECT ?system-resident-application-name IN-GROUP system-attributes-tag OF-TYPE name(MAX)
+    EXPECT ?system-resident-application-patches IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-resident-application-name
+    EXPECT ?system-resident-application-string-version IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-resident-application-name
+    EXPECT ?system-resident-application-version IN-GROUP system-attributes-tag OF-TYPE octetString(64) SAME-COUNT-AS system-resident-application-name
 
     EXPECT ?system-serial-number IN-GROUP system-attributes-tag OF-TYPE name(255) COUNT 1
 
@@ -265,10 +269,10 @@
     EXPECT system-strings-languages-supported IN-GROUP system-attributes-tag OF-TYPE naturalLanguage DEFINE-MATCH HAVE_STRINGS
     EXPECT system-strings-uri IN-GROUP system-attributes-tag OF-TYPE uri|no-value COUNT 1 IF-DEFINED HAVE_STRINGS
 
-    EXPECT system-user-application-name IN-GROUP system-attributes-tag OF-TYPE name(MAX)
-    EXPECT system-user-application-patches IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-user-application-name
-    EXPECT system-user-application-string-version IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-user-application-name
-    EXPECT system-user-application-version IN-GROUP system-attributes-tag OF-TYPE octetString(64) SAME-COUNT-AS system-user-application-name
+    EXPECT ?system-user-application-name IN-GROUP system-attributes-tag OF-TYPE name(MAX)
+    EXPECT ?system-user-application-patches IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-user-application-name
+    EXPECT ?system-user-application-string-version IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-user-application-name
+    EXPECT ?system-user-application-version IN-GROUP system-attributes-tag OF-TYPE octetString(64) SAME-COUNT-AS system-user-application-name
 
     EXPECT system-uuid IN-GROUP system-attributes-tag OF-TYPE uri COUNT 1
 
