@@ -47,10 +47,9 @@
 
     EXPECT notify-events-default IN-GROUP system-attributes-tag OF-TYPE keyword
     EXPECT notify-events-supported IN-GROUP system-attributes-tag OF-TYPE keyword
-    EXPECT notify-events-supported WITH-VALUE "none"
     EXPECT notify-events-supported WITH-VALUE "printer-config-changed"
     EXPECT notify-events-supported WITH-VALUE "printer-created"
-    EXPECT notify-events-supported WITH-VALUE "printer- deleted"
+    EXPECT notify-events-supported WITH-VALUE "printer-deleted"
     EXPECT notify-events-supported WITH-VALUE "printer-state-changed"
     EXPECT notify-events-supported WITH-VALUE "printer-stopped"
     EXPECT notify-events-supported WITH-VALUE "resource-canceled"
@@ -59,8 +58,8 @@
     EXPECT notify-events-supported WITH-VALUE "resource-installed"
     EXPECT notify-events-supported WITH-VALUE "resource-state-changed"
     EXPECT notify-events-supported WITH-VALUE "system-config-changed"
-    EXPECT notify-events-supported WITH-VALUE "system-restarted"
-    EXPECT notify-events-supported WITH-VALUE "system-shutdown"
+#    EXPECT notify-events-supported WITH-VALUE "system-restarted"
+#    EXPECT notify-events-supported WITH-VALUE "system-shutdown"
     EXPECT notify-events-supported WITH-VALUE "system-state-changed"
     EXPECT notify-events-supported WITH-VALUE "system-stopped"
 
@@ -186,19 +185,20 @@
     EXPECT system-configured-printers/printer-xri-supported OF-TYPE collection
 
     EXPECT system-configured-resources IN-GROUP system-attributes-tag OF-TYPE collection|no-value
-    EXPECT system-configured-resource/resource-format OF-TYPE mimeMediaType COUNT 1
-    EXPECT system-configured-resource/resource-id OF-TYPE integer(1:MAX) COUNT 1
-    EXPECT system-configured-resource/resource-info OF-TYPE text(127) COUNT 1
-    EXPECT system-configured-resource/resource-name OF-TYPE name(127) COUNT 1
-    EXPECT system-configured-resource/resource-state OF-TYPE enum COUNT 1
-    EXPECT system-configured-resource/resource-state-reasons OF-TYPE keyword
-    EXPECT system-configured-resource/resource-type OF-TYPE keyword COUNT 1
+    EXPECT system-configured-resources/resource-format OF-TYPE mimeMediaType COUNT 1
+    EXPECT system-configured-resources/resource-id OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT system-configured-resources/resource-info OF-TYPE text(127) COUNT 1
+    EXPECT system-configured-resources/resource-name OF-TYPE name(127) COUNT 1
+    EXPECT system-configured-resources/resource-state OF-TYPE enum COUNT 1
+    EXPECT system-configured-resources/resource-state-reasons OF-TYPE keyword
+    EXPECT system-configured-resources/resource-type OF-TYPE keyword COUNT 1
 
     EXPECT system-contact-col IN-GROUP system-attributes-tag OF-TYPE collection|no-value COUNT 1
     EXPECT system-contact-col/contact-name OF-TYPE name COUNT 1
 
     EXPECT system-current-time IN-GROUP system-attributes-tag OF-TYPE dateTime COUNT 1
     EXPECT system-up-time IN-GROUP system-attributes-tag OF-TYPE integer COUNT 1
+    EXPECT system-time-source-configured IN-GROUP system-attributes-tag OF-TYPE keyword|name COUNT 1
 
     EXPECT system-default-printer-id IN-GROUP system-attributes-tag OF-TYPE integer(1:65535)|no-value COUNT 1
 
@@ -252,7 +252,7 @@
     EXPECT system-resident-application-string-version IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-resident-application-name
     EXPECT system-resident-application-version IN-GROUP system-attributes-tag OF-TYPE octetString(64) SAME-COUNT-AS system-resident-application-name
 
-    EXPECT system-serial-number IN-GROUP system-attributes-tag OF-TYPE name(255) COUNT 1
+    EXPECT ?system-serial-number IN-GROUP system-attributes-tag OF-TYPE name(255) COUNT 1
 
     EXPECT system-settable-attributes-supported IN-GROUP system-attributes-tag OF-TYPE keyword
 
