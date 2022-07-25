@@ -150,6 +150,9 @@ serverCreateSystem(
     */
 
     snprintf(filename, sizeof(filename), "%s/system.conf", directory);
+
+    serverLog(SERVER_LOGLEVEL_INFO, "Loading system from '%s'.", filename);
+
     if (!load_system(filename))
       return (0);
   }
@@ -183,7 +186,7 @@ serverCreateSystem(
 
   if ((dir = cupsDirOpen(confdir)) != NULL)
   {
-    serverLog(SERVER_LOGLEVEL_INFO, "Loading printers from \"%s\".", filename);
+    serverLog(SERVER_LOGLEVEL_INFO, "Loading printers from '%s'.", confdir);
 
     while ((dent = cupsDirRead(dir)) != NULL)
     {
@@ -196,10 +199,10 @@ serverCreateSystem(
         * Load the conf file, with any associated icon image.
         */
 
-        serverLog(SERVER_LOGLEVEL_INFO, "Loading printer from \"%s\".", dent->filename);
-
         snprintf(filename, sizeof(filename), "%s/%s", confdir, dent->filename);
         *ptr = '\0';
+
+        serverLog(SERVER_LOGLEVEL_INFO, "Loading printer from '%s'.", filename);
 
         memset(&pinfo, 0, sizeof(pinfo));
 
@@ -263,7 +266,7 @@ serverCreateSystem(
 
   if ((dir = cupsDirOpen(confdir)) != NULL)
   {
-    serverLog(SERVER_LOGLEVEL_INFO, "Loading 3D printers from \"%s\".", filename);
+    serverLog(SERVER_LOGLEVEL_INFO, "Loading 3D printers from \"%s\".", confdir);
 
     while ((dent = cupsDirRead(dir)) != NULL)
     {
@@ -276,10 +279,10 @@ serverCreateSystem(
         * Load the conf file, with any associated icon image.
         */
 
-        serverLog(SERVER_LOGLEVEL_INFO, "Loading 3D printer from \"%s\".", dent->filename);
-
         snprintf(filename, sizeof(filename), "%s/%s", confdir, dent->filename);
         *ptr = '\0';
+
+        serverLog(SERVER_LOGLEVEL_INFO, "Loading 3D printer from \"%s\".", filename);
 
         memset(&pinfo, 0, sizeof(pinfo));
 
@@ -1283,7 +1286,8 @@ create_system_attributes(void)
     "ipp-3d",
     "ipp-everywhere",
     "page-overrides",
-    "system-service"
+    "resource-object",
+    "system-object"
   };
   static const char * const ipp_versions_supported[] =
   {					/* Values for ipp-versions-supported */
@@ -1337,7 +1341,7 @@ create_system_attributes(void)
     "chamber-humidity-default",
     "chamber-humidity-supported",
     "chamber-temperature-default",
-    "chamber-temperature-su[pported",
+    "chamber-temperature-supported",
     "coating-sides-supported",
     "coating-type-supported",
     "color-supported",
@@ -1543,6 +1547,11 @@ create_system_attributes(void)
     "y-side2-image-shift-default",
     "y-side2-image-shift-supported"
   };
+  static const char * const printer_service_type_supported[] =
+  {					/* Values for printer-service-type-supported */
+    "print",
+    "print3d"
+  };
   static const char * const resource_format_supported[] =
   {					/* Values for resource-format-supported */
     "application/ipp",
@@ -1613,8 +1622,8 @@ create_system_attributes(void)
     "basic",
     "basic"
   };
-  static const char * const xri_scheme_supported[] =
-  {					// xri-scheme-supported values
+  static const char * const xri_uri_scheme_supported[] =
+  {					// xri-uri-scheme-supported values
     "ipp",
     "ipps"
   };
@@ -1648,6 +1657,9 @@ create_system_attributes(void)
   /* ippget-event-life */
   ippAddInteger(SystemAttributes, IPP_TAG_SYSTEM, IPP_TAG_INTEGER, "ippget-event-life", SERVER_IPPGET_EVENT_LIFE);
 
+  /* multiple-document-printers-supported */
+  ippAddBoolean(SystemAttributes, IPP_TAG_SYSTEM, "multiple-document-printers-supported", false);
+
   /* natural-language-configured */
   ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_LANGUAGE), "natural-language-configured", NULL, "en");
 
@@ -1677,6 +1689,9 @@ create_system_attributes(void)
 
   /* printer-creation-attributes-supported */
   ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-creation-attributes-supported", sizeof(printer_creation_attributes_supported) / sizeof(printer_creation_attributes_supported[0]), NULL, printer_creation_attributes_supported);
+
+  /* printer-service-type-supported */
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-service-type-supported", sizeof(printer_service_type_supported) / sizeof(printer_service_type_supported[0]), NULL, printer_service_type_supported);
 
   /* resource-format-supported */
   ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "resource-format-supported", (int)(sizeof(resource_format_supported) / sizeof(resource_format_supported[0])), NULL, resource_format_supported);
@@ -1799,9 +1814,6 @@ create_system_attributes(void)
   /* smi2699-device-uri-schemes-supported */
   ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "smi2699-device-uri-schemes-supported", sizeof(smi2699_device_uri_schemes_supported) / sizeof(smi2699_device_uri_schemes_supported[0]), NULL, smi2699_device_uri_schemes_supported);
 
-  /* system-device-id, TODO: maybe remove this, it has no purpose */
-  ippAddString(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_TEXT), "system-device-id", NULL, "MANU:None;MODEL:None;");
-
   /* system-geo-location */
   setting = cupsGetOption("GeoLocation", SystemNumSettings, SystemSettings);
   if (setting)
@@ -1884,7 +1896,7 @@ create_system_attributes(void)
   ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security-supported", Encryption == HTTP_ENCRYPTION_NEVER ? 1 : 2, NULL, xri_security_supported);
 
   /* xri-uri-scheme-supported */
-  ippAddStrings(SystemAttributes, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-scheme-supported", Encryption == HTTP_ENCRYPTION_NEVER ? 1 : 2, NULL, xri_scheme_supported);
+  ippAddStrings(SystemAttributes, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_URISCHEME), "xri-uri-scheme-supported", Encryption == HTTP_ENCRYPTION_NEVER ? 1 : 2, NULL, xri_uri_scheme_supported);
 }
 
 
@@ -3200,12 +3212,6 @@ token_cb(ipp_file_t     *f,		/* I - IPP file data */
     }
 
     ippFileExpandVars(f, filename, temp, sizeof(filename));
-
-    if (!ippFileReadToken(f, temp, sizeof(temp)) || strcmp(temp, "{"))
-    {
-      serverLog(SERVER_LOGLEVEL_ERROR, "Missing Profile collection on line %d of '%s'.", ippFileGetLineNumber(f), ippFileGetFilename(f));
-      return (0);
-    }
 
     if ((icc.attrs = ippFileReadCollection(f)) == NULL)
       return (0);

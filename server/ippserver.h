@@ -713,7 +713,7 @@ extern int		serverAuthorizeUser(server_client_t *client, const char *owner, gid_
 extern void		serverCheckJobs(server_printer_t *printer);
 extern void             serverCleanAllJobs(void);
 extern void		serverCleanJobs(server_printer_t *printer);
-extern void		serverCopyAttributes(ipp_t *to, ipp_t *from, cups_array_t *ra, cups_array_t *pa, ipp_tag_t group_tag, int quickcopy);
+extern void		serverCopyAttributes(ipp_t *to, ipp_t *from, cups_array_t *ra, cups_array_t *pa, ipp_tag_t group_tag, bool quickcopy);
 extern void		serverCopyJobStateReasons(ipp_t *ipp, ipp_tag_t group_tag, server_job_t *job);
 extern void		serverCopyPrinterStateReasons(ipp_t *ipp, ipp_tag_t group_tag, server_printer_t *printer);
 extern server_client_t	*serverCreateClient(int sock);

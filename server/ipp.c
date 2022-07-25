@@ -434,7 +434,7 @@ serverCopyAttributes(
     cups_array_t *ra,			/* I - Requested attributes */
     cups_array_t *pa,			/* I - Private attributes */
     ipp_tag_t    group_tag,		/* I - Group to copy */
-    int          quickcopy)		/* I - Do a quick copy? */
+    bool         quickcopy)		/* I - Do a quick copy? */
 {
   server_filter_t	filter;		/* Filter data */
 
@@ -571,7 +571,7 @@ copy_doc_attributes(
   *   time-at-xxx
   */
 
-  serverCopyAttributes(client->response, job->doc_attrs, ra, pa, IPP_TAG_DOCUMENT, 0);
+  serverCopyAttributes(client->response, job->doc_attrs, ra, pa, IPP_TAG_DOCUMENT, false);
 
   for (srcattr = ippGetFirstAttribute(job->attrs); srcattr; srcattr = ippGetNextAttribute(job->attrs))
   {
@@ -944,7 +944,7 @@ copy_job_attributes(
     cups_array_t    *ra,		/* I - requested-attributes */
     cups_array_t    *pa)		/* I - Private attributes */
 {
-  serverCopyAttributes(client->response, job->attrs, ra, pa, IPP_TAG_JOB, 0);
+  serverCopyAttributes(client->response, job->attrs, ra, pa, IPP_TAG_JOB, false);
 
   if (check_attribute("date-time-at-completed", ra, pa))
   {
@@ -1063,9 +1063,9 @@ copy_printer_attributes(
   if (Encryption != HTTP_ENCRYPTION_NEVER)
     scheme = "https";
 
-  serverCopyAttributes(client->response, printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
-  serverCopyAttributes(client->response, printer->dev_attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
-  serverCopyAttributes(client->response, PrivacyAttributes, ra, NULL, IPP_TAG_ZERO, IPP_TAG_CUPS_CONST);
+  serverCopyAttributes(client->response, printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO, false);
+  serverCopyAttributes(client->response, printer->dev_attrs, ra, NULL, IPP_TAG_ZERO, false);
+  serverCopyAttributes(client->response, PrivacyAttributes, ra, NULL, IPP_TAG_ZERO, false);
 
   if (!ra || cupsArrayFind(ra, "printer-config-change-date-time"))
     ippAddDate(client->response, IPP_TAG_PRINTER, "printer-config-change-date-time", ippTimeToDate(printer->config_time));
@@ -1238,7 +1238,7 @@ copy_resource_attributes(
     server_resource_t *resource,	/* I - Resource */
     cups_array_t      *ra)		/* I - requested-attributes */
 {
-  serverCopyAttributes(client->response, resource->attrs, ra, NULL, IPP_TAG_RESOURCE, 0);
+  serverCopyAttributes(client->response, resource->attrs, ra, NULL, IPP_TAG_RESOURCE, false);
 
   /* resource-data-uri */
   if (!ra || cupsArrayFind(ra, "resource-data-uri"))
@@ -1280,7 +1280,7 @@ copy_subscription_attributes(
     cups_array_t          *ra,		/* I - requested-attributes */
     cups_array_t          *pa)		/* I - Private attributes */
 {
-  serverCopyAttributes(client->response, sub->attrs, ra, pa, IPP_TAG_SUBSCRIPTION, 0);
+  serverCopyAttributes(client->response, sub->attrs, ra, pa, IPP_TAG_SUBSCRIPTION, false);
 
   if (!sub->job && check_attribute("notify-lease-expiration-time", ra, pa))
     ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-lease-expiration-time", (int)(sub->expire - client->printer->start_time));
@@ -1301,6 +1301,8 @@ static void
 copy_system_state(ipp_t        *ipp,	/* I - IPP message */
                   cups_array_t *ra)	/* I - Requested attributes */
 {
+  size_t		i,		/* Looping var */
+			count;		/* Number of printers */
   ipp_pstate_t		state = IPP_PSTATE_STOPPED;
 					/* system-state */
   server_preason_t	state_reasons = SERVER_PREASON_NONE;
@@ -1313,8 +1315,10 @@ copy_system_state(ipp_t        *ipp,	/* I - IPP message */
   {
     cupsRWLockRead(&PrintersRWLock);
 
-    for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
+    for (i = 0, count = cupsArrayGetCount(Printers); i < count; i ++)
     {
+      printer = (server_printer_t *)cupsArrayGetElement(Printers, i);
+
       if (printer->state == IPP_PSTATE_PROCESSING)
         state = IPP_PSTATE_PROCESSING;
       else if (printer->state == IPP_PSTATE_IDLE && state == IPP_PSTATE_STOPPED)
@@ -1356,18 +1360,16 @@ copy_system_state(ipp_t        *ipp,	/* I - IPP message */
     }
     else
     {
-      size_t		i,		/* Looping var */
-			num_reasons = 0;/* Number of reasons */
       server_preason_t	reason;		/* Current reason */
       const char	*reasons[32];	/* Reason strings */
 
-      for (i = 0, reason = 1; i < (sizeof(server_preasons) / sizeof(server_preasons[0])); i ++, reason <<= 1)
+      for (i = 0, count = 0, reason = 1; i < (sizeof(server_preasons) / sizeof(server_preasons[0])); i ++, reason <<= 1)
       {
 	if (state_reasons & reason)
-	  reasons[num_reasons ++] = server_preasons[i];
+	  reasons[count ++] = server_preasons[i];
       }
 
-      ippAddStrings(ipp, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "system-state-reasons", num_reasons, NULL, reasons);
+      ippAddStrings(ipp, IPP_TAG_SYSTEM, IPP_CONST_TAG(IPP_TAG_KEYWORD), "system-state-reasons", count, NULL, reasons);
     }
   }
 }
@@ -2042,6 +2044,8 @@ static void
 ipp_cancel_jobs(
     server_client_t *client)		/* I - Client */
 {
+  size_t		i,		/* Looping var */
+			count;		/* Number of items */
   ipp_attribute_t	*attr,		/* Current attribute */
 			*job_ids,	/* List of job-id's to cancel */
 			*bad_job_ids = NULL;
@@ -2123,8 +2127,6 @@ ipp_cancel_jobs(
     * Look for the specified jobs...
     */
 
-    size_t		i,		/* Looping var */
-			count;		/* Number of job-ids values */
     server_job_t	key;		/* Search key for jobs */
 
     for (i = 0, count = ippGetCount(job_ids); i < count; i ++)
@@ -2178,8 +2180,10 @@ ipp_cancel_jobs(
     * Look for jobs belonging to the requesting user...
     */
 
-    for (job = (server_job_t *)cupsArrayGetFirst(client->printer->jobs); job; job = (server_job_t *)cupsArrayGetNext(client->printer->jobs))
+    for (i = 0, count = cupsArrayGetCount(client->printer->jobs); i < count; i ++)
     {
+      job = (server_job_t *)cupsArrayGetElement(client->printer->jobs, i);
+
       if (job->state < IPP_JSTATE_CANCELED && (op == IPP_OP_CANCEL_JOBS || (username && !strcasecmp(username, job->username))))
         cupsArrayAdd(to_cancel, job);
     }
@@ -2708,7 +2712,7 @@ ipp_create_printer(
   pinfo.print_group = SERVER_GROUP_NONE;
   pinfo.proxy_group = SERVER_GROUP_NONE;
 
-  serverCopyAttributes(pinfo.attrs, client->request, NULL, NULL, IPP_TAG_PRINTER, 0);
+  serverCopyAttributes(pinfo.attrs, client->request, NULL, NULL, IPP_TAG_PRINTER, false);
 
   for (attr = ippGetFirstAttribute(pinfo.attrs); attr; attr = ippGetNextAttribute(pinfo.attrs))
   {
@@ -2791,7 +2795,7 @@ ipp_create_printer(
   cupsArrayAdd(ra, "system-state");
   cupsArrayAdd(ra, "system-state-reasons");
 
-  serverCopyAttributes(client->response, client->printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
+  serverCopyAttributes(client->response, client->printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO, false);
   copy_printer_state(client->response, client->printer, ra);
 
   cupsRWUnlock(&client->printer->rwlock);
@@ -3316,6 +3320,8 @@ ipp_delete_printer(
 {
   server_job_t		*job;		/* Current job */
   server_subscription_t	*sub;		/* Current subscription */
+  size_t		i,		/* Looping var */
+			count;		/* Number of items */
 
 
   if (Authentication)
@@ -3366,8 +3372,10 @@ ipp_delete_printer(
 
   cupsRWLockRead(&SubscriptionsRWLock);
 
-  for (sub = (server_subscription_t *)cupsArrayGetFirst(Subscriptions); sub; sub = (server_subscription_t *)cupsArrayGetNext(Subscriptions))
+  for (i = 0, count = cupsArrayGetCount(Subscriptions); i < count; i ++)
   {
+    sub = (server_subscription_t *)cupsArrayGetElement(Subscriptions, i);
+
     if (sub->printer == client->printer || (sub->job && sub->job->printer == client->printer))
     {
       sub->printer = NULL;
@@ -3479,6 +3487,8 @@ static void
 ipp_disable_all_printers(
     server_client_t *client)		/* I - Client */
 {
+  size_t		i,		/* Looping var */
+			count;		/* Number of items */
   server_printer_t	*printer;	/* Current printer */
 
 
@@ -3503,8 +3513,11 @@ ipp_disable_all_printers(
 
   cupsRWLockRead(&SystemRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
+  for (i = 0, count = cupsArrayGetCount(Printers); i < count; i ++)
+  {
+    printer = (server_printer_t *)cupsArrayGetElement(Printers, i);
     serverDisablePrinter(printer);
+  }
 
   cupsRWUnlock(&SystemRWLock);
 
@@ -3553,6 +3566,8 @@ static void
 ipp_enable_all_printers(
     server_client_t *client)		/* I - Client */
 {
+  size_t		i,		/* Looping var */
+			count;		/* Number of items */
   server_printer_t	*printer;	/* Current printer */
 
 
@@ -3577,8 +3592,11 @@ ipp_enable_all_printers(
 
   cupsRWLockRead(&SystemRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
+  for (i = 0, count = cupsArrayGetCount(Printers); i < count; i ++)
+  {
+    printer = (server_printer_t *)cupsArrayGetElement(Printers, i);
     serverEnablePrinter(printer);
+  }
 
   cupsRWUnlock(&SystemRWLock);
 
@@ -3995,9 +4013,10 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
   int			job_comparison;	/* Job comparison */
   ipp_jstate_t		job_state;	/* job-state value */
   server_jreason_t	job_reasons;	/* job-state-reasons values */
-  int			first_job_id,	/* First job ID */
-			limit,		/* Maximum number of jobs to return */
-			count;		/* Number of jobs that match */
+  int			first_job_id;	/* First job ID */
+  size_t		i,		/* Looping var */
+			count,		/* Number of jobs that match */
+			limit;		/* Maximum number of jobs to return */
   const char		*username;	/* Username */
   server_job_t		*job;		/* Current job pointer */
   cups_array_t		*ra,		/* Requested attributes array */
@@ -4093,18 +4112,16 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
   * See if they want to limit the number of jobs reported...
   */
 
-  if ((attr = ippFindAttribute(client->request, "limit",
-                               IPP_TAG_INTEGER)) != NULL)
+  if ((attr = ippFindAttribute(client->request, "limit", IPP_TAG_INTEGER)) != NULL)
   {
-    limit = ippGetInteger(attr, 0);
+    limit = (size_t)ippGetInteger(attr, 0);
 
-    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Get-Jobs limit=%d", limit);
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Get-Jobs limit=%u", (unsigned)limit);
   }
   else
     limit = 0;
 
-  if ((attr = ippFindAttribute(client->request, "first-job-id",
-                               IPP_TAG_INTEGER)) != NULL)
+  if ((attr = ippFindAttribute(client->request, "first-job-id", IPP_TAG_INTEGER)) != NULL)
   {
     first_job_id = ippGetInteger(attr, 0);
 
@@ -4119,8 +4136,7 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
 
   username = NULL;
 
-  if ((attr = ippFindAttribute(client->request, "my-jobs",
-                               IPP_TAG_BOOLEAN)) != NULL)
+  if ((attr = ippFindAttribute(client->request, "my-jobs", IPP_TAG_BOOLEAN)) != NULL)
   {
     int my_jobs = ippGetBoolean(attr, 0);
 
@@ -4128,11 +4144,9 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
 
     if (my_jobs)
     {
-      if ((attr = ippFindAttribute(client->request, "requesting-user-name",
-					IPP_TAG_NAME)) == NULL)
+      if ((attr = ippFindAttribute(client->request, "requesting-user-name", IPP_TAG_NAME)) == NULL)
       {
-	serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST,
-	            "Need requesting-user-name with my-jobs.");
+	serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Need requesting-user-name with my-jobs.");
 	return;
       }
 
@@ -4152,13 +4166,17 @@ ipp_get_jobs(server_client_t *client)	/* I - Client */
 
   cupsRWLockRead(&(client->printer->rwlock));
 
-  for (count = 0, job = (server_job_t *)cupsArrayGetFirst(client->printer->jobs);
-       (limit <= 0 || count < limit) && job;
-       job = (server_job_t *)cupsArrayGetNext(client->printer->jobs))
+  count = cupsArrayGetCount(client->printer->jobs);
+  if (limit == 0 || limit > count)
+    limit = count;
+
+  for (count = 0, i = 0; i < limit; i ++)
   {
    /*
     * Filter out jobs that don't match...
     */
+
+    job = (server_job_t *)cupsArrayGetElement(client->printer->jobs, i);
 
     if (job->id < first_job_id || (username && job->username && strcasecmp(username, job->username)))
       continue;
@@ -4362,7 +4380,7 @@ ipp_get_output_device_attributes(
   cupsRWLockRead(&device->rwlock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
-  serverCopyAttributes(client->response, device->attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
+  serverCopyAttributes(client->response, device->attrs, ra, NULL, IPP_TAG_ZERO, false);
 
   cupsRWUnlock(&device->rwlock);
 
@@ -4459,12 +4477,12 @@ static void
 ipp_get_printers(
     server_client_t *client)		/* I - Client */
 {
-  int			i,		/* Looping var */
-			count;		/* Number of printers returned */
+  size_t		i,		/* Looping var */
+			count,		/* Number of printers returned */
+			limit;		/* limit operation attribute value, if any */
   server_printer_t	*printer;	/* Current printer */
   ipp_attribute_t	*printer_ids;	/* printer-ids operation attribute, if any */
-  int			first_index,	/* first-index operation attribute value, if any */
-			limit;		/* limit operation attribute value, if any */
+  int			first_index;	/* first-index operation attribute value, if any */
   const char		*geo_location,	/* printer-geo-location value, if any */
 			*location,	/* printer-location value, if any */
 			*service_type,	/* printer-service-type value, if any */
@@ -4487,7 +4505,7 @@ ipp_get_printers(
 
   printer_ids     = ippFindAttribute(client->request, "printer-ids", IPP_TAG_INTEGER);
   first_index     = ippGetInteger(ippFindAttribute(client->request, "first-index", IPP_TAG_INTEGER), 0);
-  limit           = ippGetInteger(ippFindAttribute(client->request, "limit", IPP_TAG_INTEGER), 0);
+  limit           = (size_t)ippGetInteger(ippFindAttribute(client->request, "limit", IPP_TAG_INTEGER), 0);
   geo_location    = ippGetString(ippFindAttribute(client->request, "printer-geo-location", IPP_TAG_URI), 0, NULL);
   location        = ippGetString(ippFindAttribute(client->request, "printer-location", IPP_TAG_TEXT), 0, NULL);
   service_type    = ippGetString(ippFindAttribute(client->request, "printer-service-type", IPP_TAG_KEYWORD), 0, NULL);
@@ -4529,9 +4547,15 @@ ipp_get_printers(
 
   cupsRWLockRead(&PrintersRWLock);
 
-  for (i = 0, count = 0, printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
+  count = cupsArrayGetCount(Printers);
+  if (limit == 0 || limit > count)
+    limit = count;
+
+  for (count = 0, i = 0; i < limit; i ++)
   {
     const char	*printer_geo_location;	/* Printer's geo-location value */
+
+    printer = (server_printer_t *)cupsArrayGetElement(Printers, i);
 
     cupsRWLockRead(&printer->rwlock);
 
@@ -4707,8 +4731,9 @@ ipp_get_resources(
 					/* resource-states attribute */
 			*resource_types;/* resource-types attribute */
   int			first_index,	/* First resource index */
+			idx;		/* Index */
+  size_t		i,		/* Looping var */
 			limit,		/* Maximum number of jobs to return */
-			idx,		/* Index */
 			count;		/* Number of jobs that match */
 
 
@@ -4746,9 +4771,9 @@ ipp_get_resources(
 
   if ((attr = ippFindAttribute(client->request, "limit", IPP_TAG_INTEGER)) != NULL)
   {
-    limit = ippGetInteger(attr, 0);
+    limit = (size_t)ippGetInteger(attr, 0);
 
-    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Get-Resources limit=%d", limit);
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Get-Resources limit=%u", (unsigned)limit);
   }
   else
     limit = 0;
@@ -4803,8 +4828,14 @@ ipp_get_resources(
 
   cupsRWLockRead(&ResourcesRWLock);
 
-  for (resource = (server_resource_t *)cupsArrayGetFirst(ResourcesById), count = 0, idx = 0; (limit <= 0 || count < limit) && resource; resource = (server_resource_t *)cupsArrayGetNext(ResourcesById))
+  count = cupsArrayGetCount(ResourcesById);
+  if (limit == 0 || limit > count)
+    limit = count;
+
+  for (count = 0, i = 0, idx = 0; i < limit; i ++)
   {
+    resource = (server_resource_t *)cupsArrayGetElement(ResourcesById, i);
+
     cupsRWLockRead(&resource->rwlock);
 
     if ((!resource_formats || ippContainsString(resource_formats, resource->format)) &&
@@ -4897,8 +4928,9 @@ ipp_get_subscriptions(
   cups_array_t		*ra,		/* Requested attributes */
 			*pa;		/* Privacy attributes */
   int			job_id,		/* notify-job-id value */
+			my_subs;	/* my-subscriptions value */
+  size_t		i,		/* Looping var */
 			limit,		/* limit value, if any */
-			my_subs,	/* my-subscriptions value */
 			count = 0;	/* Number of subscriptions reported */
   const char		*username;	/* Most authenticated user name */
 
@@ -4925,7 +4957,7 @@ ipp_get_subscriptions(
   }
 
   job_id  = ippGetInteger(ippFindAttribute(client->request, "notify-job-id", IPP_TAG_INTEGER), 0);
-  limit   = ippGetInteger(ippFindAttribute(client->request, "limit", IPP_TAG_INTEGER), 0);
+  limit   = (size_t)ippGetInteger(ippFindAttribute(client->request, "limit", IPP_TAG_INTEGER), 0);
   my_subs = ippGetBoolean(ippFindAttribute(client->request, "my-subscriptions", IPP_TAG_BOOLEAN), 0);
   ra      = ippCreateRequestedArray(client->request);
 
@@ -4935,9 +4967,17 @@ ipp_get_subscriptions(
     username = "anonymous";
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
+
   cupsRWLockRead(&SubscriptionsRWLock);
-  for (sub = (server_subscription_t *)cupsArrayGetFirst(Subscriptions); sub; sub = (server_subscription_t *)cupsArrayGetNext(Subscriptions))
+
+  count = cupsArrayGetCount(Subscriptions);
+  if (limit == 0 || limit > count)
+    limit = count;
+
+  for (count = 0, i = 0; i < limit; i ++)
   {
+    sub = (server_subscription_t *)cupsArrayGetElement(Subscriptions, i);
+
     if ((job_id > 0 && (!sub->job || sub->job->id != job_id)) || (job_id <= 0 && sub->job))
       continue;
 
@@ -4958,8 +4998,6 @@ ipp_get_subscriptions(
     copy_subscription_attributes(client, sub, ra, pa);
 
     count ++;
-    if (limit > 0 && count >= limit)
-      break;
   }
   cupsRWUnlock(&SubscriptionsRWLock);
 
@@ -5009,8 +5047,8 @@ ipp_get_system_attributes(
 
   cupsRWLockRead(&SystemRWLock);
 
-  serverCopyAttributes(client->response, SystemAttributes, ra, NULL, IPP_TAG_ZERO, IPP_TAG_CUPS_CONST);
-//  serverCopyAttributes(client->response, PrivacyAttributes, ra, NULL, IPP_TAG_ZERO, IPP_TAG_CUPS_CONST);
+  serverCopyAttributes(client->response, SystemAttributes, ra, NULL, IPP_TAG_ZERO, false);
+//  serverCopyAttributes(client->response, PrivacyAttributes, ra, NULL, IPP_TAG_ZERO, false);
 
   if (!ra || cupsArrayFind(ra, "system-config-change-date-time"))
     ippAddDate(client->response, IPP_TAG_SYSTEM, "system-config-change-date-time", ippTimeToDate(SystemConfigChangeTime));
@@ -5043,10 +5081,12 @@ ipp_get_system_attributes(
     {
       printers = ippAddCollections(client->response, IPP_TAG_SYSTEM, "system-configured-printers", count, NULL);
 
-      for (i = 0, printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers), i ++)
+      for (i = 0; i < count; i ++)
       {
 	ipp_attribute_t *attr;		/* Attribute */
 	ipp_t	*xri_col;		/* Collection value */
+
+	printer = (server_printer_t *)cupsArrayGetElement(Printers, i);
 
         cupsRWLockRead(&printer->rwlock);
 
@@ -5081,7 +5121,7 @@ ipp_get_system_attributes(
 	}
 
         ippSetCollection(client->response, &printers, i, col);
-        ippDelete(col);
+//        ippDelete(col);
 
         cupsRWUnlock(&printer->rwlock);
       }
@@ -5154,29 +5194,31 @@ ipp_get_system_attributes(
 
   if (!ra || cupsArrayFind(ra, "system-xri-supported"))
   {
-    ipp_attribute_t *attr;		/* Attribute */
-    ipp_t	*xri_col;		/* Collection value */
+    ipp_t	*xri_cols[2];		/* Collection values */
+    size_t	i,			/* Looping var */
+		count = 1;		/* Number of values */
 
-    xri_col = ippNew();
+    xri_cols[0] = ippNew();
 
-    ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
-    ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "none");
+    ippAddString(xri_cols[0], IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
+    ippAddString(xri_cols[0], IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "none");
     httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "ipp", NULL, client->host_field, client->host_port, "/ipp/system");
-    ippAddString(xri_col, IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uri);
-    attr = ippAddCollection(client->response, IPP_TAG_SYSTEM, "system-xri-supported", xri_col);
-    ippDelete(xri_col);
+    ippAddString(xri_cols[0], IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uri);
 
     if (Encryption != HTTP_ENCRYPTION_NEVER)
     {
-      xri_col = ippNew();
+      xri_cols[1] = ippNew();
 
-      ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
-      ippAddString(xri_col, IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "tls");
+      ippAddString(xri_cols[1], IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-authentication", NULL, Authentication ? "basic"  : "none");
+      ippAddString(xri_cols[1], IPP_TAG_ZERO, IPP_CONST_TAG(IPP_TAG_KEYWORD), "xri-security", NULL, "tls");
       httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), "ipps", NULL, client->host_field, client->host_port, "/ipp/system");
-      ippAddString(xri_col, IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uri);
-      ippSetCollection(client->response, &attr, 1, xri_col);
-      ippDelete(xri_col);
+      ippAddString(xri_cols[1], IPP_TAG_ZERO, IPP_TAG_URI, "xri-uri", NULL, uri);
+      count ++;
     }
+
+    ippAddCollections(client->response, IPP_TAG_SYSTEM, "system-xri-supported", count, (const ipp_t **)xri_cols);
+    for (i = 0; i < count; i ++)
+      ippDelete(xri_cols[i]);
   }
 
   cupsArrayDelete(ra);
@@ -5227,7 +5269,8 @@ ipp_get_system_supported_values(
   if (!ra || cupsArrayFind(ra, "system-default-printer-id"))
   {
     int			*values;	/* printer-id values */
-    size_t		num_values,	/* Number of printer-id values */
+    size_t		i,		/* Looping var */
+			num_values,	/* Number of printer-id values */
   			count;		/* Number of printers */
     server_printer_t	*printer;	/* Current printer */
 
@@ -5239,8 +5282,10 @@ ipp_get_system_supported_values(
     }
     else if ((values = (int *)calloc((size_t)count, sizeof(int))) != NULL)
     {
-      for (num_values = 0, printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
+      for (i = 0, num_values = 0; i < count; i ++)
       {
+        printer = (server_printer_t *)cupsArrayGetElement(Printers, i);
+
         if (printer->id && printer->id <= 65535)
           values[num_values ++] = printer->id;
       }
@@ -5507,6 +5552,8 @@ static void
 ipp_pause_all_printers(
     server_client_t *client)		/* I - Client */
 {
+  size_t		i,		/* Looping var */
+			count;		/* Number of printers */
   server_printer_t	*printer;	/* Current printer */
 
 
@@ -5531,8 +5578,12 @@ ipp_pause_all_printers(
 
   cupsRWLockRead(&SystemRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
+  for (i = 0, count = cupsArrayGetCount(Printers); i < count; i ++)
+  {
+    printer = (server_printer_t *)cupsArrayGetElement(Printers, i);
+
     serverPausePrinter(printer, ippGetOperation(client->request) == IPP_OP_PAUSE_ALL_PRINTERS);
+  }
 
   cupsRWUnlock(&SystemRWLock);
 
@@ -5886,9 +5937,11 @@ static void
 ipp_register_output_device(
     server_client_t *client)		/* I - Client */
 {
+  size_t		i,		/* Looping var */
+			count;		/* Number of printers */
   ipp_attribute_t	*attr;		/* Attribute in request */
   const char		*uuid;		/* "output-device-uuid" value */
-  server_printer_t	*printer,	/* Current printer */
+  server_printer_t	*printer = NULL,/* Current printer */
 			*avail = NULL;	/* Available printer */
   server_device_t	key,		/* Search key */
 			*device;	/* Matching device */
@@ -5942,8 +5995,10 @@ ipp_register_output_device(
 
   key.uuid = (char *)uuid;
 
-  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
+  for (i = 0, count = cupsArrayGetCount(Printers); i < count; i ++)
   {
+    printer = (server_printer_t *)cupsArrayGetElement(Printers, i);
+
     if (printer->pinfo.proxy_group == SERVER_GROUP_NONE || printer->pinfo.max_devices == 0)
       continue;
 
@@ -6006,7 +6061,7 @@ ipp_register_output_device(
   cupsArrayAdd(ra, "system-state");
   cupsArrayAdd(ra, "system-state-reasons");
 
-  serverCopyAttributes(client->response, printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO, IPP_TAG_ZERO);
+  serverCopyAttributes(client->response, printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO, false);
   copy_printer_state(client->response, printer, ra);
 
   cupsRWUnlock(&client->printer->rwlock);
@@ -6021,6 +6076,8 @@ static void
 ipp_release_held_new_jobs(
     server_client_t *client)		/* I - Client */
 {
+  size_t	i,			/* Looping var */
+		count;			/* Number of jobs */
   server_job_t	*job;			/* Current job */
 
 
@@ -6051,8 +6108,10 @@ ipp_release_held_new_jobs(
 
   client->printer->state_reasons &= (server_preason_t)~SERVER_PREASON_HOLD_NEW_JOBS;
 
-  for (job = (server_job_t *)cupsArrayGetFirst(client->printer->active_jobs); job; job = (server_job_t *)cupsArrayGetNext(client->printer->active_jobs))
+  for (i = 0, count = cupsArrayGetCount(client->printer->active_jobs); i < count; i ++)
   {
+    job = (server_job_t *)cupsArrayGetElement(client->printer->active_jobs, i);
+
     if (job->state == IPP_JSTATE_HELD)
     {
       const char	*hold_until;	/* job-hold-until attribute, if any */
@@ -6226,6 +6285,8 @@ static void
 ipp_restart_system(
     server_client_t *client)		/* I - Client */
 {
+  size_t		i,		/* Looping var */
+			count;		/* Number of printers */
   server_printer_t	*printer;	/* Current printer */
 
 
@@ -6253,8 +6314,11 @@ ipp_restart_system(
 
   cupsRWLockRead(&SystemRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
+  for (i = 0, count = cupsArrayGetCount(Printers); i < count; i ++)
+  {
+    printer = (server_printer_t *)cupsArrayGetElement(Printers, i);
     serverRestartPrinter(printer);
+  }
 
   cupsRWUnlock(&SystemRWLock);
 
@@ -6270,6 +6334,8 @@ static void
 ipp_resume_all_printers(
     server_client_t *client)		/* I - Client */
 {
+  size_t		i,		/* Looping var */
+			count;		/* Number of printers */
   server_printer_t	*printer;	/* Current printer */
 
 
@@ -6294,8 +6360,11 @@ ipp_resume_all_printers(
 
   cupsRWLockRead(&SystemRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
+  for (i = 0, count = cupsArrayGetCount(Printers); i < count; i ++)
+  {
+    printer = (server_printer_t *)cupsArrayGetElement(Printers, i);
     serverResumePrinter(printer);
+  }
 
   cupsRWUnlock(&SystemRWLock);
 
@@ -6429,7 +6498,7 @@ ipp_send_document(server_client_t *client)/* I - Client */
   if (!job->doc_attrs)
     job->doc_attrs = ippNew();
 
-  serverCopyAttributes(job->doc_attrs, client->request, NULL, NULL, IPP_TAG_JOB, 0);
+  serverCopyAttributes(job->doc_attrs, client->request, NULL, NULL, IPP_TAG_JOB, false);
 
  /*
   * Get the document format for the job...
@@ -6825,7 +6894,7 @@ ipp_send_uri(server_client_t *client)	/* I - Client */
   if (!job->doc_attrs)
     job->doc_attrs = ippNew();
 
-  serverCopyAttributes(job->doc_attrs, client->request, NULL, NULL, IPP_TAG_JOB, 0);
+  serverCopyAttributes(job->doc_attrs, client->request, NULL, NULL, IPP_TAG_JOB, false);
 
  /*
   * Do we have a file to print?
@@ -7429,6 +7498,8 @@ static void
 ipp_shutdown_all_printers(
     server_client_t *client)		/* I - Client */
 {
+  size_t		i,		/* Looping var */
+			count;		/* Number of printers */
   server_printer_t	*printer;	/* Current printer */
 
 
@@ -7453,8 +7524,10 @@ ipp_shutdown_all_printers(
 
   cupsRWLockRead(&PrintersRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
+  for (i = 0, count = cupsArrayGetCount(Printers); i < count; i ++)
   {
+    printer = (server_printer_t *)cupsArrayGetElement(Printers, i);
+
     cupsRWLockWrite(&printer->rwlock);
 
     printer->is_shutdown = 1;
@@ -7525,6 +7598,8 @@ static void
 ipp_startup_all_printers(
     server_client_t *client)		/* I - Client */
 {
+  size_t		i,		/* Looping var */
+			count;		/* Number of printers */
   server_printer_t	*printer;	/* Current printer */
 
 
@@ -7549,8 +7624,10 @@ ipp_startup_all_printers(
 
   cupsRWLockRead(&PrintersRWLock);
 
-  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
+  for (i = 0, count = cupsArrayGetCount(Printers); i < count; i ++)
   {
+    printer = (server_printer_t *)cupsArrayGetElement(Printers, i);
+
     cupsRWLockWrite(&printer->rwlock);
 
     if (printer->is_shutdown)
@@ -7747,10 +7824,10 @@ ipp_update_active_jobs(
   * Then look for jobs assigned to the device but not listed...
   */
 
-  for (job = (server_job_t *)cupsArrayGetFirst(client->printer->jobs);
-       job && num_different < 1000;
-       job = (server_job_t *)cupsArrayGetNext(client->printer->jobs))
+  for (i = 0, count = cupsArrayGetCount(client->printer->jobs); i < count && num_different < 1000; i ++)
   {
+    job = (server_job_t *)cupsArrayGetElement(client->printer->jobs, i);
+
     if (job->dev_uuid && !strcmp(job->dev_uuid, device->uuid) && !ippContainsInteger(job_ids, job->id))
     {
       different[num_different] = job->id;
@@ -8733,6 +8810,8 @@ serverProcessIPP(
 
 	if ((attr = ippFindAttribute(client->request, "printer-id", IPP_TAG_INTEGER)) != NULL)
 	{
+	  size_t		i,	/* Looping var */
+				count;	/* Number of printers */
 	  int			printer_id = ippGetInteger(attr, 0);
 					/* printer-id value */
 	  server_printer_t	*printer;
@@ -8747,8 +8826,10 @@ serverProcessIPP(
 	  }
 
 	  cupsRWLockRead(&PrintersRWLock);
-	  for (printer = (server_printer_t *)cupsArrayGetFirst(Printers); printer; printer = (server_printer_t *)cupsArrayGetNext(Printers))
+	  for (i = 0, count = cupsArrayGetCount(Printers); i < count; i ++)
 	  {
+	    printer = (server_printer_t *)cupsArrayGetElement(Printers, i);
+
 	    if (printer->id == printer_id)
 	    {
 	      client->printer = printer;
