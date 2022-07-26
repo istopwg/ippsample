@@ -6240,7 +6240,7 @@ ipp_register_output_device(
 
   cupsRWUnlock(&PrintersRWLock);
 
-  if (!printer)
+  if (i >= count)
   {
     if (avail)
     {
@@ -6285,8 +6285,7 @@ ipp_register_output_device(
   cupsArrayAdd(ra, "system-state");
   cupsArrayAdd(ra, "system-state-reasons");
 
-  serverCopyAttributes(client->response, printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO, false);
-  copy_printer_state(client->response, printer, ra);
+  copy_printer_attributes(client, printer, ra);
 
   cupsRWUnlock(&client->printer->rwlock);
 }
