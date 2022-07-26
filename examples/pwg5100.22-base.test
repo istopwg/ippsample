@@ -1089,13 +1089,13 @@ VERSION 2.0
 }
 
 {
-    NAME "Get-System-Attributes ('system-xri-supported')"
+    NAME "Get-System-Attributes ('system-name,system-xri-supported')"
     OPERATION Get-System-Attributes
     GROUP operation-attributes-tag
     ATTR charset attributes-charset utf-8
     ATTR naturalLanguage attributes-natural-language en
     ATTR uri system-uri $uri
-    ATTR keyword requested-attributes system-xri-supported
+    ATTR keyword requested-attributes system-name,system-xri-supported
 
     STATUS successful-ok
 
@@ -1199,7 +1199,7 @@ VERSION 2.0
 
     EXPECT !system-message-from-operator
 
-    EXPECT !system-name
+    EXPECT system-name IN-GROUP system-attributes-tag OF-TYPE name(127) COUNT 1
 
     EXPECT !system-owner-col
 
@@ -1234,4 +1234,17 @@ VERSION 2.0
     EXPECT !xri-authentication-supported
     EXPECT !xri-security-supported
     EXPECT !xri-uri-scheme-supported
+}
+
+{
+    NAME "Get-System-Supported-Values"
+    OPERATION Get-System-Supported-Values
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri system-uri $uri
+
+    STATUS successful-ok
+
+    EXPECT system-default-printer-id IN-GROUP system-attributes-tag OF-TYPE integer(1:65535)|no-value
 }

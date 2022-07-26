@@ -5137,7 +5137,61 @@ ipp_get_system_attributes(
 
   /* TODO: Update when resources are implemented */
   if (!ra || cupsArrayFind(ra, "system-configured-resources"))
-    ippAddOutOfBand(client->response, IPP_TAG_SYSTEM, IPP_TAG_NOVALUE, "system-configured-resources");
+  {
+    size_t		i,		/* Looping var */
+  			count;		/* Number of resources */
+    ipp_t		*col;		/* Collection value */
+    server_resource_t	*resource;	/* Current resource */
+    ipp_attribute_t	*resources;	/* system-configured-resources attribute */
+
+    cupsRWLockRead(&ResourcesRWLock);
+
+    if ((count = cupsArrayGetCount(ResourcesById)) == 0)
+    {
+      ippAddOutOfBand(client->response, IPP_TAG_SYSTEM, IPP_TAG_NOVALUE, "system-configured-resources");
+    }
+    else
+    {
+      resources = ippAddCollections(client->response, IPP_TAG_SYSTEM, "system-configured-resources", count, NULL);
+
+      for (i = 0; i < count; i ++)
+      {
+        const char	*name,		/* resource-name value */
+			*info;		/* resource-info value */
+
+	resource = (server_resource_t *)cupsArrayGetElement(ResourcesById, i);
+
+        cupsRWLockRead(&resource->rwlock);
+
+        if ((name = ippGetString(ippFindAttribute(resource->attrs, "resource-name", IPP_TAG_ZERO), 0,  NULL)) == NULL)
+        {
+	  if ((name = strrchr(resource->filename, '/')) != NULL)
+	    name ++;
+	  else
+	    name = resource->filename;
+        }
+
+        if ((info = ippGetString(ippFindAttribute(resource->attrs, "resource-info", IPP_TAG_ZERO), 0,  NULL)) == NULL)
+          info = name;
+
+        col = ippNew();
+        ippAddInteger(col, IPP_TAG_ZERO, IPP_TAG_INTEGER, "resource-id", resource->id);
+        ippAddString(col, IPP_TAG_ZERO, IPP_TAG_MIMETYPE, "resource-format", NULL, resource->format);
+        ippAddString(col, IPP_TAG_ZERO, IPP_TAG_TEXT, "resource-info", NULL, info);
+        ippAddString(col, IPP_TAG_ZERO, IPP_TAG_NAME, "resource-name", NULL, name);
+        ippAddInteger(col, IPP_TAG_ZERO, IPP_TAG_ENUM, "resource-state", (int)resource->state);
+	ippAddString(col, IPP_TAG_ZERO, IPP_TAG_KEYWORD, "resource-state-reasons", NULL, resource->fd >= 0 ? "resource-incoming" : resource->cancel ? "cancel-requested" : "none");
+        ippAddString(col, IPP_TAG_ZERO, IPP_TAG_KEYWORD, "resource-type", NULL, resource->type);
+
+        ippSetCollection(client->response, &resources, i, col);
+        ippDelete(col);
+
+        cupsRWUnlock(&resource->rwlock);
+      }
+    }
+
+    cupsRWUnlock(&ResourcesRWLock);
+  }
 
   if (!ra || cupsArrayFind(ra, "system-current-time"))
     ippAddDate(client->response, IPP_TAG_SYSTEM, "system-current-time", ippTimeToDate(time(NULL)));
