@@ -1283,10 +1283,20 @@ copy_subscription_attributes(
   serverCopyAttributes(client->response, sub->attrs, ra, pa, IPP_TAG_SUBSCRIPTION, false);
 
   if (!sub->job && check_attribute("notify-lease-expiration-time", ra, pa))
-    ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-lease-expiration-time", (int)(sub->expire - client->printer->start_time));
+  {
+    if (client->printer)
+      ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-lease-expiration-time", (int)(sub->expire - client->printer->start_time));
+    else
+      ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-lease-expiration-time", (int)(sub->expire - SystemStartTime));
+  }
 
   if (!sub->job && check_attribute("notify-printer-up-time", ra, pa))
-    ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-printer-up-time", (int)(time(NULL) - client->printer->start_time));
+  {
+    if (client->printer)
+      ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-printer-up-time", (int)(time(NULL) - client->printer->start_time));
+    else
+      ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-system-up-time", (int)(time(NULL) - SystemStartTime));
+  }
 
   if (check_attribute("notify-sequence-number", ra, pa))
     ippAddInteger(client->response, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-sequence-number", sub->last_sequence);
@@ -6294,12 +6304,19 @@ ipp_renew_subscription(
   else
     lease = SERVER_NOTIFY_LEASE_DURATION_DEFAULT;
 
+  cupsRWLockWrite(&sub->rwlock);
+
   sub->lease = lease;
+
+  if ((attr = ippFindAttribute(sub->attrs, "notify-lease-duration", IPP_TAG_INTEGER)) != NULL)
+    ippSetInteger(sub->attrs, &attr, 0, lease);
 
   if (lease)
     sub->expire = time(NULL) + sub->lease;
   else
     sub->expire = INT_MAX;
+
+  cupsRWUnlock(&sub->rwlock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 

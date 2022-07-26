@@ -20,11 +20,50 @@
 	ATTR uri system-uri $uri
     GROUP subscription-attributes-tag
 	ATTR keyword notify-events printer-created,printer-deleted,resource-canceled,resource-created,resource-installed
+	ATTR integer notify-lease-duration 30
 	ATTR keyword notify-pull-method ippget
 
     STATUS successful-ok
     EXPECT notify-subscription-id IN-GROUP subscription-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
     EXPECT notify-subscription-id DEFINE-VALUE SUBSCRIPTION_ID
+}
+
+{
+    NAME "Get-Subscriptions"
+    OPERATION Get-Subscriptions
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+
+    STATUS successful-ok
+    EXPECT notify-subscription-id IN-GROUP subscription-attributes-tag OF-TYPE integer(1:MAX) COUNT 1 WITH-VALUE $SUBSCRIPTION_ID
+}
+
+{
+    NAME "Get-Subscription-Attributes"
+    OPERATION Get-Subscription-Attributes
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer notify-subscription-id $SUBSCRIPTION_ID
+
+    STATUS successful-ok
+    EXPECT !notify-recipient-uri
+    EXPECT notify-pull-method IN-GROUP subscription-attributes-tag OF-TYPE keyword COUNT 1 WITH-VALUE "ippget"
+    EXPECT notify-events IN-GROUP subscription-attributes-tag OF-TYPE keyword COUNT 5
+    EXPECT notify-events WITH-VALUE printer-created
+    EXPECT notify-events WITH-VALUE printer-deleted
+    EXPECT notify-events WITH-VALUE resource-canceled
+    EXPECT notify-events WITH-VALUE resource-created
+    EXPECT notify-events WITH-VALUE resource-installed
+    EXPECT notify-lease-duration IN-GROUP subscription-attributes-tag OF-TYPE integer WITH-VALUE 30
+    EXPECT !notify-printer-uri
+    EXPECT !notify-job-id
+    EXPECT notify-sequence-number IN-GROUP subscription-attributes-tag OF-TYPE integer(0:MAX)
+    EXPECT notify-subscription-id IN-GROUP subscription-attributes-tag OF-TYPE integer(1:MAX) COUNT 1 WITH-VALUE $SUBSCRIPTION_ID
+    EXPECT notify-system-uri IN-GROUP subscription-attributes-tag OF-TYPE uri
 }
 
 {
@@ -192,6 +231,41 @@
     STATUS successful-ok
     EXPECT notify-subscribed-event IN-GROUP event-notification-attributes-tag OF-TYPE keyword COUNT 1 WITH-VALUE resource-canceled
     EXPECT notify-sequence-number IN-GROUP event-notification-attributes-tag OF-TYPE integer COUNT 1 DEFINE-VALUE SEQUENCE_NUMBER
+}
+
+{
+    NAME "Renew-Subscription"
+    OPERATION Renew-Subscription
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer notify-subscription-id $SUBSCRIPTION_ID
+	ATTR integer notify-lease-duration 60
+
+    STATUS successful-ok
+}
+
+{
+    NAME "Get-Subscription-Attributes ('notify-lease-duration')"
+    OPERATION Get-Subscription-Attributes
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer notify-subscription-id $SUBSCRIPTION_ID
+	ATTR keyword requested-attributes notify-lease-duration
+
+    STATUS successful-ok
+    EXPECT !notify-recipient-uri
+    EXPECT !notify-pull-method
+    EXPECT !notify-events
+    EXPECT notify-lease-duration IN-GROUP subscription-attributes-tag OF-TYPE integer WITH-VALUE 60
+    EXPECT !notify-printer-uri
+    EXPECT !notify-job-id
+    EXPECT !notify-sequence-number
+    EXPECT !notify-subscription-id
+    EXPECT !notify-system-uri
 }
 
 {
