@@ -59,6 +59,8 @@ serverAddEventNoLock(
 
     if (sub->mask & event && (!sub->job || job == sub->job) && (!sub->printer || printer == sub->printer) && (!sub->resource || res == sub->resource))
     {
+      char uri[1024];			// URI value
+
       cupsRWLockWrite(&sub->rwlock);
 
       n = ippNew();
@@ -66,14 +68,13 @@ serverAddEventNoLock(
       ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_LANGUAGE, "notify-natural-language", NULL, sub->language);
       if (printer)
       {
-        char uri[1024];			// URI value
-
         httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), Encryption == HTTP_ENCRYPTION_NEVER ? "ipp" : "ipps", NULL, ServerName, DefaultPort, printer->resource);
 	ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_URI, "notify-printer-uri", NULL, uri);
       }
       else
       {
-	ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_URI, "notify-system-uri", NULL, DefaultSystemURI);
+        httpAssembleURI(HTTP_URI_CODING_ALL, uri, sizeof(uri), Encryption == HTTP_ENCRYPTION_NEVER ? "ipp" : "ipps", NULL, ServerName, DefaultPort, "/ipp/system");
+	ippAddString(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_URI, "notify-system-uri", NULL, uri);
       }
 
       if (job)

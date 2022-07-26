@@ -2785,6 +2785,8 @@ ipp_create_printer(
 
   cupsRWLockRead(&client->printer->rwlock);
 
+  serverAddEventNoLock(client->printer, NULL, NULL, SERVER_EVENT_PRINTER_CREATED, "Printer created.");
+
   ra = cupsArrayNew((cups_array_cb_t)strcmp, NULL, NULL, 0, NULL, NULL);
   cupsArrayAdd(ra, "printer-id");
   cupsArrayAdd(ra, "printer-is-accepting-jobs");

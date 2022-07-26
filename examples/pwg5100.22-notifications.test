@@ -11,3 +11,198 @@
 # information.
 #
 
+{
+    NAME "Create-System-Subscriptions"
+    OPERATION Create-System-Subscriptions
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+    GROUP subscription-attributes-tag
+	ATTR keyword notify-events printer-created,printer-deleted,resource-canceled,resource-created,resource-installed
+	ATTR keyword notify-pull-method ippget
+
+    STATUS successful-ok
+    EXPECT notify-subscription-id IN-GROUP subscription-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT notify-subscription-id DEFINE-VALUE SUBSCRIPTION_ID
+}
+
+{
+    NAME "Create-Printer (Notification Printer)"
+    OPERATION Create-Printer
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR keyword printer-service-type print
+    GROUP printer-attributes-tag
+	ATTR name printer-name "Notification Printer"
+	ATTR text printer-info "5100.22 Notification Printer"
+	ATTR text printer-location "Test Location"
+	ATTR uri printer-geo-location "geo:46.4707,-80.9961"
+
+    STATUS successful-ok
+    EXPECT printer-id IN-GROUP printer-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT printer-id DEFINE-VALUE PRINTER_ID
+    EXPECT printer-is-accepting-jobs IN-GROUP printer-attributes-tag OF-TYPE boolean COUNT 1
+    EXPECT printer-state IN-GROUP printer-attributes-tag OF-TYPE enum COUNT 1
+    EXPECT printer-state-reasons IN-GROUP printer-attributes-tag OF-TYPE keyword
+    EXPECT printer-uuid IN-GROUP printer-attributes-tag OF-TYPE uri COUNT 1
+    EXPECT printer-xri-supported IN-GROUP printer-attributes-tag OF-TYPE collection
+    EXPECT printer-xri-supported/xri-uri OF-TYPE uri COUNT 1
+    EXPECT printer-xri-supported/xri-uri DEFINE-VALUE PRINTER_URI
+}
+
+{
+    NAME "Get-Notifications (printer-created)"
+    OPERATION Get-Notifications
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer notify-subscription-ids $SUBSCRIPTION_ID
+
+    STATUS successful-ok
+    EXPECT notify-subscribed-event IN-GROUP event-notification-attributes-tag OF-TYPE keyword COUNT 1 WITH-VALUE printer-created
+    EXPECT notify-sequence-number IN-GROUP event-notification-attributes-tag OF-TYPE integer COUNT 1 DEFINE-VALUE SEQUENCE_NUMBER
+}
+
+{
+    NAME "Delete-Printer (Notification Printer)"
+    OPERATION Delete-Printer
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer printer-id $PRINTER_ID
+
+    STATUS successful-ok
+}
+
+{
+    NAME "Get-Notifications (printer-deleted)"
+    OPERATION Get-Notifications
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer notify-subscription-ids $SUBSCRIPTION_ID
+	ATTR integer notify-sequence-numbers $SEQUENCE_NUMBER
+
+    STATUS successful-ok
+    EXPECT notify-subscribed-event IN-GROUP event-notification-attributes-tag OF-TYPE keyword COUNT 1 WITH-VALUE printer-deleted
+    EXPECT notify-sequence-number IN-GROUP event-notification-attributes-tag OF-TYPE integer COUNT 1 DEFINE-VALUE SEQUENCE_NUMBER
+}
+
+{
+    NAME "Create-Resource (Icon Image 2)"
+    OPERATION Create-Resource
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR keyword resource-type static-image
+    GROUP resource-attributes-tag
+	ATTR name resource-name "Icon Image 2"
+	ATTR text resource-info "5100.22 Icon Resource"
+
+    STATUS successful-ok
+    EXPECT resource-id IN-GROUP resource-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT resource-id DEFINE-VALUE ICON_RESOURCE_ID
+}
+{
+    SKIP-IF-NOT-DEFINED ICON_RESOURCE_ID
+
+    NAME "Send-Resource-Data (Icon Image 2)"
+    OPERATION Send-Resource-Data
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $ICON_RESOURCE_ID
+	ATTR mimeMediaType resource-format image/png
+    FILE icon.png
+
+    STATUS successful-ok
+}
+{
+    NAME "Get-Notifications (resource-created)"
+    OPERATION Get-Notifications
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer notify-subscription-ids $SUBSCRIPTION_ID
+	ATTR integer notify-sequence-numbers $SEQUENCE_NUMBER
+
+    STATUS successful-ok
+    EXPECT notify-subscribed-event IN-GROUP event-notification-attributes-tag OF-TYPE keyword COUNT 1 WITH-VALUE resource-created
+    EXPECT notify-sequence-number IN-GROUP event-notification-attributes-tag OF-TYPE integer COUNT 1 DEFINE-VALUE SEQUENCE_NUMBER
+}
+{
+    SKIP-IF-NOT-DEFINED ICON_RESOURCE_ID
+
+    NAME "Install-Resource (Icon Image 2)"
+    OPERATION Install-Resource
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $ICON_RESOURCE_ID
+
+    STATUS successful-ok
+}
+{
+    NAME "Get-Notifications (resource-installed)"
+    OPERATION Get-Notifications
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer notify-subscription-ids $SUBSCRIPTION_ID
+	ATTR integer notify-sequence-numbers $SEQUENCE_NUMBER
+
+    STATUS successful-ok
+    EXPECT notify-subscribed-event IN-GROUP event-notification-attributes-tag OF-TYPE keyword COUNT 1 WITH-VALUE resource-installed
+    EXPECT notify-sequence-number IN-GROUP event-notification-attributes-tag OF-TYPE integer COUNT 1 DEFINE-VALUE SEQUENCE_NUMBER
+}
+{
+    SKIP-IF-NOT-DEFINED ICON_RESOURCE_ID
+
+    NAME "Cancel-Resource (Icon Image 2)"
+    OPERATION Cancel-Resource
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $ICON_RESOURCE_ID
+
+    STATUS successful-ok
+}
+{
+    NAME "Get-Notifications (resource-canceled)"
+    OPERATION Get-Notifications
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer notify-subscription-ids $SUBSCRIPTION_ID
+	ATTR integer notify-sequence-numbers $SEQUENCE_NUMBER
+
+    STATUS successful-ok
+    EXPECT notify-subscribed-event IN-GROUP event-notification-attributes-tag OF-TYPE keyword COUNT 1 WITH-VALUE resource-canceled
+    EXPECT notify-sequence-number IN-GROUP event-notification-attributes-tag OF-TYPE integer COUNT 1 DEFINE-VALUE SEQUENCE_NUMBER
+}
+
+{
+    NAME "Cancel-Subscription"
+    OPERATION Cancel-Subscription
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer notify-subscription-id $SUBSCRIPTION_ID
+
+    STATUS successful-ok
+}
+

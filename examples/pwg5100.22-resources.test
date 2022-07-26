@@ -253,8 +253,8 @@
 	ATTR uri system-uri $uri
 	ATTR keyword resource-type static-image
     GROUP resource-attributes-tag
-	ATTR name resource-name "Icon Resource"
-	ATTR text resource-info "5100.22 Icon Resource"
+	ATTR name resource-name "Icon Image"
+	ATTR text resource-info "5100.22 Icon Image"
 
     STATUS successful-ok
     EXPECT resource-id IN-GROUP resource-attributes-tag OF-TYPE integer(1:MAX) COUNT 1

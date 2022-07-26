@@ -392,6 +392,8 @@ serverSetResourceState(
 
     if ((attr = ippFindAttribute(resource->attrs, "time-at-installed", IPP_TAG_NOVALUE)) != NULL)
       ippSetInteger(resource->attrs, &attr, 0, (int)(time(NULL) - SystemStartTime));
+
+    serverAddEventNoLock(NULL, NULL, resource, SERVER_EVENT_RESOURCE_INSTALLED | SERVER_EVENT_RESOURCE_STATE_CHANGED, "Resource %d installed.", resource->id);
   }
   else if (state >= IPP_RSTATE_CANCELED)
   {
@@ -406,6 +408,8 @@ serverSetResourceState(
       ippSetInteger(resource->attrs, &attr, 0, (int)(time(NULL) - SystemStartTime));
     if ((attr = ippFindAttribute(resource->attrs, "time-at-installed", IPP_TAG_INTEGER)) != NULL)
       ippSetValueTag(resource->attrs, &attr, IPP_TAG_NOVALUE);
+
+    serverAddEventNoLock(NULL, NULL, resource, SERVER_EVENT_RESOURCE_CANCELED | SERVER_EVENT_RESOURCE_STATE_CHANGED, "Resource %d %s.", resource->id, state == IPP_RSTATE_CANCELED ? "canceled" : "aborted");
   }
 
   if (message && (attr = ippFindAttribute(resource->attrs, "resource-state-message", IPP_TAG_TEXT)) != NULL)

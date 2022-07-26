@@ -660,7 +660,6 @@ VAR char		*ConfigDirectory VALUE(NULL);
 VAR char		*DataDirectory	VALUE(NULL);
 VAR int			DefaultPort	VALUE(0);
 VAR server_printer_t	*DefaultPrinter	VALUE(NULL);
-VAR char		*DefaultSystemURI VALUE(NULL);
 VAR http_encryption_t	Encryption	VALUE(HTTP_ENCRYPTION_IF_REQUESTED);
 VAR cups_array_t	*FileDirectories VALUE(NULL);
 VAR int			KeepFiles	VALUE(0);
