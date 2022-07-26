@@ -89,6 +89,17 @@
 }
 
 {
+    NAME "Restart-System"
+    OPERATION Restart-System
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri system-uri $uri
+
+    STATUS successful-ok
+}
+
+{
     NAME "Get-Printer-Attributes"
     OPERATION Get-Printer-Attributes
     GROUP operation-attributes-tag
@@ -99,6 +110,7 @@
     STATUS successful-ok
 
     EXPECT printer-id IN-GROUP printer-attributes-tag OF-TYPE integer(1:65535)|no-value COUNT 1
+    EXPECT printer-id DEFINE-VALUE DEFAULT_PRINTER_ID
     EXPECT printer-info IN-GROUP printer-attributes-tag OF-TYPE text(127) COUNT 1
     EXPECT printer-is-accepting-jobs IN-GROUP printer-attributes-tag OF-TYPE boolean COUNT 1
     EXPECT printer-location IN-GROUP printer-attributes-tag OF-TYPE text(127) COUNT 1
@@ -111,6 +123,42 @@
     EXPECT printer-xri-supported IN-GROUP printer-attributes-tag OF-TYPE collection SAME-COUNT-AS printer-uri-supported
     EXPECT uri-authentication-supported IN-GROUP printer-attributes-tag OF-TYPE keyword SAME-COUNT-AS printer-uri-supported
     EXPECT uri-security-supported IN-GROUP printer-attributes-tag OF-TYPE keyword SAME-COUNT-AS printer-uri-supported
+}
+
+{
+    NAME "Shutdown-One-Printer"
+    OPERATION Shutdown-One-Printer
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri system-uri $uri
+    ATTR integer printer-id $DEFAULT_PRINTER_ID
+
+    STATUS successful-ok
+}
+
+{
+    NAME "Startup-One-Printer"
+    OPERATION Startup-One-Printer
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri system-uri $uri
+    ATTR integer printer-id $DEFAULT_PRINTER_ID
+
+    STATUS successful-ok
+}
+
+{
+    NAME "Restart-One-Printer"
+    OPERATION Restart-One-Printer
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri system-uri $uri
+    ATTR integer printer-id $DEFAULT_PRINTER_ID
+
+    STATUS successful-ok
 }
 
 {

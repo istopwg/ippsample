@@ -9035,6 +9035,13 @@ serverProcessIPP(
 		  serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing printer-id.");
 		break;
 
+	    case IPP_OP_RESTART_ONE_PRINTER :
+	        if (client->printer)
+		  ipp_restart_printer(client);
+		else
+		  serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing printer-id.");
+		break;
+
 	    case IPP_OP_RESTART_SYSTEM :
 		ipp_restart_system(client);
 		break;
