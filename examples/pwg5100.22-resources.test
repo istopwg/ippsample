@@ -11,3 +11,217 @@
 # information.
 #
 
+{
+    NAME "Get-Resources (default)"
+    OPERATION Get-Resources
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri system-uri $uri
+
+    STATUS successful-ok
+
+    EXPECT date-time-at-canceled IN-GROUP resource-attributes-tag OF-TYPE dateTime|no-value COUNT 1
+    EXPECT date-time-at-creation IN-GROUP resource-attributes-tag OF-TYPE dateTime COUNT 1
+    EXPECT date-time-at-installed IN-GROUP resource-attributes-tag OF-TYPE dateTime|no-value COUNT 1
+    EXPECT resource-data-uri IN-GROUP resource-attributes-tag OF-TYPE uri|no-value COUNT 1
+    EXPECT resource-format IN-GROUP resource-attributes-tag OF-TYPE mimeMediaType COUNT 1
+    EXPECT resource-id IN-GROUP resource-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT resource-info IN-GROUP resource-attributes-tag OF-TYPE text COUNT 1
+    EXPECT resource-k-octets IN-GROUP resource-attributes-tag OF-TYPE integer(0:MAX) COUNT 1
+    EXPECT resource-name IN-GROUP resource-attributes-tag OF-TYPE name COUNT 1
+    EXPECT ?resource-natural-language IN-GROUP resource-attributes-tag OF-TYPE naturalLanguage COUNT 1
+    EXPECT ?resource-patches IN-GROUP resource-attributes-tag OF-TYPE text|no-value COUNT 1
+    EXPECT ?resource-signature IN-GROUP resource-attributes-tag OF-TYPE octetString
+    EXPECT resource-state IN-GROUP resource-attributes-tag OF-TYPE enum COUNT 1
+    EXPECT resource-state-message IN-GROUP resource-attributes-tag OF-TYPE text COUNT 1
+    EXPECT resource-state-reasons IN-GROUP resource-attributes-tag OF-TYPE keyword
+    EXPECT resource-string-version IN-GROUP resource-attributes-tag OF-TYPE text|no-value COUNT 1
+    EXPECT resource-type IN-GROUP resource-attributes-tag OF-TYPE keyword COUNT 1
+    EXPECT resource-use-count IN-GROUP resource-attributes-tag OF-TYPE integer(0:MAX) COUNT 1
+    EXPECT resource-uuid IN-GROUP resource-attributes-tag OF-TYPE uri COUNT 1
+    EXPECT resource-version IN-GROUP resource-attributes-tag OF-TYPE octetString(64)|no-value COUNT 1
+    EXPECT time-at-canceled IN-GROUP resource-attributes-tag OF-TYPE integer|no-value COUNT 1
+    EXPECT time-at-creation IN-GROUP resource-attributes-tag OF-TYPE integer COUNT 1
+    EXPECT time-at-installed IN-GROUP resource-attributes-tag OF-TYPE integer|no-value COUNT 1
+}
+
+{
+    NAME "Get-Resources ('all')"
+    OPERATION Get-Resources
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri system-uri $uri
+    ATTR keyword requested-attributes all
+
+    STATUS successful-ok
+
+    EXPECT date-time-at-canceled IN-GROUP resource-attributes-tag OF-TYPE dateTime|no-value COUNT 1
+    EXPECT date-time-at-creation IN-GROUP resource-attributes-tag OF-TYPE dateTime COUNT 1
+    EXPECT date-time-at-installed IN-GROUP resource-attributes-tag OF-TYPE dateTime|no-value COUNT 1
+    EXPECT resource-data-uri IN-GROUP resource-attributes-tag OF-TYPE uri|no-value COUNT 1
+    EXPECT resource-format IN-GROUP resource-attributes-tag OF-TYPE mimeMediaType COUNT 1
+    EXPECT resource-id IN-GROUP resource-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT resource-info IN-GROUP resource-attributes-tag OF-TYPE text COUNT 1
+    EXPECT resource-k-octets IN-GROUP resource-attributes-tag OF-TYPE integer(0:MAX) COUNT 1
+    EXPECT resource-name IN-GROUP resource-attributes-tag OF-TYPE name COUNT 1
+    EXPECT ?resource-natural-language IN-GROUP resource-attributes-tag OF-TYPE naturalLanguage COUNT 1
+    EXPECT ?resource-patches IN-GROUP resource-attributes-tag OF-TYPE text|no-value COUNT 1
+    EXPECT ?resource-signature IN-GROUP resource-attributes-tag OF-TYPE octetString
+    EXPECT resource-state IN-GROUP resource-attributes-tag OF-TYPE enum COUNT 1
+    EXPECT resource-state-message IN-GROUP resource-attributes-tag OF-TYPE text COUNT 1
+    EXPECT resource-state-reasons IN-GROUP resource-attributes-tag OF-TYPE keyword
+    EXPECT resource-string-version IN-GROUP resource-attributes-tag OF-TYPE text|no-value COUNT 1
+    EXPECT resource-type IN-GROUP resource-attributes-tag OF-TYPE keyword COUNT 1
+    EXPECT resource-use-count IN-GROUP resource-attributes-tag OF-TYPE integer(0:MAX) COUNT 1
+    EXPECT resource-uuid IN-GROUP resource-attributes-tag OF-TYPE uri COUNT 1
+    EXPECT resource-version IN-GROUP resource-attributes-tag OF-TYPE octetString(64)|no-value COUNT 1
+    EXPECT time-at-canceled IN-GROUP resource-attributes-tag OF-TYPE integer|no-value COUNT 1
+    EXPECT time-at-creation IN-GROUP resource-attributes-tag OF-TYPE integer COUNT 1
+    EXPECT time-at-installed IN-GROUP resource-attributes-tag OF-TYPE integer|no-value COUNT 1
+}
+
+{
+    NAME "Get-Resources ('resource-description')"
+    OPERATION Get-Resources
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri system-uri $uri
+    ATTR keyword requested-attributes resource-description
+
+    STATUS successful-ok
+
+    EXPECT !date-time-at-canceled
+    EXPECT !date-time-at-creation
+    EXPECT !date-time-at-installed
+    EXPECT !resource-data-uri
+    EXPECT !resource-format
+    EXPECT !resource-id
+    EXPECT resource-info IN-GROUP resource-attributes-tag OF-TYPE text COUNT 1
+    EXPECT !resource-k-octets
+    EXPECT resource-name IN-GROUP resource-attributes-tag OF-TYPE name COUNT 1
+    EXPECT !resource-natural-language
+    EXPECT !resource-patches
+    EXPECT !resource-signature
+    EXPECT !resource-state
+    EXPECT !resource-state-message
+    EXPECT !resource-state-reasons
+    EXPECT !resource-string-version
+    EXPECT !resource-type
+    EXPECT !resource-use-count
+    EXPECT !resource-uuid
+    EXPECT !resource-version
+    EXPECT !time-at-canceled
+    EXPECT !time-at-creation
+    EXPECT !time-at-installed
+}
+
+{
+    NAME "Get-Resources ('resource-status')"
+    OPERATION Get-Resources
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri system-uri $uri
+    ATTR keyword requested-attributes resource-status
+
+    STATUS successful-ok
+
+    EXPECT date-time-at-canceled IN-GROUP resource-attributes-tag OF-TYPE dateTime|no-value COUNT 1
+    EXPECT date-time-at-creation IN-GROUP resource-attributes-tag OF-TYPE dateTime COUNT 1
+    EXPECT date-time-at-installed IN-GROUP resource-attributes-tag OF-TYPE dateTime|no-value COUNT 1
+    EXPECT resource-data-uri IN-GROUP resource-attributes-tag OF-TYPE uri|no-value COUNT 1
+    EXPECT resource-format IN-GROUP resource-attributes-tag OF-TYPE mimeMediaType COUNT 1
+    EXPECT resource-id IN-GROUP resource-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT !resource-info
+    EXPECT resource-k-octets IN-GROUP resource-attributes-tag OF-TYPE integer(0:MAX) COUNT 1
+    EXPECT !resource-name
+    EXPECT ?resource-natural-language IN-GROUP resource-attributes-tag OF-TYPE naturalLanguage COUNT 1
+    EXPECT ?resource-patches IN-GROUP resource-attributes-tag OF-TYPE text|no-value COUNT 1
+    EXPECT ?resource-signature IN-GROUP resource-attributes-tag OF-TYPE octetString
+    EXPECT resource-state IN-GROUP resource-attributes-tag OF-TYPE enum COUNT 1
+    EXPECT resource-state-message IN-GROUP resource-attributes-tag OF-TYPE text COUNT 1
+    EXPECT resource-state-reasons IN-GROUP resource-attributes-tag OF-TYPE keyword
+    EXPECT resource-string-version IN-GROUP resource-attributes-tag OF-TYPE text|no-value COUNT 1
+    EXPECT resource-type IN-GROUP resource-attributes-tag OF-TYPE keyword COUNT 1
+    EXPECT resource-use-count IN-GROUP resource-attributes-tag OF-TYPE integer(0:MAX) COUNT 1
+    EXPECT resource-uuid IN-GROUP resource-attributes-tag OF-TYPE uri COUNT 1
+    EXPECT resource-version IN-GROUP resource-attributes-tag OF-TYPE octetString(64)|no-value COUNT 1
+    EXPECT time-at-canceled IN-GROUP resource-attributes-tag OF-TYPE integer|no-value COUNT 1
+    EXPECT time-at-creation IN-GROUP resource-attributes-tag OF-TYPE integer COUNT 1
+    EXPECT time-at-installed IN-GROUP resource-attributes-tag OF-TYPE integer|no-value COUNT 1
+}
+
+{
+    NAME "Get-Resources ('resource-description','resource-status')"
+    OPERATION Get-Resources
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri system-uri $uri
+    ATTR keyword requested-attributes resource-description,resource-status
+
+    STATUS successful-ok
+
+    EXPECT date-time-at-canceled IN-GROUP resource-attributes-tag OF-TYPE dateTime|no-value COUNT 1
+    EXPECT date-time-at-creation IN-GROUP resource-attributes-tag OF-TYPE dateTime COUNT 1
+    EXPECT date-time-at-installed IN-GROUP resource-attributes-tag OF-TYPE dateTime|no-value COUNT 1
+    EXPECT resource-data-uri IN-GROUP resource-attributes-tag OF-TYPE uri|no-value COUNT 1
+    EXPECT resource-format IN-GROUP resource-attributes-tag OF-TYPE mimeMediaType COUNT 1
+    EXPECT resource-id IN-GROUP resource-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT resource-info IN-GROUP resource-attributes-tag OF-TYPE text COUNT 1
+    EXPECT resource-k-octets IN-GROUP resource-attributes-tag OF-TYPE integer(0:MAX) COUNT 1
+    EXPECT resource-name IN-GROUP resource-attributes-tag OF-TYPE name COUNT 1
+    EXPECT ?resource-natural-language IN-GROUP resource-attributes-tag OF-TYPE naturalLanguage COUNT 1
+    EXPECT ?resource-patches IN-GROUP resource-attributes-tag OF-TYPE text|no-value COUNT 1
+    EXPECT ?resource-signature IN-GROUP resource-attributes-tag OF-TYPE octetString
+    EXPECT resource-state IN-GROUP resource-attributes-tag OF-TYPE enum COUNT 1
+    EXPECT resource-state-message IN-GROUP resource-attributes-tag OF-TYPE text COUNT 1
+    EXPECT resource-state-reasons IN-GROUP resource-attributes-tag OF-TYPE keyword
+    EXPECT resource-string-version IN-GROUP resource-attributes-tag OF-TYPE text|no-value COUNT 1
+    EXPECT resource-type IN-GROUP resource-attributes-tag OF-TYPE keyword COUNT 1
+    EXPECT resource-use-count IN-GROUP resource-attributes-tag OF-TYPE integer(0:MAX) COUNT 1
+    EXPECT resource-uuid IN-GROUP resource-attributes-tag OF-TYPE uri COUNT 1
+    EXPECT resource-version IN-GROUP resource-attributes-tag OF-TYPE octetString(64)|no-value COUNT 1
+    EXPECT time-at-canceled IN-GROUP resource-attributes-tag OF-TYPE integer|no-value COUNT 1
+    EXPECT time-at-creation IN-GROUP resource-attributes-tag OF-TYPE integer COUNT 1
+    EXPECT time-at-installed IN-GROUP resource-attributes-tag OF-TYPE integer|no-value COUNT 1
+}
+
+{
+    NAME "Get-Resources ('resource-id','resource-description')"
+    OPERATION Get-Resources
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri system-uri $uri
+    ATTR keyword requested-attributes resource-id,resource-description
+
+    STATUS successful-ok
+
+    EXPECT !date-time-at-canceled
+    EXPECT !date-time-at-creation
+    EXPECT !date-time-at-installed
+    EXPECT !resource-data-uri
+    EXPECT !resource-format
+    EXPECT resource-id IN-GROUP resource-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT resource-info IN-GROUP resource-attributes-tag OF-TYPE text COUNT 1
+    EXPECT !resource-k-octets
+    EXPECT resource-name IN-GROUP resource-attributes-tag OF-TYPE name COUNT 1
+    EXPECT !resource-natural-language
+    EXPECT !resource-patches
+    EXPECT !resource-signature
+    EXPECT !resource-state
+    EXPECT !resource-state-message
+    EXPECT !resource-state-reasons
+    EXPECT !resource-string-version
+    EXPECT !resource-type
+    EXPECT !resource-use-count
+    EXPECT !resource-uuid
+    EXPECT !resource-version
+    EXPECT !time-at-canceled
+    EXPECT !time-at-creation
+    EXPECT !time-at-installed
+}

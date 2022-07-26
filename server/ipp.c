@@ -4846,6 +4846,9 @@ ipp_get_resources(
       idx ++;
       if (idx >= first_index)
       {
+        if (count)
+          ippAddSeparator(client->response);
+
         copy_resource_attributes(client, resource, ra);
         count ++;
       }
