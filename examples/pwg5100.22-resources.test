@@ -562,6 +562,21 @@
 }
 
 {
+    NAME "Get-Printer-Resources (Resource Printer)"
+    OPERATION Get-Printer-Resources
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $PRINTER_URI
+
+    STATUS successful-ok
+    EXPECT-ALL resource-id IN-GROUP resource-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT-ALL resource-state IN-GROUP resource-attributes-tag OF-TYPE enum COUNT 1
+    EXPECT-ALL resource-state-reasons IN-GROUP resource-attributes-tag OF-TYPE keyword
+    EXPECT-ALL resource-uuid IN-GROUP resource-attributes-tag OF-TYPE uri COUNT 1
+}
+
+{
     NAME "Delete-Printer (Resource Printer)"
     OPERATION Delete-Printer
     GROUP operation-attributes-tag

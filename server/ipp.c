@@ -83,6 +83,7 @@ static void		ipp_get_jobs(server_client_t *client);
 static void		ipp_get_notifications(server_client_t *client);
 static void		ipp_get_output_device_attributes(server_client_t *client);
 static void		ipp_get_printer_attributes(server_client_t *client);
+static void		ipp_get_printer_resources(server_client_t *client);
 static void		ipp_get_printer_supported_values(server_client_t *client);
 static void		ipp_get_printers(server_client_t *client);
 static void		ipp_get_resource_attributes(server_client_t *client);
@@ -4425,6 +4426,156 @@ ipp_get_printer_attributes(
   copy_printer_attributes(client, printer, ra);
 
   cupsRWUnlock(&(printer->rwlock));
+
+  cupsArrayDelete(ra);
+}
+
+
+/*
+ * 'ipp_get_printer_resources()' - Get printer resources.
+ */
+
+static void
+ipp_get_printer_resources(
+    server_client_t *client)		/* I - Client */
+{
+  server_resource_t	*resource;	/* New resource */
+  cups_array_t		*ra;		/* Attributes to send in response */
+  ipp_attribute_t	*attr,		/* Request attribute */
+			*resource_formats,
+					/* resource-formats attribute */
+			*resource_ids,	/* resource-ids attribute */
+			*resource_states,
+					/* resource-states attribute */
+			*resource_types;/* resource-types attribute */
+  int			first_index,	/* First resource index */
+			idx;		/* Index */
+  size_t		i,		/* Looping var */
+			limit,		/* Maximum number of jobs to return */
+			count;		/* Number of jobs that match */
+
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+ /*
+  * Validate request attributes...
+  */
+
+  if ((attr = ippFindAttribute(client->request, "first-index", IPP_TAG_INTEGER)) != NULL)
+  {
+    first_index = ippGetInteger(attr, 0);
+
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Get-Printer-Resources first-index=%d", first_index);
+  }
+  else
+    first_index = 1;
+
+  if ((attr = ippFindAttribute(client->request, "limit", IPP_TAG_INTEGER)) != NULL)
+  {
+    limit = (size_t)ippGetInteger(attr, 0);
+
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "Get-Printer-Resources limit=%u", (unsigned)limit);
+  }
+  else
+    limit = 0;
+
+  if ((resource_formats = ippFindAttribute(client->request, "resource-formats", IPP_TAG_ZERO)) != NULL)
+  {
+    if (ippGetGroupTag(resource_formats) != IPP_TAG_OPERATION || ippGetValueTag(resource_formats) != IPP_TAG_MIMETYPE)
+    {
+      serverRespondUnsupported(client, resource_formats);
+      httpFlush(client->http);
+      return;
+    }
+  }
+
+  if ((resource_ids = ippFindAttribute(client->request, "resource-ids", IPP_TAG_ZERO)) != NULL)
+  {
+    if (ippGetGroupTag(resource_ids) != IPP_TAG_OPERATION || ippGetValueTag(resource_ids) != IPP_TAG_INTEGER)
+    {
+      serverRespondUnsupported(client, resource_ids);
+      httpFlush(client->http);
+      return;
+    }
+  }
+
+  if ((resource_states = ippFindAttribute(client->request, "resource-states", IPP_TAG_ZERO)) != NULL)
+  {
+    if (ippGetGroupTag(resource_states) != IPP_TAG_OPERATION || ippGetValueTag(resource_states) != IPP_TAG_ENUM)
+    {
+      serverRespondUnsupported(client, resource_states);
+      httpFlush(client->http);
+      return;
+    }
+  }
+
+  if ((resource_types = ippFindAttribute(client->request, "resource-types", IPP_TAG_ZERO)) != NULL)
+  {
+    if (ippGetGroupTag(resource_types) != IPP_TAG_OPERATION || ippGetValueTag(resource_types) != IPP_TAG_KEYWORD)
+    {
+      serverRespondUnsupported(client, resource_types);
+      httpFlush(client->http);
+      return;
+    }
+  }
+
+ /*
+  * Send attributes...
+  */
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
+
+  ra = ippCreateRequestedArray(client->request);
+
+  cupsRWLockRead(&ResourcesRWLock);
+
+  count = client->printer->num_resources;
+  if (limit == 0 || limit > count)
+    limit = count;
+
+  for (count = 0, i = 0, idx = 0; i < client->printer->num_resources && count < limit; i ++)
+  {
+    resource = serverFindResourceById(client->printer->resources[i]);
+
+    cupsRWLockRead(&resource->rwlock);
+
+    if ((!resource_formats || ippContainsString(resource_formats, resource->format)) &&
+        (!resource_ids || ippContainsInteger(resource_ids, resource->id)) &&
+        (!resource_states || ippContainsInteger(resource_states, (int)resource->state)) &&
+        (!resource_types || ippContainsString(resource_types, resource->type)))
+    {
+      idx ++;
+      if (idx >= first_index)
+      {
+        if (count)
+          ippAddSeparator(client->response);
+
+        copy_resource_attributes(client, resource, ra);
+        count ++;
+      }
+    }
+
+    cupsRWUnlock(&resource->rwlock);
+  }
+
+  cupsRWUnlock(&ResourcesRWLock);
 
   cupsArrayDelete(ra);
 }
@@ -8875,6 +9026,10 @@ serverProcessIPP(
 
 	  case IPP_OP_DEALLOCATE_PRINTER_RESOURCES :
 	      ipp_deallocate_printer_resources(client);
+	      break;
+
+	  case IPP_OP_GET_PRINTER_RESOURCES :
+	      ipp_get_printer_resources(client);
 	      break;
 
 	  default :
