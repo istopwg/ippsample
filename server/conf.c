@@ -1568,6 +1568,7 @@ create_system_attributes(void)
   };
   static const char * const resource_settable_attributes_supported[] =
   {					/* Values for resource-settable-attributes-supported */
+    "resource-info",
     "resource-name"
   };
   static const char * const resource_type_supported[] =

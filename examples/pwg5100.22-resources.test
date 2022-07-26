@@ -591,6 +591,37 @@
 {
     SKIP-IF-NOT-DEFINED ICON_RESOURCE_ID
 
+    NAME "Set-Resource-Attributes (Icon Image)"
+    OPERATION Set-Resource-Attributes
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $ICON_RESOURCE_ID
+    GROUP resource-attributes-tag
+        ATTR text resource-info "PWG 5100.22 New Icon Image"
+
+    STATUS successful-ok
+}
+{
+    SKIP-IF-NOT-DEFINED ICON_RESOURCE_ID
+
+    NAME "Get-Resource-Attributes (Icon Image)"
+    OPERATION Get-Resource-Attributes
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $ICON_RESOURCE_ID
+	ATTR keyword requested-attributes resource-info
+
+    STATUS successful-ok
+    EXPECT !resource-id
+    EXPECT resource-info WITH-VALUE "PWG 5100.22 New Icon Image"
+}
+{
+    SKIP-IF-NOT-DEFINED ICON_RESOURCE_ID
+
     NAME "Cancel-Resource (Icon Image)"
     OPERATION Cancel-Resource
     GROUP operation-attributes-tag

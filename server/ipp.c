@@ -4814,7 +4814,7 @@ static void
 ipp_get_resource_attributes(
     server_client_t *client)		/* I - Client */
 {
-  server_resource_t	*resource;	/* New resource */
+  server_resource_t	*resource;	/* Resource */
   cups_array_t		*ra;		/* Attributes to send in response */
   ipp_attribute_t	*attr;		/* Request attribute */
   int			resource_id;	/* resource-id value */
@@ -7579,8 +7579,84 @@ static void
 ipp_set_resource_attributes(
     server_client_t *client)		/* I - Client */
 {
-  serverRespondIPP(client, IPP_STATUS_ERROR_OPERATION_NOT_SUPPORTED, "This operation is not yet implemented.");
-  return;
+  server_resource_t	*resource;	/* Resource */
+  int			resource_id;	/* resource-id value */
+  ipp_attribute_t	*settable,	/* resource-settable-attributes-supported */
+			*attr;		/* Current attribute */
+  static server_value_t	values[] =	/* Value tags for settable attributes */
+  {
+    { "resource-info",			IPP_TAG_TEXT, IPP_TAG_ZERO, 0 },
+    { "resource-name",			IPP_TAG_NAME, IPP_TAG_ZERO, 0 }
+  };
+
+
+  if (Authentication)
+  {
+   /*
+    * Require authenticated username belonging to the admin group...
+    */
+
+    if (!client->username[0])
+    {
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
+
+    if (!serverAuthorizeUser(client, NULL, AuthAdminGroup, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondHTTP(client, HTTP_STATUS_FORBIDDEN, NULL, NULL, 0);
+      return;
+    }
+  }
+
+ /*
+  * Validate request before setting attributes so that the Set operation is
+  * atomic...
+  */
+
+  if ((attr = ippFindAttribute(client->request, "resource-id", IPP_TAG_ZERO)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_BAD_REQUEST, "Missing required 'resource-id' attribute.");
+    return;
+  }
+  else if (ippGetGroupTag(attr) != IPP_TAG_OPERATION || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetCount(attr) != 1 || (resource_id = ippGetInteger(attr, 0)) < 1)
+  {
+    serverRespondUnsupported(client, attr);
+    return;
+  }
+  else if ((resource = serverFindResourceById(resource_id)) == NULL)
+  {
+    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_FOUND, "Resource #%d not found.", resource_id);
+    return;
+  }
+
+  settable = ippFindAttribute(SystemAttributes, "resource-settable-attributes-supported", IPP_TAG_KEYWORD);
+
+  if (!valid_values(client, IPP_TAG_RESOURCE, settable, sizeof(values) / sizeof(values[0]), values))
+    return;
+
+  cupsRWLockWrite(&resource->rwlock);
+
+  for (attr = ippGetFirstAttribute(client->request); attr; attr = ippGetNextAttribute(client->request))
+  {
+    const char		*name = ippGetName(attr);
+					/* Attribute name */
+    ipp_attribute_t	*sattr;		/* Attribute to set */
+
+    if (!name || ippGetGroupTag(attr) != IPP_TAG_RESOURCE)
+      continue;
+
+    if ((sattr = ippFindAttribute(resource->attrs, name, IPP_TAG_ZERO)) != NULL)
+      ippDeleteAttribute(resource->attrs, sattr);
+
+    ippCopyAttribute(resource->attrs, attr, 0);
+  }
+
+  serverAddEventNoLock(NULL, NULL, resource, SERVER_EVENT_RESOURCE_CONFIG_CHANGED, "Resource %d updated.", resource->id);
+
+  cupsRWUnlock(&resource->rwlock);
+
+  serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }
 
 
