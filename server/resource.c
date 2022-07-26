@@ -399,9 +399,13 @@ serverSetResourceState(
 
     if ((attr = ippFindAttribute(resource->attrs, "date-time-at-canceled", IPP_TAG_NOVALUE)) != NULL)
       ippSetDate(resource->attrs, &attr, 0, ippTimeToDate(time(NULL)));
+    if ((attr = ippFindAttribute(resource->attrs, "date-time-at-installed", IPP_TAG_DATE)) != NULL)
+      ippSetValueTag(resource->attrs, &attr, IPP_TAG_NOVALUE);
 
     if ((attr = ippFindAttribute(resource->attrs, "time-at-canceled", IPP_TAG_NOVALUE)) != NULL)
       ippSetInteger(resource->attrs, &attr, 0, (int)(time(NULL) - SystemStartTime));
+    if ((attr = ippFindAttribute(resource->attrs, "time-at-installed", IPP_TAG_INTEGER)) != NULL)
+      ippSetValueTag(resource->attrs, &attr, IPP_TAG_NOVALUE);
   }
 
   if (message && (attr = ippFindAttribute(resource->attrs, "resource-state-message", IPP_TAG_TEXT)) != NULL)
