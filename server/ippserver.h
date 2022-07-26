@@ -125,6 +125,7 @@ extern char **environ;
 
 typedef enum server_loglevel_e
 {
+  SERVER_LOGLEVEL_NONE,
   SERVER_LOGLEVEL_ERROR,
   SERVER_LOGLEVEL_INFO,
   SERVER_LOGLEVEL_DEBUG
@@ -666,7 +667,7 @@ VAR int			KeepFiles	VALUE(0);
 VAR char		*KeychainPath	VALUE(NULL);
 VAR cups_array_t	*Listeners	VALUE(NULL);
 VAR char		*LogFile	VALUE(NULL);
-VAR server_loglevel_t	LogLevel	VALUE(SERVER_LOGLEVEL_ERROR);
+VAR server_loglevel_t	LogLevel	VALUE(SERVER_LOGLEVEL_NONE);
 VAR int			MaxJobs		VALUE(100),
                         MaxCompletedJobs VALUE(100),
                         NextPrinterId	VALUE(1);

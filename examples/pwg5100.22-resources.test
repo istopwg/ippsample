@@ -225,3 +225,273 @@
     EXPECT !time-at-creation
     EXPECT !time-at-installed
 }
+
+{
+    NAME "Get-System-Attributes ('resource-type=supported')"
+    OPERATION Get-System-Attributes
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR keyword requested-attributes resource-type-supported
+
+    STATUS successful-ok
+    EXPECT resource-type-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+    EXPECT resource-type-supported WITH-VALUE static-icc-profile DEFINE-MATCH HAVE_ICC
+    EXPECT resource-type-supported WITH-VALUE static-image DEFINE-MATCH HAVE_IMAGE
+    EXPECT resource-type-supported WITH-VALUE static-strings DEFINE-MATCH HAVE_STRINGS
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_IMAGE
+
+    NAME "Create-Resource (Icon Image)"
+    OPERATION Create-Resource
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR keyword resource-type static-image
+    GROUP resource-attributes-tag
+	ATTR name resource-name "Icon Resource"
+	ATTR text resource-info "5100.22 Icon Resource"
+
+    STATUS successful-ok
+    EXPECT resource-id IN-GROUP resource-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT resource-id DEFINE-VALUE ICON_RESOURCE_ID
+}
+{
+    SKIP-IF-NOT-DEFINED HAVE_IMAGE
+    SKIP-IF-NOT-DEFINED ICON_RESOURCE_ID
+
+    NAME "Send-Resource-Data (Icon Image)"
+    OPERATION Send-Resource-Data
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $ICON_RESOURCE_ID
+	ATTR mimeMediaType resource-format image/png
+    FILE icon.png
+
+    STATUS successful-ok
+}
+{
+    SKIP-IF-NOT-DEFINED HAVE_IMAGE
+    SKIP-IF-NOT-DEFINED ICON_RESOURCE_ID
+
+    NAME "Install-Resource (Icon Image)"
+    OPERATION Install-Resource
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $ICON_RESOURCE_ID
+
+    STATUS successful-ok
+}
+
+{
+    NAME "Create-Printer (Resource Printer)"
+    OPERATION Create-Printer
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR keyword printer-service-type print
+	ATTR integer resource-ids $ICON_RESOURCE_ID
+    GROUP printer-attributes-tag
+	ATTR name printer-name "Resource Printer"
+	ATTR text printer-info "5100.22 Resource Printer"
+	ATTR text printer-location "Test Location"
+	ATTR uri printer-geo-location "geo:46.4707,-80.9961"
+
+    STATUS successful-ok
+    EXPECT printer-id IN-GROUP printer-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT printer-id DEFINE-VALUE PRINTER_ID
+    EXPECT printer-is-accepting-jobs IN-GROUP printer-attributes-tag OF-TYPE boolean COUNT 1
+    EXPECT printer-state IN-GROUP printer-attributes-tag OF-TYPE enum COUNT 1
+    EXPECT printer-state-reasons IN-GROUP printer-attributes-tag OF-TYPE keyword
+    EXPECT printer-uuid IN-GROUP printer-attributes-tag OF-TYPE uri COUNT 1
+    EXPECT printer-xri-supported IN-GROUP printer-attributes-tag OF-TYPE collection
+    EXPECT printer-xri-supported/xri-uri OF-TYPE uri COUNT 1
+    EXPECT printer-xri-supported/xri-uri DEFINE-VALUE PRINTER_URI
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_ICC
+
+    NAME "Create-Resource (ICC Profile)"
+    OPERATION Create-Resource
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR keyword resource-type static-icc-profile
+    GROUP resource-attributes-tag
+	ATTR name resource-name "sRGB ICC Profile"
+	ATTR text resource-info "5100.22 sRGB ICC Profile Resource"
+
+    STATUS successful-ok
+    EXPECT resource-id IN-GROUP resource-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT resource-id DEFINE-VALUE ICC_RESOURCE_ID
+}
+{
+    SKIP-IF-NOT-DEFINED HAVE_ICC
+    SKIP-IF-NOT-DEFINED ICC_RESOURCE_ID
+
+    NAME "Send-Resource-Data (ICC Profile)"
+    OPERATION Send-Resource-Data
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $ICC_RESOURCE_ID
+	ATTR mimeMediaType resource-format application/vnd.iccprofile
+    FILE sRGB.icc
+
+    STATUS successful-ok
+}
+{
+    SKIP-IF-NOT-DEFINED HAVE_ICC
+    SKIP-IF-NOT-DEFINED ICC_RESOURCE_ID
+
+    NAME "Install-Resource (ICC Profile)"
+    OPERATION Install-Resource
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $ICC_RESOURCE_ID
+
+    STATUS successful-ok
+}
+{
+    SKIP-IF-NOT-DEFINED HAVE_ICC
+    SKIP-IF-NOT-DEFINED ICC_RESOURCE_ID
+
+    NAME "Allocate-Printer-Resources (ICC Profile)"
+    OPERATION Allocate-Printer-Resources
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $PRINTER_URI
+	ATTR integer resource-ids $ICC_RESOURCE_ID
+
+    STATUS successful-ok
+}
+
+{
+    SKIP-IF-NOT-DEFINED HAVE_STRINGS
+
+    NAME "Create-Resource (English Strings)"
+    OPERATION Create-Resource
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR keyword resource-type static-image
+    GROUP resource-attributes-tag
+	ATTR name resource-name "English Strings"
+	ATTR text resource-info "5100.22 English Strings Resource"
+
+    STATUS successful-ok
+    EXPECT resource-id IN-GROUP resource-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT resource-id DEFINE-VALUE STRINGS_RESOURCE_ID
+}
+{
+    SKIP-IF-NOT-DEFINED HAVE_STRINGS
+    SKIP-IF-NOT-DEFINED STRINGS_RESOURCE_ID
+
+    NAME "Send-Resource-Data (English Strings)"
+    OPERATION Send-Resource-Data
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $STRINGS_RESOURCE_ID
+	ATTR mimeMediaType resource-format text/strings
+    FILE en.strings
+
+    STATUS successful-ok
+}
+{
+    SKIP-IF-NOT-DEFINED HAVE_STRINGS
+    SKIP-IF-NOT-DEFINED STRINGS_RESOURCE_ID
+
+    NAME "Install-Resource (English Strings)"
+    OPERATION Install-Resource
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $STRINGS_RESOURCE_ID
+
+    STATUS successful-ok
+}
+{
+    SKIP-IF-NOT-DEFINED HAVE_STRINGS
+    SKIP-IF-NOT-DEFINED STRINGS_RESOURCE_ID
+
+    NAME "Allocate-Printer-Resources (English Strings)"
+    OPERATION Allocate-Printer-Resources
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri printer-uri $PRINTER_URI
+	ATTR integer resource-ids $STRINGS_RESOURCE_ID
+
+    STATUS successful-ok
+}
+
+{
+    NAME "Delete-Printer (Resource Printer)"
+    OPERATION Delete-Printer
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer printer-id $PRINTER_ID
+
+    STATUS successful-ok
+}
+
+{
+    SKIP-IF-NOT-DEFINED ICON_RESOURCE_ID
+
+    NAME "Cancel-Resource (Icon Image)"
+    OPERATION Cancel-Resource
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $ICON_RESOURCE_ID
+
+    STATUS successful-ok
+}
+{
+    SKIP-IF-NOT-DEFINED ICC_RESOURCE_ID
+
+    NAME "Cancel-Resource (ICC Profile)"
+    OPERATION Cancel-Resource
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $ICC_RESOURCE_ID
+
+    STATUS successful-ok
+}
+{
+    SKIP-IF-NOT-DEFINED STRINGS_RESOURCE_ID
+
+    NAME "Cancel-Resource (English Strings)"
+    OPERATION Cancel-Resource
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer resource-id $STRINGS_RESOURCE_ID
+
+    STATUS successful-ok
+}

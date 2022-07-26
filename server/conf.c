@@ -1562,6 +1562,7 @@ create_system_attributes(void)
   {					/* Values for resource-format-supported */
     "application/ipp",
     "application/vnd.iccprofile",
+    "image/jpeg",
     "image/png",
     "text/strings"
   };
@@ -2727,17 +2728,20 @@ load_system(const char *conf)		/* I - Configuration file */
     }
     else if (!strcasecmp(line, "LogLevel"))
     {
-      if (!strcasecmp(value, "error"))
-        LogLevel = SERVER_LOGLEVEL_ERROR;
-      else if (!strcasecmp(value, "info"))
-        LogLevel = SERVER_LOGLEVEL_INFO;
-      else if (!strcasecmp(value, "debug"))
-        LogLevel = SERVER_LOGLEVEL_DEBUG;
-      else
+      if (LogLevel == SERVER_LOGLEVEL_NONE)
       {
-        fprintf(stderr, "ippserver: Bad LogLevel value \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
-        status = 0;
-        break;
+	if (!strcasecmp(value, "error"))
+	  LogLevel = SERVER_LOGLEVEL_ERROR;
+	else if (!strcasecmp(value, "info"))
+	  LogLevel = SERVER_LOGLEVEL_INFO;
+	else if (!strcasecmp(value, "debug"))
+	  LogLevel = SERVER_LOGLEVEL_DEBUG;
+	else
+	{
+	  fprintf(stderr, "ippserver: Bad LogLevel value \"%s\" on line %d of \"%s\".\n", value, linenum, conf);
+	  status = 0;
+	  break;
+	}
       }
     }
     else if (!strcasecmp(line, "MaxCompletedJobs"))
