@@ -15,9 +15,9 @@
     NAME "Disable-All-Printers"
     OPERATION Disable-All-Printers
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR naturalLanguage attributes-natural-language en
-    ATTR uri system-uri $uri
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
 
     STATUS successful-ok
 }
@@ -26,9 +26,9 @@
     NAME "Enable-All-Printers"
     OPERATION Enable-All-Printers
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR naturalLanguage attributes-natural-language en
-    ATTR uri system-uri $uri
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
 
     STATUS successful-ok
 }
@@ -37,9 +37,9 @@
     NAME "Pause-All-Printers-After-Current-Job"
     OPERATION Pause-All-Printers-After-Current-Job
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR naturalLanguage attributes-natural-language en
-    ATTR uri system-uri $uri
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
 
     STATUS successful-ok
 }
@@ -48,9 +48,9 @@
     NAME "Pause-All-Printers"
     OPERATION Pause-All-Printers
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR naturalLanguage attributes-natural-language en
-    ATTR uri system-uri $uri
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
 
     STATUS successful-ok
 }
@@ -59,9 +59,9 @@
     NAME "Resume-All-Printers"
     OPERATION Resume-All-Printers
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR naturalLanguage attributes-natural-language en
-    ATTR uri system-uri $uri
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
 
     STATUS successful-ok
 }
@@ -70,9 +70,9 @@
     NAME "Shutdown-All-Printers"
     OPERATION Shutdown-All-Printers
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR naturalLanguage attributes-natural-language en
-    ATTR uri system-uri $uri
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
 
     STATUS successful-ok
 }
@@ -81,9 +81,9 @@
     NAME "Startup-All-Printers"
     OPERATION Startup-All-Printers
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR naturalLanguage attributes-natural-language en
-    ATTR uri system-uri $uri
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
 
     STATUS successful-ok
 }
@@ -92,9 +92,9 @@
     NAME "Restart-System"
     OPERATION Restart-System
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR naturalLanguage attributes-natural-language en
-    ATTR uri system-uri $uri
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
 
     STATUS successful-ok
 }
@@ -103,9 +103,9 @@
     NAME "Get-Printer-Attributes"
     OPERATION Get-Printer-Attributes
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR naturalLanguage attributes-natural-language en
-    ATTR uri system-uri $uri
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
 
     STATUS successful-ok
 
@@ -129,10 +129,10 @@
     NAME "Shutdown-One-Printer"
     OPERATION Shutdown-One-Printer
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR naturalLanguage attributes-natural-language en
-    ATTR uri system-uri $uri
-    ATTR integer printer-id $DEFAULT_PRINTER_ID
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer printer-id $DEFAULT_PRINTER_ID
 
     STATUS successful-ok
 }
@@ -141,10 +141,10 @@
     NAME "Startup-One-Printer"
     OPERATION Startup-One-Printer
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR naturalLanguage attributes-natural-language en
-    ATTR uri system-uri $uri
-    ATTR integer printer-id $DEFAULT_PRINTER_ID
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer printer-id $DEFAULT_PRINTER_ID
 
     STATUS successful-ok
 }
@@ -153,10 +153,10 @@
     NAME "Restart-One-Printer"
     OPERATION Restart-One-Printer
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR naturalLanguage attributes-natural-language en
-    ATTR uri system-uri $uri
-    ATTR integer printer-id $DEFAULT_PRINTER_ID
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer printer-id $DEFAULT_PRINTER_ID
 
     STATUS successful-ok
 }
@@ -165,9 +165,9 @@
     NAME "Get-Printers"
     OPERATION Get-Printers
     GROUP operation-attributes-tag
-    ATTR charset attributes-charset utf-8
-    ATTR naturalLanguage attributes-natural-language en
-    ATTR uri system-uri $uri
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
 
     STATUS successful-ok
 
@@ -184,4 +184,43 @@
     EXPECT printer-xri-supported IN-GROUP printer-attributes-tag OF-TYPE collection SAME-COUNT-AS printer-uri-supported
     EXPECT uri-authentication-supported IN-GROUP printer-attributes-tag OF-TYPE keyword SAME-COUNT-AS printer-uri-supported
     EXPECT uri-security-supported IN-GROUP printer-attributes-tag OF-TYPE keyword SAME-COUNT-AS printer-uri-supported
+}
+
+{
+    NAME "Create-Printer"
+    OPERATION Create-Printer
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR keyword printer-service-type print
+    GROUP printer-attributes-tag
+	ATTR name printer-name "Test Printer"
+	ATTR text printer-info "5100.22 Test Printer"
+	ATTR text printer-location "Test Location"
+	ATTR uri printer-geo-location "geo:46.4707,-80.9961"
+
+
+    STATUS successful-ok
+    EXPECT printer-id IN-GROUP printer-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT printer-id DEFINE-VALUE PRINTER_ID
+    EXPECT printer-is-accepting-jobs IN-GROUP printer-attributes-tag OF-TYPE boolean COUNT 1
+    EXPECT printer-state IN-GROUP printer-attributes-tag OF-TYPE enum COUNT 1
+    EXPECT printer-state-reasons IN-GROUP printer-attributes-tag OF-TYPE keyword
+    EXPECT printer-uuid IN-GROUP printer-attributes-tag OF-TYPE uri COUNT 1
+    EXPECT printer-xri-supported IN-GROUP printer-attributes-tag OF-TYPE collection
+    EXPECT printer-xri-supported/xri-uri OF-TYPE uri COUNT 1
+    EXPECT printer-xri-supported/xri-uri DEFINE-VALUE PRINTER_URI
+}
+
+{
+    NAME "Delete-Printer"
+    OPERATION Delete-Printer
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+	ATTR integer printer-id $PRINTER_ID
+
+    STATUS successful-ok
 }

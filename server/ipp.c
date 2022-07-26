@@ -2795,8 +2795,7 @@ ipp_create_printer(
   cupsArrayAdd(ra, "system-state");
   cupsArrayAdd(ra, "system-state-reasons");
 
-  serverCopyAttributes(client->response, client->printer->pinfo.attrs, ra, NULL, IPP_TAG_ZERO, false);
-  copy_printer_state(client->response, client->printer, ra);
+  copy_printer_attributes(client, client->printer, ra);
 
   cupsRWUnlock(&client->printer->rwlock);
 
