@@ -214,6 +214,19 @@
 }
 
 {
+    NAME "Set-System-Attributes"
+    OPERATION Set-System-Attributes
+    GROUP operation-attributes-tag
+	ATTR charset attributes-charset utf-8
+	ATTR naturalLanguage attributes-natural-language en
+	ATTR uri system-uri $uri
+    GROUP system-attributes-tag
+	ATTR integer system-default-printer-id $PRINTER_ID
+
+    STATUS successful-ok
+}
+
+{
     NAME "Delete-Printer"
     OPERATION Delete-Printer
     GROUP operation-attributes-tag
