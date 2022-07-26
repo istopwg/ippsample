@@ -869,3 +869,369 @@ VERSION 2.0
     EXPECT xri-security-supported IN-GROUP system-attributes-tag OF-TYPE keyword
     EXPECT xri-uri-scheme-supported IN-GROUP system-attributes-tag OF-TYPE uriScheme
 }
+
+{
+    NAME "Get-System-Attributes ('system-description','system-status')"
+    OPERATION Get-System-Attributes
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri system-uri $uri
+    ATTR keyword requested-attributes system-description,system-status
+
+    STATUS successful-ok
+
+    EXPECT charset-configured IN-GROUP system-attributes-tag OF-TYPE charset COUNT 1
+    EXPECT charset-supported IN-GROUP system-attributes-tag OF-TYPE charset
+
+    EXPECT document-format-supported IN-GROUP system-attributes-tag OF-TYPE mimeMediaType
+
+    EXPECT generated-natural-language-supported IN-GROUP system-attributes-tag OF-TYPE naturalLanguage
+    EXPECT natural-language-configured IN-GROUP system-attributes-tag OF-TYPE naturalLanguage COUNT 1
+
+    EXPECT ippget-event-life IN-GROUP system-attributes-tag OF-TYPE integer(15:MAX) COUNT 1
+
+    EXPECT ipp-features-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+
+    EXPECT ipp-versions-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+
+    EXPECT multiple-document-printers-supported IN-GROUP system-attributes-tag OF-TYPE boolean COUNT 1
+
+    EXPECT notify-attributes-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+
+    EXPECT notify-events-default IN-GROUP system-attributes-tag OF-TYPE keyword
+    EXPECT notify-events-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+
+    EXPECT notify-lease-duration-default IN-GROUP system-attributes-tag OF-TYPE integer(0:67108863) COUNT 1
+    EXPECT notify-lease-duration-supported IN-GROUP system-attributes-tag OF-TYPE integer(0:67108863)|rangeOfInteger(0:67108863)
+
+    EXPECT notify-max-events-supported IN-GROUP system-attributes-tag OF-TYPE integer(2:MAX)
+
+    EXPECT notify-pull-method-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+
+    EXPECT ?notify-schemes-supported IN-GROUP system-attributes-tag OF-TYPE uriScheme
+
+    EXPECT operations-supported IN-GROUP system-attributes-tag OF-TYPE enum
+
+    EXPECT power-calendar-policy-col IN-GROUP system-attributes-tag OF-TYPE collection DEFINE-MATCH HAVE_POWER_CALENDAR
+    EXPECT power-calendar-policy-col/calendar-id OF-TYPE integer(1:MAX) COUNT 1 IF-DEFINED HAVE_POWER_CALENDAR
+    EXPECT power-calendar-policy-col/request-power-state OF-TYPE enum COUNT 1 IF-DEFINED HAVE_POWER_CALENDAR
+    EXPECT power-calendar-policy-col/run-once OF-TYPE boolean COUNT 1 IF-DEFINED HAVE_POWER_CALENDAR
+
+    EXPECT power-event-policy-col IN-GROUP system-attributes-tag OF-TYPE collection DEFINE-MATCH HAVE_POWER_EVENT
+    EXPECT power-event-policy-col/event-id OF-TYPE integer(1:MAX) COUNT 1 IF-DEFINED HAVE_POWER_EVENT
+    EXPECT power-event-policy-col/event-name OF-TYPE name(127) COUNT 1 IF-DEFINED HAVE_POWER_EVENT
+    EXPECT power-event-policy-col/request-power-state OF-TYPE enum COUNT 1 IF-DEFINED HAVE_POWER_EVENT
+
+    EXPECT power-log-col IN-GROUP system-attributes-tag OF-TYPE collection DEFINE-MATCH HAVE_POWER_LOG
+    EXPECT power-log-col/log-id OF-TYPE integer(1:MAX) COUNT 1 IF-DEFINED HAVE_POWER_LOG
+    EXPECT power-log-col/power-state OF-TYPE enum COUNT 1 IF-DEFINED HAVE_POWER_LOG
+    EXPECT power-log-col/power-state-date-time OF-TYPE dateTime COUNT 1 IF-DEFINED HAVE_POWER_LOG
+
+    EXPECT power-state-capabilities-col IN-GROUP system-attributes-tag OF-TYPE collection DEFINE-MATCH HAVE_POWER_CAPS
+    EXPECT power-state-capabilities-col/can-accept-jobs OF-TYPE boolean COUNT 1 IF-DEFINED HAVE_POWER_CAPS
+    EXPECT power-state-capabilities-col/can-process-jobs OF-TYPE boolean COUNT 1 IF-DEFINED HAVE_POWER_CAPS
+    EXPECT power-state-capabilities-col/power-active-watts OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_POWER_CAPS
+    EXPECT power-state-capabilities-col/power-inactive-watts OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_POWER_CAPS
+    EXPECT power-state-capabilities-col/power-state OF-TYPE enum COUNT 1 IF-DEFINED HAVE_POWER_CAPS
+
+    EXPECT power-state-counters-col IN-GROUP system-attributes-tag OF-TYPE collection DEFINE-MATCH HAVE_POWER_COUNTERS
+    EXPECT power-state-counters-col/hibernate-transitions OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_POWER_COUNTERS
+    EXPECT power-state-counters-col/on-transitions OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_POWER_COUNTERS
+    EXPECT power-state-counters-col/standby-transitions OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_POWER_COUNTERS
+    EXPECT power-state-counters-col/suspend-transitions OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_POWER_COUNTERS
+
+    EXPECT power-state-monitor-col IN-GROUP system-attributes-tag OF-TYPE collection COUNT 1 DEFINE-MATCH HAVE_POWER_MONITOR
+    EXPECT power-state-monitor-col/current-month-kwh OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_POWER_MONITOR
+    EXPECT power-state-monitor-col/current-watts OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_POWER_MONITOR
+    EXPECT power-state-monitor-col/lifetime-kwh OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_POWER_MONITOR
+    EXPECT power-state-monitor-col/meters-at-actual OF-TYPE boolean COUNT 1 IF-DEFINED HAVE_POWER_MONITOR
+    EXPECT power-state-monitor-col/power-state OF-TYPE enum COUNT 1 IF-DEFINED HAVE_POWER_MONITOR
+    EXPECT power-state-monitor-col/power-state-message OF-TYPE text(255) COUNT 1 IF-DEFINED HAVE_POWER_MONITOR
+    EXPECT power-state-monitor-col/power-state-usage-is-rms OF-TYPE boolean COUNT 1 IF-DEFINED HAVE_POWER_MONITOR
+
+    EXPECT power-timeout-policy-col IN-GROUP system-attributes-tag OF-TYPE collection DEFINE-MATCH HAVE_POWER_TIMEOUT
+    EXPECT power-timeout-policy-col/request-power-state OF-TYPE enum COUNT 1 IF-DEFINED HAVE_POWER_TIMEOUT
+    EXPECT power-timeout-policy-col/start-power-state OF-TYPE enum COUNT 1 IF-DEFINED HAVE_POWER_TIMEOUT
+    EXPECT power-timeout-policy-col/timeout-id OF-TYPE integer(1:MAX) COUNT 1 IF-DEFINED HAVE_POWER_TIMEOUT
+    EXPECT power-timeout-policy-col/timeout-predicate OF-TYPE keyword COUNT 1 IF-DEFINED HAVE_POWER_TIMEOUT
+    EXPECT power-timeout-policy-col/timeout-seconds OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_POWER_TIMEOUT
+
+    EXPECT power-transitions-policy-col IN-GROUP system-attributes-tag OF-TYPE collection DEFINE-MATCH HAVE_POWER_TRANSITIONS
+    EXPECT power-transitions-policy-col/end-power-state OF-TYPE enum COUNT 1 IF-DEFINED HAVE_POWER_TRANSITIONS
+    EXPECT power-transitions-policy-col/start-power-state OF-TYPE enum COUNT 1 IF-DEFINED HAVE_POWER_TRANSITIONS
+    EXPECT power-transitions-policy-col/state-transition-seconds OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_POWER_TRANSITIONS
+
+    EXPECT printer-creation-attributes-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+
+    EXPECT printer-service-type-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+
+    EXPECT resource-format-supported IN-GROUP system-attributes-tag OF-TYPE mimeMediaType
+
+    EXPECT resource-type-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+
+    EXPECT resource-settable-attributes-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+
+    EXPECT system-config-change-date-time IN-GROUP system-attributes-tag OF-TYPE dateTime COUNT 1
+    EXPECT system-config-change-time IN-GROUP system-attributes-tag OF-TYPE integer COUNT 1
+    EXPECT system-config-changes IN-GROUP system-attributes-tag OF-TYPE integer COUNT 1
+
+    EXPECT system-configured-printers IN-GROUP system-attributes-tag OF-TYPE collection|no-value
+    EXPECT system-configured-printers OF-TYPE collection DEFINE-MATCH HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-id OF-TYPE integer(1:65535) COUNT 1 IF-DEFINED HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-info OF-TYPE text(127) COUNT 1 IF-DEFINED HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-is-accepting-jobs OF-TYPE boolean COUNT 1 IF-DEFINED HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-name OF-TYPE name(127) COUNT 1 IF-DEFINED HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-service-type OF-TYPE keyword COUNT 1 IF-DEFINED HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-state OF-TYPE enum COUNT 1 IF-DEFINED HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-state-reasons OF-TYPE keyword IF-DEFINED HAVE_CONFIGURED_PRINTERS
+    EXPECT system-configured-printers/printer-xri-supported OF-TYPE collection IF-DEFINED HAVE_CONFIGURED_PRINTERS
+
+    EXPECT system-configured-resources IN-GROUP system-attributes-tag OF-TYPE collection|no-value
+    EXPECT system-configured-resources OF-TYPE collection DEFINE-MATCH HAVE_CONFIGURED_RESOURCES
+    EXPECT system-configured-resources/resource-format OF-TYPE mimeMediaType COUNT 1 IF-DEFINED HAVE_CONFIGURED_RESOURCES
+    EXPECT system-configured-resources/resource-id OF-TYPE integer(1:MAX) COUNT 1 IF-DEFINED HAVE_CONFIGURED_RESOURCES
+    EXPECT system-configured-resources/resource-info OF-TYPE text(127) COUNT 1 IF-DEFINED HAVE_CONFIGURED_RESOURCES
+    EXPECT system-configured-resources/resource-name OF-TYPE name(127) COUNT 1 IF-DEFINED HAVE_CONFIGURED_RESOURCES
+    EXPECT system-configured-resources/resource-state OF-TYPE enum COUNT 1 IF-DEFINED HAVE_CONFIGURED_RESOURCES
+    EXPECT system-configured-resources/resource-state-reasons OF-TYPE keyword IF-DEFINED HAVE_CONFIGURED_RESOURCES
+    EXPECT system-configured-resources/resource-type OF-TYPE keyword COUNT 1 IF-DEFINED HAVE_CONFIGURED_RESOURCES
+
+    EXPECT system-contact-col IN-GROUP system-attributes-tag OF-TYPE collection|no-value COUNT 1
+    EXPECT system-contact-col IN-GROUP system-attributes-tag OF-TYPE collection DEFINE-MATCH HAVE_CONTACT_COL
+    EXPECT system-contact-col/contact-name OF-TYPE name COUNT 1 IF-DEFINED HAVE_CONTACT_COL
+
+    EXPECT system-current-time IN-GROUP system-attributes-tag OF-TYPE dateTime COUNT 1
+    EXPECT system-up-time IN-GROUP system-attributes-tag OF-TYPE integer COUNT 1
+    EXPECT system-time-source-configured IN-GROUP system-attributes-tag OF-TYPE keyword|name COUNT 1
+
+    EXPECT system-default-printer-id IN-GROUP system-attributes-tag OF-TYPE integer(1:65535)|no-value COUNT 1
+
+    EXPECT system-firmware-name IN-GROUP system-attributes-tag OF-TYPE name(MAX)
+    EXPECT system-firmware-patches IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-firmware-name
+    EXPECT system-firmware-string-version IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-firmware-name
+    EXPECT system-firmware-version IN-GROUP system-attributes-tag OF-TYPE octetString(64) SAME-COUNT-AS system-firmware-name
+
+    EXPECT system-geo-location IN-GROUP system-attributes-tag OF-TYPE uri|unknown COUNT 1
+
+    EXPECT ?system-impressions-completed IN-GROUP system-attributes-tag OF-TYPE integer(0:MAX) COUNT 1
+    EXPECT system-impressions-completed-col IN-GROUP system-attributes-tag OF-TYPE integer(0:MAX) COUNT 1 DEFINE-MATCH HAVE_IMPRESSIONS
+    EXPECT system-impressions-completed-col/blank OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_IMPRESSIONS
+    EXPECT system-impressions-completed-col/blank-two-sided OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_IMPRESSIONS
+    EXPECT system-impressions-completed-col/full-color OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_IMPRESSIONS
+    EXPECT system-impressions-completed-col/full-color-two-sided OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_IMPRESSIONS
+    EXPECT system-impressions-completed-col/highlight-color OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_IMPRESSIONS
+    EXPECT system-impressions-completed-col/highlight-color-two-sided OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_IMPRESSIONS
+    EXPECT system-impressions-completed-col/monochrome OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_IMPRESSIONS
+    EXPECT system-impressions-completed-col/monochrome-two-sided OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_IMPRESSIONS
+
+    EXPECT system-info IN-GROUP system-attributes-tag OF-TYPE text(127) COUNT 1
+
+    EXPECT system-location IN-GROUP system-attributes-tag OF-TYPE text(127) COUNT 1
+
+    EXPECT system-make-and-model IN-GROUP system-attributes-tag OF-TYPE text(127) COUNT 1
+
+    EXPECT system-mandatory-printer-attributes IN-GROUP system-attributes-tag OF-TYPE keyword
+
+    EXPECT ?system-media-sheets-completed IN-GROUP system-attributes-tag OF-TYPE integer(0:MAX) COUNT 1
+    EXPECT system-media-sheets-completed-col IN-GROUP system-attributes-tag OF-TYPE integer(0:MAX) COUNT 1 DEFINE-MATCH HAVE_SHEETS
+    EXPECT system-media-sheets-completed-col/blank OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_SHEETS
+    EXPECT system-media-sheets-completed-col/full-color OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_SHEETS
+    EXPECT system-media-sheets-completed-col/highlight-color OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_SHEETS
+    EXPECT system-media-sheets-completed-col/monochrome OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_SHEETS
+
+    EXPECT ?system-message-from-operator IN-GROUP system-attributes-tag OF-TYPE text(127) COUNT 1
+
+    EXPECT system-name IN-GROUP system-attributes-tag OF-TYPE name(127) COUNT 1
+
+    EXPECT system-owner-col IN-GROUP system-attributes-tag OF-TYPE collection|no-value COUNT 1
+    EXPECT system-owner-col OF-TYPE collection DEFINE-MATCH HAVE_OWNER_COL
+    EXPECT system-owner-col/contact-name OF-TYPE name COUNT 1 IF-DEFINED HAVE_OWNER_COL
+
+    EXPECT ?system-pages-completed IN-GROUP system-attributes-tag OF-TYPE integer(0:MAX) COUNT 1
+    EXPECT system-pages-completed-col IN-GROUP system-attributes-tag OF-TYPE integer(0:MAX) COUNT 1 DEFINE-MATCH HAVE_PAGES
+    EXPECT system-pages-completed-col/full-color OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_PAGES
+    EXPECT system-pages-completed-col/monochrome OF-TYPE integer(0:MAX) COUNT 1 IF-DEFINED HAVE_PAGES
+
+    EXPECT ?system-resident-application-name IN-GROUP system-attributes-tag OF-TYPE name(MAX)
+    EXPECT ?system-resident-application-patches IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-resident-application-name
+    EXPECT ?system-resident-application-string-version IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-resident-application-name
+    EXPECT ?system-resident-application-version IN-GROUP system-attributes-tag OF-TYPE octetString(64) SAME-COUNT-AS system-resident-application-name
+
+    EXPECT ?system-serial-number IN-GROUP system-attributes-tag OF-TYPE name(255) COUNT 1
+
+    EXPECT system-settable-attributes-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+
+    EXPECT system-state IN-GROUP system-attributes-tag OF-TYPE enum COUNT 1
+    EXPECT system-state-change-date-time IN-GROUP system-attributes-tag OF-TYPE dateTime COUNT 1
+    EXPECT system-state-change-time IN-GROUP system-attributes-tag OF-TYPE integer COUNT 1
+    EXPECT system-state-message IN-GROUP system-attributes-tag OF-TYPE text COUNT 1
+    EXPECT system-state-reasons IN-GROUP system-attributes-tag OF-TYPE keyword
+
+    EXPECT system-strings-languages-supported IN-GROUP system-attributes-tag OF-TYPE naturalLanguage DEFINE-MATCH HAVE_STRINGS
+    EXPECT system-strings-uri IN-GROUP system-attributes-tag OF-TYPE uri|no-value COUNT 1 IF-DEFINED HAVE_STRINGS
+
+    EXPECT ?system-user-application-name IN-GROUP system-attributes-tag OF-TYPE name(MAX)
+    EXPECT ?system-user-application-patches IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-user-application-name
+    EXPECT ?system-user-application-string-version IN-GROUP system-attributes-tag OF-TYPE text SAME-COUNT-AS system-user-application-name
+    EXPECT ?system-user-application-version IN-GROUP system-attributes-tag OF-TYPE octetString(64) SAME-COUNT-AS system-user-application-name
+
+    EXPECT system-uuid IN-GROUP system-attributes-tag OF-TYPE uri COUNT 1
+
+    EXPECT system-xri-supported IN-GROUP system-attributes-tag OF-TYPE collection
+    EXPECT system-xri-supported/xri-authentication OF-TYPE keyword COUNT 1
+    EXPECT system-xri-supported/xri-security OF-TYPE keyword COUNT 1
+    EXPECT system-xri-supported/xri-uri OF-TYPE uri COUNT 1
+
+    EXPECT xri-authentication-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+    EXPECT xri-security-supported IN-GROUP system-attributes-tag OF-TYPE keyword
+    EXPECT xri-uri-scheme-supported IN-GROUP system-attributes-tag OF-TYPE uriScheme
+}
+
+{
+    NAME "Get-System-Attributes ('system-xri-supported')"
+    OPERATION Get-System-Attributes
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri system-uri $uri
+    ATTR keyword requested-attributes system-xri-supported
+
+    STATUS successful-ok
+
+    EXPECT system-xri-supported IN-GROUP system-attributes-tag OF-TYPE collection
+    EXPECT system-xri-supported/xri-authentication OF-TYPE keyword COUNT 1
+    EXPECT system-xri-supported/xri-security OF-TYPE keyword COUNT 1
+    EXPECT system-xri-supported/xri-uri OF-TYPE uri COUNT 1
+
+    EXPECT !charset-configured
+    EXPECT !charset-supported
+
+    EXPECT !document-format-supported
+
+    EXPECT !generated-natural-language-supported
+    EXPECT !natural-language-configured
+
+    EXPECT !ippget-event-life
+
+    EXPECT !ipp-features-supported
+
+    EXPECT !ipp-versions-supported
+
+    EXPECT !multiple-document-printers-supported
+
+    EXPECT !notify-attributes-supported
+
+    EXPECT !notify-events-default
+    EXPECT !notify-events-supported
+
+    EXPECT !notify-lease-duration-default
+    EXPECT !notify-lease-duration-supported
+
+    EXPECT !notify-max-events-supported
+
+    EXPECT !notify-pull-method-supported
+
+    EXPECT !notify-schemes-supported
+
+    EXPECT !operations-supported
+
+    EXPECT !power-calendar-policy-col
+
+    EXPECT !power-event-policy-col
+
+    EXPECT !power-log-col
+
+    EXPECT !power-state-capabilities-col
+
+    EXPECT !power-state-counters-col
+
+    EXPECT !power-state-monitor-col
+
+    EXPECT !power-timeout-policy-col
+
+    EXPECT !power-transitions-policy-col
+
+    EXPECT !printer-creation-attributes-supported
+
+    EXPECT !printer-service-type-supported
+
+    EXPECT !resource-format-supported
+
+    EXPECT !resource-type-supported
+
+    EXPECT !resource-settable-attributes-supported
+
+    EXPECT !system-config-change-date-time
+    EXPECT !system-config-change-time
+    EXPECT !system-config-changes
+
+    EXPECT !system-configured-printers
+
+    EXPECT !system-configured-resources
+
+    EXPECT !system-contact-col
+
+    EXPECT !system-current-time
+    EXPECT !system-up-time
+    EXPECT !system-time-source-configured
+
+    EXPECT !system-firmware-name
+    EXPECT !system-firmware-patches
+    EXPECT !system-firmware-string-version
+    EXPECT !system-firmware-version
+
+    EXPECT !system-geo-location
+
+    EXPECT !system-impressions-completed
+    EXPECT !system-impressions-completed-col
+
+    EXPECT !system-info
+
+    EXPECT !system-location
+
+    EXPECT !system-make-and-model
+
+    EXPECT !system-mandatory-printer-attributes
+
+    EXPECT !system-media-sheets-completed
+    EXPECT !system-media-sheets-completed-col
+
+    EXPECT !system-message-from-operator
+
+    EXPECT !system-name
+
+    EXPECT !system-owner-col
+
+    EXPECT !system-pages-completed
+    EXPECT !system-pages-completed-col
+
+    EXPECT !system-resident-application-name
+    EXPECT !system-resident-application-patches
+    EXPECT !system-resident-application-string-version
+    EXPECT !system-resident-application-version
+
+    EXPECT !system-serial-number
+
+    EXPECT !system-settable-attributes-supported
+
+    EXPECT !system-state
+    EXPECT !system-state-change-date-time
+    EXPECT !system-state-change-time
+    EXPECT !system-state-message
+    EXPECT !system-state-reasons
+
+    EXPECT !system-strings-languages-supported
+    EXPECT !system-strings-uri
+
+    EXPECT !system-user-application-name
+    EXPECT !system-user-application-patches
+    EXPECT !system-user-application-string-version
+    EXPECT !system-user-application-version
+
+    EXPECT !system-uuid IN-GROUP system-attributes-tag OF-TYPE uri COUNT 1
+
+    EXPECT !xri-authentication-supported
+    EXPECT !xri-security-supported
+    EXPECT !xri-uri-scheme-supported
+}
