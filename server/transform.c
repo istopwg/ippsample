@@ -80,7 +80,8 @@ serverTransformJob(
                 *valptr,		/* Pointer into string */
                 fullcommand[1024];	/* Full command path */
 #ifdef _WIN32
-  char		filename[1024];		/* Filename for batch/command files */
+  char		filename[1024],		/* Filename for batch/command files */
+		*ptr;			/* Pointer into filename */
 #else
   posix_spawn_file_actions_t actions;	/* Spawn file actions */
   int		mystdout[2] = {-1, -1},	/* Pipe for stdout */
