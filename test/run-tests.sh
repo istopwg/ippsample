@@ -26,11 +26,11 @@ echo ""
 
 # Test the instance...
 echo "Running ippfind + ipptool..."
-./libcups/tools/ippfind-static -T 5 --literal-name "ipp-everywhere-pdf" --exec ./libcups/tools/ipptool-static -V 2.0 -tIf libcups/examples/document-letter.pdf '{}' libcups/examples/ipp-2.0.test \; || status=1
+libcups/tools/ippfind-static -T 5 --literal-name "ipp-everywhere-pdf" --exec libcups/tools/ipptool-static -V 2.0 -tIf libcups/examples/document-letter.pdf '{}' libcups/examples/ipp-2.0.test \; || status=1
 
 echo ""
 echo "Running IPP System Service tests..."
-./libcups/tools/ippfind-static -T 5 --literal-name "ipp-everywhere-pdf" --exec ./libcups/tools/ipptool-static -V 2.0 -tI 'ipp://{service_hostname}:{service_port}/ipp/system' examples/pwg5100.22.test \; || status=1
+libcups/tools/ippfind-static -T 5 --literal-name "ipp-everywhere-pdf" --exec libcups/tools/ipptool-static -V 2.0 -tI 'ipp://{service_hostname}:{service_port}/ipp/system' examples/pwg5100.22.test \; || status=1
 
 # Clean up
 kill $ippserver
