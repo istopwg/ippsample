@@ -4641,6 +4641,7 @@ ipp_get_printers(
 {
   size_t		i,		/* Looping var */
 			count,		/* Number of printers returned */
+			pcount,		/* Number of printers */
 			limit;		/* limit operation attribute value, if any */
   server_printer_t	*printer;	/* Current printer */
   ipp_attribute_t	*printer_ids;	/* printer-ids operation attribute, if any */
@@ -4709,11 +4710,11 @@ ipp_get_printers(
 
   cupsRWLockRead(&PrintersRWLock);
 
-  count = cupsArrayGetCount(Printers);
-  if (limit == 0 || limit > count)
-    limit = count;
+  pcount = cupsArrayGetCount(Printers);
+  if (limit == 0 || limit > pcount)
+    limit = pcount;
 
-  for (count = 0, i = 0; i < limit; i ++)
+  for (count = 0, i = 0; i < pcount && count < limit; i ++)
   {
     const char	*printer_geo_location;	/* Printer's geo-location value */
 
@@ -4784,20 +4785,17 @@ ipp_get_printers(
     */
 
     i ++;
-    if (i < first_index)
-      continue;
+    if (i >= first_index)
+    {
+      if (count)
+	ippAddSeparator(client->response);
 
-    if (count)
-      ippAddSeparator(client->response);
+      copy_printer_attributes(client, printer, ra);
 
-    copy_printer_attributes(client, printer, ra);
-
-    count ++;
+      count ++;
+    }
 
     cupsRWUnlock(&printer->rwlock);
-
-    if (limit > 0 && count >= limit)
-      break;
   }
 
   cupsRWUnlock(&PrintersRWLock);
