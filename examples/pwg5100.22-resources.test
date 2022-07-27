@@ -348,7 +348,7 @@
 	ATTR uri system-uri $uri
 	ATTR integer resource-id $ICC_RESOURCE_ID
 	ATTR mimeMediaType resource-format application/vnd.iccprofile
-    FILE sRGB.icc
+    FILE srgb.icc
 
     STATUS successful-ok
 }
