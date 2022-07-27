@@ -1585,8 +1585,10 @@ create_system_attributes(void)
   {					/* Values for smi2699-device-command-supported */
     /* TODO: Scan BinDir for commands? Or make this configurable? */
     "ippdoclint",
-    "ipptransform",
-    "ipptransform3d"
+    "ipptransform"
+#ifdef CURAENGINE
+    ,"ipptransform3d"
+#endif // CURAENGINE
   };
   static const char * const smi2699_device_format_supported[] =
   {					/* Values for smi2699-device-format-supported */
@@ -2056,6 +2058,41 @@ finalize_system(void)
 
   if (!BinDir)
   {
+#if _WIN32
+    HKEY	key;			// Registry key
+    DWORD	size;			// Size of string
+    char	installdir[1024],	// Install directory
+
+    cupsCopyString(installdir, "C:/Program Files/ippsample", sizeof(installdir));
+
+    if (!RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\ippsample", 0, KEY_READ, &key))
+    {
+      // Grab the installation directory...
+      char  *ptr;			// Pointer into installdir
+
+      size = sizeof(installdir);
+      RegQueryValueExA(key, "installdir", NULL, NULL, installdir, &size);
+      RegCloseKey(key);
+
+      for (ptr = installdir; *ptr;)
+      {
+        if (*ptr == '\\')
+        {
+          if (ptr[1])
+            *ptr++ = '/';
+          else
+            *ptr = '\0';		// Strip trailing "\"
+        }
+        else if (*ptr == '/' && !ptr[1])
+          *ptr = '\0';			// Strip trailing "/"
+        else
+          ptr ++;
+      }
+    }
+
+    BinDir = strdup(installdir);
+
+#else
     const char	*env;			/* Environment variable */
     char	temp[1024];		/* Temporary string */
 
@@ -2094,6 +2131,7 @@ finalize_system(void)
       else
         BinDir = strdup("command");
     }
+#endif // _WIN32
   }
 
  /*
