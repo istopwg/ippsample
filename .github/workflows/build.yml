@@ -26,7 +26,7 @@ jobs:
     - name: Make
       run: make
     - name: Test
-      run: make test || cat test/test*.log
+      run: make test || cat test/test-ippserver.log
 
   build-macos:
 
@@ -43,7 +43,7 @@ jobs:
     - name: Make
       run: make
     - name: Test
-      run: make test || cat test/test*.log
+      run: make test || cat test/test-ippserver.log
 
   build-windows:
 
