@@ -79,7 +79,9 @@ serverTransformJob(
   char		val[1280],		/* IPP_NAME=value */
                 *valptr,		/* Pointer into string */
                 fullcommand[1024];	/* Full command path */
-#ifndef _WIN32
+#ifdef _WIN32
+  char		filename[1024];		/* Filename for batch/command files */
+#else
   posix_spawn_file_actions_t actions;	/* Spawn file actions */
   int		mystdout[2] = {-1, -1},	/* Pipe for stdout */
 		mystderr[2] = {-1, -1};	/* Pipe for stderr */
@@ -91,7 +93,7 @@ serverTransformJob(
                 *endptr;		/* End of line */
   ssize_t	bytes;			/* Bytes read */
   size_t	total = 0;		/* Total bytes read */
-#endif /* !_WIN32 */
+#endif /* _WIN32 */
 
 
   if (command[0] != '/')
@@ -107,9 +109,25 @@ serverTransformJob(
   * Setup the command-line arguments...
   */
 
+#if _WIN32
+  // Convert job filename from C:/foo/bar to C:\foo\bar
+  cupsCopyString(filename, job->filename, sizeof(filename));
+  for (ptr = filename; *ptr; ptr ++)
+  {
+    if (*ptr == '/')
+      *ptr = '\\';
+  }
+
+  myargv[0] = (char *)command;
+  myargv[1] = filename;
+  myargv[2] = NULL;
+
+#else
+  // Use job filename as-is...
   myargv[0] = (char *)command;
   myargv[1] = job->filename;
   myargv[2] = NULL;
+#endif // _WIN32
 
  /*
   * Copy the current environment, then add environment variables for every

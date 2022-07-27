@@ -48,6 +48,7 @@ static int		error_cb(ipp_file_t *f, server_pinfo_t *pinfo, const char *error);
 static int		finalize_system(void);
 static void		free_icc(server_icc_t *a);
 static void		free_lang(server_lang_t *a);
+static const char	*get_temp_dir(void);
 static int		load_system(const char *conf);
 static void		print_escaped_string(cups_file_t *fp, const char *s, size_t len);
 static void		print_ipp_attr(cups_file_t *fp, ipp_attribute_t *attr, int indent);
@@ -2120,16 +2121,7 @@ finalize_system(void)
     char	directory[1024];	/* New directory */
     const char	*tmpdir;		/* Temporary directory */
 
-#ifdef _WIN32
-    if ((tmpdir = getenv("TEMP")) == NULL)
-      tmpdir = "C:/TEMP";
-#elif defined(__APPLE__)
-    if ((tmpdir = getenv("TMPDIR")) == NULL)
-      tmpdir = "/private/tmp";
-#else
-    if ((tmpdir = getenv("TMPDIR")) == NULL)
-      tmpdir = "/tmp";
-#endif /* _WIN32 */
+    tmpdir = get_temp_dir();
 
     snprintf(directory, sizeof(directory), "%s/ippserver.%d", tmpdir, (int)getpid());
 
@@ -2287,6 +2279,80 @@ free_lang(server_lang_t *a)		/* I - Localization */
 {
   free(a->lang);
   free(a);
+}
+
+
+//
+// 'get_temp_dir()' - Get the temporary directory.
+//
+// This function gets the current temporary directory.
+//
+// Note: On Windows, the path separators in the temporary directory are
+// converted to forward slashes as needed for consistency.
+//
+
+static const char *			// O - Temporary directory
+get_temp_dir(void)
+{
+  const char  *tmpdir;			// Temporary directory
+  static char tmppath[1024] = "";	// Temporary directory buffer
+  static cups_mutex_t tmpmutex = CUPS_MUTEX_INITIALIZER;
+					// Mutex to control access
+
+
+  cupsMutexLock(&tmpmutex);
+  if (!tmppath[0])
+  {
+#if _WIN32
+    char *tmpptr;			// Pointer into temporary directory
+
+    // Check the TEMP environment variable...
+    if ((tmpdir = getenv("TEMP")) != NULL)
+    {
+      cupsCopyString(tmppath, tmpdir, sizeof(tmppath));
+    }
+    else
+    {
+      // Otherwise use the Windows API to get the user/system default location...
+      GetTempPathA(sizeof(tmppath), tmppath);
+    }
+
+    // Convert \ to /...
+    for (tmpptr = tmppath; *tmpptr; tmpptr ++)
+    {
+      if (*tmpptr == '\\')
+        *tmpptr = '/';
+    }
+
+    // Remove trailing /, if any...
+    if ((tmpptr = tmppath + strlen(tmppath) - 1) > tmppath && *tmpptr == '/')
+      *tmpptr = '\0';
+
+#else
+    // Check the TMPDIR environment variable...
+    if ((tmpdir = getenv("TMPDIR")) != NULL && !access(tmpdir, W_OK))
+    {
+      // Set and writable, use it!
+      cupsCopyString(tmppath, tmpdir, sizeof(tmppath));
+    }
+    else
+#  ifdef _CS_DARWIN_USER_TEMP_DIR
+    // Use the Darwin configuration string value...
+    if (!confstr(_CS_DARWIN_USER_TEMP_DIR, tmppath, sizeof(tmppath)))
+    {
+      // Fallback to /private/tmp...
+      cupsCopyString(tmppath, "/private/tmp", sizeof(tmppath));
+    }
+#  endif // _CS_DARWIN_USER_TEMP_DIR
+    {
+      // Fallback to /tmp...
+      cupsCopyString(tmppath, "/tmp", sizeof(tmppath));
+    }
+#endif // _WIN32
+  }
+  cupsMutexUnlock(&tmpmutex);
+
+  return (tmppath);
 }
 
 
