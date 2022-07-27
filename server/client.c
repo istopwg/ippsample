@@ -960,6 +960,8 @@ html_footer(server_client_t *client)	/* I - Client */
 {
   html_printf(client,
 	      "</div>\n"
+	      "<div class=\"footer\">Copyright &copy; 2014-2022 by the IEEE-ISTO Printer Working Group.<br>\n"
+	      "ippserver is part of the <a href=\"https://github.com/istopwg/ippsample\" target=\"_blank\">ippsample</a> project and is provided on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. It is <em>not</em> intended for production use.</div>\n"
 	      "</body>\n"
 	      "</html>\n");
   httpWrite(client->http, "", 0);
@@ -989,9 +991,10 @@ html_header(server_client_t *client,	/* I - Client */
 	      "<meta name=\"viewport\" content=\"width=device-width\">\n"
 	      "<style>\n"
 	      "body { font-family: sans-serif; margin: 0; }\n"
-              "div.header { background: black; color: white; left: 0px; margin: 0px; padding: 10px; right: 0px; width: 100%%; }\n"
-              "div.header a { color: white; text-decoration: none; }\n"
-	      "div.body { padding: 0px 10px 10px; }\n"
+              "div.header { background: rgb(51,51,51); color: white; left: 0px; margin: 0px; padding: 10px; right: 0px; width: 100%%; }\n"
+              "div.footer { background: rgba(0,0,0,0.8); color: white; bottom: 0px; left: 0px; margin: 0px; padding: 10px; position: fixed; right: 0px; width: 100%%; }\n"
+              "div.header a, div.footer a { color: rgb(64, 154, 232); text-decoration: none; }\n"
+	      "div.body { padding: 0px 10px 50px; }\n"
               "div.even { background: #fcfcfc; margin-left: -10px; margin-right: -10px; padding: 5px 10px; width: 100%%; }\n"
               "div.odd { background: #f0f0f0; margin-left: -10px; margin-right: -10px; padding: 5px 10px; width: 100%%; }\n"
 	      "span.badge { background: #090; border-radius: 5px; color: #fff; padding: 5px 10px; }\n"
@@ -1011,7 +1014,7 @@ html_header(server_client_t *client,	/* I - Client */
 	      "</style>\n"
 	      "</head>\n"
 	      "<body>\n"
-	      "<div class=\"header\"><a href=\"/\">" IPPSAMPLE_VERSION "</a></div>\n"
+	      "<div class=\"header\"><a href=\"/\">ippserver v" IPPSAMPLE_VERSION "</a> Prototype IPP Implementation</div>\n"
 	      "<div class=\"body\">\n");
 }
 
