@@ -45,7 +45,7 @@ jobs:
     - name: Make
       run: make
     - name: Examine build output
-      run: ls -l libcups/cups libcups/tools pdfio server tools
+      run: pwd; ls -l libcups/cups libcups/tools pdfio server tools
     - name: Test
       run: make test || cat test/test*.log
 

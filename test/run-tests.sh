@@ -25,6 +25,7 @@ sleep 10
 echo ""
 
 # Test the instance...
+pwd
 echo "Running ippfind + ipptool..."
 libcups/tools/ippfind-static -T 5 --literal-name "ipp-everywhere-pdf" --exec libcups/tools/ipptool-static -V 2.0 -tIf libcups/examples/document-letter.pdf '{}' libcups/examples/ipp-2.0.test \; || status=1
 
