@@ -25,8 +25,6 @@ jobs:
       run: ./configure --enable-debug --enable-maintainer --enable-sanitizer --enable-static --disable-shared
     - name: Make
       run: make
-    - name: Examine build output
-      run: pwd; ls -l libcups/cups libcups/tools pdfio server tools
     - name: Test
       run: make test || cat test/test*.log
 
@@ -44,8 +42,6 @@ jobs:
       run: ./configure --enable-debug --enable-maintainer --enable-sanitizer --enable-static --disable-shared
     - name: Make
       run: make
-    - name: Examine build output
-      run: pwd; ls -l libcups/cups libcups/tools pdfio server tools
     - name: Test
       run: make test || cat test/test*.log
 

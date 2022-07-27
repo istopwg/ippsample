@@ -9,15 +9,14 @@
 #
 # Usage:
 #
-#   test/run-tests.sh
+#   ./run-tests.sh
 #
 
 status=0
 
 # Run ippserver...
 echo "Running ippserver..."
-cd ..
-CUPS_DEBUG_LOG=test-cups.log CUPS_DEBUG_LEVEL=4 CUPS_DEBUG_FILTER='^(http|_http|ipp|_ipp|cupsDo|cupsGet|cupsSend)' ./server/ippserver -vvv -C test 2>test-ippserver.log &
+CUPS_DEBUG_LOG=test/test-cups.log CUPS_DEBUG_LEVEL=4 CUPS_DEBUG_FILTER='^(http|_http|ipp|_ipp|cupsDo|cupsGet|cupsSend)' server/ippserver -vvv -C test 2>test/test-ippserver.log &
 ippserver=$!
 
 echo "ippserver has PID $ippserver, waiting for server to come up..."
