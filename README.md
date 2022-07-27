@@ -1,22 +1,26 @@
 IPP Sample Implementations
 ==========================
 
-This code provides sample implementations of IPP Clients, Printers, Proxies, and
-Systems.  It is largely based upon the [CUPS][1] software, with substantial
-changes to the original `ippproxy` and `ippserver` sample code to make them more
-general-purpose and configurable.
+This code provides sample, non-production-ready implementations of IPP Clients,
+Printers, Proxies, and Systems.  It makes use of the [CUPS Library v3][1] and
+[PDFio library][2] projects to provide low-level HTTP, IPP, and PDF support.
+The `ippserver` and `ipp3dprinter` code was also inspired by the original CUPS
+`ippeveprinter` source code.
 
 ![Version](https://img.shields.io/github/v/release/istopwg/ippsample?include_prereleases)
 ![Apache 2.0](https://img.shields.io/github/license/istopwg/ippsample)
-[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/0ofsfvaqk984tew9?svg=true)](https://ci.appveyor.com/project/michaelrsweet/ippsample)
 ![Build and Test](https://github.com/istopwg/ippsample/workflows/Build%20and%20Test/badge.svg)
 [![ipp](https://snapcraft.io/ipp/badge.svg)](https://snapcraft.io/ipp)
+[![Coverity Scan Status](https://img.shields.io/coverity/scan/22384.svg)](https://scan.coverity.com/projects/istopwg-ippsample)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/istopwg/ippsample.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/istopwg/ippsample/alerts/)
 [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/istopwg/ippsample.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/istopwg/ippsample/context:cpp)
 
-> Note: This code is provided for educational purposes only.  It is not
-> intended as a production solution of any kind, hasn't gone through any
-> formal security testing or analysis, and might eat your pet...
+> Note: This code is provided for educational purposes only.  While we will make
+> every effort to ensure the code is bug-free and regularly run the code
+> through dynamic and static analysis tools, it is written for correctness, not
+> performance, and so is not intended for use as a production solution.  This
+> code is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+> ANY KIND, either express or implied.
 
 
 Getting the Code
@@ -53,11 +57,13 @@ The following options are supported:
 - `--enable-maintainer`: Enable warnings as errors.
 - `--enable-sanitizer`: Enable address sanitizer.
 - `--enable-static`: Enable static libraries.
-- `--prefix=PATH`: Configure the installation directory, default is `/usr/local`.
+- `--prefix=PATH`: Configure the installation directory, the default is
+  `/usr/local`.
 
-On macOS, the "xcode" directory contains an Xcode workspace that can be used to
-build the code.  Similarly, on Windows the "vcnet" directory contains a Visual
-Studio solution that can be used to build the code.
+On macOS, the "xcode" directory contains an Xcode workspace called
+"ippsample.xcworkspace" that can be used to build the code.  Similarly, on
+Windows the "vcnet" directory contains a Visual Studio solution called
+"ippsample.sln" that can be used to build the code.
 
 
 Testing the Code
@@ -111,16 +117,17 @@ ipptransform
 ------------
 
 The `ipptransform` program is a generic file conversion utility that is used
-primarily with `ippeveprinter` and `ippserver` to support rasterization of JPEG,
-PNG, and PDF documents for IPP Everywhere™ and HP PCL printers.
+primarily with `ippeveprinter` and `ippserver` to support transformation of
+JPEG, PNG, PDF, and text documents to PDF or raster data for IPP Everywhere™
+and HP PCL printers.
 
 
 ipptransform3d
 --------------
 
 The `ipptransform3d` program is a generic 3D file conversion utility that is
-used primarily with `ippserver` to support 3MF and G-code printing to 3D
-printers.
+used primarily with `ippserver` to support 3MF, G-code, and STL printing to 3D
+printers using the [CuraEngine][3] software.
 
 
 Legal Stuff
@@ -142,4 +149,6 @@ CONDITIONS OF ANY KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations under the License.
 
 
-[1]: https://openprinting.github.io/cups
+[1]: https://github.com/michaelrsweet/libcups
+[2]: https://github.com/michaelrsweet/pdfio
+[3]: https://github.com/Ultimaker/CuraEngine
