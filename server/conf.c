@@ -2074,7 +2074,7 @@ finalize_system(void)
       * Look for the commands in the snap directory...
       */
 
-      snprintf(temp, sizeof(temp), "%s/lib/cups/command", env);
+      snprintf(temp, sizeof(temp), "%s/usr/local/lib/cups/command", env);
       BinDir = strdup(temp);
     }
     else

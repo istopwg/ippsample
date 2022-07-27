@@ -3,9 +3,8 @@ base: core20
 version: 1.0b1
 summary: IPP Sample Implementation
 description: |
-  The ippsample project provides sample implementations of an IPP Client, Proxy,
-  Server, and other tools. It is based on the CUPS source code and is maintained
-  by the PWG IPP workgroup.
+  This snap provides sample, non-production-ready implementations of IPP
+  Clients, Printers, Proxies, and Systems.
 
 grade: stable
 confinement: strict
@@ -18,31 +17,31 @@ architectures:
 
 apps:
     ipp3dprinter:
-        command: bin/ipp3dprinter
+        command: usr/local/bin/ipp3dprinter
         plugs: [avahi-observe, home, network, network-bind]
     ippdoclint:
-        command: bin/ippdoclint
+        command: usr/local/bin/ippdoclint
         plugs: [home]
     ippeveprinter:
-        command: bin/ippeveprinter
+        command: usr/local/bin/ippeveprinter
         plugs: [avahi-observe, home, network, network-bind]
     ippfind:
-        command: bin/ippfind
+        command: usr/local/bin/ippfind
         plugs: [avahi-observe, home, network]
     ippproxy:
-        command: sbin/ippproxy
+        command: usr/local/sbin/ippproxy
         plugs: [avahi-observe, home, network]
     ippserver:
-        command: sbin/ippserver
+        command: usr/local/sbin/ippserver
         plugs: [avahi-observe, home, network, network-bind]
     ipptool:
-        command: bin/ipptool
+        command: usr/local/bin/ipptool
         plugs: [home, network]
     ipptransform:
-        command: bin/ipptransform
+        command: usr/local/bin/ipptransform
         plugs: [home, network]
     ipptransform3d:
-        command: bin/ipptransform3d
+        command: usr/local/bin/ipptransform3d
         plugs: [home, network]
 
 parts:
