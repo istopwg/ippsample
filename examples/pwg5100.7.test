@@ -21,7 +21,7 @@
 
 # Operation-supported for Cancel-Jobs, Cancel-My-Jobs, Close-Job and Resubmit-Job
 	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0038
-	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0038 DEFINE-MATCH HAVE_CANCEL_JOBS 		# Cancel-Jobs 
+	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0038 DEFINE-MATCH HAVE_CANCEL_JOBS 		# Cancel-Jobs
 	EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0039
     EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x0039 DEFINE-MATCH HAVE_CANCEL_MY_JOBS		# Cancel-My-Jobs
     #EXPECT operations-supported OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE 0x003A
@@ -31,39 +31,39 @@
 
 # Printer Description attributes indicating support for operation attributes in Job Creation and Document Creation operations
 
-    
-	
-	
-	
+
+
+
+
 	EXPECT ?document-charset-supported OF-TYPE charset IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_DOCUMENT_CHARSET
-	EXPECT ?document-charset-default OF-TYPE charset IN-GROUP printer-attributes-tag WITH-VALUE-FROM document-charset-supported COUNT 1 IF-DEFINED HAVE_DOCUMENT_CHARSET 
-    EXPECT !document-digital-signature-supported OF-TYPE keyword IN-GROUP printer-attributes-tag 
+	EXPECT ?document-charset-default OF-TYPE charset IN-GROUP printer-attributes-tag WITH-VALUE-FROM document-charset-supported COUNT 1 IF-DEFINED HAVE_DOCUMENT_CHARSET
+    EXPECT !document-digital-signature-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
 	EXPECT !document-digital-signature-default OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE-FROM document-digital-signature-supported COUNT 1
- 
-    EXPECT !document-format-version-supported OF-TYPE text IN-GROUP printer-attributes-tag 
-    EXPECT ?document-natural-language-default OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag 
-    EXPECT ?document-format-details-default OF-TYPE collection IN-GROUP printer-attributes-tag 
- 
-#(not defined)EXPECT ?!document-format-default OF-TYPE mimeMediaType IN-GROUP printer-attributes-tag WITH-VALUE-FROM document-format-supported COUNT 1 
-    EXPECT !document-format-version-default OF-TYPE text IN-GROUP printer-attributes-tag WITH-VALUE-FROM document-format-version-supported COUNT 1 
-    EXPECT ?document-natural-language-default OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag WITH-VALUE-FROM document-natural-language-supported COUNT 1 
-    EXPECT !document-format-details-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1 
+
+    EXPECT !document-format-version-supported OF-TYPE text IN-GROUP printer-attributes-tag
+    EXPECT ?document-natural-language-default OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag
+    EXPECT ?document-format-details-default OF-TYPE collection IN-GROUP printer-attributes-tag
+
+#(not defined)EXPECT ?!document-format-default OF-TYPE mimeMediaType IN-GROUP printer-attributes-tag WITH-VALUE-FROM document-format-supported COUNT 1
+    EXPECT !document-format-version-default OF-TYPE text IN-GROUP printer-attributes-tag WITH-VALUE-FROM document-format-version-supported COUNT 1
+    EXPECT ?document-natural-language-default OF-TYPE naturalLanguage IN-GROUP printer-attributes-tag WITH-VALUE-FROM document-natural-language-supported COUNT 1
+    EXPECT !document-format-details-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1
 
 # Job template attributes (xxx-supported and xxx-default)
 
-    EXPECT !job-copies-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag 
-    EXPECT !job-cover-back-supported OF-TYPE keyword IN-GROUP printer-attributes-tag 
-    EXPECT !job-cover-front-supported OF-TYPE keyword IN-GROUP printer-attributes-tag 
-    EXPECT !job-finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag 
-    EXPECT !job-finishings-col-supported OF-TYPE collection IN-GROUP printer-attributes-tag 
+    EXPECT !job-copies-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag
+    EXPECT !job-cover-back-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+    EXPECT !job-cover-front-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
+    EXPECT !job-finishings-supported OF-TYPE enum IN-GROUP printer-attributes-tag
+    EXPECT !job-finishings-col-supported OF-TYPE collection IN-GROUP printer-attributes-tag
     EXPECT ?print-content-optimize-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
     EXPECT ?output-device-supported OF-TYPE name IN-GROUP printer-attributes-tag DEFINE-MATCH SUPPORT_OUTPUT_DEVICE
 
-    EXPECT !job-copies-default OF-TYPE integer IN-GROUP printer-attributes-tag WITH-VALUE >0 COUNT 1 
-    EXPECT !job-cover-back-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1 
-    EXPECT !job-cover-front-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1 
-    EXPECT !job-finishings-default OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE-FROM job-finishings-supported COUNT 1 
-    EXPECT !job-finishings-col-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1 
+    EXPECT !job-copies-default OF-TYPE integer IN-GROUP printer-attributes-tag WITH-VALUE >0 COUNT 1
+    EXPECT !job-cover-back-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT !job-cover-front-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1
+    EXPECT !job-finishings-default OF-TYPE enum IN-GROUP printer-attributes-tag WITH-VALUE-FROM job-finishings-supported COUNT 1
+    EXPECT !job-finishings-col-default OF-TYPE collection IN-GROUP printer-attributes-tag COUNT 1
     EXPECT print-content-optimize-default OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE-FROM print-content-optimize-supported DEFINE-MATCH HAVE_PRINT_CONTENT_OPTIMIZE
 	EXPECT ?print-content-optimize-default OF-TYPE keyword IN-GROUP printer-attributes-tag COUNT 1
 	EXPECT print-content-optimize-supported OF-TYPE keyword IN-GROUP printer-attributes-tag WITH-VALUE "photo" DEFINE-MATCH PHOTO_PRINT_CONTENT
@@ -73,7 +73,7 @@
 
 	EXPECT media-col-default OF-TYPE collection IN-GROUP printer-attributes-tag
 	EXPECT media-col-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
-	
+
 
 	EXPECT ?media-back-coating-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag
 	EXPECT media-back-coating-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_MEDIA_BACK_COATING
@@ -132,52 +132,52 @@
 	EXPECT ?media-weight-metric-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag COUNT 1
 	EXPECT media-weight-metric-supported OF-TYPE rangeOfInteger IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_MEDIA_WEIGHT_METRIC
 
-	EXPECT ?output-device-supported OF-TYPE name IN-GROUP printer-attributes-tag 
+	EXPECT ?output-device-supported OF-TYPE name IN-GROUP printer-attributes-tag
 	EXPECT output-device-supported OF-TYPE name IN-GROUP printer-attributes-tag DEFINE-MATCH SUPPORT_OUTPUT_DEVICE
 
 	EXPECT ?job-account-id-default OF-TYPE name|no-value IN-GROUP printer-attributes-tag
-	EXPECT ?job-account-id-supported OF-TYPE boolean IN-GROUP printer-attributes-tag 
+	EXPECT ?job-account-id-supported OF-TYPE boolean IN-GROUP printer-attributes-tag
 	EXPECT job-account-id-supported OF-TYPE boolean IN-GROUP printer-attributes-tag DEFINE-MATCH SUPPORT_JOB_ACCOUNT_ID
 
 	EXPECT ?job-accounting-user-id-default OF-TYPE name|no-value IN-GROUP printer-attributes-tag
-	EXPECT ?job-accounting-user-id-supported OF-TYPE boolean IN-GROUP printer-attributes-tag 
+	EXPECT ?job-accounting-user-id-supported OF-TYPE boolean IN-GROUP printer-attributes-tag
 	EXPECT job-accounting-user-id-supported OF-TYPE boolean IN-GROUP printer-attributes-tag DEFINE-MATCH SUPPORT_JOB_ACCOUNTING_USER_ID
 
 	EXPECT ?job-delay-output-until-default OF-TYPE keyword IN-GROUP printer-attributes-tag
-	EXPECT ?job-delay-output-until-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag 
+	EXPECT ?job-delay-output-until-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag
 	EXPECT job-accounting-user-id-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag DEFINE-MATCH SUPPORT_JOB_DELAY_OUTPUT_UNTIL
 
 	EXPECT ?job-sheets-col-default OF-TYPE collection IN-GROUP printer-attributes-tag
-	EXPECT ?job-sheets-col-supported OF-TYPE keyword IN-GROUP printer-attributes-tag 
+	EXPECT ?job-sheets-col-supported OF-TYPE keyword IN-GROUP printer-attributes-tag
 	EXPECT job-sheets-col-supported OF-TYPE keyword IN-GROUP printer-attributes-tag DEFINE-MATCH SUPPORT_JOB_SHEETS_COL
 
 	EXPECT job-sheets-default OF-TYPE keyword|name IN-GROUP printer-attributes-tag IF-DEFINED SUPPORT_JOB_SHEETS_COL
 	EXPECT job-sheets-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag IF-DEFINED SUPPORT_JOB_SHEETS_COL
-	EXPECT job-sheets-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag DEFINE-MATCH SUPPORT_JOB_SHEETS 
+	EXPECT job-sheets-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag DEFINE-MATCH SUPPORT_JOB_SHEETS
 
 	EXPECT media-default OF-TYPE no-value|keyword|name IN-GROUP printer-attributes-tag
-	EXPECT media-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag 
+	EXPECT media-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag
 	EXPECT media-supported OF-TYPE keyword|name IN-GROUP printer-attributes-tag DEFINE-MATCH HAVE_MEDIA_CHOICE
-	
-		
+
+
 }
 
 
 {
-	NAME "Print-job operation to pass the media-col attribute along with the request" 
+	NAME "Print-job operation to pass the media-col attribute along with the request"
 	OPERATION Print-Job
 	GROUP operation-attributes-tag
 		ATTR charset attributes-charset utf-8
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR collection media-col{
 			MEMBER integer media-bottom-margin 0
 
 		}
-	
+
 
 	FILE $filename
 
@@ -186,7 +186,7 @@
 }
 
 {
-	
+
 
 	NAME "Test media-col and conditionally dependent attributes"
 	OPERATION Get-Job-Attributes
@@ -210,7 +210,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR collection media-col{
 			MEMBER keyword media-back-coating none
@@ -254,7 +254,7 @@
 		ATTR collection media-col{
 			MEMBER integer media-bottom-margin 0
 		}
-	
+
 
 	FILE $filename
 
@@ -286,7 +286,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR collection media-col{
 			MEMBER keyword media-color black
@@ -324,7 +324,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR collection media-col{
 			MEMBER keyword media-front-coating none
@@ -362,7 +362,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR collection media-col{
 			MEMBER keyword media-grain x-direction
@@ -405,7 +405,7 @@
 		ATTR collection media-col{
 			MEMBER integer media-hole-count 0
 		}
-	
+
 
 	FILE $filename
 
@@ -443,7 +443,7 @@
 		ATTR collection media-col{
 			MEMBER text media-info "bogus bogus"
 		}
-	
+
 
 	FILE $filename
 
@@ -480,7 +480,7 @@
 		ATTR collection media-col{
 			MEMBER integer media-left-margin 0
 		}
-	
+
 
 	FILE $filename
 
@@ -517,7 +517,7 @@
 		ATTR collection media-col{
 			MEMBER integer media-order-count 1
 		}
-	
+
 
 	FILE $filename
 
@@ -549,7 +549,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR collection media-col{
 			MEMBER keyword media-pre-printed blank
@@ -587,7 +587,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR collection media-col{
 			MEMBER keyword media-recycled none
@@ -630,7 +630,7 @@
 		ATTR collection media-col{
 			MEMBER integer media-right-margin 0
 		}
-	
+
 
 	FILE $filename
 
@@ -668,7 +668,7 @@
 				MEMBER integer x-dimension 0
 				MEMBER integer y-dimension 0
 			}
-	
+
 
 	FILE $filename
 
@@ -687,7 +687,7 @@
 		ATTR integer job-id $job-id
 
 	STATUS successful-ok
-     EXPECT media-size OF-TYPE collection 
+     EXPECT media-size OF-TYPE collection
 	 EXPECT media-size/x-dimension OF-TYPE integer COUNT 1 WITH-VALUE 0
 	 EXPECT media-size/y-dimension OF-TYPE integer COUNT 1 WITH-VALUE 0
 
@@ -703,7 +703,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR keyword media-source alternate
 		ATTR collection media-source-properties{
@@ -734,7 +734,7 @@
 	EXPECT media-source-properties OF-TYPE collection IN-GROUP job-attributes-tag
 	EXPECT media-source-properties/media-source-feed-direction OF-TYPE keyword WITH-VALUE "short-edge-first"
 	EXPECT media-source-properties/media-source-feed-orientation OF-TYPE enum WITH-VALUE 1
-	
+
 }
 
 {
@@ -746,7 +746,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR collection media-col{
 			MEMBER integer media-thickness 1
@@ -784,7 +784,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR collection media-col{
 			MEMBER keyword media-tooth fine
@@ -827,7 +827,7 @@
 		ATTR collection media-col{
 			MEMBER integer media-top-margin 0
 		}
-	
+
 
 	FILE $filename
 
@@ -862,7 +862,7 @@
 
 	GROUP job-attributes-tag
 		ATTR keyword media-type auto
-	
+
 
 	FILE $filename
 
@@ -893,7 +893,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR collection media-col{
 			MEMBER integer media-weight-metric 0
@@ -931,7 +931,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR keyword print-content-optimize text
 	FILE $filename
@@ -953,7 +953,7 @@
 	ATTR name requesting-user-name $user
 
 	STATUS successful-ok
-	
+
 	EXPECT print-content-optimize  OF-TYPE keyword IN-GROUP job-attributes-tag WITH-VALUE "text"
 }
 
@@ -966,7 +966,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR name output-device none
 	FILE $filename
@@ -988,7 +988,7 @@
 	ATTR name requesting-user-name $user
 
 	STATUS successful-ok
-	
+
 	EXPECT output-device OF-TYPE name IN-GROUP job-attributes-tag WITH-VALUE "none"
 }
 
@@ -1001,7 +1001,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR name job-account-id none
 	FILE $filename
@@ -1023,7 +1023,7 @@
 	ATTR name requesting-user-name $user
 
 	STATUS successful-ok
-	
+
 	EXPECT job-account-id OF-TYPE name IN-GROUP job-attributes-tag WITH-VALUE "none"
 
 }
@@ -1037,7 +1037,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR name job-account-user-id none
 	FILE $filename
@@ -1059,9 +1059,9 @@
 	ATTR name requesting-user-name $user
 
 	STATUS successful-ok
-	
+
 	EXPECT job-account-user-id OF-TYPE name IN-GROUP job-attributes-tag WITH-VALUE "none"
-	
+
 }
 
 {
@@ -1073,7 +1073,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR keyword job-delay-output-until evening
 	FILE $filename
@@ -1095,9 +1095,9 @@
 	ATTR name requesting-user-name $user
 
 	STATUS successful-ok
-	
+
 	EXPECT job-delay-output-until OF-TYPE keyword|name IN-GROUP job-attributes-tag WITH-VALUE "evening"
-	
+
 }
 
 {
@@ -1109,13 +1109,16 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR collection job-sheets-col {
 			MEMBER keyword job-sheets none
-			MEMBER keyword media none
+			MEMBER keyword media na_letter_8.5x11in
 			MEMBER collection media-col {
-
+				MEMBER collection media-size {
+					MEMBER integer x-dimension 21590
+					MEMBER integer y-dimension 27940
+				}
 			}
 		}
 	FILE $filename
@@ -1137,11 +1140,14 @@
 	ATTR name requesting-user-name $user
 
 	STATUS successful-ok
-	
+
 	EXPECT job-sheets-col OF-TYPE collection IN-GROUP job-attributes-tag
-	EXPECT job-sheets-col/job-sheets OF-TYPE keyword|name IN-GROUP job-attributes-tag WITH-VALUE "none"
-	EXPECT job-sheets-col/media OF-TYPE keyword|name IN-GROUP job-attributes-tag WITH-VALUE "none"
-	EXPECT job-sheets-col/media-col OF-TYPE collection IN-GROUP job-attributes-tag
+	EXPECT job-sheets-col/job-sheets OF-TYPE keyword|name WITH-VALUE "none"
+	EXPECT job-sheets-col/media OF-TYPE keyword|name WITH-VALUE "na_letter_8.5x11in"
+	EXPECT job-sheets-col/media-col OF-TYPE collection
+	EXPECT job-sheets-col/media-col/media-size OF-TYPE collection
+	EXPECT job-sheets-col/media-col/media-size/x-dimension OF-TYPE integer WITH-VALUE 21590
+	EXPECT job-sheets-col/media-col/media-size/y-dimension OF-TYPE integer WITH-VALUE 27940
 }
 
 {
@@ -1153,7 +1159,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR keyword job-sheets none
 	FILE $filename
@@ -1175,9 +1181,9 @@
 	ATTR name requesting-user-name $user
 
 	STATUS successful-ok
-	
+
 	EXPECT job-sheets OF-TYPE keyword|name IN-GROUP job-attributes-tag WITH-VALUE "none"
-	
+
 }
 
 {
@@ -1189,7 +1195,7 @@
 		ATTR language attributes-natural-language en
 		ATTR uri printer-uri $uri
 		ATTR name requesting-user-name $user
-	
+
 	GROUP job-attributes-tag
 		ATTR keyword media-actual none
 	FILE $filename
@@ -1211,9 +1217,9 @@
 	ATTR name requesting-user-name $user
 
 	STATUS successful-ok
-	
+
 	EXPECT media-actual OF-TYPE keyword|name IN-GROUP job-attributes-tag WITH-VALUE "none"
-	
+
 }
 
 
@@ -1230,7 +1236,7 @@
 	ATTR language attributes-natural-language en
 	ATTR uri printer-uri $uri
 	ATTR name requesting-user-name $user
-	
+
 
 	GROUP job-attributes-tag
 	ATTR integer copies 1
@@ -1280,7 +1286,7 @@
 	ATTR integer copies 1
     ATTR keyword print-content-optimize photo
 
-	FILE color.jpg
+	FILE ../libcups/examples/color.jpg
 
 	STATUS successful-ok
 
@@ -1304,7 +1310,7 @@
 	ATTR name requesting-user-name $user
 
 	STATUS successful-ok
-	
+
 	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
 	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
 
@@ -1330,7 +1336,7 @@
 	ATTR integer copies 1
     ATTR keyword print-content-optimize graphics
 
-	FILE testfile.ps
+	FILE ../libcups/examples/testfile.ps
 
 	STATUS successful-ok
 
@@ -1353,7 +1359,7 @@
 	ATTR name requesting-user-name $user
 
 	STATUS successful-ok
-	
+
 	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
 	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
 
@@ -1379,7 +1385,7 @@
 	ATTR integer copies 1
     ATTR keyword print-content-optimize text
 
-	FILE testfile.txt
+	FILE ../libcups/examples/testfile.txt
 
 	STATUS successful-ok
 
@@ -1402,7 +1408,7 @@
 	ATTR name requesting-user-name $user
 
 	STATUS successful-ok
-	
+
 	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
 	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
 
@@ -1428,7 +1434,7 @@
 	ATTR integer copies 1
     ATTR keyword print-content-optimize "text-and-graphics"
 
-	FILE onepage-letter.pdf
+	FILE ../libcups/examples/onepage-letter.pdf
 
 	STATUS successful-ok
 
@@ -1451,7 +1457,7 @@
 	ATTR name requesting-user-name $user
 
 	STATUS successful-ok
-	
+
 	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
 	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
 
@@ -1517,7 +1523,7 @@
 	ATTR name requesting-user-name $user
 
 	STATUS successful-ok
-	
+
 	EXPECT job-uri OF-TYPE uri IN-GROUP job-attributes-tag COUNT 1 WITH-VALUE $job-uri
 	EXPECT job-state OF-TYPE enum IN-GROUP job-attributes-tag COUNT 1
 
