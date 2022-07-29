@@ -25,7 +25,7 @@ DIRS	=	\
 all:
 	for dir in $(DIRS); do \
 		echo Making all in $$dir...; \
-		(cd $$dir; $(MAKE) $(MFLAGS) all) || exit 1; \
+		(cd $$dir; $(MAKE) $(MFLAGS) COMMONFLAGS="$(OPTIM)" all) || exit 1; \
 	done
 
 
