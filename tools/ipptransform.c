@@ -3672,6 +3672,7 @@ xform_document(
   char		header[256];		// Header from file
   unsigned char	*line;			// Pixel line from file
   size_t	linesize;		// Size of a line...
+  bool poppler = false; // Poppler pdf2ppm detected (default Xpdf)
 
 
   // Setup the raster headers...
@@ -3721,10 +3722,42 @@ xform_document(
           break;
     }
 
+    snprintf(command, sizeof(command), "pdftoppm --help 2>&1");
+#if _WIN32
+    if ((fp = popen(command, "rb")) == NULL)
+#else
+    if ((fp = popen(command, "r")) == NULL)
+#endif // _WIN32
+    {
+      fprintf(stderr, "ERROR: Unable to run pdftoppm command: %s\n", strerror(errno));
+      free(line);
+      return (false);
+    }
+
+    while (fgets(header, sizeof(header), fp))
+    {
+      if (strstr(header, "Poppler") != NULL)
+      {
+        poppler = true;
+        break;
+      }
+    }
+
+    pclose(fp);
+
     // Run the pdftoppm command:
-    //
+    //   Poppler:
+    //   pdftoppm [-mono] [-gray] -aa no -r resolution -scale-to-x width -scale-to-y height filename
+    //   Xpdf:
     //   pdftoppm [-mono] [-gray] -aa no -r resolution filename -
-    snprintf(command, sizeof(command), "pdftoppm %s -aa no -r %u '%s' -", ras.header.cupsBitsPerPixel <= 8 ? "-gray" : "", ras.header.HWResolution[0], filename);
+    if(poppler)
+    {
+      snprintf(command, sizeof(command), "pdftoppm %s -aa no -r %u -scale-to-x %u -scale-to-y %u '%s'", ras.header.cupsBitsPerPixel <= 8 ? "-gray" : "", ras.header.HWResolution[0], ras.header.cupsWidth, ras.header.cupsHeight, filename);
+    }
+    else
+    {
+      snprintf(command, sizeof(command), "pdftoppm %s -aa no -r %u '%s' -", ras.header.cupsBitsPerPixel <= 8 ? "-gray" : "", ras.header.HWResolution[0], filename);
+    }
     fprintf(stderr, "DEBUG: Running \"%s\"\n", command);
 #if _WIN32
     if ((fp = popen(command, "rb")) == NULL)
