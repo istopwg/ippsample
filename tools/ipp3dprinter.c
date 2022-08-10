@@ -2616,7 +2616,7 @@ html_printf(ipp3d_client_t *client,	/* I - Client */
 	    if ((size_t)(width + 2) > sizeof(temp))
 	      break;
 
-	    sprintf(temp, tformat, va_arg(ap, double));
+	    snprintf(temp, sizeof(temp), tformat, va_arg(ap, double));
 
             httpWrite(client->http, temp, strlen(temp));
 	    break;
@@ -2634,13 +2634,13 @@ html_printf(ipp3d_client_t *client,	/* I - Client */
 
 #  ifdef HAVE_LONG_LONG
             if (size == 'L')
-	      sprintf(temp, tformat, va_arg(ap, long long));
+	      snprintf(temp, sizeof(temp), tformat, va_arg(ap, long long));
 	    else
 #  endif /* HAVE_LONG_LONG */
             if (size == 'l')
-	      sprintf(temp, tformat, va_arg(ap, long));
+	      snprintf(temp, sizeof(temp), tformat, va_arg(ap, long));
 	    else
-	      sprintf(temp, tformat, va_arg(ap, int));
+	      snprintf(temp, sizeof(temp), tformat, va_arg(ap, int));
 
             httpWrite(client->http, temp, strlen(temp));
 	    break;
@@ -2649,7 +2649,7 @@ html_printf(ipp3d_client_t *client,	/* I - Client */
 	    if ((size_t)(width + 2) > sizeof(temp))
 	      break;
 
-	    sprintf(temp, tformat, va_arg(ap, void *));
+	    snprintf(temp, sizeof(temp), tformat, va_arg(ap, void *));
 
             httpWrite(client->http, temp, strlen(temp));
 	    break;
