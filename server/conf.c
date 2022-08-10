@@ -2061,7 +2061,7 @@ finalize_system(void)
 #if _WIN32
     HKEY	key;			// Registry key
     DWORD	size;			// Size of string
-    char	installdir[1024],	// Install directory
+    char	installdir[1024];	// Install directory
 
     cupsCopyString(installdir, "C:/Program Files/ippsample", sizeof(installdir));
 
