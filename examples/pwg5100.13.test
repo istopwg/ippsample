@@ -1,0 +1,224 @@
+#
+# Test for conformance with PWG 5100.13-YYYY
+#
+# Usage:
+#
+#   ./ipptool -tIf FILENAME printer-uri pwg5100.13.test
+#
+# Copyright © 2022 by the IEEE-ISTO Printer Working Group.
+#
+# Licensed under Apache License v2.0.  See the file "LICENSE" for more
+# information.
+#
+
+VERSION 2.0
+
+{
+    NAME "Required Attributes and Values"
+    OPERATION Get-Printer-Attributes
+
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri printer-uri $uri
+
+    STATUS successful-ok
+
+    # Optional capabilities
+    EXPECT document-format-default IN-GROUP printer-attributes-tag OF-TYPE mimeMediaType COUNT 1
+    EXPECT document-format-default DEFINE-VALUE DEFAULT_DOCUMENT_FORMAT
+
+    EXPECT document-format-supported IN-GROUP printer-attributes-tag OF-TYPE mimeMediaType
+    EXPECT document-format-supported WITH-VALUE application/pdf DEFINE-MATCH SUPPORTS_PDF
+    EXPECT document-format-supported WITH-VALUE image/jpeg DEFINE-MATCH SUPPORTS_JPEG
+
+    EXPECT media-default IN-GROUP printer-attributes-tag OF-TYPE keyword|name COUNT 1
+    EXPECT media-default DEFINE-VALUE DEFAULT_MEDIA
+
+    EXPECT operations-supported IN-GROUP printer-attributes-tag OF-TYPE enum
+    EXPECT operations-supported WITH-VALUE 0x003c DEFINE-MATCH SUPPORTS_CREATE_JOB
+
+    # Operations
+    EXPECT operations-supported WITH-VALUE 0x003c DEFINE-MATCH SUPPORTS_IDENTIFY_PRINTER
+    EXPECT operations-supported WITH-VALUE 0x003d DEFINE-MATCH SUPPORTS_VALIDATE_DOCUMENT
+
+    # Printer Description attributes
+    EXPECT client-info-supported IN-GROUP printer-attributes-tag OF-TYPE keyword
+
+    EXPECT document-password-supported IN-GROUP printer-attributes-tag OF-TYPE integer(0:1023) COUNT 1 IF-DEFINED SUPPORTS_PDF
+
+    EXPECT identify-actions-default IN-GROUP printer-attributes-tag OF-TYPE keyword WITH-ALL-VALUES-FROM identify-actions-supported IF-DEFINED SUPPORTS_IDENTIFY_PRINTER
+    EXPECT identify-actions-supported IN-GROUP printer-attributes-tag OF-TYPE keyword IF-DEFINED SUPPORTS_IDENTIFY_PRINTER
+
+    EXPECT ipp-features-supported IN-GROUP printer-attributes-tag OF-TYPE keyword
+
+
+    EXPECT ?job-constraints-supported IN-GROUP printer-attributes-tag OF-TYPE collection
+    EXPECT job-constraints-supported DEFINE-MATCH SUPPORTS_JOB_CONSTRAINTS
+    EXPECT ?job-resolvers-supported IN-GROUP printer-attributes-tag OF-TYPE collection
+    EXPECT job-resolvers-supported DEFINE-MATCH SUPPORTS_JOB_CONSTRAINTS
+    EXPECT job-constraints-supported IF-DEFINED SUPPORTS_JOB_CONSTRAINTS
+    EXPECT job-constraints-supported/resolver-name OF-TYPE name COUNT 1 IF-DEFINED SUPPORTS_JOB_CONSTRAINTS
+    EXPECT job-resolvers-supported IF-DEFINED SUPPORTS_JOB_CONSTRAINTS
+    EXPECT job-resolvers-supported/resolver-name OF-TYPE name COUNT 1 IF-DEFINED SUPPORTS_JOB_CONSTRAINTS
+
+    EXPECT ?job-error-action-default IN-GROUP printer-attributes-tag OF-TYPE keyword COUNT 1
+    EXPECT job-error-action-default DEFINE-MATCH SUPPORTS_JOB_ERROR_ACTION
+    EXPECT ?job-error-action-supported IN-GROUP printer-attributes-tag OF-TYPE keyword
+    EXPECT job-error-action-supported DEFINE-MATCH SUPPORTS_JOB_ERROR_ACTION
+    EXPECT job-error-action-default IF-DEFINED SUPPORTS_JOB_ERROR_ACTION
+    EXPECT job-error-action-supported IF-DEFINED SUPPORTS_JOB_ERROR_ACTION
+
+    EXPECT ?job-presets-supported IN-GROUP printer-attributes-tag OF-TYPE collection
+    EXPECT job-presets-supported DEFINE-MATCH SUPPORTS_JOB_PRESETS
+    EXPECT job-presets-supported/preset-name OF-TYPE name IF-DEFINED SUPPORTS_JOB_PRESETS
+    EXPECT ?job-presets-supported/preset-category OF-TYPE keyword
+
+    EXPECT ?job-triggers-supported IN-GROUP printer-attributes-tag OF-TYPE collection
+    EXPECT job-triggers-supported DEFINE-MATCH SUPPORTS_JOB_TRIGGERS
+    EXPECT job-triggers-supported/preset-name OF-TYPE name IF-DEFINED SUPPORTS_JOB_TRIGGERS
+
+    EXPECT jpeg-features-supported IN-GROUP printer-attributes-tag OF-TYPE keyword IF-DEFINED SUPPORTS_JPEG
+    EXPECT jpeg-k-octets-supported IN-GROUP printer-attributes-tag OF-TYPE rangeOfInteger IF-DEFINED SUPPORTS_JPEG
+    EXPECT jpeg-x-dimension-supported IN-GROUP printer-attributes-tag OF-TYPE rangeOfInteger(0:65535) IF-DEFINED SUPPORTS_JPEG
+    EXPECT jpeg-y-dimension-supported IN-GROUP printer-attributes-tag OF-TYPE rangeOfInteger(1:65535) IF-DEFINED SUPPORTS_JPEG
+
+    EXPECT ?media-overprint-distance-supported IN-GROUP printer-attributes-tag OF-TYPE integer(0:MAX)
+    EXPECT media-overprint-distance-supported DEFINE-MATCH SUPPORTS_MEDIA_OVERPRINT
+    EXPECT ?media-overprint-method-supported IN-GROUP printer-attributes-tag OF-TYPE keyword
+    EXPECT media-overprint-method-supported DEFINE-MATCH SUPPORTS_MEDIA_OVERPRINT
+    EXPECT ?media-overprint-supported IN-GROUP printer-attributes-tag OF-TYPE keyword
+    EXPECT media-overprint-supported DEFINE-MATCH SUPPORTS_MEDIA_OVERPRINT
+    EXPECT media-overprint-distance-supported IF-DEFINED SUPPORTS_MEDIA_OVERPRINT
+    EXPECT media-overprint-method-supported IF-DEFINED SUPPORTS_MEDIA_OVERPRINT
+    EXPECT media-overprint-supported IF-DEFINED SUPPORTS_MEDIA_OVERPRINT
+
+    EXPECT ?multiple-operation-time-out-action IN-GROUP printer-attributes-tag OF-TYPE keyword COUNT 1
+    EXPECT multiple-operation-time-out-action IF-DEFINED SUPPORTS_CREATE_JOB
+
+    EXPECT ?pdf-k-octets-supported IN-GROUP printer-attributes-tag OF-TYPE rangeOfInteger(0:MAX)
+    EXPECT pdf-k-octets-supported IF-DEFINED SUPPORTS_PDF
+
+    EXPECT ?pdf-versions-supported IN-GROUP printer-attributes-tag OF-TYPE keyword
+    EXPECT pdf-versions-supported IF-DEFINED SUPPORTS_PDF
+
+    EXPECT ?preferred-attributes-supported IN-GROUP printer-attributes-tag OF-TYPE boolean COUNT 1
+
+    EXPECT print-color-mode-default IN-GROUP printer-attributes-tag OF-TYPE keyword COUNT 1
+    EXPECT print-color-mode-supported IN-GROUP printer-attributes-tag OF-TYPE keyword
+    EXPECT ?print-color-mode-icc-profiles IN-GROUP printer-attributes-tag OF-TYPE collection
+    EXPECT print-color-mode-icc-profiles DEFINE-MATCH SUPPORTS_COLOR_MODE_ICC
+    EXPECT print-color-mode-icc-profiles/print-color-mode OF-TYPE keyword WITH-VALUE-FROM print-color-mode-supported IF-DEFINED SUPPORTS_COLOR_MODE_ICC
+    EXPECT print-color-mode-icc-profiles/profile-uri OF-TYPE uri IF-DEFINED SUPPORTS_COLOR_MODE_ICC
+
+    EXPECT ?print-rendering-intent-default IN-GROUP printer-attributes-tag OF-TYPE keyword COUNT 1
+    EXPECT print-rendering-intent-default DEFINE-MATCH SUPPORTS_RENDERING_INTENT
+    EXPECT ?print-rendering-intent-supported IN-GROUP printer-attributes-tag OF-TYPE keyword
+    EXPECT print-rendering-intent-supported DEFINE-MATCH SUPPORTS_RENDERING_INTENT
+    EXPECT print-rendering-intent-default IF-DEFINED SUPPORTS_RENDERING_INTENT
+    EXPECT print-rendering-intent-supported IF-DEFINED SUPPORTS_RENDERING_INTENT
+
+    EXPECT print-processing-attributes-supported IN-GROUP printer-attributes-tag OF-TYPE keyword
+    EXPECT print-processing-attributes-supported WITH-VALUE media-overprint IF-DEFINED HAVE_MEDIA_OVERPRINT
+    EXPECT print-processing-attributes-supported WITH-VALUE print-color-mode
+    EXPECT print-processing-attributes-supported WITH-VALUE print-rendering-intent IF-DEFINED HAVE_RENDERING_INTENT
+    EXPECT print-processing-attributes-supported WITH-VALUE printer-resolution
+
+    EXPECT print-scaling-default IN-GROUP printer-attributes-tag OF-TYPE keyword COUNT 1
+    EXPECT print-scaling-supported IN-GROUP printer-attributes-tag OF-TYPE keyword
+
+    EXPECT printer-dns-sd-name IN-GROUP printer-attributes-tag OF-TYPE name(63) COUNT 1
+
+    EXPECT ?printer-geo-location IN-GROUP printer-attributes-tag OF-TYPE uri|unknown COUNT 1
+
+    EXPECT printer-get-attributes-supported IN-GROUP printer-attributes-tag OF-TYPE keyword
+    EXPECT printer-get-attributes-supported WITH-VALUE document-format
+
+    EXPECT ?printer-icc-profiles IN-GROUP printer-attributes-tag OF-TYPE collection
+    EXPECT printer-icc-profiles DEFINE-MATCH SUPPORTS_PRINTER_ICC_PROFILES
+    EXPECT printer-icc-profiles/profile-name OF-TYPE name COUNT 1 IF-DEFINED SUPPORTS_PRINTER_ICC_PROFILES
+    EXPECT printer-icc-profiles/profile-uri OF-TYPE uri COUNT 1 IF-DEFINED SUPPORTS_PRINTER_ICC_PROFILES
+
+    EXPECT printer-icons IN-GROUP printer-attributes-tag OF-TYPE uri
+
+    EXPECT media-source-supported DEFINE-MATCH SUPPORTS_MEDIA_SOURCE
+    EXPECT ?printer-input-tray IN-GROUP printer-attributes-tag OF-TYPE octetString SAME-COUNT-AS media-source-supported
+    EXPECT printer-input-tray IF-DEFINED SUPPORTS_MEDIA_SOURCE
+
+    EXPECT printer-kind IN-GROUP printer-attributes-tag OF-TYPE keyword
+
+    EXPECT ?printer-mandatory-job-attributes IN-GROUP printer-attributes-tag OF-TYPE keyword
+
+    EXPECT printer-organization IN-GROUP printer-attributes-tag OF-TYPE text COUNT 1
+    EXPECT printer-organizational-unit IN-GROUP printer-attributes-tag OF-TYPE text COUNT 1
+
+    EXPECT output-bin-supported DEFINE-MATCH SUPPORTS_OUTPUT_BIN
+    EXPECT ?printer-output-tray IN-GROUP printer-attributes-tag OF-TYPE octetString SAME-COUNT-AS output-bin-supported
+    EXPECT printer-output-tray IF-DEFINED SUPPORTS_OUTPUT_BIN
+
+    EXPECT ?printer-strings-languages-supported IN-GROUP printer-attributes-tag OF-TYPE naturalLanguage
+    EXPECT printer-strings-languages-supported DEFINE-MATCH HAVE_PRINTER_STRINGS
+    EXPECT ?printer-strings-uri IN-GROUP printer-attributes-tag OF-TYPE uri COUNT 1
+    EXPECT printer-strings-uri DEFINE-MATCH HAVE_PRINTER_STRINGS
+    EXPECT printer-strings-languages-supported IF-DEFINED HAVE_PRINTER_STRINGS
+    EXPECT printer-strings-uri IF-DEFINED HAVE_PRINTER_STRINGS
+
+    EXPECT requesting-user-uri-supported IN-GROUP printer-attributes-tag OF-TYPE boolean COUNT 1 WITH-VALUE true
+    EXPECT ?requesting-user-uri-schemes-supported IN-GROUP printer-attributes-tag OF-TYPE uriScheme
+
+    # Printer Status attributes
+    EXPECT device-uuid IN-GROUP printer-attributes-tag OF-TYPE uri COUNT 1
+    EXPECT printer-config-change-date-time IN-GROUP printer-attributes-tag OF-TYPE dateTime | unknown COUNT 1
+    EXPECT printer-config-change-time IN-GROUP printer-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
+    EXPECT ?printer-firmware-name IN-GROUP printer-attributes-tag OF-TYPE name SAME-COUNT-AS printer-firmware-version
+    EXPECT printer-firmware-patches IN-GROUP printer-attributes-tag OF-TYPE text SAME-COUNT-AS printer-firmware-version
+    EXPECT printer-firmware-string-versin IN-GROUP printer-attributes-tag OF-TYPE text SAME-COUNT-AS printer-firmware-version
+    EXPECT printer-firmware-version IN-GROUP printer-attributes-tag OF-TYPE octetString SAME-COUNT-AS printer-firmware-version
+
+    EXPECT ?printer-supply IN-GROUP printer-attributes-tag OF-TYPE octetString SAME-COUNT-AS printer-supply-description
+    EXPECT printer-supply DEFINE-MATCH HAVE_PRINTER_SUPPLY
+    EXPECT ?printer-supply-description IN-GROUP printer-attributes-tag OF-TYPE text SAME-COUNT-AS printer-supply
+    EXPECT printer-supply-description DEFINE-MATCH HAVE_PRINTER_SUPPLY
+    EXPECT ?printer-supply-info-uri IN-GROUP printer-attributes-tag OF-TYPE uri COUNT 1
+    EXPECT printer-supply-info-uri DEFINE-MATCH HAVE_PRINTER_SUPPLY
+    EXPECT printer-supply IF-DEFINED HAVE_PRINTER_SUPPLY
+    EXPECT printer-supply-description IF-DEFINED HAVE_PRINTER_SUPPLY
+    EXPECT printer-supply-info-uri IF-DEFINED HAVE_PRINTER_SUPPLY
+
+    EXPECT printer-uuid IN-GROUP printer-attributes-tag OF-TYPE uri COUNT 1
+}
+
+{
+    SKIP-IF-NOT-DEFINED SUPPORTS_IDENTIFY_PRINTER
+
+    NAME "Identify-Printer"
+    OPERATION Identify-Printer
+
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri printer-uri $uri
+
+    STATUS successful-ok
+}
+
+{
+    SKIP-IF-NOT-DEFINED SUPPORTS_VALIDATE_DOCUMENT
+
+    NAME "Validate-Document"
+    OPERATION Validate-Document
+
+    GROUP operation-attributes-tag
+    ATTR charset attributes-charset utf-8
+    ATTR naturalLanguage attributes-natural-language en
+    ATTR uri printer-uri $uri
+    ATTR name requesting-user-name $user
+    ATTR uri requesting-user-uri "mailto:$user@example.com"
+    ATTR name document-name "Test Validate-Document"
+    ATTR name document-format $DEFAULT_DOCUMENT_FORMAT
+
+    GROUP document-attributes-tag
+    ATTR keyword media $DEFAULT_MEDIA
+
+    STATUS successful-ok
+}
