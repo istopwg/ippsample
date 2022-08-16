@@ -47,7 +47,8 @@ VERSION 2.0
 
     EXPECT document-password-supported IN-GROUP printer-attributes-tag OF-TYPE integer(0:1023) COUNT 1 IF-DEFINED SUPPORTS_PDF
 
-    EXPECT identify-actions-default IN-GROUP printer-attributes-tag OF-TYPE keyword WITH-ALL-VALUES-FROM identify-actions-supported IF-DEFINED SUPPORTS_IDENTIFY_PRINTER
+#    EXPECT identify-actions-default IN-GROUP printer-attributes-tag OF-TYPE keyword WITH-ALL-VALUES-FROM identify-actions-supported IF-DEFINED SUPPORTS_IDENTIFY_PRINTER
+    EXPECT identify-actions-default IN-GROUP printer-attributes-tag OF-TYPE keyword WITH-VALUE-FROM identify-actions-supported IF-DEFINED SUPPORTS_IDENTIFY_PRINTER
     EXPECT identify-actions-supported IN-GROUP printer-attributes-tag OF-TYPE keyword IF-DEFINED SUPPORTS_IDENTIFY_PRINTER
 
     EXPECT ipp-features-supported IN-GROUP printer-attributes-tag OF-TYPE keyword
@@ -168,11 +169,11 @@ VERSION 2.0
 
     # Printer Status attributes
     EXPECT device-uuid IN-GROUP printer-attributes-tag OF-TYPE uri COUNT 1
-    EXPECT printer-config-change-date-time IN-GROUP printer-attributes-tag OF-TYPE dateTime | unknown COUNT 1
+    EXPECT printer-config-change-date-time IN-GROUP printer-attributes-tag OF-TYPE dateTime|unknown COUNT 1
     EXPECT printer-config-change-time IN-GROUP printer-attributes-tag OF-TYPE integer(1:MAX) COUNT 1
     EXPECT ?printer-firmware-name IN-GROUP printer-attributes-tag OF-TYPE name SAME-COUNT-AS printer-firmware-version
     EXPECT printer-firmware-patches IN-GROUP printer-attributes-tag OF-TYPE text SAME-COUNT-AS printer-firmware-version
-    EXPECT printer-firmware-string-versin IN-GROUP printer-attributes-tag OF-TYPE text SAME-COUNT-AS printer-firmware-version
+    EXPECT printer-firmware-string-version IN-GROUP printer-attributes-tag OF-TYPE text SAME-COUNT-AS printer-firmware-version
     EXPECT printer-firmware-version IN-GROUP printer-attributes-tag OF-TYPE octetString SAME-COUNT-AS printer-firmware-version
 
     EXPECT ?printer-supply IN-GROUP printer-attributes-tag OF-TYPE octetString SAME-COUNT-AS printer-supply-description
