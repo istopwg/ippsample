@@ -88,7 +88,7 @@ test:
 # ipp3dprinter
 #
 
-ipp3dprinter:	ipp3dprinter.o ../libcups/cups/libcups.a
+ipp3dprinter:	ipp3dprinter.o ../libcups/cups/libcups3.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ipp3dprinter.o $(LIBS)
 
@@ -97,7 +97,7 @@ ipp3dprinter:	ipp3dprinter.o ../libcups/cups/libcups.a
 # ippdoclint
 #
 
-ippdoclint:	ippdoclint.o ../libcups/cups/libcups.a
+ippdoclint:	ippdoclint.o ../libcups/cups/libcups3.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ippdoclint.o $(LIBS)
 
@@ -106,7 +106,7 @@ ippdoclint:	ippdoclint.o ../libcups/cups/libcups.a
 # ippproxy
 #
 
-ippproxy:	ippproxy.o ../libcups/cups/libcups.a
+ippproxy:	ippproxy.o ../libcups/cups/libcups3.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ippproxy.o $(LIBS)
 
@@ -115,7 +115,7 @@ ippproxy:	ippproxy.o ../libcups/cups/libcups.a
 # ipptransform
 #
 
-ipptransform:	ipptransform.o ipp-options.o ../libcups/cups/libcups.a
+ipptransform:	ipptransform.o ipp-options.o ../libcups/cups/libcups3.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ipptransform.o ipp-options.o $(LIBS)
 
@@ -124,7 +124,7 @@ ipptransform:	ipptransform.o ipp-options.o ../libcups/cups/libcups.a
 # ipptransform3d
 #
 
-ipptransform3d:	ipptransform3d.o ../libcups/cups/libcups.a
+ipptransform3d:	ipptransform3d.o ../libcups/cups/libcups3.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ipptransform3d.o $(LIBS)
 
