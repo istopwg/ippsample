@@ -18,7 +18,8 @@
 
 #  include <config.h>			/* Configuration header */
 #  include <cups/cups.h>		/* Public API */
-#  include <cups/thread.h>		/* For multithreading functions */
+#  include <cups/dnssd.h>		/* DNS-SD API */
+#  include <cups/thread.h>		/* Threading API */
 #  include <stdio.h>
 #  include <stdlib.h>
 #  include <stdbool.h>
@@ -44,15 +45,6 @@ extern char **environ;
 #    include <sys/wait.h>
 #    include <poll.h>
 #  endif /* _WIN32 */
-
-#  ifdef HAVE_MDNSRESPONDER
-#    include <dns_sd.h>
-#  elif defined(HAVE_AVAHI)
-#    include <avahi-client/client.h>
-#    include <avahi-client/publish.h>
-#    include <avahi-common/error.h>
-#    include <avahi-common/thread-watch.h>
-#  endif /* HAVE_MDNSRESPONDER */
 
 #  ifdef HAVE_SYS_MOUNT_H
 #    include <sys/mount.h>
@@ -385,27 +377,6 @@ typedef enum server_type_e		/* Service types */
 
 
 /*
- * Base types...
- */
-
-#  ifdef HAVE_MDNSRESPONDER
-typedef DNSServiceRef server_srv_t;	/* Service reference */
-typedef TXTRecordRef server_txt_t;	/* TXT record */
-typedef DNSRecordRef server_loc_t;	/* LOC record */
-
-#  elif defined(HAVE_AVAHI)
-typedef AvahiEntryGroup *server_srv_t;	/* Service reference */
-typedef AvahiStringList *server_txt_t;	/* TXT record */
-typedef void *server_loc_t;		/* LOC record */
-
-#  else
-typedef void *server_srv_t;		/* Service reference */
-typedef void *server_txt_t;		/* TXT record */
-typedef void *server_loc_t;		/* LOC record */
-#  endif /* HAVE_MDNSRESPONDER */
-
-
-/*
  * Structures...
  */
 
@@ -476,15 +447,11 @@ typedef struct server_printer_s		/**** Printer data ****/
   int			id;		/* Printer ID */
   server_type_t		type;		/* Type of printer/service */
   cups_rwlock_t		rwlock;		/* Printer lock */
-#ifdef HAVE_AVAHI
-  server_srv_t		dnssd_ref;	/* DNS-SD registrations */
-#elif defined(HAVE_MDNSRESPONDER)
-  server_srv_t		ipp_ref,	/* DNS-SD IPP service */
-			ipps_ref,	/* DNS-SD IPPS service */
-			http_ref,	/* DNS-SD HTTP(S) service */
-			printer_ref;	/* DNS-SD LPD service */
-#endif /* HAVE_AVAHI */
-  server_loc_t		geo_ref;	/* DNS-SD geo-location */
+  cups_dnssd_service_t	*dns_sd_service;/* DNS-SD service registration */
+  bool			dns_sd_collision;
+					/* DNS-SD service name collision */
+  int			dns_sd_serial;	/* DNS-SD serial number */
+  bool			dns_sd_update;	/* DNS-SD service name or location updated */
   char			*dns_sd_name,	/* printer-dns-sd-name */
 			*name,		/* printer-name */
 			*resource;	/* Resource path */
@@ -677,14 +644,13 @@ VAR char		*ServerName	VALUE(NULL);
 VAR char		*SpoolDirectory	VALUE(NULL);
 VAR char		*StateDirectory	VALUE(NULL);
 
+VAR cups_dnssd_t	*DNSSDContext	VALUE(NULL);
 VAR int			DNSSDEnabled	VALUE(1);
-#ifdef HAVE_MDNSRESPONDER
-VAR DNSServiceRef	DNSSDMaster	VALUE(NULL);
-#elif defined(HAVE_AVAHI)
-VAR AvahiThreadedPoll	*DNSSDMaster	VALUE(NULL);
-VAR AvahiClient		*DNSSDClient	VALUE(NULL);
-#endif /* HAVE_MDNSRESPONDER */
+VAR char		*DNSSDName	VALUE(NULL);
+VAR int			DNSSDSerial	VALUE(1);
 VAR char		*DNSSDSubType	VALUE(NULL);
+VAR cups_dnssd_service_t *DNSSDSystem	VALUE(NULL);
+VAR bool		DNSSDUpdate	VALUE(false);
 
 VAR cups_rwlock_t	ResourcesRWLock	VALUE(CUPS_RWLOCK_INITIALIZER);
 VAR cups_array_t	*ResourcesByFilename VALUE(NULL);

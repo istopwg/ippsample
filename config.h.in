@@ -21,16 +21,6 @@
 #undef HAVE_PAM_PAM_APPL_H
 
 
-// strlcpy support
-#undef HAVE_STRLCPY
-
-
-// DNS-SD support
-#undef HAVE_DNSSD
-#undef HAVE_MDNSRESPONDER
-#undef HAVE_AVAHI
-
-
 // CoreGraphics support
 #undef HAVE_COREGRAPHICS
 

@@ -20,14 +20,7 @@ static int		compare_completed_jobs(server_job_t *a, server_job_t *b);
 static int		compare_jobs(server_job_t *a, server_job_t *b);
 static ipp_t		*create_media_col(const char *media, const char *source, const char *type, int width, int length, int margins);
 static ipp_t		*create_media_size(int width, int length);
-#ifdef HAVE_MDNSRESPONDER
-static void DNSSD_API	dnssd_callback(DNSServiceRef sdRef, DNSServiceFlags flags, DNSServiceErrorType errorCode, const char *name, const char *regtype, const char *domain, server_printer_t *printer);
-#elif defined(HAVE_AVAHI)
-static void		dnssd_callback(AvahiEntryGroup *p, AvahiEntryGroupState state, void *context);
-#endif /* HAVE_MDNSRESPONDER */
-#ifdef HAVE_DNSSD
-static void		register_geo(server_printer_t *printer);
-#endif /* HAVE_DNSSD */
+static void		dnssd_callback(cups_dnssd_service_t *service, server_printer_t *printer, cups_dnssd_flags_t flags);
 
 
 /*
@@ -832,6 +825,7 @@ serverCreatePrinter(
   printer->resourcelen    = strlen(resource);
   printer->name           = strdup(name);
   printer->dns_sd_name    = strdup(name);
+  printer->dns_sd_serial  = 1;
   printer->start_time     = time(NULL);
   printer->config_time    = printer->start_time;
   printer->state          = IPP_PSTATE_STOPPED;
@@ -2026,13 +2020,14 @@ int					/* O - 1 on success, 0 on error */
 serverRegisterPrinter(
     server_printer_t *printer)		/* I - Printer */
 {
-#ifdef HAVE_DNSSD
   int			is_print3d;	/* 3D printer? */
-  server_txt_t		ipp_txt;	/* Bonjour IPP TXT record */
+  size_t		num_txt;	/* Number of IPP TXT key/value pairs */
+  cups_option_t		*txt;		/* IPP TXT key/value pairs */
   size_t		i,		/* Looping var */
 			count;		/* Number of values */
   ipp_attribute_t	*color_supported,
 			*document_format_supported,
+			*printer_geo_location,
 			*printer_kind,
 			*printer_location,
 			*printer_make_and_model,
@@ -2041,22 +2036,25 @@ serverRegisterPrinter(
 			*sides_supported,
 			*urf_supported;	/* Printer attributes */
   const char		*value;		/* Value string */
-  char			formats[252],	/* List of supported formats */
+  char			dns_sd_name[256],/* DNS-SD name */
+			formats[252],	/* List of supported formats */
 			kind[251],	/* List of printer-kind values */
 			urf[252],	/* List of supported URF values */
 			*ptr;		/* Pointer into string */
   char			regtype[256];	/* DNS-SD service type */
-#  ifdef HAVE_MDNSRESPONDER
-  DNSServiceErrorType	error;		/* Error from Bonjour */
-#  endif /* HAVE_MDNSRESPONDER */
 
 
+  // Check whether DNS-SD is enabled...
   if (!DNSSDEnabled)
     return (1);
+
+  // Collect values...
+  cupsRWLockWrite(&printer->rwlock);
 
   is_print3d                = !strncmp(printer->resource, "/ipp/print3d/", 13);
   color_supported           = ippFindAttribute(printer->pinfo.attrs, "color-supported", IPP_TAG_BOOLEAN);
   document_format_supported = ippFindAttribute(printer->pinfo.attrs, "document-format-supported", IPP_TAG_MIMETYPE);
+  printer_geo_location      = ippFindAttribute(printer->pinfo.attrs, "printer-geo-location", IPP_TAG_URI);
   printer_kind              = ippFindAttribute(printer->pinfo.attrs, "printer-kind", IPP_TAG_KEYWORD);
   printer_location          = ippFindAttribute(printer->pinfo.attrs, "printer-location", IPP_TAG_TEXT);
   printer_make_and_model    = ippFindAttribute(printer->pinfo.attrs, "printer-make-and-model", IPP_TAG_TEXT);
@@ -2111,77 +2109,73 @@ serverRegisterPrinter(
     if (ptr >= (urf + sizeof(urf) - 1))
       break;
   }
-#endif /* HAVE_DNSSD */
 
-#ifdef HAVE_MDNSRESPONDER
- /*
-  * Build the TXT record for IPP...
-  */
-
-  TXTRecordCreate(&ipp_txt, 1024, NULL);
-  TXTRecordSetValue(&ipp_txt, "rp", (uint8_t)strlen(printer->resource) - 1, printer->resource + 1);
+  // Build the TXT record for IPP...
+  num_txt = cupsAddOption("rp", printer->resource + 1, 0, &txt);
   if ((value = ippGetString(printer_make_and_model, 0, NULL)) != NULL)
-    TXTRecordSetValue(&ipp_txt, "ty", (uint8_t)strlen(value), value);
+    num_txt = cupsAddOption("ty", value, num_txt, &txt);
   if ((value = ippGetString(printer_more_info, 0, NULL)) != NULL)
-    TXTRecordSetValue(&ipp_txt, "adminurl", (uint8_t)strlen(value), value);
+    num_txt = cupsAddOption("adminurl", value, num_txt, &txt);
   if ((value = ippGetString(printer_location, 0, NULL)) != NULL)
-    TXTRecordSetValue(&ipp_txt, "note", (uint8_t)strlen(value), value);
-  TXTRecordSetValue(&ipp_txt, "pdl", (uint8_t)strlen(formats), formats);
+    num_txt = cupsAddOption("note", value, num_txt, &txt);
+  num_txt = cupsAddOption("pdl", formats, num_txt, &txt);
   if (kind[0])
-    TXTRecordSetValue(&ipp_txt, "kind", (uint8_t)strlen(kind), kind);
+    num_txt = cupsAddOption("kind", kind, num_txt, &txt);
   if ((value = ippGetString(printer_uuid, 0, NULL)) != NULL)
-    TXTRecordSetValue(&ipp_txt, "UUID", (uint8_t)strlen(value) - 9, value + 9);
+    num_txt = cupsAddOption("UUID", value + 9, num_txt, &txt);
   if (!is_print3d)
   {
-    TXTRecordSetValue(&ipp_txt, "Color", 1, ippGetBoolean(color_supported, 0) ? "T" : "F");
-    TXTRecordSetValue(&ipp_txt, "Duplex", 1, ippGetCount(sides_supported) > 1 ? "T" : "F");
+    num_txt = cupsAddOption("Color", ippGetBoolean(color_supported, 0) ? "T" : "F", num_txt, &txt);
+    num_txt = cupsAddOption("Duplex", ippGetCount(sides_supported) > 1 ? "T" : "F", num_txt, &txt);
   }
 
   if (!is_print3d && Encryption != HTTP_ENCRYPTION_NEVER)
-    TXTRecordSetValue(&ipp_txt, "TLS", 3, "1.2");
+    num_txt = cupsAddOption("TLS", "1.3", num_txt, &txt);
   if (urf[0])
-    TXTRecordSetValue(&ipp_txt, "URF", (uint8_t)strlen(urf), urf);
-  TXTRecordSetValue(&ipp_txt, "txtvers", 1, "1");
-  TXTRecordSetValue(&ipp_txt, "qtotal", 1, "1");
+    num_txt = cupsAddOption("URF", urf, num_txt, &txt);
+  num_txt = cupsAddOption("txtvers", "1", num_txt, &txt);
+  num_txt = cupsAddOption("qtotal", "1", num_txt, &txt);
 
- /*
-  * Register the _printer._tcp (LPD) service type with a port number of 0 to
-  * defend our service name but not actually support LPD...
-  */
-
-  printer->printer_ref = DNSSDMaster;
-
-  if ((error = DNSServiceRegister(&(printer->printer_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, "_printer._tcp", NULL /* domain */, NULL /* host */, 0 /* port */, 0 /* txtLen */, NULL /* txtRecord */, (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
+  // Handle DNS-SD name collisions...
+  if (printer->dns_sd_collision)
   {
-    serverLogPrinter(SERVER_LOGLEVEL_ERROR, printer, "Unable to register \"%s._printer._tcp\": %d", printer->dns_sd_name, error);
-    return (0);
+    printer->dns_sd_serial ++;
+    printer->dns_sd_collision = false;
   }
 
- /*
-  * Then register the corresponding IPP service types with the real port
-  * number to advertise our printer...
-  */
+  if (printer->dns_sd_serial > 1)
+    snprintf(dns_sd_name, sizeof(dns_sd_name), "%s %d", printer->dns_sd_name, printer->dns_sd_serial);
+  else
+    cupsCopyString(dns_sd_name, printer->dns_sd_name, sizeof(dns_sd_name));
 
+  // Create the service...
+  cupsDNSSDServiceDelete(printer->dns_sd_service);
+  if ((printer->dns_sd_service = cupsDNSSDServiceNew(DNSSDContext, CUPS_DNSSD_IF_INDEX_ANY, dns_sd_name, (cups_dnssd_service_cb_t)dnssd_callback, printer)) == NULL)
+    goto fail;
+
+  if ((value = ippGetString(printer_geo_location, 0, NULL)) != NULL)
+    cupsDNSSDServiceSetLocation(printer->dns_sd_service, value);
+
+  // Register the _printer._tcp (LPD) service type with a port number of 0 to
+  // defend our service name but not actually support LPD...
+  if (!cupsDNSSDServiceAdd(printer->dns_sd_service, "_printer._tcp", /*domain*/NULL, /*host*/NULL, /*port*/0, /*num_txt*/0, /*txt*/NULL))
+    goto fail;
+
+  // Then register the corresponding IPP service types with the real port
+  // number to advertise our printer...
   if (!is_print3d)
   {
-    printer->ipp_ref = DNSSDMaster;
-
     if (DNSSDSubType && *DNSSDSubType)
       snprintf(regtype, sizeof(regtype), SERVER_IPP_TYPE ",%s", DNSSDSubType);
     else
       cupsCopyString(regtype, SERVER_IPP_TYPE, sizeof(regtype));
 
-    if ((error = DNSServiceRegister(&(printer->ipp_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, regtype, NULL /* domain */, NULL /* host */, htons(DefaultPort), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
-    {
-      serverLogPrinter(SERVER_LOGLEVEL_ERROR, printer, "Unable to register \"%s.%s\": %d", printer->dns_sd_name, regtype, error);
-      return (0);
-    }
+    if (!cupsDNSSDServiceAdd(printer->dns_sd_service, regtype, /*domain*/NULL, /*host*/NULL, (uint16_t)DefaultPort, num_txt, txt))
+      goto fail;
   }
 
   if (Encryption != HTTP_ENCRYPTION_NEVER)
   {
-    printer->ipps_ref = DNSSDMaster;
-
     if (is_print3d)
     {
       if (DNSSDSubType && *DNSSDSubType)
@@ -2194,170 +2188,35 @@ serverRegisterPrinter(
     else
       cupsCopyString(regtype, SERVER_IPPS_TYPE, sizeof(regtype));
 
-    if ((error = DNSServiceRegister(&(printer->ipps_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, regtype, NULL /* domain */, NULL /* host */, htons(DefaultPort), TXTRecordGetLength(&ipp_txt), TXTRecordGetBytesPtr(&ipp_txt), (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
-    {
-      serverLogPrinter(SERVER_LOGLEVEL_ERROR, printer, "Unable to register \"%s.%s\": %d", printer->dns_sd_name, regtype, error);
-      return (0);
-    }
+    if (!cupsDNSSDServiceAdd(printer->dns_sd_service, regtype, /*domain*/NULL, /*host*/NULL, (uint16_t)DefaultPort, num_txt, txt))
+      goto fail;
   }
 
- /*
-  * Register the geolocation of the service...
-  */
+  // Similarly, register the _http._tcp,_printer (HTTP) service type with the
+  // real port number to advertise our IPP printer...
+  if (!cupsDNSSDServiceAdd(printer->dns_sd_service, SERVER_WEB_TYPE ",_printer", /*domain*/NULL, /*host*/NULL, (uint16_t)DefaultPort, num_txt, txt))
+    goto fail;
 
-  register_geo(printer);
+  // Publish everything and return...
+  cupsDNSSDServicePublish(printer->dns_sd_service);
 
- /*
-  * Similarly, register the _http._tcp,_printer (HTTP) service type with the
-  * real port number to advertise our IPP printer...
-  */
+  cupsFreeOptions(num_txt, txt);
 
-  printer->http_ref = DNSSDMaster;
-
-  if ((error = DNSServiceRegister(&(printer->http_ref), kDNSServiceFlagsShareConnection, 0 /* interfaceIndex */, printer->dns_sd_name, SERVER_WEB_TYPE ",_printer", NULL /* domain */, NULL /* host */, htons(DefaultPort), 0 /* txtLen */, NULL, /* txtRecord */ (DNSServiceRegisterReply)dnssd_callback, printer)) != kDNSServiceErr_NoError)
-  {
-    serverLogPrinter(SERVER_LOGLEVEL_ERROR, printer, "Unable to register \"%s.%s\": %d", printer->dns_sd_name, SERVER_WEB_TYPE ",_printer", error);
-    return (0);
-  }
-
-  TXTRecordDeallocate(&ipp_txt);
-
-#elif defined(HAVE_AVAHI)
- /*
-  * Create the TXT record...
-  */
-
-  ipp_txt = NULL;
-  ipp_txt = avahi_string_list_add_printf(ipp_txt, "rp=%s", printer->resource + 1);
-  if ((value = ippGetString(printer_make_and_model, 0, NULL)) != NULL)
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "ty=%s", value);
-  if ((value = ippGetString(printer_more_info, 0, NULL)) != NULL)
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "adminurl=%s", value);
-  if ((value = ippGetString(printer_location, 0, NULL)) != NULL)
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "note=%s", value);
-  ipp_txt = avahi_string_list_add_printf(ipp_txt, "pdl=%s", formats);
-  if ((value = ippGetString(printer_uuid, 0, NULL)) != NULL)
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "UUID=%s", value + 9);
-
-  if (!is_print3d)
-  {
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "Color=%s", ippGetBoolean(color_supported, 0) ? "T" : "F");
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "Duplex=%s", ippGetCount(sides_supported) > 1 ? "T" : "F");
-  }
-
-  if (!is_print3d && Encryption != HTTP_ENCRYPTION_NEVER)
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "TLS=1.2");
-  if (urf[0])
-    ipp_txt = avahi_string_list_add_printf(ipp_txt, "URF=%s", urf);
-  ipp_txt = avahi_string_list_add_printf(ipp_txt, "txtvers=1");
-  ipp_txt = avahi_string_list_add_printf(ipp_txt, "qtotal=1");
-
- /*
-  * Register _printer._tcp (LPD) with port 0 to reserve the service name...
-  */
-
-  avahi_threaded_poll_lock(DNSSDMaster);
-
-  printer->dnssd_ref = avahi_entry_group_new(DNSSDClient, dnssd_callback, NULL);
-
-  avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, "_printer._tcp", NULL, NULL, 0, NULL);
-
- /*
-  * Then register the IPP/IPPS services...
-  */
-
-  if (!is_print3d)
-  {
-    avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_IPP_TYPE, NULL, NULL, DefaultPort, ipp_txt);
-    if (DNSSDSubType && *DNSSDSubType)
-    {
-      char *temptypes = strdup(DNSSDSubType), *start, *end;
-
-      for (start = temptypes; *start; start = end)
-      {
-	if ((end = strchr(start, ',')) != NULL)
-	  *end++ = '\0';
-	else
-	  end = start + strlen(start);
-
-	snprintf(regtype, sizeof(regtype), "%s._sub." SERVER_IPP_TYPE, start);
-	avahi_entry_group_add_service_subtype(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_IPP_TYPE, NULL, regtype);
-      }
-
-      free(temptypes);
-    }
-  }
-
-  if (Encryption != HTTP_ENCRYPTION_NEVER)
-  {
-    if (is_print3d)
-    {
-      avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_IPPS_3D_TYPE, NULL, NULL, DefaultPort, ipp_txt);
-      if (DNSSDSubType && *DNSSDSubType)
-      {
-	char *temptypes = strdup(DNSSDSubType), *start, *end;
-
-	for (start = temptypes; *start; start = end)
-	{
-	  if ((end = strchr(start, ',')) != NULL)
-	    *end++ = '\0';
-	  else
-	    end = start + strlen(start);
-
-	  snprintf(regtype, sizeof(regtype), "%s._sub." SERVER_IPPS_3D_TYPE, start);
-	  avahi_entry_group_add_service_subtype(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_IPPS_3D_TYPE, NULL, regtype);
-	}
-
-	free(temptypes);
-      }
-    }
-    else
-    {
-      avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_IPPS_TYPE, NULL, NULL, DefaultPort, ipp_txt);
-      if (DNSSDSubType && *DNSSDSubType)
-      {
-	char *temptypes = strdup(DNSSDSubType), *start, *end;
-
-	for (start = temptypes; *start; start = end)
-	{
-	  if ((end = strchr(start, ',')) != NULL)
-	    *end++ = '\0';
-	  else
-	    end = start + strlen(start);
-
-	  snprintf(regtype, sizeof(regtype), "%s._sub." SERVER_IPPS_TYPE, start);
-	  avahi_entry_group_add_service_subtype(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_IPPS_TYPE, NULL, regtype);
-	}
-
-	free(temptypes);
-      }
-    }
-  }
-
- /*
-  * Register the geolocation of the service...
-  */
-
-  register_geo(printer);
-
- /*
-  * Finally _http.tcp (HTTP) for the web interface...
-  */
-
-  avahi_entry_group_add_service_strlst(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_WEB_TYPE, NULL, NULL, DefaultPort, NULL);
-  avahi_entry_group_add_service_subtype(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, SERVER_WEB_TYPE, NULL, "_printer._sub." SERVER_WEB_TYPE);
-
- /*
-  * Commit it...
-  */
-
-  avahi_entry_group_commit(printer->dnssd_ref);
-  avahi_threaded_poll_unlock(DNSSDMaster);
-
-  avahi_string_list_free(ipp_txt);
-#endif /* HAVE_MDNSRESPONDER */
+  cupsRWUnlock(&printer->rwlock);
 
   return (1);
+
+  // Common failure point...
+  fail:
+
+  cupsDNSSDServiceDelete(printer->dns_sd_service);
+  printer->dns_sd_service = NULL;
+
+  cupsFreeOptions(num_txt, txt);
+
+  cupsRWUnlock(&printer->rwlock);
+
+  return (0);
 }
 
 
@@ -2443,44 +2302,12 @@ serverUnregisterPrinter(
   if (!DNSSDEnabled)
     return;
 
-#if HAVE_MDNSRESPONDER
-  if (printer->geo_ref)
-  {
-    DNSServiceRemoveRecord(printer->printer_ref, printer->geo_ref, 0);
-    printer->geo_ref = NULL;
-  }
-  if (printer->printer_ref)
-  {
-    DNSServiceRefDeallocate(printer->printer_ref);
-    printer->printer_ref = NULL;
-  }
-  if (printer->ipp_ref)
-  {
-    DNSServiceRefDeallocate(printer->ipp_ref);
-    printer->ipp_ref = NULL;
-  }
-  if (printer->ipps_ref)
-  {
-    DNSServiceRefDeallocate(printer->ipps_ref);
-    printer->ipps_ref = NULL;
-  }
-  if (printer->http_ref)
-  {
-    DNSServiceRefDeallocate(printer->http_ref);
-    printer->http_ref = NULL;
-  }
+  cupsRWLockWrite(&printer->rwlock);
 
-#elif defined(HAVE_AVAHI)
-  avahi_threaded_poll_lock(DNSSDMaster);
+  cupsDNSSDServiceDelete(printer->dns_sd_service);
+  printer->dns_sd_service = NULL;
 
-  if (printer->dnssd_ref)
-  {
-    avahi_entry_group_free(printer->dnssd_ref);
-    printer->dnssd_ref = NULL;
-  }
-
-  avahi_threaded_poll_unlock(DNSSDMaster);
-#endif /* HAVE_MDNSRESPONDER */
+  cupsRWUnlock(&printer->rwlock);
 }
 
 
@@ -2602,179 +2429,23 @@ create_media_size(int width,		/* I - x-dimension in 2540ths */
 }
 
 
-#ifdef HAVE_MDNSRESPONDER
 /*
- * 'dnssd_callback()' - Handle Bonjour registration events.
- */
-
-static void DNSSD_API
-dnssd_callback(
-    DNSServiceRef       sdRef,		/* I - Service reference */
-    DNSServiceFlags     flags,		/* I - Status flags */
-    DNSServiceErrorType errorCode,	/* I - Error, if any */
-    const char          *name,		/* I - Service name */
-    const char          *regtype,	/* I - Service type */
-    const char          *domain,	/* I - Domain for service */
-    server_printer_t    *printer)	/* I - Printer */
-{
-  (void)sdRef;
-  (void)flags;
-  (void)domain;
-
-  if (errorCode)
-  {
-    fprintf(stderr, "DNSServiceRegister for %s failed with error %d.\n",
-            regtype, (int)errorCode);
-    return;
-  }
-  else if (strcasecmp(name, printer->dns_sd_name))
-  {
-    serverLogPrinter(SERVER_LOGLEVEL_INFO, printer, "Now using DNS-SD service name \"%s\".", name);
-
-    /* No lock needed since only the main thread accesses/changes this */
-    free(printer->dns_sd_name);
-    printer->dns_sd_name = strdup(name);
-  }
-}
-
-
-#elif defined(HAVE_AVAHI)
-/*
- * 'dnssd_callback()' - Handle Bonjour registration events.
+ * 'dnssd_callback()' - Handle DNS-SD registration events.
  */
 
 static void
 dnssd_callback(
-    AvahiEntryGroup      *srv,		/* I - Service */
-    AvahiEntryGroupState state,		/* I - Registration state */
-    void                 *context)	/* I - Printer */
+    cups_dnssd_service_t *service,	/* I - Service registration */
+    server_printer_t     *printer,	/* I - Printer */
+    cups_dnssd_flags_t   flags)		/* I - Flags */
 {
-  (void)srv;
-  (void)state;
-  (void)context;
-}
-#endif /* HAVE_MDNSRESPONDER */
-
-
-#ifdef HAVE_DNSSD
-/*
- * 'register_geo()' - Register (or update) a printer's geo-location via Bonjour.
- */
-
-static void
-register_geo(server_printer_t *printer)	/* I - Printer */
-{
-  ipp_attribute_t *printer_geo_location;/* printer-geo-location attribute */
-  double	lat_degrees = 0.0,	/* Latitude in degrees */
-		lon_degrees = 0.0,	/* Longitude in degrees */
-		alt_meters = 0.0,	/* Altitude in meters */
-		uncertainty = 10.0;	/* Accuracy in meters */
-  unsigned	lat_1000ths,		/* Latitude in thousandths of arc seconds */
-		lon_1000ths,		/* Longitude in thousandths of arc seconds */
-		alt_cmbase;		/* Altitude in centimeters */
-  unsigned char	pre;			/* Precision as MSD + power */
-  unsigned char	loc[16];		/* LOC record data */
-
-
- /*
-  * Parse out any geo-location information...
-  */
-
-  if ((printer_geo_location = ippFindAttribute(printer->pinfo.attrs, "printer-geo-location", IPP_TAG_URI)))
+  if (flags & CUPS_DNSSD_FLAGS_ERROR)
   {
-    char	scheme[32],		/* URI scheme */
-		userpass[256],		/* URI username:password */
-		host[256],		/* URI hostname */
-		resource[1024];		/* URI resource path */
-    int		port;			/* URI port */
-
-    if (httpSeparateURI(HTTP_URI_CODING_ALL, ippGetString(printer_geo_location, 0, NULL), scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, resource, sizeof(resource)) >= HTTP_URI_STATUS_OK && !strcmp(scheme, "geo"))
-    {
-     /*
-      * Parse "geo:" URI...
-      */
-
-      char	*ptr;			/* Pointer into resource */
-
-      lat_degrees = strtod(resource, &ptr);
-
-      if (ptr && *ptr == ',')
-      {
-        lon_degrees = strtod(ptr, &ptr);
-
-	if (ptr && *ptr == ',')
-	  alt_meters = strtod(ptr, &ptr);
-
-        if (ptr && !strncmp(ptr, "?u=", 3))
-	  uncertainty = strtod(ptr + 3, NULL);
-      }
-      else
-        lat_degrees = 0.0;
-    }
+    fprintf(stderr, "Service registration for %s failed.\n", cupsDNSSDServiceGetName(service));
   }
-
- /*
-  * Convert to a DNS LOC record...
-  */
-
-  uncertainty *= 100.0;
-  pre         = 0;
-  while (uncertainty >= 10.0 && pre < 15)
+  else if (flags & CUPS_DNSSD_FLAGS_COLLISION)
   {
-    uncertainty /= 10.0;
-    pre ++;
-  }
-
-  if (uncertainty >= 10.0)
-    pre = 0x9f;
-  else
-    pre |= (unsigned)uncertainty << 4;
-
-  lat_1000ths = (unsigned)(lat_degrees * 3600000.0) + 2147483648U;
-  lon_1000ths = (unsigned)(lon_degrees * 3600000.0) + 2147483648U;
-  alt_cmbase  = (unsigned)(alt_meters * 100.0 + 10000000.0);
-
-  loc[0]  = 0;				/* VERSION */
-  loc[1]  = 0x51;			/* SIZE = 50cm */
-  loc[2]  = pre;			/* HORIZ PRE */
-  loc[3]  = pre;			/* VERT PRE */
-  loc[4]  = (unsigned char)(lat_1000ths >> 24);
-  					/* LATITUDE */
-  loc[5]  = (unsigned char)(lat_1000ths >> 16);
-  loc[6]  = (unsigned char)(lat_1000ths >> 8);
-  loc[7]  = (unsigned char)lat_1000ths;
-  loc[8]  = (unsigned char)(lon_1000ths >> 24);
-  					/* LONGITUDE */
-  loc[9]  = (unsigned char)(lon_1000ths >> 16);
-  loc[10] = (unsigned char)(lon_1000ths >> 8);
-  loc[11] = (unsigned char)lon_1000ths;
-  loc[12] = (unsigned char)(alt_cmbase >> 24);
-  					/* ALTITUDE */
-  loc[13] = (unsigned char)(alt_cmbase >> 16);
-  loc[14] = (unsigned char)(alt_cmbase >> 8);
-  loc[15] = (unsigned char)alt_cmbase;
-
- /*
-  * Register the geo-location...
-  */
-
-  if (printer->geo_ref)
-  {
-#ifdef HAVE_MDNSRESPONDER
-    DNSServiceUpdateRecord(printer->ipp_ref, printer->geo_ref, 0, sizeof(loc), loc, 0);
-
-#elif defined(HAVE_AVAHI)
-    /* Avahi doesn't support updating */
-#endif /* HAVE_MDNSRESPONDER */
-  }
-  else
-  {
-#ifdef HAVE_MDNSRESPONDER
-    DNSServiceAddRecord(printer->ipp_ref, &printer->geo_ref, 0, kDNSServiceType_LOC, sizeof(loc), loc, 0);
-
-#elif defined(HAVE_AVAHI)
-    avahi_entry_group_add_record(printer->dnssd_ref, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, printer->dns_sd_name, AVAHI_DNS_CLASS_IN, 29, 0, loc, sizeof(loc));
-#endif /* HAVE_MDNSRESPONDER */
+    DNSSDUpdate               = true;
+    printer->dns_sd_collision = true;
   }
 }
-#endif /* HAVE_DNSSD */

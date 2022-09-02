@@ -816,9 +816,6 @@ serverRespondHTTP(
 void
 serverRun(void)
 {
-#ifdef HAVE_MDNSRESPONDER
-  int			fd;		/* File descriptor */
-#endif /* HAVE_MDNSRESPONDER */
   int			max_fd;		/* Number of file descriptors */
   fd_set		input;		/* select() input set */
   struct timeval	timeout;	/* Timeout for poll() */
@@ -850,17 +847,7 @@ serverRun(void)
         max_fd = lis->fd;
     }
 
-#ifdef HAVE_MDNSRESPONDER
-    if (DNSSDEnabled)
-    {
-      fd = DNSServiceRefSockFD(DNSSDMaster);
-      FD_SET(fd, &input);
-      if (max_fd < fd)
-        max_fd = fd;
-    }
-#endif /* HAVE_MDNSRESPONDER */
-
-    timeout.tv_sec  = 86400;
+    timeout.tv_sec  = DNSSDUpdate ? 1 : 10;
     timeout.tv_usec = 0;
 
     if (select(max_fd + 1, &input, NULL, NULL, &timeout) < 0 && errno != EINTR)
@@ -892,13 +879,26 @@ serverRun(void)
       }
     }
 
-#ifdef HAVE_MDNSRESPONDER
-    if (DNSSDEnabled && FD_ISSET(DNSServiceRefSockFD(DNSSDMaster), &input))
+    if (DNSSDUpdate)
     {
-      serverLog(SERVER_LOGLEVEL_DEBUG, "serverRun: Input on DNS-SD socket.");
-      DNSServiceProcessResult(DNSSDMaster);
+      size_t		i,		/* Looping var */
+			count;		/* Number of printers */
+      server_printer_t	*printer;	/* Current printer */
+
+      DNSSDUpdate = false;
+
+      cupsRWLockRead(&PrintersRWLock);
+
+      for (i = 0, count = cupsArrayGetCount(Printers); i < count; i ++)
+      {
+        printer = (server_printer_t *)cupsArrayGetElement(Printers, i);
+
+        if (printer->dns_sd_collision || printer->dns_sd_update)
+          serverRegisterPrinter(printer);
+      }
+
+      cupsRWUnlock(&PrintersRWLock);
     }
-#endif /* HAVE_MDNSRESPONDER */
 
     if (time(NULL) >= next_clean)
     {

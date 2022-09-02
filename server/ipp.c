@@ -1080,9 +1080,16 @@ copy_printer_attributes(
   if (!ra || cupsArrayFind(ra, "printer-dns-sd-name"))
   {
     if (printer->dns_sd_name)
-      ippAddString(client->response, IPP_TAG_PRINTER, IPP_TAG_NAME, "printer-dns-sd-name", NULL, printer->dns_sd_name);
+    {
+      if (printer->dns_sd_serial > 1)
+	ippAddStringf(client->response, IPP_TAG_PRINTER, IPP_TAG_NAME, "printer-dns-sd-name", NULL, "%s %d", printer->dns_sd_name, printer->dns_sd_serial);
+      else
+	ippAddString(client->response, IPP_TAG_PRINTER, IPP_TAG_NAME, "printer-dns-sd-name", NULL, printer->dns_sd_name);
+    }
     else
+    {
       ippAddOutOfBand(client->response, IPP_TAG_PRINTER, IPP_TAG_NOVALUE, "printer-dns-sd-name");
+    }
   }
 
   if (!ra || cupsArrayFind(ra, "printer-icons"))
@@ -7517,29 +7524,28 @@ ipp_set_printer_attributes(
 
     if (!strcmp(name, "printer-dns-sd-name"))
     {
-      serverUnregisterPrinter(printer);
-
       if (printer->dns_sd_name)
       {
         free(printer->dns_sd_name);
         printer->dns_sd_name = NULL;
       }
 
+      printer->dns_sd_serial = 1;
+      printer->dns_sd_update = true;
+      DNSSDUpdate            = true;
+
       if (value)
         printer->dns_sd_name = strdup(value);
-
-      serverRegisterPrinter(printer);
     }
     else if (!strcmp(name, "printer-geo-location"))
     {
-      serverUnregisterPrinter(printer);
-
       if (old_attr)
         ippDeleteAttribute(printer->pinfo.attrs, old_attr);
 
       ippCopyAttribute(printer->pinfo.attrs, attr, 0);
 
-      serverRegisterPrinter(printer);
+      printer->dns_sd_update = true;
+      DNSSDUpdate            = true;
     }
     else if (!strcmp(name, "printer-name"))
     {

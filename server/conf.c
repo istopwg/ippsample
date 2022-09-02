@@ -40,9 +40,7 @@ static int		compare_printers(server_printer_t *a, server_printer_t *b);
 static server_icc_t	*copy_icc(server_icc_t *a);
 static server_lang_t	*copy_lang(server_lang_t *a);
 static void		create_system_attributes(void);
-#ifdef HAVE_AVAHI
-static void		dnssd_client_cb(AvahiClient *c, AvahiClientState state, void *userdata);
-#endif /* HAVE_AVAHI */
+static void		dnssd_error_cb(void *cb_data, const char *message);
 static void		dnssd_init(void);
 static int		error_cb(ipp_file_t *f, server_pinfo_t *pinfo, const char *error);
 static int		finalize_system(void);
@@ -1954,40 +1952,17 @@ create_system_attributes(void)
 }
 
 
-#ifdef HAVE_AVAHI
 /*
- * 'dnssd_client_cb()' - Client callback for Avahi.
- *
- * Called whenever the client or server state changes...
+ * 'dnssd_error_cb()' - Report a DNS-SD error.
  */
 
 static void
-dnssd_client_cb(
-    AvahiClient      *c,		/* I - Client */
-    AvahiClientState state,		/* I - Current state */
-    void             *userdata)		/* I - User data (unused) */
+dnssd_error_cb(void       *cb_data,	/* I - Callback data (unused) */
+               const char *message)	/* I - Error message */
 {
-  (void)userdata;
-
-  if (!c)
-    return;
-
-  switch (state)
-  {
-    default :
-        fprintf(stderr, "Ignore Avahi state %d.\n", state);
-	break;
-
-    case AVAHI_CLIENT_FAILURE:
-	if (avahi_client_errno(c) == AVAHI_ERR_DISCONNECTED)
-	{
-	  fputs("Avahi server crashed, exiting.\n", stderr);
-	  exit(1);
-	}
-	break;
-  }
+  (void)cb_data;
+  serverLog(SERVER_LOGLEVEL_ERROR, "%s", message);
 }
-#endif /* HAVE_AVAHI */
 
 
 /*
@@ -1997,30 +1972,7 @@ dnssd_client_cb(
 static void
 dnssd_init(void)
 {
-#ifdef HAVE_MDNSRESPONDER
-  if (DNSServiceCreateConnection(&DNSSDMaster) != kDNSServiceErr_NoError)
-  {
-    fputs("Error: Unable to initialize Bonjour.\n", stderr);
-    exit(1);
-  }
-
-#elif defined(HAVE_AVAHI)
-  int error;			/* Error code, if any */
-
-  if ((DNSSDMaster = avahi_threaded_poll_new()) == NULL)
-  {
-    fputs("Error: Unable to initialize Bonjour.\n", stderr);
-    exit(1);
-  }
-
-  if ((DNSSDClient = avahi_client_new(avahi_threaded_poll_get(DNSSDMaster), AVAHI_CLIENT_NO_FAIL, dnssd_client_cb, NULL, &error)) == NULL)
-  {
-    fputs("Error: Unable to initialize Bonjour.\n", stderr);
-    exit(1);
-  }
-
-  avahi_threaded_poll_start(DNSSDMaster);
-#endif /* HAVE_MDNSRESPONDER */
+  DNSSDContext = cupsDNSSDNew(dnssd_error_cb, NULL);
 }
 
 
