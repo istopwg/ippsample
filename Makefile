@@ -12,7 +12,8 @@ include Makedefs
 
 # Source directories...
 DIRS	=	\
-		libcups \
+		libcups/cups \
+		libcups/tools \
 		pdfio \
 		server \
 		tools
@@ -24,7 +25,7 @@ DIRS	=	\
 
 all:
 	for dir in $(DIRS); do \
-		echo Making all in $$dir...; \
+		echo "======== all in $$dir ========"; \
 		(cd $$dir; $(MAKE) $(MFLAGS) COMMONFLAGS="$(OPTIM)" all) || exit 1; \
 	done
 
@@ -35,7 +36,7 @@ all:
 
 clean:
 	for dir in $(DIRS); do \
-		echo Cleaning all in $$dir...; \
+		echo "======== clean in $$dir ========"; \
 		(cd $$dir; $(MAKE) $(MFLAGS) clean) || exit 1; \
 	done
 
@@ -56,7 +57,7 @@ distclean:	clean
 
 depend:
 	for dir in server tools; do \
-		echo Updating dependencies in $$dir...; \
+		echo "======== depend in $$dir ========"; \
 		(cd $$dir; $(MAKE) $(MFLAGS) depend) || exit 1; \
 	done
 
@@ -67,7 +68,7 @@ depend:
 
 install:
 	for dir in $(DIRS) examples man; do \
-		echo Installing in $$dir...; \
+		echo "======== install in $$dir ========"; \
 		(cd $$dir; $(MAKE) $(MFLAGS) prefix=$(prefix) install) || exit 1; \
 	done
 
@@ -80,10 +81,10 @@ install:
 
 test:
 	for dir in $(DIRS); do \
-		echo Testing in $$dir...; \
+		echo "======== test in $$dir ========"; \
 		(cd $$dir; $(MAKE) $(MFLAGS) test) || exit 1; \
 	done
-	echo Running integration tests...
+	echo "Running integration tests..."
 	test/run-tests.sh
 
 
