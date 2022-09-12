@@ -502,8 +502,8 @@
 				72B402A11C0CE3AC00139783 /* config.h */,
 				72B4022A1C0CE16200139783 /* libcups */,
 				72B4022D1C0CE21C00139783 /* ippserver */,
+				72B4022E1C0CE22300139783 /* commands */,
 				72368664202B64DE00973022 /* tests */,
-				72B4022E1C0CE22300139783 /* tools */,
 				72B402E11C0CE64000139783 /* Documentation */,
 				72B403051C0DE49600139783 /* Frameworks */,
 				72B402191C0CDFB400139783 /* Products */,
@@ -619,7 +619,7 @@
 			name = ippserver;
 			sourceTree = "<group>";
 		};
-		72B4022E1C0CE22300139783 /* tools */ = {
+		72B4022E1C0CE22300139783 /* commands */ = {
 			isa = PBXGroup;
 			children = (
 				27291E48286A6394006A32C1 /* ipp-options.h */,
@@ -631,7 +631,7 @@
 				2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */,
 				275C6BAA1C87D907000D2DE7 /* dither.h */,
 			);
-			name = tools;
+			name = commands;
 			sourceTree = "<group>";
 		};
 		72B402E11C0CE64000139783 /* Documentation */ = {

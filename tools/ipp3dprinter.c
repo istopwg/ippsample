@@ -123,19 +123,6 @@ static const char * const ipp3d_preason_strings[] =
  * Structures...
  */
 
-#ifdef HAVE_MDNSRESPONDER
-typedef DNSServiceRef ipp3d_srv_t;	/* Service reference */
-typedef TXTRecordRef ipp3d_txt_t;	/* TXT record */
-
-#elif defined(HAVE_AVAHI)
-typedef AvahiEntryGroup *ipp3d_srv_t;	/* Service reference */
-typedef AvahiStringList *ipp3d_txt_t;	/* TXT record */
-
-#else
-typedef void *ipp3d_srv_t;		/* Service reference */
-typedef void *ipp3d_txt_t;		/* TXT record */
-#endif /* HAVE_MDNSRESPONDER */
-
 typedef struct ipp3d_filter_s		/**** Attribute filter ****/
 {
   cups_array_t		*ra;		/* Requested attributes */
@@ -258,13 +245,16 @@ static int		process_http(ipp3d_client_t *client);
 static int		process_ipp(ipp3d_client_t *client);
 static void		*process_job(ipp3d_job_t *job);
 static void		process_state_message(ipp3d_job_t *job, char *message);
-static int		register_printer(ipp3d_printer_t *printer, const char *subtypes);
+static int		register_printer(ipp3d_printer_t *printer);
 static int		respond_http(ipp3d_client_t *client, http_status_t code, const char *content_coding, const char *type, size_t length);
 static void		respond_ipp(ipp3d_client_t *client, ipp_status_t status, const char *message, ...) _CUPS_FORMAT(3, 4);
 static void		respond_unsupported(ipp3d_client_t *client, ipp_attribute_t *attr);
 static void		run_printer(ipp3d_printer_t *printer);
 static int		show_materials(ipp3d_client_t *client);
 static int		show_status(ipp3d_client_t *client);
+#ifndef _WIN32
+static void		signal_handler(int signum);
+#endif // !_WIN32
 static char		*time_string(time_t tv, char *buffer, size_t bufsize);
 static void		usage(int status) _CUPS_NORETURN;
 static bool		valid_doc_attributes(ipp3d_client_t *client);
@@ -275,16 +265,12 @@ static bool		valid_job_attributes(ipp3d_client_t *client);
  * Globals...
  */
 
-#ifdef HAVE_MDNSRESPONDER
-static DNSServiceRef	DNSSDMaster = NULL;
-#elif defined(HAVE_AVAHI)
-static AvahiThreadedPoll *DNSSDMaster = NULL;
-static AvahiClient	*DNSSDClient = NULL;
-#endif /* HAVE_MDNSRESPONDER */
-
 static int		KeepFiles = 0,	/* Keep spooled job files? */
 			MaxVersion = 20,/* Maximum IPP version (20 = 2.0, 11 = 1.1, etc.) */
 			Verbosity = 0;	/* Verbosity level */
+#ifndef _WIN32
+static int		StopPrinter = 0;/* Stop the printer server? */
+#endif // !_WIN32
 
 
 /*
@@ -1279,22 +1265,23 @@ create_printer(
     return (NULL);
   }
 
-  printer->ipv4          = -1;
-  printer->ipv6          = -1;
-  printer->name          = strdup(name);
-  printer->dnssd_name    = strdup(name);
-  printer->command       = command ? strdup(command) : NULL;
-  printer->device_uri    = device_uri ? strdup(device_uri) : NULL;
-  printer->directory     = strdup(directory);
-  printer->icon          = icon ? strdup(icon) : NULL;
-  printer->port          = serverport;
-  printer->start_time    = time(NULL);
-  printer->config_time   = printer->start_time;
-  printer->state         = IPP_PSTATE_IDLE;
-  printer->state_reasons = IPP3D_PREASON_NONE;
-  printer->state_time    = printer->start_time;
-  printer->jobs          = cupsArrayNew((cups_array_cb_t)compare_jobs, NULL, NULL, 0, NULL, NULL);
-  printer->next_job_id   = 1;
+  printer->ipv4           = -1;
+  printer->ipv6           = -1;
+  printer->name           = strdup(name);
+  printer->dnssd_name     = strdup(name);
+  printer->dnssd_subtypes = subtypes ? strdup(subtypes) : NULL;
+  printer->command        = command ? strdup(command) : NULL;
+  printer->device_uri     = device_uri ? strdup(device_uri) : NULL;
+  printer->directory      = strdup(directory);
+  printer->icon           = icon ? strdup(icon) : NULL;
+  printer->port           = serverport;
+  printer->start_time     = time(NULL);
+  printer->config_time    = printer->start_time;
+  printer->state          = IPP_PSTATE_IDLE;
+  printer->state_reasons  = IPP3D_PREASON_NONE;
+  printer->state_time     = printer->start_time;
+  printer->jobs           = cupsArrayNew((cups_array_cb_t)compare_jobs, NULL, NULL, 0, NULL, NULL);
+  printer->next_job_id    = 1;
 
   if (servername)
   {
@@ -1551,7 +1538,7 @@ create_printer(
   * Register the printer with Bonjour...
   */
 
-  if (!register_printer(printer, subtypes))
+  if (!register_printer(printer))
     goto bad_printer;
 
  /*
@@ -4644,8 +4631,7 @@ process_state_message(
 
 static int				/* O - 1 on success, 0 on error */
 register_printer(
-    ipp3d_printer_t *printer,		/* I - Printer */
-    const char      *subtypes)		/* I - Service subtype(s) */
+    ipp3d_printer_t *printer)		/* I - Printer */
 {
   size_t		num_txt;	/* Number of DNS-SD IPP TXT key/value pairs */
   cups_option_t		*txt;		/* DNS-SD IPP TXT key/value pairs */
@@ -4955,9 +4941,17 @@ run_printer(ipp3d_printer_t *printer)	/* I - Printer */
 {
   int		num_fds;		/* Number of file descriptors */
   struct pollfd	polldata[3];		/* poll() data */
-  int		timeout;		/* Timeout for poll() */
-  ipp3d_client_t	*client;		/* New client */
+  ipp3d_client_t *client;		/* New client */
 
+
+#ifndef _WIN32
+ /*
+  * Set signal handlers for SIGINT and SIGTERM...
+  */
+
+  signal(SIGINT, signal_handler);
+  signal(SIGTERM, signal_handler);
+#endif // !_WIN32
 
  /*
   * Setup poll() data for the Bonjour service socket and IPv4/6 listeners...
@@ -4971,27 +4965,22 @@ run_printer(ipp3d_printer_t *printer)	/* I - Printer */
 
   num_fds = 2;
 
-#ifdef HAVE_MDNSRESPONDER
-  polldata[num_fds   ].fd     = DNSServiceRefSockFD(DNSSDMaster);
-  polldata[num_fds ++].events = POLLIN;
-#endif /* HAVE_MDNSRESPONDER */
-
  /*
   * Loop until we are killed or have a hard error...
   */
 
   for (;;)
   {
-    if (cupsArrayGetCount(printer->jobs))
-      timeout = 10;
-    else
-      timeout = -1;
-
-    if (poll(polldata, (nfds_t)num_fds, timeout) < 0 && errno != EINTR)
+    if (poll(polldata, (nfds_t)num_fds, 1000) < 0 && errno != EINTR)
     {
       perror("poll() failed");
       break;
     }
+
+#ifndef _WIN32
+    if (StopPrinter)
+      break;
+#endif // !_WIN32
 
     if (polldata[0].revents & POLLIN)
     {
@@ -5028,11 +5017,6 @@ run_printer(ipp3d_printer_t *printer)	/* I - Printer */
 	}
       }
     }
-
-#ifdef HAVE_MDNSRESPONDER
-    if (polldata[2].revents & POLLIN)
-      DNSServiceProcessResult(DNSSDMaster);
-#endif /* HAVE_MDNSRESPONDER */
 
    /*
     * Clean out old jobs...
@@ -5312,6 +5296,21 @@ show_status(ipp3d_client_t  *client)	/* I - Client connection */
 
   return (1);
 }
+
+
+#ifndef _WIN32
+/*
+ * 'signal_handler()' - Handle termination signals.
+ */
+
+static void
+signal_handler(int signum)		/* I - Signal number (not used) */
+{
+  (void)signum;
+
+  StopPrinter = 1;
+}
+#endif // !_WIN32
 
 
 /*
