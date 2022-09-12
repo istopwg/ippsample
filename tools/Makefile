@@ -117,7 +117,7 @@ ippproxy:	ippproxy.o ../libcups/cups/libcups3.a
 
 ipptransform:	ipptransform.o ipp-options.o ../libcups/cups/libcups3.a
 	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ ipptransform.o ipp-options.o $(LIBS)
+	$(CC) $(LDFLAGS) -o $@ ipptransform.o ipp-options.o $(LIBS) -lz
 
 
 #
