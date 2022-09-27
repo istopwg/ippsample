@@ -132,6 +132,7 @@ static void	sighandler(int sig);
 static int	update_device_attrs(http_t *http, const char *printer_uri, const char *resource, const char *device_uuid, ipp_t *old_attrs, ipp_t *new_attrs);
 static void	update_document_status(proxy_info_t *info, proxy_job_t *pjob, int doc_number, ipp_dstate_t doc_state);
 static void	update_job_status(proxy_info_t *info, proxy_job_t *pjob);
+static bool	update_remote_jobs(http_t *http, const char *printer_uri, const char *resource, const char *device_uuid);
 static void	usage(int status);
 
 
@@ -1207,7 +1208,7 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
     if (doc_format)
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format-accepted", NULL, doc_format);
-    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression-accepted", NULL, "gzip");
+//    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression-accepted", NULL, "gzip");
 
     cupsSendRequest(info->http, request, info->resource, ippLength(request));
     doc_attrs = cupsGetResponse(info->http, info->resource);
@@ -1246,6 +1247,8 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
 
     ippDelete(cupsDoRequest(info->http, request, info->resource));
   }
+
+  pjob->local_job_state = IPP_JSTATE_COMPLETED;
 
  /*
   * Update the job state and return...
@@ -1314,6 +1317,9 @@ run_printer(
   */
 
   if (!update_device_attrs(http, printer_uri, resource, device_uuid, NULL, device_attrs))
+    return;
+
+  if (!update_remote_jobs(http, printer_uri, resource, device_uuid))
     return;
 
   while (!stop_running)
@@ -1956,6 +1962,100 @@ update_job_status(proxy_info_t *info,	/* I - Proxy info */
 
   if (cupsLastError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
     plogf(pjob, "Unable to update the job state: %s", cupsLastErrorString());
+}
+
+
+//
+// 'update_remote_jobs()' - Get the current list of remote, fetchable jobs.
+//
+
+static bool				// O - `true` on success, `false` on failure
+update_remote_jobs(
+    http_t     *http,			// I - Connection to infrastructure printer
+    const char *printer_uri,		// I - Printer URI
+    const char *resource,		// I - Printer resource path
+    const char *device_uuid)		// I - Device UUID
+{
+  ipp_t			*request,	// IPP request
+			*response;	// IPP response
+  ipp_attribute_t	*attr;		// IPP attribute
+  const char		*name;		// Attribute name
+  int			job_id;		// Job ID, if any
+  ipp_jstate_t		job_state;	// Job state, if any
+
+
+  // Get the list of fetchable jobs...
+  plogf(NULL, "Getting fetchable jobs...");
+  request = ippNewRequest(IPP_OP_GET_JOBS);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL, printer_uri);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
+  ippAddString(request, IPP_TAG_OPERATION, IPP_CONST_TAG(IPP_TAG_KEYWORD), "which-jobs", NULL, "fetchable");
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, device_uuid);
+
+  if ((response = cupsDoRequest(http, request, resource)) == NULL)
+  {
+    plogf(NULL, "Get-Jobs failed: %s", cupsLastErrorString());
+    return (false);
+  }
+
+  // Scan the list...
+  for (attr = ippGetFirstAttribute(response); attr; attr = ippGetNextAttribute(response))
+  {
+    // Skip to the start of the next job group...
+    while (attr && ippGetGroupTag(attr) != IPP_TAG_JOB)
+      attr = ippGetNextAttribute(response);
+    if (!attr)
+      break;
+
+    // Get the job-id and state...
+    job_id    = 0;
+    job_state = IPP_JSTATE_PENDING;
+
+    while (attr && ippGetGroupTag(attr) == IPP_TAG_JOB)
+    {
+      name = ippGetName(attr);
+      if (!strcmp(name, "job-id"))
+        job_id = ippGetInteger(attr, 0);
+      else if (!strcmp(name, "job-state"))
+        job_state = (ipp_jstate_t)ippGetInteger(attr, 0);
+
+      attr = ippGetNextAttribute(response);
+    }
+
+    if (job_id && (job_state == IPP_JSTATE_PENDING || job_state == IPP_JSTATE_STOPPED))
+    {
+      // Add this job...
+      proxy_job_t *pjob = find_job(job_id);
+
+      if (!pjob)
+      {
+        // Not already queued up, make a new one...
+	if ((pjob = (proxy_job_t *)calloc(1, sizeof(proxy_job_t))) != NULL)
+	{
+	  // Add job and then let the proxy thread know we added something...
+	  pjob->remote_job_id    = job_id;
+	  pjob->remote_job_state = (int)job_state;
+	  pjob->local_job_state  = IPP_JSTATE_PENDING;
+
+	  plogf(pjob, "Job is now fetchable, queuing up.", pjob);
+
+	  cupsRWLockWrite(&jobs_rwlock);
+	  cupsArrayAdd(jobs, pjob);
+	  cupsRWUnlock(&jobs_rwlock);
+
+	  cupsCondBroadcast(&jobs_cond);
+	}
+	else
+	{
+	  plogf(NULL, "Unable to add job %d to jobs queue.", job_id);
+	}
+      }
+    }
+  }
+
+  ippDelete(response);
+
+  return (true);
 }
 
 

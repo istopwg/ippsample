@@ -8237,7 +8237,7 @@ ipp_update_job_status(
   server_device_t	*device;	/* Device */
   server_job_t		*job;		/* Job */
   ipp_attribute_t	*attr;		/* Attribute */
-  server_event_t		events = SERVER_EVENT_NONE;
+  server_event_t	events = SERVER_EVENT_NONE;
 					/* Event(s) */
 
 
@@ -8278,6 +8278,9 @@ ipp_update_job_status(
     return;
   }
 
+  cupsRWLockWrite(&job->rwlock);
+  cupsRWLockWrite(&job->printer->rwlock);
+
   if ((attr = ippFindAttribute(client->request, "job-impressions-completed", IPP_TAG_INTEGER)) != NULL)
   {
     job->impcompleted = ippGetInteger(attr, 0);
@@ -8288,6 +8291,34 @@ ipp_update_job_status(
   {
     job->dev_state = (ipp_jstate_t)ippGetInteger(attr, 0);
     events |= SERVER_EVENT_JOB_STATE_CHANGED;
+
+    serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "job->dev_state=%d", job->dev_state);
+
+    if (job->dev_state >= IPP_JSTATE_CANCELED)
+    {
+      job->state     = job->dev_state;
+      job->completed = time(NULL);
+      job->printer->processing_job = NULL;
+      events |= SERVER_EVENT_JOB_COMPLETED;
+
+      cupsArrayAdd(job->printer->completed_jobs, job);
+      cupsArrayRemove(job->printer->active_jobs, job);
+
+      if (MaxCompletedJobs > 0)
+      {
+        // Make sure the job history doesn't go over the limit...
+	while (cupsArrayGetCount(job->printer->completed_jobs) > MaxCompletedJobs)
+	{
+	  server_job_t *tjob = (server_job_t *)cupsArrayGetFirst(job->printer->completed_jobs);
+
+	  if (tjob == job)
+	    tjob = (server_job_t *)cupsArrayGetNext(job->printer->completed_jobs);
+
+	  cupsArrayRemove(job->printer->completed_jobs, tjob);
+	  cupsArrayRemove(job->printer->jobs, tjob); /* Removing here calls serverDeleteJob */
+	}
+      }
+    }
   }
 
   if ((attr = ippFindAttribute(client->request, "output-device-job-state-reasons", IPP_TAG_KEYWORD)) != NULL)
@@ -8298,6 +8329,9 @@ ipp_update_job_status(
 
   if (events)
     serverAddEventNoLock(client->printer, job, NULL, events, NULL);
+
+  cupsRWUnlock(&job->printer->rwlock);
+  cupsRWUnlock(&job->rwlock);
 
   serverRespondIPP(client, IPP_STATUS_OK, NULL);
 }

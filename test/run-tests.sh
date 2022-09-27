@@ -43,9 +43,9 @@ echo ""
 echo "Running IPP 2.0 tests against IPP Everywhere PDF printer..."
 libcups/tools/ipptool-static -V 2.0 -tIf libcups/examples/document-letter.pdf "ipp://localhost:$ippserverport/ipp/print/ipp-everywhere-pdf" libcups/examples/ipp-2.0.test || status=1
 
-#echo ""
-#echo "Running IPP 2.0 tests against infra printer..."
-#libcups/tools/ipptool-static -V 2.0 -tIf libcups/examples/document-letter.pdf "ipp://localhost:$ippserverport/ipp/print/infra" libcups/examples/ipp-2.0.test || status=1
+echo ""
+echo "Running IPP 2.0 tests against infra printer..."
+libcups/tools/ipptool-static -V 2.0 -tIf libcups/examples/document-letter.pdf "ipp://localhost:$ippserverport/ipp/print/infra" libcups/examples/ipp-2.0.test || status=1
 
 echo ""
 echo "Running IPP System Service tests..."
