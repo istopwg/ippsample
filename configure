@@ -2371,8 +2371,6 @@ subdirs="$subdirs libcups"
 IPPSAMPLE_VERSION="1.0b1"
 
 
-
-
 printf "%s\n" "#define IPPSAMPLE_VERSION \"$IPPSAMPLE_VERSION\"" >>confdefs.h
 
 
@@ -3864,7 +3862,6 @@ fi
 esac
 
 
-# 3D support
 IPPTRANSFORM3D_BIN=""
 IPPTRANSFORM3D_HTML=""
 IPPTRANSFORM3D_MAN=""
@@ -4378,6 +4375,7 @@ then :
     LDFLAGS="$withval $LDFLAGS"
 
 fi
+
 
 
 if test "$prefix" = NONE

@@ -24,9 +24,7 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SUBDIRS([libcups])
 
 IPPSAMPLE_VERSION="AC_PACKAGE_VERSION"
-
 AC_SUBST([IPPSAMPLE_VERSION])
-
 AC_DEFINE_UNQUOTED([IPPSAMPLE_VERSION], ["$IPPSAMPLE_VERSION"], [Version number])
 
 
@@ -105,7 +103,7 @@ AS_CASE(["$use_pdfrip"], [coregraphics], [
 ])
 
 
-# 3D support
+dnl 3D support
 IPPTRANSFORM3D_BIN=""
 IPPTRANSFORM3D_HTML=""
 IPPTRANSFORM3D_MAN=""
@@ -251,6 +249,7 @@ dnl Extra linker options...
 AC_ARG_WITH([ldflags], AS_HELP_STRING([--with-ldflags=...], [Specify additional LDFLAGS]), [
     LDFLAGS="$withval $LDFLAGS"
 ])
+
 
 dnl State and run directories for root servers...
 AS_IF([test "$prefix" = NONE], [
