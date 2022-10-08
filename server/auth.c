@@ -102,7 +102,7 @@ serverAuthenticateClient(
       authorization ++;
 
     userlen = sizeof(data.username);
-    httpDecode64(data.username, &userlen, authorization);
+    httpDecode64(data.username, &userlen, authorization, NULL);
 
     if ((password = strchr(data.username, ':')) == NULL)
     {
