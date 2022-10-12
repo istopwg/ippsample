@@ -721,7 +721,7 @@ serverRespondHTTP(
   {
     char www_auth[HTTP_MAX_VALUE];	/* WWW-Authenicate header value */
 
-    if (!strcasecmp(AuthType, "Basic"))
+    if (AuthType && !strcasecmp(AuthType, "Basic"))
       snprintf(www_auth, sizeof(www_auth), "Basic realm=\"%s\" charset=\"UTF-8\"", AuthName);
     else
       www_auth[0] = '\0';
