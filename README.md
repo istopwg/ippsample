@@ -12,8 +12,6 @@ The `ippserver` and `ipp3dprinter` code was also inspired by the original CUPS
 ![Build and Test](https://github.com/istopwg/ippsample/workflows/Build%20and%20Test/badge.svg)
 [![ipp](https://snapcraft.io/ipp/badge.svg)](https://snapcraft.io/ipp)
 [![Coverity Scan Status](https://img.shields.io/coverity/scan/22384.svg)](https://scan.coverity.com/projects/istopwg-ippsample)
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/istopwg/ippsample.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/istopwg/ippsample/alerts/)
-[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/istopwg/ippsample.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/istopwg/ippsample/context:cpp)
 
 > Note: This code is provided for educational purposes only.  While we will make
 > every effort to ensure the code is bug-free and regularly run the code
@@ -133,7 +131,7 @@ printers using the [CuraEngine][3] software.
 Legal Stuff
 -----------
 
-Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group.
+Copyright © 2014-2022 by the Printer Working Group.
 
 Copyright © 2007-2019 by Apple Inc.
 

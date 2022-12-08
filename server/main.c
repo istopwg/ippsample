@@ -1,7 +1,7 @@
 /*
  * Main entry for IPP Infrastructure Printer sample implementation.
  *
- * Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2014-2022 by the Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -334,7 +334,7 @@ usage(int status)			/* O - Exit status */
   if (!status)
   {
     puts(IPPSAMPLE_VERSION);
-    puts("Copyright (c) 2014-2022 by the IEEE-ISTO Printer Working Group.");
+    puts("Copyright (c) 2014-2022 by the Printer Working Group.");
     puts("Copyright (c) 2010-2019 by Apple Inc.");
     puts("");
   }

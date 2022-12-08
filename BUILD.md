@@ -9,38 +9,38 @@ summarized in the file `CHANGES.md`.
 Prerequisites
 -------------
 
-You'll need an ANSI-compliant C compiler plus a make program and POSIX-compliant
-shell (/bin/sh).  The GNU compiler tools and Bash work well and we have tested
-the current IPP sample code against several versions of Clang and GCC with
-excellent results.
+You'll need a C99-compliant C compiler plus a POSIX-compliant make program and
+a POSIX-compliant shell (/bin/sh).  The GNU compiler tools and Bash work well
+and we have tested the current IPP sample code against several versions of Clang
+and GCC with excellent results.
 
-The makefiles used by the project should work with most versions of make.  We've
-tested them with GNU make as well as the make programs shipped by Compaq, HP,
-SGI, and Sun.  BSD users should use GNU make (gmake) since BSD make does not
-support "include".
+The makefiles used by the project should work with most versions of make.  BSD
+users should use GNU make (gmake) since BSD make does not support the POSIX
+"include" directive.
 
-Besides these tools you'll want the following libraries:
+Besides these tools you'll need the following libraries:
 
-- Avahi or mDNSResponder for Bonjour (DNS-SD) support
-- CuraEngine for 3D support
+- Avahi or mDNSResponder for mDNS/DNS-SD support
 - GNU TLS, LibreSSL, or OpenSSL for encryption support
-- LIBJPEG for JPEG support
-- LIBPNG for PNG support
 - ZLIB for compression support
+- CoreGraphics (macOS), Poppler, or Xpdf PDF rasterization support (optional)
+- CuraEngine for 3MF/STL slicing support (optional)
+- PAM for authentication support (optional)
 
-On a stock Debian/Ubuntu install, the following command will install most of the
-required prerequisites:
+On a stock Debian/Ubuntu install, the following command will install all
+prerequisites:
 
     sudo apt-get install build-essential autoconf avahi-daemon avahi-utils \
-        cura-engine libavahi-client-dev libjpeg-dev libnss-mdns libpam-dev \
-        libpng-dev libssl-dev libusb-1.0-0-dev zlib1g-dev
+        cura-engine libavahi-client-dev libnss-mdns libpam-dev libssl-dev \
+        zlib1g-dev
 
 
 Configuration
 -------------
 
-CUPS uses GNU autoconf, so you should find the usual `configure` script in the
-main CUPS source directory.  To configure the code for your system, type:
+The IPP sample code uses GNU autoconf, so you should find the usual `configure`
+script in the main source directory.  To configure the code for your system,
+type:
 
     ./configure
 
@@ -66,19 +66,9 @@ configure:
     LDFLAGS="-L/some/directory" \
     ./configure ...
 
-On BSD, you may want to compile with `gcc` instead of `clang` by first
-installing `gcc`, and then specifying its path in the `CC` environment variable
-when configuring:
-
-    CC=/usr/local/bin/gcc9 ./configure
-
 Once you have configured things, just type:
 
     make ENTER
-
-or if you have FreeBSD, NetBSD, or OpenBSD type:
-
-    gmake ENTER
 
 to build the software.
 
@@ -90,10 +80,6 @@ Once you have built the software you need to install it.  The `install` target
 provides a quick way to install the software on your local system:
 
     make install ENTER
-
-or for FreeBSD, NetBSD, or OpenBSD:
-
-    gmake install ENTER
 
 Use the BUILDROOT variable to install to an alternate root directory:
 

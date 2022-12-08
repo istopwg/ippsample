@@ -1,7 +1,7 @@
 /*
  * Printer object code for sample IPP server implementation.
  *
- * Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group
+ * Copyright © 2014-2022 by the Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -1557,7 +1557,7 @@ serverCreatePrinter(
 
   /* printer-organization */
   if (!cupsArrayFind(existing, (void *)"printer-organization"))
-    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_TEXT), "printer-organization", NULL, "IEEE-ISTO Printer Working Group");
+    ippAddString(printer->pinfo.attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_TEXT), "printer-organization", NULL, "Printer Working Group");
 
   /* printer-organizational-unit */
   if (!cupsArrayFind(existing, (void *)"printer-organizational-unit"))

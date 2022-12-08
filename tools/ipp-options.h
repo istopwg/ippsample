@@ -1,7 +1,7 @@
 //
 // Option support definitions for the IPP tools.
 //
-// Copyright © 2022 by the IEEE-ISTO Printer Working Group.
+// Copyright © 2022 by the Printer Working Group.
 //
 // Licensed under Apache License v2.0.  See the file "LICENSE" for more
 // information.

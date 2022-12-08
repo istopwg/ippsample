@@ -1,7 +1,7 @@
 /*
  * ipptransform3d utility for converting 3MF and STL files to G-code.
  *
- * Copyright 2016-2019 by the IEEE-ISTO Printer Working Group.
+ * Copyright 2016-2019 by the Printer Working Group.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.

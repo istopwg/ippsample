@@ -1,7 +1,7 @@
 dnl
 dnl Configuration script for the IPP sample code.
 dnl
-dnl Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group
+dnl Copyright © 2014-2022 by the Printer Working Group
 dnl
 dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
 dnl information.
@@ -19,11 +19,15 @@ AC_PREREQ([2.70])
 
 
 dnl Package name and version...
-AC_INIT([IPPSAMPLE], [1.0b1], [https://github.com/istopwg/ippsample/issues], [ippsample], [http://istopwg.github.io/ippsample])
+AC_INIT([IPPSAMPLE], [YYYY.MM], [https://github.com/istopwg/ippsample/issues], [ippsample], [http://istopwg.github.io/ippsample])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SUBDIRS([libcups])
 
 IPPSAMPLE_VERSION="AC_PACKAGE_VERSION"
+AS_IF([test "$IPPSAMPLE_VERSION" = YYYY.DD], [
+    IPPSAMPLE_VERSION="$(date '+%Y.%m.%d')"
+])
+
 AC_SUBST([IPPSAMPLE_VERSION])
 AC_DEFINE_UNQUOTED([IPPSAMPLE_VERSION], ["$IPPSAMPLE_VERSION"], [Version number])
 

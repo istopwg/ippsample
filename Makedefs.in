@@ -1,7 +1,7 @@
 #
 # Common makefile definitions for the IPP sample code.
 #
-# Copyright © 2014-2022 by the IEEE-ISTO Printer Working Group.
+# Copyright © 2014-2022 by the Printer Working Group.
 # Copyright © 2007-2018 by Apple Inc.
 # Copyright © 1997-2007 by Easy Software Products, all rights reserved.
 #
@@ -26,7 +26,6 @@ LN		=	@LN@ -sf
 MKDIR           =       @MKDIR@ -p
 RM		=	@RM@ -f
 RMDIR		=	@RMDIR@
-SED		=	@SED@
 SHELL		=	/bin/sh
 
 

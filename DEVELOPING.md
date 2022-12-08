@@ -33,53 +33,16 @@ the IPP Sample Code.
 Version Numbering
 -----------------
 
-The IPP sample code uses a three-part version number separated by periods to
-represent the major, minor, and patch release numbers.  Major release numbers
-indicate large design changes or backwards-incompatible changes to the client
-library.  Minor release numbers indicate new features and other smaller changes
-which are backwards-compatible with previous releases.  Patch numbers indicate
-bug fixes to the previous feature or patch release.
+The IPP sample code is released in monthly snapshots using a two-part version
+number separated by periods to represent the year and month of the release.  For
+example, the releases in December 2022 and January 2023 have the following
+version numbers:
 
-> Note:
->
-> When we talk about compatibility, we are talking about binary compatibility
-> for public APIs and output format compatibility for program interfaces.
-> Changes to configuration file formats or the default behavior of programs
-> are not generally considered incompatible as the upgrade process can
-> normally address such changes gracefully.
+    2022.12
+    2023.01
 
-Production releases use the plain version numbers:
-
-    MAJOR.MINOR.PATCH
-    1.0.0
-    ...
-    1.1.0
-    ...
-    1.1.23
-    ...
-    2.0.0
-    ...
-    2.1.0
-    2.1.1
-    2.1.2
-    2.1.3
-
-The first production release in a MAJOR.MINOR series (MAJOR.MINOR.0) is called
-a feature release.  Feature releases are the only releases that may contain new
-features.  Subsequent production releases in a MAJOR.MINOR series may only
-contain bug fixes.
-
-Beta-test releases are identified by appending the letter B to the major and
-minor version numbers followed by the beta release number:
-
-    MAJOR.MINORbNUMBER
-    2.2b1
-
-Release candidates are identified by appending the letters RC to the major and
-minor version numbers followed by the release candidate number:
-
-    MAJOR.MINORrcNUMBER
-    2.2rc1
+The month number is zero-padded to ensure consistency for both lexical and
+numeric sorting/comparisons.
 
 
 Coding Guidelines
@@ -106,14 +69,14 @@ columns.
 The top of each source file contains a header giving the purpose or nature of
 the source file and the copyright and licensing notice:
 
-    /*
-     * Description of file contents.
-     *
-     * Copyright 2017 by Apple Inc.
-     *
-     * Licensed under Apache License v2.0.  See the file "LICENSE" for more
-     * information.
-     */
+    //
+    // Description of file contents.
+    //
+    // Copyright © YYYY by the Printer Working Group.
+    //
+    // Licensed under Apache License v2.0.  See the file "LICENSE" for more
+    // information.
+    //
 
 
 ### Header Files
@@ -129,9 +92,10 @@ private API header file will include the corresponding public API header file.
 All source code utilizes block comments within functions to describe the
 operations being performed by a group of statements; avoid putting a comment
 per line unless absolutely necessary, and then consider refactoring the code
-so that it is not necessary.  C source files use the block comment format
-("/* comment */") since many vendor C compilers still do not support C99/C++
-comments ("// comment"):
+so that it is not necessary.  C/C++ source files can use either the block
+comment (`/* comment */`) or double-slash (`// comment`) formats:
+
+     int i; // Looping var
 
     /*
      * Clear the state array before we begin...
@@ -163,7 +127,7 @@ indented 2 spaces.  The closing brace is then placed on a new line following
 the code at the original indentation:
 
     {
-      int i; /* Looping var */
+      int i; // Looping var
 
      /*
       * Process foobar values from 0 to 999...
@@ -226,8 +190,8 @@ any special information needed:
      * Notes: none.
      */
 
-    static float       /* O - Inverse power value, 0.0 <= y <= 1.1 */
-    do_this(float x)   /* I - Power value (0.0 <= x <= 1.1) */
+    static float       // O - Inverse power value, 0.0 <= y <= 1.1
+    do_this(float x)   // I - Power value (0.0 <= x <= 1.1)
     {
       ...
       return (y);
@@ -237,8 +201,8 @@ Return/output values are indicated using an "O" prefix, input values are
 indicated using the "I" prefix, and values that are both input and output use
 the "IO" prefix for the corresponding in-line comment.
 
-The Mini-XML documentation generator also understands the following special
-text in the function description comment:
+The [Codedoc](https://www.msweet.org/codedoc) documentation generator also
+understands the following special text in the function description comment:
 
     @deprecated@         - Marks the function as deprecated (not recommended
                            for new development and scheduled for removal)
@@ -263,8 +227,8 @@ variables, local static variables are suitably protected for concurrent access.
 Each variable is declared on a separate line and is immediately followed by a
 comment block describing the variable:
 
-    int         ThisVariable;    /* The current state of this */
-    static int  that_variable;   /* The current state of that */
+    int         ThisVariable;    // The current state of this
+    static int  that_variable;   // The current state of that
 
 
 ### Types
@@ -277,7 +241,7 @@ underscore, e.g., `_ipp_this_t`, `_ipp_that_t`, etc.
 
 Each type has a comment block immediately after the typedef:
 
-    typedef int ipp_this_type_t;  /* This type is for foobar options. */
+    typedef int ipp_this_type_t;  // This type is for foobar options.
 
 
 ### Structures
@@ -291,10 +255,10 @@ with an underscore, e.g., `_ipp_this_s`, `_ipp_that_s`, etc.
 Each structure has a comment block immediately after the struct and each member
 is documented similar to the variable naming policy above:
 
-    struct ipp_this_struct_s  /* This structure is for foobar options. */
+    struct ipp_this_struct_s  // This structure is for foobar options.
     {
-      int this_member;         /* Current state for this */
-      int that_member;         /* Current state for that */
+      int this_member;         // Current state for this
+      int that_member;         // Current state for that
     };
 
 
@@ -311,10 +275,10 @@ by the compiler.
 
 Comment blocks immediately follow each constant:
 
-    typedef enum ipp_tray_e  /* Tray enumerations */
+    typedef enum ipp_tray_e  // Tray enumerations
     {
-      IPP_TRAY_THIS,         /* This tray */
-      IPP_TRAY_THAT          /* That tray */
+      IPP_TRAY_THIS,         // This tray
+      IPP_TRAY_THAT          // That tray
     } ipp_tray_t;
 
 
@@ -341,7 +305,7 @@ of the file, and CUPS copyright and license notice:
     #
     # Makefile for ...
     #
-    # Copyright 2017 by the IEEE-ISTO Printer Working Group.
+    # Copyright © YYYY by the Printer Working Group.
     #
     # Licensed under Apache License v2.0.  See the file "LICENSE" for more
     # information.
@@ -350,9 +314,9 @@ of the file, and CUPS copyright and license notice:
 
 ### Portable Makefile Construction
 
-We use a common subset of make program syntax to ensure that the software can be
-compiled "out of the box" on as many systems as possible.  The following is a
-list of assumptions we follow when constructing makefiles:
+We use a common subset of POSIX make program syntax to ensure that the software
+can be compiled "out of the box" on as many systems as possible.  The following
+is a list of assumptions we follow when constructing makefiles:
 
 - Targets; we assume that the make program supports the notion of simple
   targets of the form "name:" that perform tab-indented commands that follow
@@ -424,51 +388,34 @@ list of assumptions we follow when constructing makefiles:
 The following variables are defined in the "Makedefs" file generated by the
 autoconf software:
 
-- `ALL_CFLAGS`; the combined C compiler options,
-- `ALL_CXXFLAGS`; the combined C++ compiler options,
-- `AMANDIR`; the administrative man page installation directory (section 8/1m
-  depending on the platform),
-- `AR`; the library archiver command,
-- `ARFLAGS`; options for the library archiver command,
-- `AWK`; the local awk command,
-- `BINDIR`; the binary installation directory,
-- `BUILDROOT`; optional installation prefix (defaults to DSTROOT),
+- `BUILDROOT`; optional installation prefix (defaults to DESTDIR/DSTROOT),
 - `CC`; the C compiler command,
 - `CFLAGS`; options for the C compiler command,
-- `CHMOD`; the chmod command,
-- `CXX`; the C++ compiler command,
-- `CXXFLAGS`; options for the C++ compiler command,
-- `DATADIR`; the data file installation directory,
-- `DSO`; the C shared library building command,
-- `DSOXX`; the C++ shared library building command,
-- `DSOFLAGS`; options for the shared library building command,
-- `INCLUDEDIR`; the public header file installation directory,
+- `CODE_SIGN`: the "codesign" command to use,
+- `CPPFLAGS`; options for the C preprocessor command,
+- `CSFLAGS`: options for the "codesign" command (macOS),
 - `INSTALL`; the install command,
 - `INSTALL_BIN`; the program installation command,
-- `INSTALL_COMPDATA`; the compressed data file installation command,
-- `INSTALL_CONFIG`; the configuration file installation command,
 - `INSTALL_DATA`; the data file installation command,
 - `INSTALL_DIR`; the directory installation command,
 - `INSTALL_LIB`; the library installation command,
 - `INSTALL_MAN`; the documentation installation command,
-- `INSTALL_SCRIPT`; the shell script installation command,
-- `LD`; the linker command,
 - `LDFLAGS`; options for the linker,
-- `LIBDIR`; the library installation directory,
 - `LIBS`; libraries for all programs,
 - `LN`; the ln command,
-- `MAN1EXT`; extension for man pages in section 1,
-- `MAN3EXT`; extension for man pages in section 3,
-- `MAN5EXT`; extension for man pages in section 5,
-- `MAN7EXT`; extension for man pages in section 7,
-- `MAN8DIR`; subdirectory for man pages in section 8,
-- `MAN8EXT`; extension for man pages in section 8,
-- `MANDIR`; the man page installation directory,
+- `MKDIR`: the mkdir command,
 - `OPTIM`; common compiler optimization options,
-- `PRIVATEINCLUDE`; the private header file installation directory,
 - `RM`; the rm command,
+- `RMDIR`; the rmdir command,
 - `SHELL`; the sh (POSIX shell) command,
-- `STRIP`; the strip command,
+- `WARNINGS`; common compiler warning options,
+- `bindir`; the binary installation directory,
+- `datadir`; the data file installation directory,
+- `includedir`; the public header file installation directory,
+- `libdir`; the library installation directory,
+- `mandir`; the man page installation directory,
+- `prefix`: the installation prefix directory,
+- `sbindir`; the administrative binary installation directory,
 - `srcdir`; the source directory.
 
 
@@ -485,14 +432,7 @@ The following standard targets are defined in each makefile:
   the "clean" target,
 - `install`; installs all distribution files in their corresponding locations
   (also see "INSTALL/UNINSTALL SUPPORT"),
-- `install-data`; installs all data files in their corresponding locations (also
-  see "INSTALL/UNINSTALL SUPPORT"),
-- `install-exec`; installs all executable files in their corresponding locations
-  (also see "INSTALL/UNINSTALL SUPPORT"),
-- `install-headers`; installs all include files in their corresponding locations
-  (also see "INSTALL/UNINSTALL SUPPORT"),
-- `install-libs`; installs all library files in their corresponding locations
-  (also see "INSTALL/UNINSTALL SUPPORT"), and
+- `test`; runs unit and integration tests,
 - `uninstall`; removes all distribution files from their corresponding locations
   (also see "INSTALL/UNINSTALL SUPPORT").
 
@@ -512,41 +452,6 @@ form an executable file.  A typical program target looks like:
     TAB echo Linking $@...
     TAB $(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
-### Static Libraries
-
-Static libraries have a prefix of "lib" and the extension ".a". A typical
-static library target looks like:
-
-    libname.a: $(OBJECTS)
-    TAB echo Creating $@...
-    TAB $(RM) $@
-    TAB $(AR) $(ARFLAGS) $@ $(OBJECTS)
-    TAB $(RANLIB) $@
-
-### Shared Libraries
-
-Shared libraries have a prefix of "lib" and the extension ".dylib" or ".so"
-depending on the operating system.  A typical shared library is composed of
-several targets that look like:
-
-    libname.so: $(OBJECTS)
-    TAB echo $(DSOCOMMAND) libname.so.$(DSOVERSION) ...
-    TAB $(DSOCOMMAND) libname.so.$(DSOVERSION) $(OBJECTS)
-    TAB $(RM) libname.so libname.so.$(DSOMAJOR)
-    TAB $(LN) libname.so.$(DSOVERSION) libname.so.$(DSOMAJOR)
-    TAB $(LN) libname.so.$(DSOVERSION) libname.so
-
-    libname.dylib: $(OBJECTS)
-    TAB echo $(DSOCOMMAND) libname.$(DSOVERSION).dylib ...
-    TAB $(DSOCOMMAND) libname.$(DSOVERSION).dylib \
-    TAB TAB -install_name $(libdir)/libname.$(DSOMAJOR).dylib \
-    TAB TAB -current_version libname.$(DSOVERSION).dylib \
-    TAB TAB -compatibility_version $(DSOMAJOR).0 \
-    TAB TAB $(OBJECTS) $(LIBS)
-    TAB $(RM) libname.dylib
-    TAB $(RM) libname.$(DSOMAJOR).dylib
-    TAB $(LN) libname.$(DSOVERSION).dylib libname.$(DSOMAJOR).dylib
-    TAB $(LN) libname.$(DSOVERSION).dylib libname.dylib
 
 ### Dependencies
 
@@ -574,11 +479,6 @@ corresponding software.  These rules must use the $(BUILDROOT) variable as a
 prefix to any installation directory so that the IPP sample code can be
 installed in a temporary location for packaging by programs like rpmbuild.
 
-The `INSTALL_BIN`, `INSTALL_COMPDATA`, `INSTALL_CONFIG`, `INSTALL_DATA`,
-`INSTALL_DIR`, `INSTALL_LIB`, `INSTALL_MAN`, and `INSTALL_SCRIPT` variables
-must be used when installing files so that the proper ownership and permissions
-are set on the installed files.
-
-The `$(RANLIB)` command must be run on any static libraries after installation
-since the symbol table is invalidated when the library is copied on some
-platforms.
+The `INSTALL_BIN`, `INSTALL_DATA`, `INSTALL_DIR`, `INSTALL_LIB`, and
+`INSTALL_MAN` variables must be used when installing files so that the proper
+ownership and permissions are set on the installed files.

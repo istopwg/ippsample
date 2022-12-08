@@ -802,7 +802,7 @@
 			attributes = {
 				DefaultBuildSystemTypeForWorkspace = Latest;
 				LastUpgradeCheck = 1200;
-				ORGANIZATIONNAME = "IEEE-ISTO Printer Working Group";
+				ORGANIZATIONNAME = "Printer Working Group";
 				TargetAttributes = {
 					72B402171C0CDFB400139783 = {
 						CreatedOnToolsVersion = 7.1;

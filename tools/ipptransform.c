@@ -1,7 +1,7 @@
 //
 // Utility for converting PDF and JPEG files to raster data or HP PCL.
 //
-// Copyright © 2016-2022 by the IEEE-ISTO Printer Working Group.
+// Copyright © 2016-2022 by the Printer Working Group.
 // Copyright © 2016-2019 by Apple Inc.
 //
 // Licensed under Apache License v2.0.  See the file "LICENSE" for more
