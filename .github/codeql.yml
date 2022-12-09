@@ -1,3 +1,8 @@
+paths-ignore:
+  - libcups
+  - pdfio
+  - '**/test*.c'
+
 query-filters:
   - exclude:
       id: cpp/integer-multiplication-cast-to-long
@@ -15,3 +20,20 @@ query-filters:
       id: cpp/toctou-race-condition
   - exclude:
       id: cpp/command-line-injection
+  - exclude:
+      id: cpp/weak-cryptographic-algorithm
+  - exclude:
+      id: cpp/world-writable-file-creation
+  - exclude:
+      id: cpp/user-controlled-bypass
+  - exclude:
+      id: cpp/uncontrolled-process-operation
+  - exclude:
+      id: cpp/path-injection
+  - exclude:
+      id: cpp/uninitialized-local
+  - exclude:
+      id: cpp/missing-check-scanf
+  - exclude:
+      id: cpp/offset-use-before-range-check
+
