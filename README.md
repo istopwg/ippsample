@@ -131,7 +131,7 @@ printers using the [CuraEngine][3] software.
 Legal Stuff
 -----------
 
-Copyright © 2014-2022 by the Printer Working Group.
+Copyright © 2014-2023 by the Printer Working Group.
 
 Copyright © 2007-2019 by Apple Inc.
 

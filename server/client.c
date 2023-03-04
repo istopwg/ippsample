@@ -1,7 +1,7 @@
 /*
  * Client code for sample IPP server implementation.
  *
- * Copyright © 2014-2022 by the Printer Working Group
+ * Copyright © 2014-2023 by the Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -190,7 +190,7 @@ serverProcessClient(
       {
         serverLogClient(SERVER_LOGLEVEL_INFO, client, "Starting HTTPS session.");
 
-	if (httpSetEncryption(client->http, HTTP_ENCRYPTION_ALWAYS))
+	if (!httpSetEncryption(client->http, HTTP_ENCRYPTION_ALWAYS))
 	{
 	  serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Unable to encrypt connection: %s", cupsLastErrorString());
 	  break;
@@ -362,7 +362,7 @@ serverProcessHTTP(
 
       serverLogClient(SERVER_LOGLEVEL_INFO, client, "Upgrading to encrypted connection.");
 
-      if (httpSetEncryption(client->http, HTTP_ENCRYPTION_REQUIRED))
+      if (!httpSetEncryption(client->http, HTTP_ENCRYPTION_REQUIRED))
       {
         serverLogClient(SERVER_LOGLEVEL_ERROR, client,
         "Unable to encrypt connection: %s", cupsLastErrorString());
@@ -960,7 +960,7 @@ html_footer(server_client_t *client)	/* I - Client */
 {
   html_printf(client,
 	      "</div>\n"
-	      "<div class=\"footer\">Copyright &copy; 2014-2022 by the Printer Working Group.<br>\n"
+	      "<div class=\"footer\">Copyright &copy; 2014-2023 by the Printer Working Group.<br>\n"
 	      "ippserver is part of the <a href=\"https://github.com/istopwg/ippsample\" target=\"_blank\">ippsample</a> project and is provided on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. It is <em>not</em> intended for production use.</div>\n"
 	      "</body>\n"
 	      "</html>\n");
