@@ -24,9 +24,9 @@ if (git status | grep -v makesrcdist | grep -q modified:); then
 fi
 
 # Get the source version...
-if test $# = 1; then
+if test $# = 0; then
     version="$(date '+%Y.%m')"
-elif test $# = 2; then
+elif test $# = 1; then
     version="$1"
 else
     echo "Usage: ./makesrcdist version"
