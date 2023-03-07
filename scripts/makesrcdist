@@ -47,7 +47,7 @@ if test "$changes" = "0"; then
 fi
 
 # Create the tag for this release...
-echo Creating tag for release...
+echo "Creating tag v$version for release..."
 git tag -m "Tag $version" v$version
 git push origin v$version
 
@@ -78,15 +78,52 @@ if test "$previous" != ""; then
 fi
 
 # Create the archives...
-echo Creating ippsample-$version.tar.gz...
+echo "Creating ippsample-$version.tar.gz..."
 (cd .tmp; tar czf ../ippsample-$version.tar.gz ippsample-$version)
 gpg --detach-sign ippsample-$version.tar.gz
 
-echo Creating ippsample-$version.zip...
+echo "Creating ippsample-$version.zip..."
 rm -f ippsample-$version.zip
 (cd .tmp; zip -rq9 ../ippsample-$version.zip ippsample-$version)
 gpg --detach-sign ippsample-$version.zip
 
+# See if we have the Github command-line to publish releases
+if which -s gh; then
+    # Yes, publish the release...
+    echo "Creating Github release..."
+    gh api --method POST -H "Accept: application/vnd.github+json" \
+	-H "X-GitHub-Api-Version: 2022-11-28" /repos/istopwg/ippsample/releases \
+	-f tag_name="v$version" -f name="v$version" \
+	-f body="$(cat .tmp/ippsample-$version/CHANGES.md)" \
+	-F generate_release_notes=false >.tmp/release.json
+
+    RELEASE_ID="$(echo .tmp/release.json | sed -e '1,$s/^.*"id": *([0-9]+).*$/\1/')"
+    echo "Github release ID is $RELEASE_ID..."
+
+    for file in ippsample-$version.tar.gz ippsample-$version.tar.gz.sig ippsample-$version.zip ippsample-$version.zip.sig; do
+        echo "Uploading $file to release..."
+	gh api --method POST -H "Accept: application/vnd.github+json" \
+	    -H "X-GitHub-Api-Version: 2022-11-28" \
+	    --hostname uploads.github.com
+	    "/repos/istopwg/ippsample/releases/$RELEASE_ID/assets?name=$file"\
+	    -f "@$file"
+    done
+else
+    # No, show the changelog for a manual release...
+    echo "No Github (gh) command, you need to manually create a release on Github."
+    echo ""
+    echo "Files:"
+    echo ""
+    echo "    ippsample-$version.tar.gz"
+    echo "    ippsample-$version.tar.gz.sig"
+    echo "    ippsample-$version.zip"
+    echo "    ippsample-$version.zip.sig"
+    echo ""
+    echo "Changelog:"
+    echo ""
+    cat .tmp/ippsample-$version/CHANGES.md
+    echo ""
+fi
+
 # Cleanup...
-echo Cleaning up...
 rm -rf .tmp
