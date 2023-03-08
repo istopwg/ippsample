@@ -2,10 +2,10 @@ IPP Sample Implementations
 ==========================
 
 This code provides sample, non-production-ready implementations of IPP Clients,
-Printers, Proxies, and Systems.  It makes use of the [CUPS Library v3][1] and
-[PDFio library][2] projects to provide low-level HTTP, IPP, and PDF support.
-The `ippserver` and `ipp3dprinter` code was also inspired by the original CUPS
-`ippeveprinter` source code.
+Printers, Proxies, and Systems.  It makes use of the [CUPS Library v3][LIBCUPS]
+and [PDFio library][PDFIO] projects to provide low-level HTTP, IPP, and PDF
+support.  The `ippserver` and `ipp3dprinter` code was also inspired by the
+original CUPS `ippeveprinter` source code.
 
 ![Version](https://img.shields.io/github/v/release/istopwg/ippsample?include_prereleases)
 ![Apache 2.0](https://img.shields.io/github/license/istopwg/ippsample)
@@ -24,16 +24,29 @@ The `ippserver` and `ipp3dprinter` code was also inspired by the original CUPS
 Getting the Code
 ----------------
 
+The source code is available in semi-monthly release tarballs or via the Github
+repository.  For a release tarball, run the following commands:
+
+    tar xvzf ippsample-VERSION.tar.gz
+    cd ippsample-VERSION
+
+Similarly, the release ZIP file can be extracted with the following commands:
+
+    unzip ippsample-VERSION.zip
+    cd ippsample-VERSION
+
 From the Github sources, clone the repository with the `--recurse-submodules`
 option *or* use the `git submodule` commands:
 
     git clone --recurse-submodules git@github.com:istopwg/ippsample.git
+    cd ippsample
 
     git clone git@github.com:istopwg/ippsample.git
+    cd ippsample
     git submodule init
     git submodule update
 
-When updating an already-cloned repository:
+To update an already-cloned repository:
 
     git pull
     git submodule update
@@ -78,6 +91,19 @@ Resources
 
 The IPP sample code includes per-specification ipptool test files under the
 "examples" directory.
+
+The following documentation files may be of use as well:
+
+- `BUILD.md`: Detailed build instructions
+- `CONTRIBUTING.md`: How to contribute to the ippsample project
+- `DEVELOPING.md`: How to develop code for the ippsample project
+- `DOCKER.md`: How to build ippsample in a Docker container
+- `PI.md`: How to build ippsample for various Raspberry Pi boards
+- `SCRIPTING.md`: How to use the ippserver REST API
+- `TESTING.md`: How to test ippserver with the sample configuration under the
+  `test` subdirectory
+- `man/*`: Man pages for each of the ippsample programs in nroff and HTML
+  formats
 
 
 ipp3dprinter
@@ -125,7 +151,7 @@ ipptransform3d
 
 The `ipptransform3d` program is a generic 3D file conversion utility that is
 used primarily with `ippserver` to support 3MF, G-code, and STL printing to 3D
-printers using the [CuraEngine][3] software.
+printers using the [CuraEngine][CURA] software.
 
 
 Legal Stuff
@@ -147,6 +173,6 @@ CONDITIONS OF ANY KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations under the License.
 
 
-[1]: https://github.com/michaelrsweet/libcups
-[2]: https://github.com/michaelrsweet/pdfio
-[3]: https://github.com/Ultimaker/CuraEngine
+[CURA]: https://github.com/Ultimaker/CuraEngine
+[LIBCUPS]: https://github.com/michaelrsweet/libcups
+[PDFIO]: https://github.com/michaelrsweet/pdfio
