@@ -174,5 +174,5 @@ specific language governing permissions and limitations under the License.
 
 
 [CURA]: https://github.com/Ultimaker/CuraEngine
-[LIBCUPS]: https://github.com/michaelrsweet/libcups
+[LIBCUPS]: https://github.com/OpenPrinting/libcups
 [PDFIO]: https://github.com/michaelrsweet/pdfio
