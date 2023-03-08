@@ -91,23 +91,7 @@ gpg --detach-sign ippsample-$version.zip
 if which -s gh; then
     # Yes, publish the release...
     echo "Creating Github release..."
-    gh api --method POST -H "Accept: application/vnd.github+json" \
-	-H "X-GitHub-Api-Version: 2022-11-28" /repos/istopwg/ippsample/releases \
-	-f tag_name="v$version" -f name="v$version" \
-	-f body="$(cat .tmp/ippsample-$version/CHANGES.md)" \
-	-F generate_release_notes=false >.tmp/release.json
-
-    RELEASE_ID="$(echo .tmp/release.json | sed -e '1,$s/^.*"id": *([0-9]+).*$/\1/')"
-    echo "Github release ID is $RELEASE_ID..."
-
-    for file in ippsample-$version.tar.gz ippsample-$version.tar.gz.sig ippsample-$version.zip ippsample-$version.zip.sig; do
-        echo "Uploading $file to release..."
-	gh api --method POST -H "Accept: application/vnd.github+json" \
-	    -H "X-GitHub-Api-Version: 2022-11-28" \
-	    --hostname uploads.github.com
-	    "/repos/istopwg/ippsample/releases/$RELEASE_ID/assets?name=$file"\
-	    -f "@$file"
-    done
+    gh release create --repo istopwg/ippsample --notes-file .tmp/ippsample-$version/CHANGES.md v$version ippsample-$version.tar.gz ippsample-$version.tar.gz.sig ippsample-$version.zip ippsample-$version.zip.sig
 else
     # No, show the changelog for a manual release...
     echo "No Github (gh) command, you need to manually create a release on Github."
