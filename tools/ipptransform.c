@@ -3667,27 +3667,20 @@ xform_document(
 		page = 0,		// Current page
 		media_sheets = 0,
 		impressions = 0;	// Page/sheet counters
-  char		command[1024];		// pdftoppm command
+  char		command[1024],		// pdftoppm command
+		output[1024];		// Ouptut from pdftoppm
   FILE		*fp;			// Pipe for output
   char		header[256];		// Header from file
-  unsigned char	*line;			// Pixel line from file
+  unsigned char	*line,			// Pixel line from file
+		*linein,		// Pointer to input pixels
+		*lineout;		// Pointer to output pixels
   size_t	linesize;		// Size of a line...
+  bool		poppler = false;	// Are we using Poppler's pdftoppm?
 
 
   // Setup the raster headers...
   if (!xform_setup(&ras, options, outformat, resolutions, sheet_back, types, true, pages))
     return (false);
-
-  if (ras.header.cupsBitsPerPixel <= 8)
-    linesize = ras.header.cupsWidth;
-  else
-    linesize = 3 * ras.header.cupsWidth;
-
-  if ((line = malloc(linesize)) == NULL)
-  {
-    fprintf(stderr, "ERROR: Unable to allocate %u bytes for line.\n", (unsigned)linesize);
-    return (false);
-  }
 
   fprintf(stderr, "ATTR: job-impressions=%d\n", pages);
   fprintf(stderr, "ATTR: job-pages=%d\n", pages);
@@ -3721,11 +3714,41 @@ xform_document(
           break;
     }
 
+    // There are two versions of the pdftoppm command - the one that comes with
+    // Xpdf and the one that comes with Poppler which forked from Xpdf in the
+    // v3.0 days.  Unfortunately, the two commands have drifted apart so we need
+    // to determine *which* pdftoppm command is available...
+    if ((fp = popen("pdftoppm -v", "r")) != NULL)
+    {
+      while (fgets(output, sizeof(output), fp))
+      {
+        if (strstr(output, "oppler"))
+          poppler = true;
+      }
+
+      pclose(fp);
+
+      fprintf(stderr, "DEBUG: Using %s version of pdftoppm.\n", poppler ? "Poppler" : "Xpdf");
+    }
+    else
+    {
+      fprintf(stderr, "ERROR: Unable to run pdftoppm command: %s\n", strerror(errno));
+      return (false);
+    }
+
     // Run the pdftoppm command:
     //
-    //   pdftoppm [-mono] [-gray] -aa no -r resolution filename -
-    snprintf(command, sizeof(command), "pdftoppm %s -aa no -r %u '%s' -", ras.header.cupsBitsPerPixel <= 8 ? "-gray" : "", ras.header.HWResolution[0], filename);
-    fprintf(stderr, "DEBUG: Running \"%s\"\n", command);
+    //   Poppler:
+    //     pdftoppm [-gray] -thinlinemode solid -aa no -r resolution -scale-to HEIGHT filename
+    //
+    //   Xpdf:
+    //     pdftoppm [-gray] -aa no -r resolution filename -
+    if (poppler)
+      snprintf(command, sizeof(command), "pdftoppm %s -aa no -r %u -scale-to %u '%s'", ras.header.cupsBitsPerPixel <= 8 ? "-gray" : "", ras.header.HWResolution[0], ras.header.cupsHeight, filename);
+    else
+      snprintf(command, sizeof(command), "pdftoppm %s -aa no -r %u '%s' -", ras.header.cupsBitsPerPixel <= 8 ? "-gray" : "", ras.header.HWResolution[0], filename);
+
+    fprintf(stderr, "DEBUG: Running \"%s\".\n", command);
 #if _WIN32
     if ((fp = popen(command, "rb")) == NULL)
 #else
@@ -3733,7 +3756,6 @@ xform_document(
 #endif // _WIN32
     {
       fprintf(stderr, "ERROR: Unable to run pdftoppm command: %s\n", strerror(errno));
-      free(line);
       return (false);
     }
 
@@ -3741,46 +3763,130 @@ xform_document(
     while (fgets(header, sizeof(header), fp))
     {
       // Got the P4/5/6 header...
-      unsigned	y;			// Current Y position
+      unsigned	y,			// Current Y position
+		ystart,			// Start Y position
+		yend;			// End Y position
       unsigned	width, height;		// Width and height from image...
+      unsigned	bpp;			// Bytes per pixel
 
-      if (strcmp(header, "P4\n") && strcmp(header, "P5\n") && strcmp(header, "P6\n"))
+      if (!strcmp(header, "P5\n"))
+      {
+        bpp = 1;
+      }
+      else if (!strcmp(header, "P6\n"))
+      {
+        bpp = 3;
+      }
+      else
       {
         fprintf(stderr, "ERROR: Bad page header - <%02X%02X%02X%02X%02X%02X%02X%02X>", header[0] & 255, header[1] & 255, header[2] & 255, header[3] & 255, header[4] & 255, header[5] & 255, header[6] & 255, header[7] & 255);
         break;
       }
 
+      if (Verbosity)
+        fprintf(stderr, "DEBUG: '%s'\n", header);
+
       // Now get the bitmap dimensions...
       if (!fgets(header, sizeof(header), fp))
         break;
+
+      if (Verbosity)
+        fprintf(stderr, "DEBUG: '%s'\n", header);
 
       if (sscanf(header, "%u%u", &width, &height) != 2)
       {
         fprintf(stderr, "ERROR: Bad page dimensions - <%02X%02X%02X%02X%02X%02X%02X%02X>", header[0] & 255, header[1] & 255, header[2] & 255, header[3] & 255, header[4] & 255, header[5] & 255, header[6] & 255, header[7] & 255);
         break;
       }
-      else if (width != ras.header.cupsWidth || height != ras.header.cupsHeight)
+
+      if (width > ras.header.cupsWidth)
+        linesize = width * bpp;
+      else
+	linesize = ras.header.cupsWidth * bpp;
+
+      if ((line = malloc(linesize)) == NULL)
       {
-        fprintf(stderr, "ERROR: Unexpected page dimensions - %ux%u instead of %ux%u.\n", width, height, ras.header.cupsWidth, ras.header.cupsHeight);
-        break;
+	fprintf(stderr, "ERROR: Unable to allocate %u bytes for line.\n", (unsigned)linesize);
+	return (false);
       }
+
+      if (width > ras.header.cupsWidth)
+      {
+        linein  = line;
+        lineout = line + (width - ras.header.cupsWidth) / 2 * bpp;
+      }
+      else
+      {
+        linein  = line + (ras.header.cupsWidth - width) / 2 * bpp;
+        lineout = line;
+      }
+
+      if (height > ras.header.cupsHeight)
+      {
+        ystart = (height - ras.header.cupsHeight) / 2;
+        yend   = ystart + ras.header.cupsHeight;
+      }
+      else
+      {
+        ystart = (ras.header.cupsHeight - height) / 2;
+        yend   = ystart + height;
+      }
+
+      memset(line, 255, linesize);
 
       // Skip max value line...
       if (!fgets(header, sizeof(header), fp))
         break;
+
+      if (Verbosity)
+      {
+        fprintf(stderr, "DEBUG: '%s'\n", header);
+        fprintf(stderr, "DEBUG: width=%u, height=%u, bpp=%u, ystart=%u, yend=%u\n", width, height, bpp, ystart, yend);
+      }
 
       // Send the page to the driver...
       page ++;
 
       (ras.start_page)(&ras, page, cb, ctx);
 
-      for (y = 0; y < height; y ++)
+      if (height > ras.header.cupsHeight)
       {
-        if (fread(line, linesize, 1, fp))
-          (ras.write_line)(&ras, y, line, cb, ctx);
+        // Skip leading lines...
+        for (y = 0; y < ystart; y ++)
+          fread(linein, width, bpp, fp);
+      }
+      else
+      {
+        // Write leading blank lines...
+        for (y = 0; y < ystart; y ++)
+          (ras.write_line)(&ras, y, lineout, cb, ctx);
+      }
+
+      for (; y < yend; y ++)
+      {
+        // Copy lines...
+        if (fread(linein, width, bpp, fp))
+          (ras.write_line)(&ras, y, lineout, cb, ctx);
+      }
+
+      if (height > ras.header.cupsHeight)
+      {
+        // Skip trailing lines...
+        for (; y < height; y ++)
+          fread(linein, width, bpp, fp);
+      }
+      else
+      {
+        // Write trailing blank lines...
+        memset(line, 255, linesize);
+
+        for (; y < ras.header.cupsHeight; y ++)
+          (ras.write_line)(&ras, y, lineout, cb, ctx);
       }
 
       (ras.end_page)(&ras, page, cb, ctx);
+
+      free(line);
 
       // Log progress...
       impressions ++;
@@ -3811,8 +3917,6 @@ xform_document(
   }
 
   (ras.end_job)(&ras, cb, ctx);
-
-  free(line);
 
   return (true);
 }
