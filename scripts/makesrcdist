@@ -46,6 +46,25 @@ if test "$changes" = "0"; then
     exit 0
 fi
 
+# Check that the various version numbers are up to date...
+temp="$(grep '^version:' snap/snapcraft.yaml | awk -F: '{print $2}' | tr -d ' ')"
+if test "v$temp" != "v$version"; then
+    echo "snap/snapcraft.yaml needs to be updated."
+    exit 1
+fi
+
+temp="$(grep IPPSAMPLE_VERSION vcnet/config.h | awk -F\" '{print $2}')"
+if test "v$temp" != "v$version"; then
+    echo "vcnet/config.h needs to be updated."
+    exit 1
+fi
+
+temp="$(grep IPPSAMPLE_VERSION xcode/config.h | awk -F\" '{print $2}')"
+if test "v$temp" != "v$version"; then
+    echo "xcode/config.h needs to be updated."
+    exit 1
+fi
+
 # Create the tag for this release...
 echo "Creating tag v$version for release..."
 git tag -m "Tag $version" v$version
