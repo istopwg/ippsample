@@ -26,7 +26,7 @@ DIRS	=	\
 all:
 	for dir in $(DIRS); do \
 		echo "======== all in $$dir ========"; \
-		(cd $$dir; $(MAKE) $(MFLAGS) COMMONFLAGS="$(OPTIM)" all) || exit 1; \
+		(cd $$dir; $(MAKE) $(MFLAGS) CFLAGS="$(CFLAGS)" COMMONFLAGS="$(OPTIM)" all) || exit 1; \
 	done
 
 
@@ -82,7 +82,7 @@ install:
 test:
 	for dir in $(DIRS); do \
 		echo "======== test in $$dir ========"; \
-		(cd $$dir; $(MAKE) $(MFLAGS) test) || exit 1; \
+		(cd $$dir; $(MAKE) $(MFLAGS) CFLAGS="$(CFLAGS)" COMMONFLAGS="$(OPTIM)" test) || exit 1; \
 	done
 	echo "Running integration tests..."
 	test/run-tests.sh
