@@ -3718,7 +3718,11 @@ xform_document(
     // Xpdf and the one that comes with Poppler which forked from Xpdf in the
     // v3.0 days.  Unfortunately, the two commands have drifted apart so we need
     // to determine *which* pdftoppm command is available...
-    if ((fp = popen("pdftoppm -v", "r")) != NULL)
+#if _WIN32
+    if ((fp = _popen("pdftoppm -v", "r")) != NULL)
+#else
+    if ((fp = popen("pdftoppm -v 2>&1", "r")) != NULL)
+#endif // _WIN32
     {
       while (fgets(output, sizeof(output), fp))
       {
@@ -3726,7 +3730,11 @@ xform_document(
           poppler = true;
       }
 
+#if _WIN32
+      _pclose(fp);
+#else
       pclose(fp);
+#endif // _WIN32
 
       fprintf(stderr, "DEBUG: Using %s version of pdftoppm.\n", poppler ? "Poppler" : "Xpdf");
     }
@@ -3750,7 +3758,7 @@ xform_document(
 
     fprintf(stderr, "DEBUG: Running \"%s\".\n", command);
 #if _WIN32
-    if ((fp = popen(command, "rb")) == NULL)
+    if ((fp = _popen(command, "rb")) == NULL)
 #else
     if ((fp = popen(command, "r")) == NULL)
 #endif // _WIN32
@@ -3784,14 +3792,20 @@ xform_document(
       }
 
       if (Verbosity)
+      {
+	header[strlen(header) - 1] = '\0';
         fprintf(stderr, "DEBUG: '%s'\n", header);
+      }
 
       // Now get the bitmap dimensions...
       if (!fgets(header, sizeof(header), fp))
         break;
 
       if (Verbosity)
+      {
+	header[strlen(header) - 1] = '\0';
         fprintf(stderr, "DEBUG: '%s'\n", header);
+      }
 
       if (sscanf(header, "%u%u", &width, &height) != 2)
       {
@@ -3840,6 +3854,7 @@ xform_document(
 
       if (Verbosity)
       {
+	header[strlen(header) - 1] = '\0';
         fprintf(stderr, "DEBUG: '%s'\n", header);
         fprintf(stderr, "DEBUG: width=%u, height=%u, bpp=%u, ystart=%u, yend=%u\n", width, height, bpp, ystart, yend);
       }
@@ -3899,7 +3914,11 @@ xform_document(
     }
 
     // Close things out...
+#if _WIN32
+    _pclose(fp);
+#else
     pclose(fp);
+#endif // _WIN32
 
     // Write a separator sheet as needed...
     switch (options->separator_type)
