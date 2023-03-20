@@ -1,7 +1,7 @@
 dnl
 dnl Configuration script for the IPP sample code.
 dnl
-dnl Copyright © 2014-2022 by the Printer Working Group
+dnl Copyright © 2014-2023 by the Printer Working Group
 dnl
 dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
 dnl information.
@@ -16,6 +16,16 @@ dnl ***********************************************************************
 
 dnl We need at least autoconf 2.70 for --runstatedir...
 AC_PREREQ([2.70])
+
+
+dnl Check for submodules...
+AS_IF([test ! -d libcups -o ! -d pdfio], [
+    AS_IF([test -d .git], [
+        AC_MSG_ERROR([Run "git submodule init && git submodule update" to get the libcups and PDFio submodules.])
+    ], [
+        AC_MSG_ERROR([The ZIP archive you downloaded via the Github "Code" button is missing the libcups and PDFio submodules. Please download a dated release or use Git.])
+    ])
+])
 
 
 dnl Package name and version...

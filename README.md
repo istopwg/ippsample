@@ -24,6 +24,10 @@ original CUPS `ippeveprinter` source code.
 Getting the Code
 ----------------
 
+*Do not use the ZIP file available via the Github "Code" button on the*
+*main project page, as that archive is missing the libcups and PDFio submodules*
+*submodules and will not compile.*
+
 The source code is available in semi-monthly release tarballs or via the Github
 repository.  For a release tarball, run the following commands:
 
