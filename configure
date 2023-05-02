@@ -3773,7 +3773,7 @@ case "$use_pdfrip" in #(
   coregraphics) :
 
     SAVELIBS="$LIBS"
-    LIBS="-framework CoreGraphics -framework ImageIO $LIBS"
+    LIBS="-framework CoreGraphics -framework ImageIO -framework CoreFoundation $LIBS"
     ac_fn_c_check_header_compile "$LINENO" "CoreGraphics/CoreGraphics.h" "ac_cv_header_CoreGraphics_CoreGraphics_h" "$ac_includes_default"
 if test "x$ac_cv_header_CoreGraphics_CoreGraphics_h" = xyes
 then :

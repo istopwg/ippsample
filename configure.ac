@@ -94,7 +94,7 @@ AS_IF([test "x$with_pdfrip" = x -o "x$with_pdfrip" = xauto], [
 
 AS_CASE(["$use_pdfrip"], [coregraphics], [
     SAVELIBS="$LIBS"
-    LIBS="-framework CoreGraphics -framework ImageIO $LIBS"
+    LIBS="-framework CoreGraphics -framework ImageIO -framework CoreFoundation $LIBS"
     AC_CHECK_HEADER([CoreGraphics/CoreGraphics.h], [
 	AC_DEFINE([HAVE_COREGRAPHICS], [1], [CoreGraphics support])
     ], [
