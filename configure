@@ -728,7 +728,7 @@ with_pdfrip
 enable_pam
 enable_debug
 enable_maintainer
-enable_sanitizer
+with_sanitizer
 with_ldflags
 '
       ac_precious_vars='build_alias
@@ -1364,13 +1364,14 @@ Optional Features:
   --enable-libpam         use libpam for authentication, default=auto
   --enable-debug          turn on debugging, default=no
   --enable-maintainer     turn on maintainer mode, default=no
-  --enable-sanitizer      build with AddressSanitizer, default=no
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-pdfrip=...       set PDF RIP to use (auto, coregraphics, pdftoppm,
                           none)
+  --with-sanitizer        build with address, leak, memory, thread, or
+                          undefined sanitizer, default=no
   --with-ldflags=...      Specify additional LDFLAGS
 
 Some influential environment variables:
@@ -4191,12 +4192,24 @@ then :
   enableval=$enable_maintainer;
 fi
 
-# Check whether --enable-sanitizer was given.
-if test ${enable_sanitizer+y}
+
+# Check whether --with-sanitizer was given.
+if test ${with_sanitizer+y}
 then :
-  enableval=$enable_sanitizer;
+  withval=$with_sanitizer;
 fi
 
+if test "x$with_sanitizer" = x
+then :
+
+    with_sanitizer="address"
+
+elif test "$with_sanitizer" != address -a "$with_sanitizer" != leak -a "$with_sanitizer" != memory -a "$with_sanitizer" != no -a "$with_sanitizer" != thread -a "$with_sanitizer" != undefined
+then :
+
+    as_fn_error $? "Unsupported --with-sanitizer value \"$with_sanitizer\" specified." "$LINENO" 5
+
+fi
 
 if test x$enable_debug = xyes
 then :
@@ -4219,17 +4232,22 @@ WARNINGS=""
 if test -n "$GCC"
 then :
 
-    if test x$enable_sanitizer = xyes
+    if test x$with_sanitizer != xno
 then :
 
-	# Use -fsanitize=address with debugging...
-	OPTIM="$OPTIM -fsanitize=address"
+	# Use -fsanitize=FOO with debugging...
+	OPTIM="$OPTIM -fsanitize=$with_sanitizer"
+
+elif echo "$CPPFLAGS $CFLAGS" | grep -q _FORTIFY_SOURCE
+then :
+
+        # Don't add _FORTIFY_SOURCE if it is already there
 
 else $as_nop
 
 	# Otherwise use the Fortify enhancements to catch any unbounded
 	# string operations...
-	CPPFLAGS="$CPPFLAGS -D_FORTIFY_SOURCE=2"
+	CPPFLAGS="$CPPFLAGS -D_FORTIFY_SOURCE=3"
 
 fi
 
@@ -4347,25 +4365,65 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 esac
     CFLAGS="$OLDCFLAGS"
 
-        case "$host_os_name" in #(
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for OS-specific compiler options" >&5
+printf %s "checking for OS-specific compiler options... " >&6; }
+    case "$host_os_name" in #(
   linux*) :
 
+    	# Make sure we get the full set of Linux APIs from the headers...
 	CPPFLAGS="$CPPFLAGS -D__USE_MISC -D_GNU_SOURCE"
+
+	# Mark read-only sections as relocatable to random addresses...
+	LDFLAGS="$LDFLAGS -Wl,-z,relro,-z,now"
+
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: -D__USE_MISC -D_GNU_SOURCE -Wl,-z,relro,-z,now" >&5
+printf "%s\n" "-D__USE_MISC -D_GNU_SOURCE -Wl,-z,relro,-z,now" >&6; }
      ;; #(
   darwin*) :
 
-        if test "$host_os_version" -ge 200 -a x$enable_debug != xyes
+        # When not building for debug, target macOS 10.14 or later, "universal"
+        # binaries when possible...
+        if echo "$CPPFLAGS $CFLAGS $LDFLAGS $OPTIM" | grep -q "\\-arch "
 then :
 
-            # macOS 11.0 and higher support the Apple Silicon (arm64) CPUs
+            # Don't add architecture/min-version flags if they are already present
+            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: none" >&5
+printf "%s\n" "none" >&6; }
+
+elif echo "$CPPFLAGS $CFLAGS $LDFLAGS $OPTIM" | grep -q "\\-mmacosx-version-"
+then :
+
+            # Don't add architecture/min-version flags if they are already present
+            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: none" >&5
+printf "%s\n" "none" >&6; }
+
+elif test "$host_os_version" -ge 200 -a x$enable_debug != xyes
+then :
+
+	    # macOS 11.0 and higher support the Apple Silicon (arm64) CPUs
 	    OPTIM="$OPTIM -mmacosx-version-min=10.14 -arch x86_64 -arch arm64"
+            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: -mmacosx-version-min=10.14 -arch x86_64 -arch arm64" >&5
+printf "%s\n" "-mmacosx-version-min=10.14 -arch x86_64 -arch arm64" >&6; }
 
 elif test x$enable_debug != xyes
 then :
 
 	    OPTIM="$OPTIM -mmacosx-version-min=10.14 -arch x86_64"
+            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: -mmacosx-version-min=10.14 -arch x86_64" >&5
+printf "%s\n" "-mmacosx-version-min=10.14 -arch x86_64" >&6; }
+
+else $as_nop
+
+	    # Don't add architecture/min-version flags if debug enabled
+            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: none" >&5
+printf "%s\n" "none" >&6; }
 
 fi
+     ;; #(
+  *) :
+
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: none" >&5
+printf "%s\n" "none" >&6; }
      ;; #(
   *) :
      ;;
