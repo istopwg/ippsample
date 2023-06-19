@@ -1,7 +1,7 @@
 //
 // Option support functions for the IPP tools.
 //
-// Copyright © 2022 by the Printer Working Group.
+// Copyright © 2022-2023 by the Printer Working Group.
 //
 // Licensed under Apache License v2.0.  See the file "LICENSE" for more
 // information.
@@ -619,7 +619,12 @@ get_option(const char    *name,		// I - Attribute name
     // Try finding "IPP_NAME" in the environment...
     snprintf(temp, sizeof(temp), "IPP_%s", name);
     for (ptr = temp + 4; *ptr; ptr ++)
-      *ptr = (char)toupper(*ptr);
+    {
+      if (*ptr == '-')
+        *ptr = '_';
+      else
+	*ptr = (char)toupper(*ptr);
+    }
 
     if ((value = getenv(temp)) == NULL)
     {
