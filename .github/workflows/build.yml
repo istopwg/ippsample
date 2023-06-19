@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 jobs:
-  build-linux-statis-openssl:
+  build-linux-static-openssl:
 
     runs-on: ubuntu-latest
 
@@ -58,7 +58,7 @@ jobs:
       with:
         submodules: recursive
     - name: Install prerequisites
-      run: brew install cppcheck openssl
+      run: brew install cppcheck openssl@3
     - name: Configure
       run: ./configure --enable-debug --enable-maintainer --enable-sanitizer --enable-static --disable-shared
     - name: Make
