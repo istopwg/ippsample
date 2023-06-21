@@ -62,13 +62,13 @@ Building the Code
 The IPP sample code uses a configure script on POSIX platforms to take care of
 any platform differences:
 
-    ./configure OPTIONS
+    ./configure --disable-shared OPTIONS
     make
 
 The following options are supported:
 
 - `--enable-debug`: Enable debugging and debug logging.
-- `--disable-shared`: Disable shared libraries.
+- `--disable-shared`: Disable shared libraries (enabled otherwise).
 - `--enable-maintainer`: Enable warnings as errors.
 - `--enable-sanitizer`: Enable address sanitizer.
 - `--enable-static`: Enable static libraries.
