@@ -2066,7 +2066,7 @@ finish_document_uri(
 
     if ((http = httpConnect(hostname, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
     {
-      respond_ipp(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to connect to %s: %s", hostname, cupsLastErrorString());
+      respond_ipp(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to connect to %s: %s", hostname, cupsGetErrorString());
 
       close(job->fd);
       job->fd = -1;
@@ -3543,7 +3543,7 @@ process_client(ipp3d_client_t *client)	/* I - Client */
 
 	if (httpSetEncryption(client->http, HTTP_ENCRYPTION_ALWAYS))
 	{
-	  fprintf(stderr, "%s Unable to encrypt connection: %s\n", client->hostname, cupsLastErrorString());
+	  fprintf(stderr, "%s Unable to encrypt connection: %s\n", client->hostname, cupsGetErrorString());
 	  break;
         }
 
@@ -3610,10 +3610,10 @@ process_http(ipp3d_client_t *client)	/* I - Client connection */
 
   if (http_state == HTTP_STATE_ERROR)
   {
-    if (httpError(client->http) == EPIPE)
+    if (httpGetError(client->http) == EPIPE)
       fprintf(stderr, "%s Client closed connection.\n", client->hostname);
     else
-      fprintf(stderr, "%s Bad request line (%s).\n", client->hostname, strerror(httpError(client->http)));
+      fprintf(stderr, "%s Bad request line (%s).\n", client->hostname, strerror(httpGetError(client->http)));
 
     return (0);
   }
@@ -3696,7 +3696,7 @@ process_http(ipp3d_client_t *client)	/* I - Client connection */
 
       if (httpSetEncryption(client->http, HTTP_ENCRYPTION_REQUIRED))
       {
-        fprintf(stderr, "%s Unable to encrypt connection: %s\n", client->hostname, cupsLastErrorString());
+        fprintf(stderr, "%s Unable to encrypt connection: %s\n", client->hostname, cupsGetErrorString());
 	return (0);
       }
 
@@ -3840,7 +3840,7 @@ process_http(ipp3d_client_t *client)	/* I - Client connection */
 	{
 	  if (ipp_state == IPP_STATE_ERROR)
 	  {
-            fprintf(stderr, "%s IPP read error (%s).\n", client->hostname, cupsLastErrorString());
+            fprintf(stderr, "%s IPP read error (%s).\n", client->hostname, cupsGetErrorString());
 	    respond_http(client, HTTP_STATUS_BAD_REQUEST, NULL, NULL, 0);
 	    return (0);
 	  }
@@ -4090,7 +4090,7 @@ process_ipp(ipp3d_client_t *client)	/* I - Client */
     httpFlush(client->http);		/* Flush trailing (junk) data */
 
   return (respond_http(client, HTTP_STATUS_OK, NULL, "application/ipp",
-                       ippLength(client->response)));
+                       ippGetLength(client->response)));
 }
 
 
@@ -4315,9 +4315,9 @@ process_job(ipp3d_job_t *job)		/* I - Job */
         snprintf(service, sizeof(service), "%d", port);
 
         if ((addrlist = httpAddrGetList(host, AF_UNSPEC, service)) == NULL)
-          fprintf(stderr, "[Job %d] Unable to find \"%s\": %s\n", job->id, host, cupsLastErrorString());
+          fprintf(stderr, "[Job %d] Unable to find \"%s\": %s\n", job->id, host, cupsGetErrorString());
         else if (!httpAddrConnect(addrlist, &mystdout, 30000, &(job->cancel)))
-          fprintf(stderr, "[Job %d] Unable to connect to \"%s\": %s\n", job->id, host, cupsLastErrorString());
+          fprintf(stderr, "[Job %d] Unable to connect to \"%s\": %s\n", job->id, host, cupsGetErrorString());
 
         httpAddrFreeList(addrlist);
       }

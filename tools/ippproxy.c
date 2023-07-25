@@ -630,9 +630,9 @@ get_device_attrs(const char *device_uri)/* I - Device URI */
 
     response = cupsDoRequest(http, request, resource);
 
-    if (cupsLastError() >= IPP_STATUS_ERROR_BAD_REQUEST)
+    if (cupsGetError() >= IPP_STATUS_ERROR_BAD_REQUEST)
     {
-      fprintf(stderr, "ippproxy: Device at '%s' returned error: %s\n", device_uri, cupsLastErrorString());
+      fprintf(stderr, "ippproxy: Device at '%s' returned error: %s\n", device_uri, cupsGetErrorString());
       ippDelete(response);
       response = NULL;
     }
@@ -1068,9 +1068,9 @@ register_printer(
 
   response = cupsDoRequest(http, request, resource);
 
-  if (cupsLastError() != IPP_STATUS_OK)
+  if (cupsGetError() != IPP_STATUS_OK)
   {
-    plogf(NULL, "Unable to monitor events on '%s': %s", printer_uri, cupsLastErrorString());
+    plogf(NULL, "Unable to monitor events on '%s': %s", printer_uri, cupsGetErrorString());
     return (0);
   }
 
@@ -1147,13 +1147,13 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
     job_attrs = NULL;
   }
 
-  if (!job_attrs || cupsLastError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
+  if (!job_attrs || cupsGetError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
   {
    /*
     * Cannot proxy this job...
     */
 
-    if (cupsLastError() == IPP_STATUS_ERROR_NOT_FETCHABLE)
+    if (cupsGetError() == IPP_STATUS_ERROR_NOT_FETCHABLE)
     {
       plogf(pjob, "Job already fetched by another printer.");
       pjob->local_job_state = IPP_JSTATE_COMPLETED;
@@ -1161,7 +1161,7 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
       return;
     }
 
-    plogf(pjob, "Unable to fetch job: %s", cupsLastErrorString());
+    plogf(pjob, "Unable to fetch job: %s", cupsGetErrorString());
     pjob->local_job_state = IPP_JSTATE_ABORTED;
     goto update_job;
   }
@@ -1174,9 +1174,9 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
 
   ippDelete(cupsDoRequest(info->http, request, info->resource));
 
-  if (cupsLastError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
+  if (cupsGetError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
   {
-    plogf(pjob, "Unable to acknowledge job: %s", cupsLastErrorString());
+    plogf(pjob, "Unable to acknowledge job: %s", cupsGetErrorString());
     pjob->local_job_state = IPP_JSTATE_ABORTED;
     return;
   }
@@ -1210,13 +1210,13 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format-accepted", NULL, doc_format);
 //    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "compression-accepted", NULL, "gzip");
 
-    cupsSendRequest(info->http, request, info->resource, ippLength(request));
+    cupsSendRequest(info->http, request, info->resource, ippGetLength(request));
     doc_attrs = cupsGetResponse(info->http, info->resource);
     ippDelete(request);
 
-    if (!doc_attrs || cupsLastError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
+    if (!doc_attrs || cupsGetError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
     {
-      plogf(pjob, "Unable to fetch document #%d: %s", doc_number, cupsLastErrorString());
+      plogf(pjob, "Unable to fetch document #%d: %s", doc_number, cupsGetErrorString());
 
       pjob->local_job_state = IPP_JSTATE_ABORTED;
       ippDelete(doc_attrs);
@@ -1341,7 +1341,7 @@ run_printer(
     response = cupsDoRequest(http, request, resource);
 
     if (verbosity)
-      plogf(NULL, "Get-Notifications response: %s", ippErrorString(cupsLastError()));
+      plogf(NULL, "Get-Notifications response: %s", ippErrorString(cupsGetError()));
 
     if ((attr = ippFindAttribute(response, "notify-get-interval", IPP_TAG_INTEGER)) != NULL)
       get_interval = ippGetInteger(attr, 0);
@@ -1502,7 +1502,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
   snprintf(service, sizeof(service), "%d", port);
   if ((list = httpAddrGetList(host, AF_UNSPEC, service)) == NULL)
   {
-    plogf(pjob, "Unable to lookup device URI host '%s': %s", host, cupsLastErrorString());
+    plogf(pjob, "Unable to lookup device URI host '%s': %s", host, cupsGetErrorString());
     pjob->local_job_state = IPP_JSTATE_ABORTED;
     return;
   }
@@ -1520,7 +1520,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
 
     if (!httpAddrConnect(list, &sock, 30000, NULL))
     {
-      plogf(pjob, "Unable to connect to '%s': %s", info->device_uri, cupsLastErrorString());
+      plogf(pjob, "Unable to connect to '%s': %s", info->device_uri, cupsGetErrorString());
       pjob->local_job_state = IPP_JSTATE_ABORTED;
       httpAddrFreeList(list);
       return;
@@ -1608,7 +1608,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
 
     if ((http = httpConnect(host, port, list, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
     {
-      plogf(pjob, "Unable to connect to '%s': %s\n", info->device_uri, cupsLastErrorString());
+      plogf(pjob, "Unable to connect to '%s': %s\n", info->device_uri, cupsGetErrorString());
       httpAddrFreeList(list);
       pjob->local_job_state = IPP_JSTATE_ABORTED;
       return;
@@ -1706,7 +1706,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
 
       if (pjob->local_job_id <= 0)
       {
-	plogf(pjob, "Unable to create local job: %s", cupsLastErrorString());
+	plogf(pjob, "Unable to create local job: %s", cupsGetErrorString());
 	pjob->local_job_state = IPP_JSTATE_ABORTED;
 	httpAddrFreeList(list);
 	httpClose(http);
@@ -1763,9 +1763,9 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
 
     ippDelete(response);
 
-    if (cupsLastError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
+    if (cupsGetError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
     {
-      plogf(pjob, "Unable to create local job: %s", cupsLastErrorString());
+      plogf(pjob, "Unable to create local job: %s", cupsGetErrorString());
       pjob->local_job_state = IPP_JSTATE_ABORTED;
       httpAddrFreeList(list);
       httpClose(http);
@@ -1784,7 +1784,7 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
 
       response = cupsDoRequest(http, request, resource);
 
-      if (cupsLastError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
+      if (cupsGetError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
 	job_state = IPP_JSTATE_COMPLETED;
       else
         job_state = (ipp_jstate_t)ippGetInteger(ippFindAttribute(response, "job-state", IPP_TAG_ENUM), 0);
@@ -1807,8 +1807,8 @@ send_document(proxy_info_t *info,	/* I - Proxy information */
 
       ippDelete(cupsDoRequest(http, request, resource));
 
-      if (cupsLastError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
-	plogf(pjob, "Unable to cancel local job: %s", cupsLastErrorString());
+      if (cupsGetError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
+	plogf(pjob, "Unable to cancel local job: %s", cupsGetErrorString());
 
       pjob->local_job_state = IPP_JSTATE_CANCELED;
     }
@@ -1891,9 +1891,9 @@ update_device_attrs(
   {
     ippDelete(cupsDoRequest(http, request, resource));
 
-    if (cupsLastError() != IPP_STATUS_OK)
+    if (cupsGetError() != IPP_STATUS_OK)
     {
-      plogf(NULL, "Unable to update the output device with '%s': %s", printer_uri, cupsLastErrorString());
+      plogf(NULL, "Unable to update the output device with '%s': %s", printer_uri, cupsGetErrorString());
       return (0);
     }
   }
@@ -1901,7 +1901,7 @@ update_device_attrs(
   {
     ippDelete(request);
 
-    plogf(NULL, "Unable to update the output device with '%s': %s", printer_uri, cupsLastErrorString());
+    plogf(NULL, "Unable to update the output device with '%s': %s", printer_uri, cupsGetErrorString());
     return (0);
   }
 
@@ -1934,8 +1934,8 @@ update_document_status(
 
   ippDelete(cupsDoRequest(info->http, request, info->resource));
 
-  if (cupsLastError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
-    plogf(pjob, "Unable to update the state for document #%d: %s", doc_number, cupsLastErrorString());
+  if (cupsGetError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
+    plogf(pjob, "Unable to update the state for document #%d: %s", doc_number, cupsGetErrorString());
 }
 
 
@@ -1960,8 +1960,8 @@ update_job_status(proxy_info_t *info,	/* I - Proxy info */
 
   ippDelete(cupsDoRequest(info->http, request, info->resource));
 
-  if (cupsLastError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
-    plogf(pjob, "Unable to update the job state: %s", cupsLastErrorString());
+  if (cupsGetError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
+    plogf(pjob, "Unable to update the job state: %s", cupsGetErrorString());
 }
 
 
@@ -1994,7 +1994,7 @@ update_remote_jobs(
 
   if ((response = cupsDoRequest(http, request, resource)) == NULL)
   {
-    plogf(NULL, "Get-Jobs failed: %s", cupsLastErrorString());
+    plogf(NULL, "Get-Jobs failed: %s", cupsGetErrorString());
     return (false);
   }
 

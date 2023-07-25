@@ -476,7 +476,7 @@ main(int  argc,				// I - Number of command-line args
     snprintf(service, sizeof(service), "%d", port);
     if ((list = httpAddrGetList(host, AF_UNSPEC, service)) == NULL)
     {
-      fprintf(stderr, "ERROR: Unable to lookup device URI host '%s': %s\n", host, cupsLastErrorString());
+      fprintf(stderr, "ERROR: Unable to lookup device URI host '%s': %s\n", host, cupsGetErrorString());
       return (1);
     }
 
@@ -485,7 +485,7 @@ main(int  argc,				// I - Number of command-line args
       // AppSocket connection...
       if (!httpAddrConnect(list, &fd, 30000, NULL))
       {
-	fprintf(stderr, "ERROR: Unable to connect to '%s' on port %d: %s\n", host, port, cupsLastErrorString());
+	fprintf(stderr, "ERROR: Unable to connect to '%s' on port %d: %s\n", host, port, cupsGetErrorString());
 	return (1);
       }
     }
@@ -514,7 +514,7 @@ main(int  argc,				// I - Number of command-line args
 
       if ((http = httpConnect(host, port, list, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
       {
-	fprintf(stderr, "ERROR: Unable to connect to '%s' on port %d: %s\n", host, port, cupsLastErrorString());
+	fprintf(stderr, "ERROR: Unable to connect to '%s' on port %d: %s\n", host, port, cupsGetErrorString());
 	return (1);
       }
 
@@ -525,9 +525,9 @@ main(int  argc,				// I - Number of command-line args
       ippAddStrings(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", (int)(sizeof(pattrs) / sizeof(pattrs[0])), NULL, pattrs);
 
       response = cupsDoRequest(http, request, resource);
-      if (cupsLastError() > IPP_STATUS_OK_EVENTS_COMPLETE)
+      if (cupsGetError() > IPP_STATUS_OK_EVENTS_COMPLETE)
       {
-        fprintf(stderr, "ERROR: Unable to get printer capabilities: %s\n", cupsLastErrorString());
+        fprintf(stderr, "ERROR: Unable to get printer capabilities: %s\n", cupsGetErrorString());
 	return (1);
       }
 
@@ -565,9 +565,9 @@ main(int  argc,				// I - Number of command-line args
 
         ippDelete(response);
 
-	if (cupsLastError() > IPP_STATUS_OK_EVENTS_COMPLETE)
+	if (cupsGetError() > IPP_STATUS_OK_EVENTS_COMPLETE)
 	{
-	  fprintf(stderr, "ERROR: Unable to create print job: %s\n", cupsLastErrorString());
+	  fprintf(stderr, "ERROR: Unable to create print job: %s\n", cupsGetErrorString());
 	  return (1);
 	}
 	else if (job_id <= 0)
@@ -604,7 +604,7 @@ main(int  argc,				// I - Number of command-line args
 
       if (cupsSendRequest(http, request, resource, 0) != HTTP_STATUS_CONTINUE)
       {
-        fprintf(stderr, "ERROR: Unable to send print data: %s\n", cupsLastErrorString());
+        fprintf(stderr, "ERROR: Unable to send print data: %s\n", cupsGetErrorString());
 	return (1);
       }
 
@@ -669,9 +669,9 @@ main(int  argc,				// I - Number of command-line args
   {
     ippDelete(cupsGetResponse(http, resource));
 
-    if (cupsLastError() > IPP_STATUS_OK_EVENTS_COMPLETE)
+    if (cupsGetError() > IPP_STATUS_OK_EVENTS_COMPLETE)
     {
-      fprintf(stderr, "ERROR: Unable to send print data: %s\n", cupsLastErrorString());
+      fprintf(stderr, "ERROR: Unable to send print data: %s\n", cupsGetErrorString());
       status = 1;
     }
 
@@ -1709,7 +1709,7 @@ monitor_ipp(const char *device_uri)	// I - Device URI
 
   while ((http = httpConnect(host, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
   {
-    fprintf(stderr, "ERROR: Unable to connect to '%s' on port %d: %s\n", host, port, cupsLastErrorString());
+    fprintf(stderr, "ERROR: Unable to connect to '%s' on port %d: %s\n", host, port, cupsGetErrorString());
     sleep(30);
   }
 

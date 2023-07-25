@@ -57,7 +57,7 @@ serverCreateClient(int sock)		/* I - Listen socket */
 
   if ((client->http = httpAcceptConnection(sock, 1)) == NULL)
   {
-    serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Unable to accept client connection: %s", cupsLastErrorString());
+    serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Unable to accept client connection: %s", cupsGetErrorString());
 
     free(client);
 
@@ -95,7 +95,7 @@ serverCreateListeners(const char *host,	/* I - Hostname, IP address, or NULL for
   snprintf(service, sizeof(service), "%d", port);
   if ((addrlist = httpAddrGetList(host, AF_UNSPEC, service)) == NULL)
   {
-    serverLog(SERVER_LOGLEVEL_ERROR, "Unable to resolve Listen address \"%s\": %s", host ? host : "*", cupsLastErrorString());
+    serverLog(SERVER_LOGLEVEL_ERROR, "Unable to resolve Listen address \"%s\": %s", host ? host : "*", cupsGetErrorString());
     return (0);
   }
 
@@ -192,7 +192,7 @@ serverProcessClient(
 
 	if (!httpSetEncryption(client->http, HTTP_ENCRYPTION_ALWAYS))
 	{
-	  serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Unable to encrypt connection: %s", cupsLastErrorString());
+	  serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Unable to encrypt connection: %s", cupsGetErrorString());
 	  break;
         }
 
@@ -264,10 +264,10 @@ serverProcessHTTP(
 
   if (http_state == HTTP_STATE_ERROR)
   {
-    if (httpError(client->http) == EPIPE || httpError(client->http) == ETIMEDOUT || httpError(client->http) == 0)
+    if (httpGetError(client->http) == EPIPE || httpGetError(client->http) == ETIMEDOUT || httpGetError(client->http) == 0)
       serverLogClient(SERVER_LOGLEVEL_INFO, client, "Client closed connection.");
     else
-      serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Bad request line (%s).", strerror(httpError(client->http)));
+      serverLogClient(SERVER_LOGLEVEL_ERROR, client, "Bad request line (%s).", strerror(httpGetError(client->http)));
 
     return (0);
   }
@@ -365,7 +365,7 @@ serverProcessHTTP(
       if (!httpSetEncryption(client->http, HTTP_ENCRYPTION_REQUIRED))
       {
         serverLogClient(SERVER_LOGLEVEL_ERROR, client,
-        "Unable to encrypt connection: %s", cupsLastErrorString());
+        "Unable to encrypt connection: %s", cupsGetErrorString());
 	return (0);
       }
 
@@ -651,7 +651,7 @@ serverProcessHTTP(
 	{
 	  if (ipp_state == IPP_STATE_ERROR)
 	  {
-            serverLogClient(SERVER_LOGLEVEL_ERROR, client, "IPP read error (%s).", cupsLastErrorString());
+            serverLogClient(SERVER_LOGLEVEL_ERROR, client, "IPP read error (%s).", cupsGetErrorString());
 	    serverRespondHTTP(client, HTTP_STATUS_BAD_REQUEST, NULL, NULL, 0);
 	    return (0);
 	  }
@@ -764,7 +764,7 @@ serverRespondHTTP(
     * Send an IPP response...
     */
 
-    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverRespondHTTP: Sending %d bytes of IPP response (Content-Length=%d)", (int)ippLength(client->response), (int)length);
+    serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverRespondHTTP: Sending %d bytes of IPP response (Content-Length=%d)", (int)ippGetLength(client->response), (int)length);
 
     ippSetState(client->response, IPP_STATE_IDLE);
 

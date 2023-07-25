@@ -268,7 +268,7 @@ lint_jpeg(const char    *filename,	/* I - File to check */
 
   if ((fp = cupsFileOpen(filename, "rb")) == NULL)
   {
-    fprintf(stderr, "ERROR: Unable to open \"%s\": %s\n", filename, cupsLastErrorString());
+    fprintf(stderr, "ERROR: Unable to open \"%s\": %s\n", filename, cupsGetErrorString());
     return (0);
   }
 
@@ -657,7 +657,7 @@ lint_raster(const char *filename,	/* I - File to check */
 
   if ((fp = cupsFileOpen(filename, "rb")) == NULL)
   {
-    fprintf(stderr, "ERROR: Unable to open \"%s\": %s\n", filename, cupsLastErrorString());
+    fprintf(stderr, "ERROR: Unable to open \"%s\": %s\n", filename, cupsGetErrorString());
     return (0);
   }
 

@@ -485,7 +485,7 @@ apply_template_attributes(
 
   if (ippReadFile(fd, from) != IPP_STATE_DATA)
   {
-    serverLog(SERVER_LOGLEVEL_ERROR, "Unable to read resource %d file \"%s\": %s", template->id, template->filename, cupsLastErrorString());
+    serverLog(SERVER_LOGLEVEL_ERROR, "Unable to read resource %d file \"%s\": %s", template->id, template->filename, cupsGetErrorString());
     close(fd);
     ippDelete(from);
     return (false);
@@ -788,7 +788,7 @@ copy_document_uri(
 
     if ((http = httpConnect(hostname, port, NULL, AF_UNSPEC, encryption, 1, 30000, NULL)) == NULL)
     {
-      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to connect to %s: %s", hostname, cupsLastErrorString());
+      serverRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_ACCESS, "Unable to connect to %s: %s", hostname, cupsGetErrorString());
       job->state = IPP_JSTATE_ABORTED;
 
       return (0);
@@ -2607,7 +2607,7 @@ ipp_create_printer(
 
         if (!apply_template_attributes(client->request, IPP_TAG_PRINTER, resource, supported, sizeof(printer_values) / sizeof(printer_values[0]), printer_values))
         {
-          serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to apply template-printer resource #%d: %s", resource_id, cupsLastErrorString());
+          serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to apply template-printer resource #%d: %s", resource_id, cupsGetErrorString());
 	  return;
         }
       }
@@ -3758,7 +3758,7 @@ ipp_fetch_document(
       if (!httpWriteResponse(client->http, HTTP_STATUS_OK))
 	return;
 
-      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sending %d bytes of IPP response.", (int)ippLength(client->response));
+      serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "ipp_fetch_document: Sending %d bytes of IPP response.", (int)ippGetLength(client->response));
 
       ippSetState(client->response, IPP_STATE_IDLE);
 
@@ -9365,7 +9365,7 @@ serverProcessIPP(
 
     serverLogAttributes(client, "Response:", client->response, 2);
 
-    return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "application/ipp", client->fetch_file >= 0 ? 0 : ippLength(client->response)));
+    return (serverRespondHTTP(client, HTTP_STATUS_OK, NULL, "application/ipp", client->fetch_file >= 0 ? 0 : ippGetLength(client->response)));
   }
   else
     return (1);
@@ -9681,7 +9681,7 @@ valid_job_attributes(
       {
         if (!apply_template_attributes(client->request, IPP_TAG_JOB, resource, supported, sizeof(job_values) / sizeof(job_values[0]), job_values))
         {
-          serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to apply template-job resource #%d: %s", resource_id, cupsLastErrorString());
+          serverRespondIPP(client, IPP_STATUS_ERROR_INTERNAL, "Unable to apply template-job resource #%d: %s", resource_id, cupsGetErrorString());
 	  cupsRWUnlock(&client->printer->rwlock);
 	  return (false);
         }

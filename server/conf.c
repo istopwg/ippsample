@@ -2772,7 +2772,7 @@ load_system(const char *conf)		/* I - Configuration file */
 
       if (!status)
       {
-	serverLog(SERVER_LOGLEVEL_ERROR, "Unable to listen on address \"%s\": %s", host, cupsLastErrorString());
+	serverLog(SERVER_LOGLEVEL_ERROR, "Unable to listen on address \"%s\": %s", host, cupsGetErrorString());
         break;
       }
     }
