@@ -4197,9 +4197,11 @@ fi
 if test ${with_sanitizer+y}
 then :
   withval=$with_sanitizer;
+else $as_nop
+  with_sanitizer=no
 fi
 
-if test "x$with_sanitizer" = x
+if test "x$with_sanitizer" = xyes
 then :
 
     with_sanitizer="address"

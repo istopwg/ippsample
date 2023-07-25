@@ -170,8 +170,8 @@ AS_IF([test x$enable_libpam != xno], [
 dnl Extra compiler options...
 AC_ARG_ENABLE([debug], AS_HELP_STRING([--enable-debug], [turn on debugging, default=no]))
 AC_ARG_ENABLE([maintainer], AS_HELP_STRING([--enable-maintainer], [turn on maintainer mode, default=no]))
-AC_ARG_WITH([sanitizer], AS_HELP_STRING([--with-sanitizer], [build with address, leak, memory, thread, or undefined sanitizer, default=no]))
-AS_IF([test "x$with_sanitizer" = x], [
+AC_ARG_WITH([sanitizer], AS_HELP_STRING([--with-sanitizer], [build with address, leak, memory, thread, or undefined sanitizer, default=no]), [], [with_sanitizer=no])
+AS_IF([test "x$with_sanitizer" = xyes], [
     with_sanitizer="address"
 ], [test "$with_sanitizer" != address -a "$with_sanitizer" != leak -a "$with_sanitizer" != memory -a "$with_sanitizer" != no -a "$with_sanitizer" != thread -a "$with_sanitizer" != undefined], [
     AC_MSG_ERROR([Unsupported --with-sanitizer value "$with_sanitizer" specified.])

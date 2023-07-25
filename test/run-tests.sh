@@ -2,18 +2,22 @@
 #
 # Integration test script for ippsample.
 #
-# Copyright © 2018-2022 by The Printer Working Group.
+# Copyright © 2018-2023 by The Printer Working Group.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
 # information.
 #
 # Usage:
 #
-#   ./run-tests.sh
+#   test/run-tests.sh
 #
 # Set IPPEVEPRINTERPORT and IPPSERVERPORT environment variable to override the
 # default 8xxx and 9xxx port numbers.
 status=0
+
+# Support running with shared libraries as necessary on macOS and Linux...
+DYLD_LIBRARY_PATH="$(pwd)/libcups/cups"; export DYLD_LIBRARY_PATH
+LD_LIBRARY_PATH="$(pwd)/libcups/cups"; export LD_LIBRARY_PATH
 
 # Determine port numbers to use for tests...
 ippeveprinterport=${IPPEVEPRINTERPORT:=$((8000 + ( $(id -u) % 1000 ) ))}
