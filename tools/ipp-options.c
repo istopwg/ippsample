@@ -36,7 +36,7 @@ static int			compare_overrides(ippopt_override_t *a, ippopt_override_t *b);
 static ippopt_insert_sheet_t	*copy_insert_sheet(ippopt_insert_sheet_t *is);
 static ippopt_override_t	*copy_override(ippopt_override_t *is);
 static const char		*get_option(const char *name, size_t num_options, cups_option_t *options);
-static bool			parse_media(const char *value, cups_size_t *media);
+static bool			parse_media(const char *value, cups_media_t *media);
 
 
 //
@@ -120,7 +120,7 @@ ippOptionGetOverrides(
     ipp_options_t *ippo,		// I - IPP options
     int           document,		// I - Document number (starting at 1)
     int           page,			// I - Page number (starting at 1)
-    cups_size_t   *media)		// O - "media"/"media-col" value
+    cups_media_t  *media)		// O - "media"/"media-col" value
 {
   ippopt_override_t	*override;	// "overrides" value
   ipp_orient_t		orient;		// "orientation-requested" value
@@ -130,9 +130,9 @@ ippOptionGetOverrides(
   if (media)
   {
     if (ippo)
-      memcpy(media, &ippo->media, sizeof(cups_size_t));
+      memcpy(media, &ippo->media, sizeof(cups_media_t));
     else
-      memset(media, 0, sizeof(cups_size_t));
+      memset(media, 0, sizeof(cups_media_t));
   }
 
   orient = ippo ? ippo->orientation_requested : IPP_ORIENT_NONE;
@@ -156,7 +156,7 @@ ippOptionGetOverrides(
       break;				// Stop
 
     // Found a match, copy the override...
-    memcpy(media, &override->media, sizeof(cups_size_t));
+    memcpy(media, &override->media, sizeof(cups_media_t));
     orient = override->orientation_requested;
     break;
   }
@@ -643,8 +643,8 @@ get_option(const char    *name,		// I - Attribute name
 //
 
 static bool				// O - `true` on success, `false` on error
-parse_media(const char  *value,		// I - "media" or "media-col" value
-            cups_size_t *media)		// O - Media value
+parse_media(const char   *value,	// I - "media" or "media-col" value
+            cups_media_t *media)	// O - Media value
 {
   bool		margins_set = false,	// Have margins been set?
 		ret = true;		// Return value
@@ -652,7 +652,7 @@ parse_media(const char  *value,		// I - "media" or "media-col" value
 
 
   // Initialize media
-  memset(media, 0, sizeof(cups_size_t));
+  memset(media, 0, sizeof(cups_media_t));
 
   if (*value == '{')
   {

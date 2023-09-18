@@ -1,7 +1,7 @@
 //
 // Utility for converting PDF and JPEG files to raster data or HP PCL.
 //
-// Copyright © 2016-2022 by the Printer Working Group.
+// Copyright © 2016-2023 by the Printer Working Group.
 // Copyright © 2016-2019 by Apple Inc.
 //
 // Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -147,6 +147,7 @@ static bool	convert_text(xform_prepare_t *p, xform_document_t *d, int document);
 static void	copy_page(xform_prepare_t *p, xform_page_t *outpage, size_t layout);
 static bool	generate_job_error_sheet(xform_prepare_t *p);
 static bool	generate_job_sheets(xform_prepare_t *p);
+static void	media_to_rect(cups_media_t *size, pdfio_rect_t *media, pdfio_rect_t *crop);
 static void	*monitor_ipp(const char *device_uri);
 #ifdef HAVE_COREGRAPHICS
 static void	pack_rgba(unsigned char *row, size_t num_pixels);
@@ -175,7 +176,6 @@ static void	raster_start_job(xform_raster_t *ras, xform_write_cb_t cb, void *ctx
 static void	raster_start_page(xform_raster_t *ras, unsigned page, xform_write_cb_t cb, void *ctx);
 static void	raster_write_line(xform_raster_t *ras, unsigned y, const unsigned char *line, xform_write_cb_t cb, void *ctx);
 static bool	resource_dict_cb(pdfio_dict_t *dict, const char *key, xform_page_t *outpage);
-static void	size_to_rect(cups_size_t *size, pdfio_rect_t *media, pdfio_rect_t *crop);
 static void	usage(int status) _CUPS_NORETURN;
 static ssize_t	write_fd(int *fd, const unsigned char *buffer, size_t bytes);
 static bool	xform_document(const char *filename, unsigned pages, ipp_options_t *options, const char *outformat, const char *resolutions, const char *sheet_back, const char *types, xform_write_cb_t cb, void *ctx);
@@ -1664,6 +1664,28 @@ generate_job_sheets(
 
 
 //
+// 'media_to_rect()' - Convert `cups_media_t` to `pdfio_rect_t` for media and crop boxes.
+//
+
+static void
+media_to_rect(cups_media_t *size,	// I - CUPS media (size) information
+              pdfio_rect_t *media,	// O - PDF MediaBox value
+              pdfio_rect_t *crop)	// O - PDF CropBox value
+{
+  // cups_media_t uses hundredths of millimeters, pdf_rect_t uses points...
+  media->x1 = 0.0;
+  media->y1 = 0.0;
+  media->x2 = 72.0 * size->width / 2540.0;
+  media->y2 = 72.0 * size->length / 2540.0;
+
+  crop->x1  = 72.0 * size->left / 2540.0;
+  crop->y1  = 72.0 * size->bottom / 2540.0;
+  crop->x2  = 72.0 * (size->width - size->right) / 2540.0;
+  crop->y2  = 72.0 * (size->length - size->top) / 2540.0;
+}
+
+
+//
 // 'monitor_ipp()' - Monitor IPP printer status.
 //
 
@@ -2471,7 +2493,7 @@ prepare_documents(
   p.options = options;
   p.errors  = cupsArrayNew(NULL, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
 
-  size_to_rect(&options->media, &p.media, &p.crop);
+  media_to_rect(&options->media, &p.media, &p.crop);
   prepare_number_up(&p);
 
   if (!strncmp(options->sides, "two-sided-", 10) && sheet_back && strcmp(sheet_back, "normal"))
@@ -3262,28 +3284,6 @@ resource_dict_cb(
   }
 
   return (true);
-}
-
-
-//
-// 'size_to_rect()' - Convert `cups_size_t` to `pdfio_rect_t` for media and crop boxes.
-//
-
-static void
-size_to_rect(cups_size_t  *size,	// I - CUPS media size information
-             pdfio_rect_t *media,	// O - PDF MediaBox value
-             pdfio_rect_t *crop)	// O - PDF CropBox value
-{
-  // cups_size_t uses hundredths of millimeters, pdf_rect_t uses points...
-  media->x1 = 0.0;
-  media->y1 = 0.0;
-  media->x2 = 72.0 * size->width / 2540.0;
-  media->y2 = 72.0 * size->length / 2540.0;
-
-  crop->x1  = 72.0 * size->left / 2540.0;
-  crop->y1  = 72.0 * size->bottom / 2540.0;
-  crop->x2  = 72.0 * (size->width - size->right) / 2540.0;
-  crop->y2  = 72.0 * (size->length - size->top) / 2540.0;
 }
 
 
@@ -4192,7 +4192,7 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
 
   if (!cupsRasterInitHeader(&ras->header, &options->media, options->print_content_optimize, options->print_quality, options->print_rendering_intent, options->orientation_requested, sides, type, options->printer_resolution[0], options->printer_resolution[1], NULL))
   {
-    fprintf(stderr, "ERROR: Unable to initialize raster context: %s\n", cupsRasterErrorString());
+    fprintf(stderr, "ERROR: Unable to initialize raster context: %s\n", cupsRasterGetErrorString());
     return (false);
   }
 
@@ -4200,7 +4200,7 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
   {
     if (!cupsRasterInitHeader(&ras->sep_header, &options->separator_media, options->print_content_optimize, options->print_quality, options->print_rendering_intent, options->orientation_requested, sides, type, options->printer_resolution[0], options->printer_resolution[1], NULL))
     {
-      fprintf(stderr, "ERROR: Unable to initialize separator raster context: %s\n", cupsRasterErrorString());
+      fprintf(stderr, "ERROR: Unable to initialize separator raster context: %s\n", cupsRasterGetErrorString());
       return (false);
     }
   }
@@ -4209,7 +4209,7 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
   {
     if (!cupsRasterInitHeader(&ras->back_header, &options->media, options->print_content_optimize, options->print_quality, options->print_rendering_intent, options->orientation_requested, sides, type, options->printer_resolution[0], options->printer_resolution[1], sheet_back))
     {
-      fprintf(stderr, "ERROR: Unable to initialize back side raster context: %s\n", cupsRasterErrorString());
+      fprintf(stderr, "ERROR: Unable to initialize back side raster context: %s\n", cupsRasterGetErrorString());
       return (false);
     }
   }

@@ -35,14 +35,14 @@ typedef enum ippopt_error_report_e	// Combination of "job-error-sheet-type" and 
 typedef struct ippopt_error_sheet_s	// "job-error-sheet" value
 {
   ippopt_error_report_t report;		// "job-error-sheet-type/when" value
-  cups_size_t	media;			// "media" or "media-col" value, if any
+  cups_media_t	media;			// "media" or "media-col" value, if any
 } ippopt_error_sheet_t;
 
 typedef struct ippopt_insert_sheet_s	// "insert-sheet" value
 {
   int		after_page,		// Where to insert the sheet (0 for before page 1)
 		count;			// Number of sheets to insert
-  cups_size_t	media;			// "media" or "media-col" value, if any
+  cups_media_t	media;			// "media" or "media-col" value, if any
 } ippopt_insert_sheet_t;
 
 typedef enum ippopt_handling_e		// "multiple-document-handling" values
@@ -59,7 +59,7 @@ typedef struct ippopt_override_s		// "overrides" value
 		last_document,		// Upper document-numbers value
 		first_page,		// Lower page-numbers value
 		last_page;		// Upper page-numbers value
-  cups_size_t	media;			// "media" or "media-col" value, if any
+  cups_media_t	media;			// "media" or "media-col" value, if any
   ipp_orient_t	orientation_requested;	// "orientation-requested" value, if any
 } ippopt_override_t;
 
@@ -111,8 +111,8 @@ typedef struct ipp_options_s		// All IPP options in one structure
   int		job_pages_per_set;	// "job-pages-per-set" value
   char		job_sheet_message[1024];// "job-sheet-message" value
   char		job_sheets[128];	// "job-sheets" value
-  cups_size_t	job_sheets_media;	// "job-sheets-col" "media" or "media-col" value
-  cups_size_t	media;			// "media" or "media-col" value
+  cups_media_t	job_sheets_media;	// "job-sheets-col" "media" or "media-col" value
+  cups_media_t	media;			// "media" or "media-col" value
   ippopt_handling_t multiple_document_handling;
 					// "multiple-document-handling" value
   int		number_up;		// "number-up" value
@@ -131,7 +131,7 @@ typedef struct ipp_options_s		// All IPP options in one structure
   ippopt_scaling_t print_scaling;	// "print-scaling" value
   int		printer_resolution[2];	// "printer-resolution" values (DPI)
   ippopt_septype_t separator_type;	// "separator-sheets-type" value
-  cups_size_t	separator_media;	// "separator-sheets" "media" or "media-col" value
+  cups_media_t	separator_media;	// "separator-sheets" "media" or "media-col" value
   char		sides[128];		// "sides" value
   ippopt_imgpos_t x_image_position;	// "x-image-position" value
   int		x_side1_image_shift,	// "x-side1-image-shift" or "x-image-shift" value
@@ -150,7 +150,7 @@ extern bool		ippOptionsCheckPage(ipp_options_t *ippo, int page);
 extern void		ippOptionsDelete(ipp_options_t *ippo);
 extern int		ippOptionsGetFirstPage(ipp_options_t *ippo);
 extern int		ippOptionsGetLastPage(ipp_options_t *ippo);
-extern ipp_orient_t	ippOptionGetOverrides(ipp_options_t *ippo, int document, int page, cups_size_t *media);
+extern ipp_orient_t	ippOptionGetOverrides(ipp_options_t *ippo, int document, int page, cups_media_t *media);
 extern ipp_options_t	*ippOptionsNew(size_t num_options, cups_option_t *options);
 
 
