@@ -35,7 +35,7 @@ extern void CGContextSetCTM(CGContextRef c, CGAffineTransform m);
 
 
 // Constants...
-#define XFORM_MAX_LAYOUT		16
+#define XFORM_MAX_LAYOUT	16
 #define XFORM_MAX_PAGES		10000
 #define XFORM_MAX_RASTER	16777216
 
@@ -165,7 +165,7 @@ static void	pdfio_end_page(xform_prepare_t *p, pdfio_stream_t *st);
 static bool	pdfio_error_cb(pdfio_file_t *pdf, const char *message, void *cb_data);
 static const char *pdfio_password_cb(void *cb_data, const char *filename);
 static pdfio_stream_t *pdfio_start_page(xform_prepare_t *p, pdfio_dict_t *dict);
-static bool	prepare_documents(size_t num_documents, xform_document_t *documents, ipp_options_t *options, const char *sheet_back, char *outfile, size_t outsize, unsigned *outpages);
+static bool	prepare_documents(size_t num_documents, xform_document_t *documents, ipp_options_t *options, const char *sheet_back, char *outfile, size_t outsize, const char *outformat, unsigned *outpages, bool generate_copies);
 static void	prepare_log(xform_prepare_t *p, bool error, const char *message, ...);
 static void	prepare_number_up(xform_prepare_t *p);
 static void	prepare_pages(xform_prepare_t *p, size_t num_documents, xform_document_t *documents);
@@ -444,7 +444,7 @@ main(int  argc,				// I - Number of command-line args
   // Prepare a PDF file for printing...
   ipp_options = ippOptionsNew(num_options, options);
 
-  if (!prepare_documents(num_files, files, ipp_options, sheet_back, pdf_file, sizeof(pdf_file), &pdf_pages))
+  if (!prepare_documents(num_files, files, ipp_options, sheet_back, pdf_file, sizeof(pdf_file), output_type, &pdf_pages, !strcmp(output_type, "application/pdf")))
   {
     // Unable to prepare documents, exit...
     ippOptionsDelete(ipp_options);
@@ -1277,6 +1277,8 @@ copy_page(xform_prepare_t *p,		// I - Preparation data
     rotate = false;
   }
 
+  fprintf(stderr, "DEBUG: iwidth=%g, iheight=%g, cwidth=%g, cheight=%g, rotate=%s\n", iwidth, iheight, cwidth, cheight, rotate ? "true" : "false");
+
   scaling = cwidth / iwidth;
   if (p->options->print_scaling == IPPOPT_SCALING_FILL)
   {
@@ -1297,8 +1299,8 @@ copy_page(xform_prepare_t *p,		// I - Preparation data
     cm[0][1] = -scaling;
     cm[1][0] = scaling;
     cm[1][1] = 0.0;
-    cm[2][0] = cell->x1;
-    cm[2][1] = cell->y2;
+    cm[2][0] = cell->x1 + 0.5 * (cwidth - iwidth * scaling);
+    cm[2][1] = cell->y2 + 0.5 * (cheight - iheight * scaling);
   }
   else
   {
@@ -1306,8 +1308,8 @@ copy_page(xform_prepare_t *p,		// I - Preparation data
     cm[0][1] = 0.0;
     cm[1][0] = 0.0;
     cm[1][1] = scaling;
-    cm[2][0] = cell->x1;
-    cm[2][1] = cell->y1;
+    cm[2][0] = cell->x1 + 0.5 * (cwidth - iwidth * scaling);
+    cm[2][1] = cell->y1 + 0.5 * (cheight - iheight * scaling);
   }
 
   if (Verbosity)
@@ -1508,6 +1510,7 @@ copy_page(xform_prepare_t *p,		// I - Preparation data
   }
 
   // Restore state...
+  pdfioStreamPuts(outpage->output, "\n");
   pdfioContentRestore(outpage->output);
 }
 
@@ -2472,9 +2475,12 @@ prepare_documents(
     const char       *sheet_back,	// I - Back side transform
     char             *outfile,		// I - Output filename buffer
     size_t           outsize,		// I - Output filename buffer size
-    unsigned         *outpages)		// O - Number of pages
+    const char       *outformat,	// I - Output format
+    unsigned         *outpages,		// O - Number of pages
+    bool             generate_copies)	// I - Generate copies in output PDF?
 {
   bool			ret = false;	// Return value
+  int			copies;		// Number of copies
   size_t		i;		// Looping var
   xform_prepare_t	p;		// Preparation data
   xform_document_t	*d;		// Current document
@@ -2627,74 +2633,89 @@ prepare_documents(
     generate_job_sheets(&p);
 
   // Copy pages to the output file...
-  reverse_order = !strcmp(options->output_bin, "face-up");
-  if (options->page_delivery >= IPPOPT_DELIVERY_REVERSE_ORDER_FACE_DOWN)
-    reverse_order = !reverse_order;
-
-  if (reverse_order)
+  for (copies = generate_copies ? options->copies : 1; copies > 0; copies --)
   {
-    outpage = p.outpages + p.num_outpages - 1;
-    outdir  = -1;
-  }
-  else
-  {
-    outpage = p.outpages;
-    outdir  = 1;
-  }
+    reverse_order = !strcmp(options->output_bin, "face-up");
+    if (options->page_delivery >= IPPOPT_DELIVERY_REVERSE_ORDER_FACE_DOWN)
+      reverse_order = !reverse_order;
 
-  if (p.num_layout == 1)
-  {
-    // Simple path - no layout of pages so we can just copy the pages quickly.
-    if (Verbosity)
-      fputs("DEBUG: Doing fast copy of pages.\n", stderr);
-
-    for (i = p.num_outpages; i > 0; i --, outpage += outdir)
+    if (reverse_order)
     {
-      if (outpage->input[0])
-        pdfioPageCopy(p.pdf, outpage->input[0]);
+      outpage = p.outpages + p.num_outpages - 1;
+      outdir  = -1;
     }
-  }
-  else
-  {
-    // Layout path - merge page resources and do mapping of resources as needed
-    if (Verbosity)
-      fprintf(stderr, "DEBUG: Doing full layout of %u pages.\n", (unsigned)p.num_outpages);
-
-    for (i = p.num_outpages; i > 0; i --, outpage += outdir)
+    else
     {
-      // Create a page dictionary that merges the resources from each of the
-      // input pages...
+      outpage = p.outpages;
+      outdir  = 1;
+    }
+
+    if (p.num_layout == 1 && options->print_scaling == IPPOPT_SCALING_NONE && strcmp(outformat, "image/pwg-raster") && strcmp(outformat, "image/urf"))
+    {
+      // Simple path - no layout/scaling/rotation of pages so we can just copy the pages quickly.
       if (Verbosity)
-        fprintf(stderr, "DEBUG: Laying out page %u/%u.\n", (unsigned)(outpage - p.outpages + 1), (unsigned)p.num_outpages);
+	fputs("DEBUG: Doing fast copy of pages.\n", stderr);
 
-      outpage->pagedict = pdfioDictCreate(p.pdf);
-      outpage->resdict  = pdfioDictCreate(p.pdf);
-
-      pdfioDictSetRect(outpage->pagedict, "CropBox", &p.media);
-      pdfioDictSetRect(outpage->pagedict, "MediaBox", &p.media);
-      pdfioDictSetDict(outpage->pagedict, "Resources", outpage->resdict);
-      pdfioDictSetName(outpage->pagedict, "Type", "Page");
-
-      for (layout = 0; layout < p.num_layout; layout ++)
+      for (i = p.num_outpages; i > 0; i --, outpage += outdir)
       {
-        if (!outpage->input[layout])
-          continue;
-
-        outpage->layout  = layout;
-        outpage->restype = NULL;
-        pdfioDictIterateKeys(pdfioDictGetDict(pdfioObjGetDict(outpage->input[layout]), "Resources"), (pdfio_dict_cb_t)page_dict_cb, outpage);
-        // TODO: Handle inherited resources from parent page objects...
+	if (outpage->input[0])
+	  pdfioPageCopy(p.pdf, outpage->input[0]);
       }
+    }
+    else
+    {
+      // Layout path - merge page resources and do mapping of resources as needed
+      if (Verbosity)
+	fprintf(stderr, "DEBUG: Doing full layout of %u pages.\n", (unsigned)p.num_outpages);
 
-      // Now copy the content streams to build the composite page, using the
-      // resource map for any named resources...
-      outpage->output = pdfio_start_page(&p, outpage->pagedict);
+      for (i = p.num_outpages; i > 0; i --, outpage += outdir)
+      {
+	// Create a page dictionary that merges the resources from each of the
+	// input pages...
+	if (Verbosity)
+	  fprintf(stderr, "DEBUG: Laying out page %u/%u.\n", (unsigned)(outpage - p.outpages + 1), (unsigned)p.num_outpages);
 
-      for (layout = 0; layout < p.num_layout; layout ++)
-        copy_page(&p, outpage, layout);
+	outpage->pagedict = pdfioDictCreate(p.pdf);
+	outpage->resdict  = pdfioDictCreate(p.pdf);
 
-      pdfio_end_page(&p, outpage->output);
-      outpage->output = NULL;
+	pdfioDictSetRect(outpage->pagedict, "CropBox", &p.media);
+	pdfioDictSetRect(outpage->pagedict, "MediaBox", &p.media);
+	pdfioDictSetDict(outpage->pagedict, "Resources", outpage->resdict);
+	pdfioDictSetName(outpage->pagedict, "Type", "Page");
+
+	for (layout = 0; layout < p.num_layout; layout ++)
+	{
+	  pdfio_dict_t	*pagedict,	// Page dictionary
+			*resdict;	// Resources dictionary
+	  pdfio_obj_t	*resobj;	// Resources object
+
+	  if (!outpage->input[layout])
+	    continue;
+
+	  outpage->layout  = layout;
+	  outpage->restype = NULL;
+
+          pagedict = pdfioObjGetDict(outpage->input[layout]);
+          if ((resdict = pdfioDictGetDict(pagedict, "Resources")) != NULL)
+	    pdfioDictIterateKeys(resdict, (pdfio_dict_cb_t)page_dict_cb, outpage);
+	  else if ((resobj = pdfioDictGetObj(pagedict, "Resources")) != NULL)
+	    pdfioDictIterateKeys(pdfioObjGetDict(resobj), (pdfio_dict_cb_t)page_dict_cb, outpage);
+          else if (Verbosity)
+            fprintf(stderr, "DEBUG: No Resources for cell %u.\n", (unsigned)layout);
+
+	  // TODO: Handle inherited resources from parent page objects...
+	}
+
+	// Now copy the content streams to build the composite page, using the
+	// resource map for any named resources...
+	outpage->output = pdfio_start_page(&p, outpage->pagedict);
+
+	for (layout = 0; layout < p.num_layout; layout ++)
+	  copy_page(&p, outpage, layout);
+
+	pdfio_end_page(&p, outpage->output);
+	outpage->output = NULL;
+      }
     }
   }
 
@@ -3528,7 +3549,7 @@ xform_document(
       unsigned char	*lineptr;	// Pointer to line
 
       pdf_page  = CGPDFDocumentGetPage(document, page);
-      transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox,dest, 0, true);
+      transform = CGPDFPageGetDrawingTransform(pdf_page, kCGPDFCropBox, dest, 0, true);
 
       if (Verbosity > 1)
 	fprintf(stderr, "DEBUG: Printing copy %d/%d, page %d/%d, transform=[%g %g %g %g %g %g]\n", copy + 1, options->copies, page, pages, transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty);
@@ -3645,7 +3666,7 @@ xform_document(
 }
 
 
-#else
+#else // pdftoppm
 //
 // 'xform_document()' - Transform a file for printing.
 //
