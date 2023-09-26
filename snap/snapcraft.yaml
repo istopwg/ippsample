@@ -1,6 +1,6 @@
 name: ipp
 base: core20
-version: 2023.04
+version: 2023.09
 summary: IPP Sample Implementation
 description: |
   This snap provides sample, non-production-ready implementations of IPP
@@ -50,4 +50,4 @@ parts:
         source: .
         source-submodules: [libcups, pdfio]
         build-packages: [cura-engine, libavahi-client-dev, libjpeg-dev, libpam-dev, libpng-dev, libssl-dev, libusb-1.0-0-dev, zlib1g-dev]
-        stage-packages: [libavahi-client3, libjpeg-turbo8]
+        stage-packages: [libavahi-client3, libjpeg-turbo8, poppler-utils]
