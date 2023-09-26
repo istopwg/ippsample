@@ -4235,13 +4235,10 @@ xform_setup(xform_raster_t *ras,	// I - Raster information
     }
   }
 
-  if (ras->header.cupsBitsPerPixel == 1)
-  {
-    if (!strcmp(options->print_color_mode, "bi-level") || !strcmp(options->print_color_mode, "process-bi-level"))
-      memset(ras->dither, 127, sizeof(ras->dither));
-    else
-      memcpy(ras->dither, threshold, sizeof(ras->dither));
-  }
+  if (!strcmp(options->print_color_mode, "bi-level") || !strcmp(options->print_color_mode, "process-bi-level"))
+    memset(ras->dither, 127, sizeof(ras->dither));
+  else
+    memcpy(ras->dither, threshold, sizeof(ras->dither));
 
   ras->header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount]      = (unsigned)options->copies * pages;
   ras->back_header.cupsInteger[CUPS_RASTER_PWG_TotalPageCount] = (unsigned)options->copies * pages;
