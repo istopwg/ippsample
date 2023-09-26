@@ -86,7 +86,7 @@ typedef unsigned long useconds_t;
 
 
 // Version number
-#define IPPSAMPLE_VERSION "2023.04"
+#define IPPSAMPLE_VERSION "2023.09"
 
 
 // PAM support

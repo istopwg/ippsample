@@ -12,7 +12,7 @@
 
 
 // Version number
-#define IPPSAMPLE_VERSION "2023.04"
+#define IPPSAMPLE_VERSION "2023.09"
 
 
 // PAM support
