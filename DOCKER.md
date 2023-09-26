@@ -15,11 +15,18 @@ containing this docker file run:
     docker build -t ippsample .
 
 You now can run the container with a bash terminal and go to the
-`/root/ippsample` folder manually.
+`/root/ippsample` folder manually:
 
     docker run -it ippsample bash
 
-You can also run one of the IPP binaries instead of the bash terminal.
+Similarly, you can run the ippsample test suite with:
+
+    docker run -it ippsample make test
+
+You can also run one of the IPP binaries instead of the bash terminal, for
+example:
+
+    docker run -it ippsample ipptool -tv ipp://example.local/ipp/print get-printer-attributes.test
 
 
 Building and Running with Docker Compose
