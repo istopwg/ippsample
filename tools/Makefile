@@ -19,14 +19,12 @@ OBJS		=	\
 			ipptransform3d.o
 TARGETS         =       \
                         $(BIN_TARGETS) \
-                        $(COMMAND_TARGETS) \
                         $(SBIN_TARGETS)
-COMMAND_TARGETS	=	\
+BIN_TARGETS	=	\
+			ipp3dprinter \
 			ippdoclint \
 			ipptransform \
 			$(IPPTRANSFORM3D_BIN)
-BIN_TARGETS	=	\
-			ipp3dprinter
 SBIN_TARGETS	=	\
 			ippproxy
 
@@ -63,12 +61,6 @@ install:	all
 	$(INSTALL_DIR) $(BUILDROOT)$(bindir)
 	for file in $(BIN_TARGETS); do \
 		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir)/$$file; \
-	done
-	echo "Installing printer commands to $(BUILDROOT)$(libexecdir)/cups/command..."
-	$(INSTALL_DIR) $(BUILDROOT)$(libexecdir)/cups/command
-	for file in $(COMMAND_TARGETS); do \
-		$(INSTALL_BIN) $$file $(BUILDROOT)$(bindir)/$$file; \
-		$(LN) $(bindir)/$$file $(BUILDROOT)$(libexecdir)/cups/command/$$file; \
 	done
 	echo "Installing admin programs to $(BUILDROOT)$(sbindir)..."
 	$(INSTALL_DIR) $(BUILDROOT)$(sbindir)
