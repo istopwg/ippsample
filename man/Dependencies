@@ -1,2 +1,0 @@
-mantohtml.o: mantohtml.c ../cups/string-private.h ../config.h \
-  ../cups/array-private.h ../cups/array.h ../cups/versioning.h

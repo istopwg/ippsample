@@ -1,7 +1,7 @@
 #
 # IPP documentation makefile.
 #
-# Copyright © 2014-2022 by the Printer Working Group.
+# Copyright © 2014-2023 by the Printer Working Group.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
 # information.
@@ -10,10 +10,6 @@
 include ../Makedefs
 
 
-OBJS		=	\
-			mantohtml.o
-TARGETS		=	\
-			mantohtml
 MAN1		=	\
 			ipp3dprinter.1
 MAN7		=	\
@@ -37,16 +33,16 @@ HTML		=	\
 #
 
 .SUFFIXES:	.1 .7 .8 .html
-.1.html .7.html .8.html:	mantohtml
+.1.html .7.html .8.html:
 	echo Generating $@...
-	./mantohtml $< >$@
+	mantohtml $< >$@
 
 
 #
 # Make all targets...
 #
 
-all:		$(TARGETS) $(HTML)
+all:		$(HTML)
 
 
 #
@@ -54,7 +50,6 @@ all:		$(TARGETS) $(HTML)
 #
 
 clean:
-	$(RM) $(TARGETS) $(OBJS)
 
 
 #
@@ -62,7 +57,6 @@ clean:
 #
 
 depend:
-	$(CC) -MM $(ALL_CFLAGS) $(OBJS:.o=.c) >Dependencies
 
 
 #
@@ -83,19 +77,3 @@ install:
 	for file in $(MAN8); do \
 		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man8/$$man; \
 	done
-
-
-#
-# mantohtml
-#
-
-mantohtml:	mantohtml.o ../cups/libcups.a
-	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ mantohtml.o $(LIBS)
-
-
-#
-# Dependencies...
-#
-
-include Dependencies

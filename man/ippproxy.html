@@ -1,89 +1,101 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
 <html>
-<!-- SECTION: Man Pages -->
-<head>
-	<link rel="stylesheet" type="text/css" href="../cups-printable.css">
-	<title>ippproxy(8)</title>
-</head>
-<body>
-<h1 class="title">ippproxy(8)</h1>
-<h2 class="title"><a name="NAME">Name</a></h2>
-ippproxy - a simple ipp proxy client
-<h2 class="title"><a name="SYNOPSIS">Synopsis</a></h2>
-<b>ippproxy</b>
+  <head>
+    <meta name="creator" content="mantohtml v2022.1005">
+    <title>Documentation</title>
+  </head>
+  <body>
+    <h1 id="ippproxy-8">ippproxy(8)</h1>
+    <h2 id="ippproxy-8.name">Name</h2>
+<p>ippproxy - a simple ipp proxy client
+</p>
+    <h2 id="ippproxy-8.synopsis">Synopsis</h2>
+<p><strong>ippproxy</strong>
 [
-<b>--help</b>
+<strong>--help</strong>
 ] [
-<b>--version</b>
+<strong>--version</strong>
 ] [
-<b>-d</b>
-<i>device-uri</i>
+<strong>-d</strong>
+<em>device-uri</em>
 ] [
-<b>-m</b>
-<i>mime/type</i>
+<strong>-m</strong>
+<em>mime/type</em>
 ] [
-<b>-p</b>
-<i>password</i>
+<strong>-p</strong>
+<em>password</em>
 ] [
-<b>-u</b>
-<i>user</i>
+<strong>-u</strong>
+<em>user</em>
 ] [
-<b>-v[vv]</b>
+<strong>-v[vv]</strong>
 ]
-<i>infrastructure-printer-uri</i>
-<h2 class="title"><a name="DESCRIPTION">Description</a></h2>
-<b>ippproxy</b>
+<em>infrastructure-printer-uri</em>
+</p>
+    <h2 id="ippproxy-8.description">Description</h2>
+<p><strong>ippproxy</strong>
 is a simple IPP proxy client conforming to the IPP Shared Infrastructure Extensions (INFRA) specification. It can be used to proxy access to a local IPP printer through an Infrastructure Printer such as
-<b>ippserver</b>(8).
-<h2 class="title"><a name="OPTIONS">Options</a></h2>
-The following options are recognized by
-<b>ippproxy:</b>
-<dl class="man">
-<dt><b>--help</b>
-<dd style="margin-left: 5.0em">Show program help.
-<dt><b>--version</b>
-<dd style="margin-left: 5.0em">Show program version.
-<dt><b>-d </b><i>device-uri</i>
-<dd style="margin-left: 5.0em">Specifies the local device using its URI.
-<b>ippproxy</b>
+<strong>ippserver</strong>(8).
+
+</p>
+    <h2 id="ippproxy-8.options">Options</h2>
+<p>The following options are recognized by
+<strong>ippproxy:</strong>
+</p>
+    <p style="margin-left: 2.5em; text-indent: -2.5em;"><strong>--help</strong><br>
+Show program help.
+</p>
+    <p style="margin-left: 2.5em; text-indent: -2.5em;"><strong>--version</strong><br>
+Show program version.
+</p>
+    <p style="margin-left: 2.5em; text-indent: -2.5em;"><strong>-d </strong><em>device-uri</em><br>
+Specifies the local device using its URI.
+<strong>ippproxy</strong>
 supports "ipp", "ipps", and "socket" URIs.
-<dt><b>-m </b><i>mime/types</i>
-<dd style="margin-left: 5.0em">Specifies the output format as a MIME media type.
-<b>ippproxy</b>
+</p>
+    <p style="margin-left: 2.5em; text-indent: -2.5em;"><strong>-m </strong><em>mime/types</em><br>
+Specifies the output format as a MIME media type.
+<strong>ippproxy</strong>
 supports "application/vnd.hp-pcl" (HP PCL), "image/pwg-raster" (PWG Raster), and "image/urf" (Apple Raster).
 The default is to choose an output format automatically.
-<dt><b>-p </b><i>password</i>
-<dd style="margin-left: 5.0em">Specifies the password to use when authenticating with the Infrastructure Printer.
-<dt><b>-u </b><i>user</i>
-<dd style="margin-left: 5.0em">Specifies the user name to use when authenticating with the Infrastructure Printer.
-<dt><b>-v[vvv]</b>
-<dd style="margin-left: 5.0em">Be (very) verbose when logging activity to the standard output.
-</dl>
-<h2 class="title"><a name="EXIT_STATUS">Exit Status</a></h2>
-The
-<b>ippproxy</b>
+</p>
+    <p style="margin-left: 2.5em; text-indent: -2.5em;"><strong>-p </strong><em>password</em><br>
+Specifies the password to use when authenticating with the Infrastructure Printer.
+</p>
+    <p style="margin-left: 2.5em; text-indent: -2.5em;"><strong>-u </strong><em>user</em><br>
+Specifies the user name to use when authenticating with the Infrastructure Printer.
+</p>
+    <p style="margin-left: 2.5em; text-indent: -2.5em;"><strong>-v[vvv]</strong><br>
+Be (very) verbose when logging activity to the standard output.
+</p>
+    <h2 id="ippproxy-8.exit-status">Exit Status</h2>
+<p>The
+<strong>ippproxy</strong>
 program returns 1 if it is unable to process the command-line arguments or connect to either the infrastructure or local printers.
 Otherwise
-<b>ippproxy</b>
+<strong>ippproxy</strong>
 will run continuously until terminated.
-<h2 class="title"><a name="CONFORMING_TO">Conforming To</a></h2>
-The
-<b>ippproxy</b>
+</p>
+    <h2 id="ippproxy-8.conforming-to">Conforming To</h2>
+<p>The
+<strong>ippproxy</strong>
 program conforms to PWG Candidate Standard 5100.18: IPP Shared Infrastructure Extensions (INFRA).
-<h2 class="title"><a name="EXAMPLE">Example</a></h2>
-Run
-<b>ippproxy</b>
+</p>
+    <h2 id="ippproxy-8.example">Example</h2>
+<p>Run
+<strong>ippproxy</strong>
 with an infrastructure URI of "ipps://host.example.com/ipp/print" and a local URI of "ipp://10.0.1.42/ipp/print":
-<pre class="man">
-
+</p>
+    <pre>
     ippproxy -d ipp://10.0.1.42/ipp/print ipps://host.example.com/ipp/print
 </pre>
-<h2 class="title"><a name="SEE_ALSO">See Also</a></h2>
-<a href="ippserver.html"><b>ippserver</b>(8)</a>,
-PWG Internet Printing Protocol Workgroup (<a href="http://www.pwg.org/ipp">http://www.pwg.org/ipp</a>)
-<h2 class="title"><a name="COPYRIGHT">Copyright</a></h2>
-Copyright &copy; 2014-2018 by the Printer Working Group.
-Copyright &copy; 2007-2018 by Apple Inc.
+    <h2 id="ippproxy-8.see-also">See Also</h2>
+<p><strong>ippserver</strong>(8),
 
-</body>
+PWG Internet Printing Protocol Workgroup (<a href="http://www.pwg.org/ipp">http://www.pwg.org/ipp</a>)
+</p>
+    <h2 id="ippproxy-8.copyright">Copyright</h2>
+<p>Copyright &copy; 2014-2018 by the Printer Working Group.
+Copyright &copy; 2007-2018 by Apple Inc.
+  </body>
 </html>
