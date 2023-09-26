@@ -1,7 +1,7 @@
 /*
  * ipptransform3d utility for converting 3MF and STL files to G-code.
  *
- * Copyright 2016-2019 by the Printer Working Group.
+ * Copyright 2016-2023 by the Printer Working Group.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -551,7 +551,7 @@ open_device(const char *device_uri)	/* I - Device URI */
   if (strncmp(device_uri, "usbserial:///dev/", 17))
     return (-1);
 
-  strlcpy(filename, device_uri + 12, sizeof(filename));
+  cupsCopyString(filename, device_uri + 12, sizeof(filename));
   if ((options = strchr(filename, '?')) != NULL)
     *options++ = '\0';
 
@@ -717,7 +717,7 @@ xform_document(
   else
     machine = "ultimaker2";
 
-  strlcpy(curapath, CURAENGINE, sizeof(curapath));
+  cupsCopyString(curapath, CURAENGINE, sizeof(curapath));
   if ((ptr = strstr(curapath, "Cura.app/")) != NULL)
   {
    /*
