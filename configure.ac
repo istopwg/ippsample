@@ -132,6 +132,9 @@ PATH="$SAVEPATH"
 
 AS_IF([test "x$CURAENGINE" != x], [
     AC_DEFINE_UNQUOTED([CURAENGINE], ["$CURAENGINE"], [CuraEngine path])
+    IPPTRANSFORM3D_BIN="ipptransform3d"
+    IPPTRANSFORM3D_HTML="ipptransform3d.html"
+    IPPTRANSFORM3D_MAN="ipptransform3d.7"
 ])
 
 

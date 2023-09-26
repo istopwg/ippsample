@@ -3932,6 +3932,9 @@ then :
 
 printf "%s\n" "#define CURAENGINE \"$CURAENGINE\"" >>confdefs.h
 
+    IPPTRANSFORM3D_BIN="ipptransform3d"
+    IPPTRANSFORM3D_HTML="ipptransform3d.html"
+    IPPTRANSFORM3D_MAN="ipptransform3d.7"
 
 fi
 
