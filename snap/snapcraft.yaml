@@ -1,6 +1,6 @@
 name: ipp
-base: core20
-version: 2023.09
+base: core22
+version: '2023.09'
 summary: IPP Sample Implementation
 description: |
   This snap provides sample, non-production-ready implementations of IPP
