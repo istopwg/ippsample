@@ -111,6 +111,13 @@ dnl Check for pkg-config, which is used for some other tests later on...
 AC_PATH_TOOL([PKGCONFIG], [pkg-config])
 
 
+dnl Math library...
+AC_ARG_ENABLE([shared], AS_HELP_STRING([--disable-shared], [do not install shared library]))
+AS_IF([test x$enable_shared != xno], [
+    LIBS="$LIBS -lm"
+])
+
+
 dnl PAM support...
 AC_ARG_ENABLE([pam], AS_HELP_STRING([--enable-libpam], [use libpam for authentication, default=auto]))
 
