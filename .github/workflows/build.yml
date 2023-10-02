@@ -78,6 +78,6 @@ jobs:
     - name: Setup msbuild
       uses: microsoft/setup-msbuild@v1.0.2
     - name: Restore NuGet packages
-      run: cd vcnet; nuget restore ippsample.sln; cd ..\libcups\vcnet; nuget restore libcups.sln; cd ..\..\pdfio; nuget restore pdfio.sln
+      run: cd vcnet; nuget restore ippsample.sln; cd ..\libcups\vcnet; nuget restore libcups.sln
     - name: Build
       run: cd vcnet; msbuild ippsample.sln
