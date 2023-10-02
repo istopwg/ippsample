@@ -11,11 +11,9 @@ include ../Makedefs
 
 
 OBJS		=	\
-			ipp-options.o \
 			ipp3dprinter.o \
 			ippdoclint.o \
 			ippproxy.o \
-			ipptransform.o \
 			ipptransform3d.o
 TARGETS         =       \
                         $(BIN_TARGETS) \
@@ -23,7 +21,6 @@ TARGETS         =       \
 BIN_TARGETS	=	\
 			ipp3dprinter \
 			ippdoclint \
-			ipptransform \
 			$(IPPTRANSFORM3D_BIN)
 SBIN_TARGETS	=	\
 			ippproxy
@@ -101,15 +98,6 @@ ippdoclint:	ippdoclint.o ../libcups/cups/libcups3.a
 ippproxy:	ippproxy.o ../libcups/cups/libcups3.a
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ ippproxy.o $(LIBS)
-
-
-#
-# ipptransform
-#
-
-ipptransform:	ipptransform.o ipp-options.o ../libcups/cups/libcups3.a
-	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ ipptransform.o ipp-options.o $(LIBS) -lz
 
 
 #

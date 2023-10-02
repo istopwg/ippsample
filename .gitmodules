@@ -1,6 +1,3 @@
 [submodule "libcups"]
 	path = libcups
 	url = https://github.com/OpenPrinting/libcups.git
-[submodule "pdfio"]
-	path = pdfio
-	url = https://github.com/michaelrsweet/pdfio.git

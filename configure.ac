@@ -79,44 +79,6 @@ AC_PATH_PROG([RMDIR], [rmdir])
 AC_PATH_PROG([LN], [ln])
 
 
-dnl PDF support
-AC_ARG_WITH([pdfrip], AS_HELP_STRING([--with-pdfrip=...], [set PDF RIP to use (auto, coregraphics, pdftoppm, none)]))
-
-AS_IF([test "x$with_pdfrip" = x -o "x$with_pdfrip" = xauto], [
-    AS_CASE([$host_os_name], [darwin*], [
-	use_pdfrip=coregraphics
-    ], [*], [
-	use_pdfrip=pdftoppm
-    ])
-], [
-    use_pdfrip="$with_pdfrip"
-])
-
-AS_CASE(["$use_pdfrip"], [coregraphics], [
-    SAVELIBS="$LIBS"
-    LIBS="-framework CoreGraphics -framework ImageIO -framework CoreFoundation $LIBS"
-    AC_CHECK_HEADER([CoreGraphics/CoreGraphics.h], [
-	AC_DEFINE([HAVE_COREGRAPHICS], [1], [CoreGraphics support])
-    ], [
-	LIBS="$SAVELIBS"
-	AS_IF([test "x$with_pdfrip" = xcoregraphics], [
-	    AC_MSG_ERROR([Unable to find CoreGraphic framework.])
-	])
-    ])
-], [pdftoppm], [
-    AC_PATH_PROG([PDFTOPPM], [pdftoppm])
-
-    AS_IF([test "x$PDFTOPPM" != x], [
-	AC_DEFINE_UNQUOTED([PDFTOPPM], ["$PDFTOPPM"], [pdftoppm path])
-    ], [test "x$with_pdfrip" = xpdftoppm], [
-	AC_MSG_ERROR([Unable to find pdftoppm program.])
-    ])
-], [none], [
-], [*], [
-    AC_MSG_ERROR([Unknown --with-pdfrip value.])
-])
-
-
 dnl 3D support
 IPPTRANSFORM3D_BIN=""
 IPPTRANSFORM3D_HTML=""

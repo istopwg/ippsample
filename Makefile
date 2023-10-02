@@ -1,7 +1,7 @@
 #
 # Top-level Makefile for IPP sample implementations.
 #
-# Copyright © 2014-2022 by the Printer Working Group.
+# Copyright © 2014-2023 by the Printer Working Group.
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
 # information.
@@ -14,7 +14,6 @@ include Makedefs
 DIRS	=	\
 		libcups/cups \
 		libcups/tools \
-		pdfio \
 		server \
 		tools
 

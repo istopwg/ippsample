@@ -11,10 +11,8 @@ include ../Makedefs
 
 
 MAN1		=	\
-			ipp3dprinter.1
-MAN7		=	\
-			ippdoclint.7 \
-			ipptransform.7 \
+			ipp3dprinter.1 \
+			ippdoclint.1 \
 			$(IPPTRANSFORM3D_MAN)
 MAN8		=	\
 			ippproxy.8 \
@@ -24,7 +22,6 @@ HTML		=	\
 			ippdoclint.html \
 			ippproxy.html \
 			ippserver.html \
-			ipptransform.html \
 			$(IPPTRANSFORM3D_HTML)
 
 
@@ -32,8 +29,8 @@ HTML		=	\
 # Rules for converting man pages to HTML...
 #
 
-.SUFFIXES:	.1 .7 .8 .html
-.1.html .7.html .8.html:
+.SUFFIXES:	.1 .8 .html
+.1.html .8.html:
 	echo Generating $@...
 	mantohtml $< >$@
 
@@ -68,10 +65,6 @@ install:
 	$(INSTALL_DIR) $(BUILDROOT)$(mandir)/man1
 	for file in $(MAN1); do \
 		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man1/$$man; \
-	done
-	$(INSTALL_DIR) $(BUILDROOT)$(mandir)/man7
-	for file in $(MAN7); do \
-		$(INSTALL_MAN) $$file $(BUILDROOT)$(mandir)/man7/$$man; \
 	done
 	$(INSTALL_DIR) $(BUILDROOT)$(mandir)/man8
 	for file in $(MAN8); do \

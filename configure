@@ -658,7 +658,6 @@ CURAENGINE
 IPPTRANSFORM3D_MAN
 IPPTRANSFORM3D_HTML
 IPPTRANSFORM3D_BIN
-PDFTOPPM
 LN
 RMDIR
 RM
@@ -724,7 +723,6 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
-with_pdfrip
 enable_pam
 enable_debug
 enable_maintainer
@@ -1368,8 +1366,6 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
-  --with-pdfrip=...       set PDF RIP to use (auto, coregraphics, pdftoppm,
-                          none)
   --with-sanitizer        build with address, leak, memory, thread, or
                           undefined sanitizer, default=no
   --with-ldflags=...      Specify additional LDFLAGS
@@ -1504,39 +1500,6 @@ fi
 
 } # ac_fn_c_try_compile
 
-# ac_fn_c_check_header_compile LINENO HEADER VAR INCLUDES
-# -------------------------------------------------------
-# Tests whether HEADER exists and can be compiled using the include files in
-# INCLUDES, setting the cache variable VAR accordingly.
-ac_fn_c_check_header_compile ()
-{
-  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $2" >&5
-printf %s "checking for $2... " >&6; }
-if eval test \${$3+y}
-then :
-  printf %s "(cached) " >&6
-else $as_nop
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-$4
-#include <$2>
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"
-then :
-  eval "$3=yes"
-else $as_nop
-  eval "$3=no"
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-eval ac_res=\$$3
-	       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-printf "%s\n" "$ac_res" >&6; }
-  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
-
-} # ac_fn_c_check_header_compile
-
 # ac_fn_c_try_link LINENO
 # -----------------------
 # Try to link conftest.$ac_ext, and return whether this succeeded.
@@ -1583,6 +1546,39 @@ fi
   as_fn_set_status $ac_retval
 
 } # ac_fn_c_try_link
+
+# ac_fn_c_check_header_compile LINENO HEADER VAR INCLUDES
+# -------------------------------------------------------
+# Tests whether HEADER exists and can be compiled using the include files in
+# INCLUDES, setting the cache variable VAR accordingly.
+ac_fn_c_check_header_compile ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $2" >&5
+printf %s "checking for $2... " >&6; }
+if eval test \${$3+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$4
+#include <$2>
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  eval "$3=yes"
+else $as_nop
+  eval "$3=no"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+eval ac_res=\$$3
+	       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+printf "%s\n" "$ac_res" >&6; }
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+
+} # ac_fn_c_check_header_compile
 ac_configure_args_raw=
 for ac_arg
 do
@@ -3710,166 +3706,6 @@ fi
 
 
 
-
-# Check whether --with-pdfrip was given.
-if test ${with_pdfrip+y}
-then :
-  withval=$with_pdfrip;
-fi
-
-
-if test "x$with_pdfrip" = x -o "x$with_pdfrip" = xauto
-then :
-
-    case $host_os_name in #(
-  darwin*) :
-
-	use_pdfrip=coregraphics
-     ;; #(
-  *) :
-
-	use_pdfrip=pdftoppm
-     ;; #(
-  *) :
-     ;;
-esac
-
-else $as_nop
-
-    use_pdfrip="$with_pdfrip"
-
-fi
-
-
-ac_header= ac_cache=
-for ac_item in $ac_header_c_list
-do
-  if test $ac_cache; then
-    ac_fn_c_check_header_compile "$LINENO" $ac_header ac_cv_header_$ac_cache "$ac_includes_default"
-    if eval test \"x\$ac_cv_header_$ac_cache\" = xyes; then
-      printf "%s\n" "#define $ac_item 1" >> confdefs.h
-    fi
-    ac_header= ac_cache=
-  elif test $ac_header; then
-    ac_cache=$ac_item
-  else
-    ac_header=$ac_item
-  fi
-done
-
-
-
-
-
-
-
-
-if test $ac_cv_header_stdlib_h = yes && test $ac_cv_header_string_h = yes
-then :
-
-printf "%s\n" "#define STDC_HEADERS 1" >>confdefs.h
-
-fi
-case "$use_pdfrip" in #(
-  coregraphics) :
-
-    SAVELIBS="$LIBS"
-    LIBS="-framework CoreGraphics -framework ImageIO -framework CoreFoundation $LIBS"
-    ac_fn_c_check_header_compile "$LINENO" "CoreGraphics/CoreGraphics.h" "ac_cv_header_CoreGraphics_CoreGraphics_h" "$ac_includes_default"
-if test "x$ac_cv_header_CoreGraphics_CoreGraphics_h" = xyes
-then :
-
-
-printf "%s\n" "#define HAVE_COREGRAPHICS 1" >>confdefs.h
-
-
-else $as_nop
-
-	LIBS="$SAVELIBS"
-	if test "x$with_pdfrip" = xcoregraphics
-then :
-
-	    as_fn_error $? "Unable to find CoreGraphic framework." "$LINENO" 5
-
-fi
-
-fi
-
- ;; #(
-  pdftoppm) :
-
-    # Extract the first word of "pdftoppm", so it can be a program name with args.
-set dummy pdftoppm; ac_word=$2
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-printf %s "checking for $ac_word... " >&6; }
-if test ${ac_cv_path_PDFTOPPM+y}
-then :
-  printf %s "(cached) " >&6
-else $as_nop
-  case $PDFTOPPM in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_PDFTOPPM="$PDFTOPPM" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  case $as_dir in #(((
-    '') as_dir=./ ;;
-    */) ;;
-    *) as_dir=$as_dir/ ;;
-  esac
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
-    ac_cv_path_PDFTOPPM="$as_dir$ac_word$ac_exec_ext"
-    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-PDFTOPPM=$ac_cv_path_PDFTOPPM
-if test -n "$PDFTOPPM"; then
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $PDFTOPPM" >&5
-printf "%s\n" "$PDFTOPPM" >&6; }
-else
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-fi
-
-
-
-    if test "x$PDFTOPPM" != x
-then :
-
-
-printf "%s\n" "#define PDFTOPPM \"$PDFTOPPM\"" >>confdefs.h
-
-
-elif test "x$with_pdfrip" = xpdftoppm
-then :
-
-	as_fn_error $? "Unable to find pdftoppm program." "$LINENO" 5
-
-fi
- ;; #(
-  none) :
-
- ;; #(
-  *) :
-
-    as_fn_error $? "Unknown --with-pdfrip value." "$LINENO" 5
- ;; #(
-  *) :
-     ;;
-esac
-
-
 IPPTRANSFORM3D_BIN=""
 IPPTRANSFORM3D_HTML=""
 IPPTRANSFORM3D_MAN=""
@@ -4064,6 +3900,36 @@ then :
 fi
 
 
+
+ac_header= ac_cache=
+for ac_item in $ac_header_c_list
+do
+  if test $ac_cache; then
+    ac_fn_c_check_header_compile "$LINENO" $ac_header ac_cv_header_$ac_cache "$ac_includes_default"
+    if eval test \"x\$ac_cv_header_$ac_cache\" = xyes; then
+      printf "%s\n" "#define $ac_item 1" >> confdefs.h
+    fi
+    ac_header= ac_cache=
+  elif test $ac_header; then
+    ac_cache=$ac_item
+  else
+    ac_header=$ac_item
+  fi
+done
+
+
+
+
+
+
+
+
+if test $ac_cv_header_stdlib_h = yes && test $ac_cv_header_string_h = yes
+then :
+
+printf "%s\n" "#define STDC_HEADERS 1" >>confdefs.h
+
+fi
 if test x$enable_libpam != xno
 then :
 

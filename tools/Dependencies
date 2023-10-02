@@ -1,26 +1,21 @@
 ipp3dprinter.o: ipp3dprinter.c ../config.h ../libcups/cups/cups.h \
   ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
   ../libcups/cups/http.h ../libcups/cups/array.h \
-  ../libcups/cups/language.h ../libcups/cups/pwg.h \
-  ../libcups/cups/thread.h ../libcups/cups/ipp-private.h \
+  ../libcups/cups/language.h ../libcups/cups/transcode.h \
+  ../libcups/cups/pwg.h ../libcups/cups/dnssd.h ../libcups/cups/thread.h \
   ../server/printer3d-png.h
 ippdoclint.o: ippdoclint.c ../config.h ../libcups/cups/cups.h \
   ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
   ../libcups/cups/http.h ../libcups/cups/array.h \
-  ../libcups/cups/language.h ../libcups/cups/pwg.h \
-  ../libcups/cups/raster.h
+  ../libcups/cups/language.h ../libcups/cups/transcode.h \
+  ../libcups/cups/pwg.h ../libcups/cups/raster.h
 ippproxy.o: ippproxy.c ../config.h ../libcups/cups/cups.h \
   ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
   ../libcups/cups/http.h ../libcups/cups/array.h \
-  ../libcups/cups/language.h ../libcups/cups/pwg.h \
-  ../libcups/cups/thread.h
-ipptransform.o: ipptransform.c ../config.h ../libcups/cups/cups.h \
-  ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
-  ../libcups/cups/http.h ../libcups/cups/array.h \
-  ../libcups/cups/language.h ../libcups/cups/pwg.h \
-  ../libcups/cups/raster.h ../libcups/cups/thread.h dither.h
+  ../libcups/cups/language.h ../libcups/cups/transcode.h \
+  ../libcups/cups/pwg.h ../libcups/cups/thread.h
 ipptransform3d.o: ipptransform3d.c ../config.h ../libcups/cups/cups.h \
   ../libcups/cups/file.h ../libcups/cups/base.h ../libcups/cups/ipp.h \
   ../libcups/cups/http.h ../libcups/cups/array.h \
-  ../libcups/cups/language.h ../libcups/cups/pwg.h \
-  ../libcups/cups/thread.h
+  ../libcups/cups/language.h ../libcups/cups/transcode.h \
+  ../libcups/cups/pwg.h ../libcups/cups/thread.h
