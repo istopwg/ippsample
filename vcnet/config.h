@@ -9,9 +9,6 @@
 
 #ifndef IPPSAMPLE_CONFIG_H
 #define IPPSAMPLE_CONFIG_H
-
-
-// Include standard headers first...
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -86,31 +83,13 @@ typedef unsigned long useconds_t;
 
 
 // Version number
-#define IPPSAMPLE_VERSION "2023.09"
+#define IPPSAMPLE_VERSION "2023.10"
 
 
 // PAM support
 /* #undef HAVE_LIBPAM */
 /* #undef HAVE_SECURITY_PAM_APPL_H */
 /* #undef HAVE_PAM_PAM_APPL_H */
-
-
-// strlcpy support
-/* #undef HAVE_STRLCPY */
-
-
-// DNS-SD support
-#define HAVE_DNSSD 1
-#define HAVE_MDNSRESPONDER 1
-/* #undef HAVE_AVAHI */
-
-
-// CoreGraphics support
-/* #undef HAVE_COREGRAPHICS */
-
-
-// pdftoppm path
-/* #undef PDFTOPPM */
 
 
 // CuraEngine path

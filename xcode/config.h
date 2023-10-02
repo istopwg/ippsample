@@ -12,31 +12,13 @@
 
 
 // Version number
-#define IPPSAMPLE_VERSION "2023.09"
+#define IPPSAMPLE_VERSION "2023.10"
 
 
 // PAM support
 #define HAVE_LIBPAM 1
 #define HAVE_SECURITY_PAM_APPL_H 1
 /* #undef HAVE_PAM_PAM_APPL_H */
-
-
-// strlcpy support
-#define HAVE_STRLCPY 1
-
-
-// DNS-SD support
-#define HAVE_DNSSD 1
-#define HAVE_MDNSRESPONDER 1
-/* #undef HAVE_AVAHI */
-
-
-// CoreGraphics support
-#define HAVE_COREGRAPHICS 1
-
-
-// pdftoppm path
-/* #undef PDFTOPPM */
 
 
 // CuraEngine path
