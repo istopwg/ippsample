@@ -17,7 +17,6 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ippserver", "ippserver.vcxproj", "{EF2E1F72-A637-42DD-AB0A-EED2F6CC3D56}"
 	ProjectSection(ProjectDependencies) = postProject
 		{18950A1B-D37A-40C7-B2DF-C12986C0526E} = {18950A1B-D37A-40C7-B2DF-C12986C0526E}
-		{98F2DE9E-2978-4387-AF71-82532BEDB29E} = {98F2DE9E-2978-4387-AF71-82532BEDB29E}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ipptool", "..\libcups\vcnet\ipptool.vcxproj", "{B246D91E-61F2-4433-BFD2-6C2A96FBD4D4}"
@@ -30,18 +29,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libcups3", "..\libcups\vcne
 		{C0899B3A-43E7-4BC3-A785-659E1FD2EA83} = {C0899B3A-43E7-4BC3-A785-659E1FD2EA83}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pdfio1", "..\pdfio\pdfio.vcxproj", "{98F2DE9E-2978-4387-AF71-82532BEDB29E}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "regex", "..\libcups\vcnet\regex.vcxproj", "{18950A1B-D37A-40C7-B2DF-C12986C0526E}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ippdoclint", "ippdoclint.vcxproj", "{94D3D49D-4BF7-4335-BB61-E37498ADBC92}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ippproxy", "ippproxy.vcxproj", "{804CB893-644A-4530-B094-580A2A3F8FE9}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ipptransform", "ipptransform.vcxproj", "{EA456D34-0C21-460C-BEC3-4F6FE3F5AB73}"
-	ProjectSection(ProjectDependencies) = postProject
-		{98F2DE9E-2978-4387-AF71-82532BEDB29E} = {98F2DE9E-2978-4387-AF71-82532BEDB29E}
-	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -73,10 +65,6 @@ Global
 		{CB4AA6F2-3E84-45BE-B505-95CD375E8BE3}.Debug|x64.Build.0 = Debug|x64
 		{CB4AA6F2-3E84-45BE-B505-95CD375E8BE3}.Release|x64.ActiveCfg = Release|x64
 		{CB4AA6F2-3E84-45BE-B505-95CD375E8BE3}.Release|x64.Build.0 = Release|x64
-		{98F2DE9E-2978-4387-AF71-82532BEDB29E}.Debug|x64.ActiveCfg = Debug|x64
-		{98F2DE9E-2978-4387-AF71-82532BEDB29E}.Debug|x64.Build.0 = Debug|x64
-		{98F2DE9E-2978-4387-AF71-82532BEDB29E}.Release|x64.ActiveCfg = Release|x64
-		{98F2DE9E-2978-4387-AF71-82532BEDB29E}.Release|x64.Build.0 = Release|x64
 		{18950A1B-D37A-40C7-B2DF-C12986C0526E}.Debug|x64.ActiveCfg = Debug|x64
 		{18950A1B-D37A-40C7-B2DF-C12986C0526E}.Debug|x64.Build.0 = Debug|x64
 		{18950A1B-D37A-40C7-B2DF-C12986C0526E}.Release|x64.ActiveCfg = Release|x64
@@ -89,10 +77,6 @@ Global
 		{804CB893-644A-4530-B094-580A2A3F8FE9}.Debug|x64.Build.0 = Debug|x64
 		{804CB893-644A-4530-B094-580A2A3F8FE9}.Release|x64.ActiveCfg = Release|x64
 		{804CB893-644A-4530-B094-580A2A3F8FE9}.Release|x64.Build.0 = Release|x64
-		{EA456D34-0C21-460C-BEC3-4F6FE3F5AB73}.Debug|x64.ActiveCfg = Debug|x64
-		{EA456D34-0C21-460C-BEC3-4F6FE3F5AB73}.Debug|x64.Build.0 = Debug|x64
-		{EA456D34-0C21-460C-BEC3-4F6FE3F5AB73}.Release|x64.ActiveCfg = Release|x64
-		{EA456D34-0C21-460C-BEC3-4F6FE3F5AB73}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
