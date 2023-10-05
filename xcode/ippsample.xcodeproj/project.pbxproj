@@ -17,7 +17,6 @@
 				270185B22283B59C00271095 /* PBXTargetDependency */,
 				72E006161C5C0C52006CF057 /* PBXTargetDependency */,
 				72E006181C5C0C52006CF057 /* PBXTargetDependency */,
-				725C87C21C7664EF00FB3AD5 /* PBXTargetDependency */,
 				2778EBB21D2FF67B00DE72EC /* PBXTargetDependency */,
 			);
 			name = All;
@@ -37,19 +36,14 @@
 		27006801284E80BD00AFBD2F /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
 		27006803284E80BD00AFBD2F /* ippproxy.8 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E0060C1C5C0BE3006CF057 /* ippproxy.8 */; };
 		2700680B284E80E600AFBD2F /* ipp3dprinter.c in Sources */ = {isa = PBXBuildFile; fileRef = 2700680A284E80E600AFBD2F /* ipp3dprinter.c */; };
-		27291E4A286A6395006A32C1 /* ipp-options.c in Sources */ = {isa = PBXBuildFile; fileRef = 27291E49286A6394006A32C1 /* ipp-options.c */; };
 		275C6BA41C878A74000D2DE7 /* ippproxy.8 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72E0060C1C5C0BE3006CF057 /* ippproxy.8 */; };
 		275C6BA51C878A83000D2DE7 /* ippserver.8 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 72B402A81C0CE43D00139783 /* ippserver.8 */; };
-		275C6BA91C878AF5000D2DE7 /* ipptransform.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 275C6BA31C878A65000D2DE7 /* ipptransform.1 */; };
 		2778EBA21D2FF60E00DE72EC /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
 		2778EBA31D2FF60E00DE72EC /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
 		2778EBA41D2FF60E00DE72EC /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
 		2778EBA71D2FF60E00DE72EC /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
 		2778EBA91D2FF60E00DE72EC /* ipptransform.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 275C6BA31C878A65000D2DE7 /* ipptransform.1 */; };
 		2778EBB01D2FF64300DE72EC /* ipptransform3d.c in Sources */ = {isa = PBXBuildFile; fileRef = 2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */; };
-		2794FF9A20E2F068000A7214 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2794FF9920E2F068000A7214 /* CoreGraphics.framework */; };
-		2794FF9C20E2F070000A7214 /* ImageIO.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2794FF9B20E2F06F000A7214 /* ImageIO.framework */; };
-		2794FF9D20E2F086000A7214 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
 		2794FFA320E2F17F000A7214 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2794FF9920E2F068000A7214 /* CoreGraphics.framework */; };
 		2794FFA420E2F187000A7214 /* ImageIO.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2794FF9B20E2F06F000A7214 /* ImageIO.framework */; };
 		279B74EA282C3B370026ECAF /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74E9282C3B370026ECAF /* libcups_static.a */; };
@@ -59,16 +53,10 @@
 		279B74F1282C51080026ECAF /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74ED282C4FF80026ECAF /* libcrypto.a */; };
 		279B74F2282C51080026ECAF /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74EE282C4FF90026ECAF /* libssl.a */; };
 		279B74F3282C51160026ECAF /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74E9282C3B370026ECAF /* libcups_static.a */; };
-		279B74F4282C51390026ECAF /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74ED282C4FF80026ECAF /* libcrypto.a */; };
-		279B74F5282C51390026ECAF /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74EE282C4FF90026ECAF /* libssl.a */; };
-		279B74F8282C516B0026ECAF /* libpng16.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74F6282C516B0026ECAF /* libpng16.a */; };
-		279B74F9282C516B0026ECAF /* libjpeg.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74F7282C516B0026ECAF /* libjpeg.a */; };
 		279B74FA282C51890026ECAF /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74ED282C4FF80026ECAF /* libcrypto.a */; };
 		279B74FB282C51890026ECAF /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74EE282C4FF90026ECAF /* libssl.a */; };
 		279B74FC282C518D0026ECAF /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74E9282C3B370026ECAF /* libcups_static.a */; };
-		279B74FD282C51930026ECAF /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74E9282C3B370026ECAF /* libcups_static.a */; };
 		279B74FE282C519F0026ECAF /* libpdfio.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74EB282C3B370026ECAF /* libpdfio.a */; };
-		279B74FF282C51A50026ECAF /* libpdfio.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74EB282C3B370026ECAF /* libpdfio.a */; };
 		279B7500282C51BD0026ECAF /* libjpeg.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74F7282C516B0026ECAF /* libjpeg.a */; };
 		279B7501282C51BD0026ECAF /* libpng16.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74F6282C516B0026ECAF /* libpng16.a */; };
 		279B7502282C55650026ECAF /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74E9282C3B370026ECAF /* libcups_static.a */; };
@@ -85,11 +73,6 @@
 		27EB2B9F204F81470088BC2C /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
 		27EB2BA7204F81730088BC2C /* ippdoclint.c in Sources */ = {isa = PBXBuildFile; fileRef = 27EB2BA6204F81710088BC2C /* ippdoclint.c */; };
 		27EB2BAA204F81BA0088BC2C /* ippdoclint.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27EB2BA8204F81A20088BC2C /* ippdoclint.1 */; };
-		725C87B61C7664DE00FB3AD5 /* libiconv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FB1C0CE8CE00139783 /* libiconv.dylib */; };
-		725C87B71C7664DE00FB3AD5 /* libresolv.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402FC1C0CE8CE00139783 /* libresolv.dylib */; };
-		725C87B81C7664DE00FB3AD5 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402F91C0CE87800139783 /* libz.dylib */; };
-		725C87BB1C7664DE00FB3AD5 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
-		725C87C41C767CF800FB3AD5 /* ipptransform.c in Sources */ = {isa = PBXBuildFile; fileRef = 725C87C31C767CF800FB3AD5 /* ipptransform.c */; };
 		7263CE032086A83F00919E96 /* resource.c in Sources */ = {isa = PBXBuildFile; fileRef = 7263CE022086A83C00919E96 /* resource.c */; };
 		72B402BB1C0CE45A00139783 /* client.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B402A31C0CE43D00139783 /* client.c */; };
 		72B402BC1C0CE45F00139783 /* conf.c in Sources */ = {isa = PBXBuildFile; fileRef = 72B402A41C0CE43D00139783 /* conf.c */; };
@@ -135,13 +118,6 @@
 			proxyType = 1;
 			remoteGlobalIDString = 2778EB9C1D2FF60E00DE72EC;
 			remoteInfo = ipptransform3d;
-		};
-		725C87C11C7664EF00FB3AD5 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 72B402101C0CDFB400139783 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 725C87B01C7664DE00FB3AD5;
-			remoteInfo = ipptransform;
 		};
 		72E006151C5C0C52006CF057 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -190,16 +166,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
-		725C87BC1C7664DE00FB3AD5 /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/local/share/man/man1;
-			dstSubfolderSpec = 0;
-			files = (
-				275C6BA91C878AF5000D2DE7 /* ipptransform.1 in CopyFiles */,
-			);
-			runOnlyForDeploymentPostprocessing = 1;
-		};
 		72B402161C0CDFB400139783 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -227,11 +193,8 @@
 		2700680A284E80E600AFBD2F /* ipp3dprinter.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ipp3dprinter.c; path = ../tools/ipp3dprinter.c; sourceTree = "<group>"; };
 		2701858D2283B53900271095 /* ippeveprinter.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; name = ippeveprinter.1; path = ../man/ippeveprinter.1; sourceTree = "<group>"; };
 		2701858E2283B53900271095 /* ippeveprinter.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = ippeveprinter.html; path = ../man/ippeveprinter.html; sourceTree = "<group>"; };
-		27291E48286A6394006A32C1 /* ipp-options.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ipp-options.h"; path = "../tools/ipp-options.h"; sourceTree = "<group>"; };
-		27291E49286A6394006A32C1 /* ipp-options.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ipp-options.c"; path = "../tools/ipp-options.c"; sourceTree = "<group>"; };
 		275C6BA21C878A65000D2DE7 /* ipptransform.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = ipptransform.html; path = ../man/ipptransform.html; sourceTree = "<group>"; };
 		275C6BA31C878A65000D2DE7 /* ipptransform.1 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.man; name = ipptransform.1; path = ../man/ipptransform.1; sourceTree = "<group>"; };
-		275C6BAA1C87D907000D2DE7 /* dither.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dither.h; path = ../tools/dither.h; sourceTree = "<group>"; };
 		2778EBAD1D2FF60E00DE72EC /* ipptransform3d */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ipptransform3d; sourceTree = BUILT_PRODUCTS_DIR; };
 		2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ipptransform3d.c; path = ../tools/ipptransform3d.c; sourceTree = "<group>"; };
 		2794FF9920E2F068000A7214 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
@@ -270,8 +233,6 @@
 		723D66D81C723CC20078B537 /* DESIGN.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = DESIGN.md; path = ../server/DESIGN.md; sourceTree = "<group>"; };
 		72530E332028BCF20035FF65 /* ipp-file.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ipp-file.c"; path = "../cups/ipp-file.c"; sourceTree = "<group>"; };
 		72530E342028BCF30035FF65 /* ipp-vars.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ipp-vars.c"; path = "../cups/ipp-vars.c"; sourceTree = "<group>"; };
-		725C87C01C7664DE00FB3AD5 /* ipptransform */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ipptransform; sourceTree = BUILT_PRODUCTS_DIR; };
-		725C87C31C767CF800FB3AD5 /* ipptransform.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ipptransform.c; path = ../tools/ipptransform.c; sourceTree = "<group>"; };
 		7263CE022086A83C00919E96 /* resource.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = resource.c; path = ../server/resource.c; sourceTree = "<group>"; };
 		72737CEF1C24BA4F007CBEF6 /* dest-job.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "dest-job.c"; path = "../cups/dest-job.c"; sourceTree = "<group>"; };
 		72737CF01C24BA4F007CBEF6 /* dest-localization.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "dest-localization.c"; path = "../cups/dest-localization.c"; sourceTree = "<group>"; };
@@ -422,26 +383,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		725C87B51C7664DE00FB3AD5 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				279B74FF282C51A50026ECAF /* libpdfio.a in Frameworks */,
-				279B74FD282C51930026ECAF /* libcups_static.a in Frameworks */,
-				279B74F8282C516B0026ECAF /* libpng16.a in Frameworks */,
-				279B74F9282C516B0026ECAF /* libjpeg.a in Frameworks */,
-				279B74F4282C51390026ECAF /* libcrypto.a in Frameworks */,
-				279B74F5282C51390026ECAF /* libssl.a in Frameworks */,
-				2794FF9D20E2F086000A7214 /* Security.framework in Frameworks */,
-				2794FF9A20E2F068000A7214 /* CoreGraphics.framework in Frameworks */,
-				2794FF9C20E2F070000A7214 /* ImageIO.framework in Frameworks */,
-				725C87BB1C7664DE00FB3AD5 /* CoreFoundation.framework in Frameworks */,
-				725C87B61C7664DE00FB3AD5 /* libiconv.dylib in Frameworks */,
-				725C87B71C7664DE00FB3AD5 /* libresolv.dylib in Frameworks */,
-				725C87B81C7664DE00FB3AD5 /* libz.dylib in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		72B402151C0CDFB400139783 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -515,7 +456,6 @@
 			children = (
 				72B402181C0CDFB400139783 /* ippserver */,
 				72E006021C5C0B10006CF057 /* ippproxy */,
-				725C87C01C7664DE00FB3AD5 /* ipptransform */,
 				2778EBAD1D2FF60E00DE72EC /* ipptransform3d */,
 				27EB2BA5204F81470088BC2C /* ippdoclint */,
 				27006807284E80BD00AFBD2F /* ipp3dprinter */,
@@ -622,14 +562,10 @@
 		72B4022E1C0CE22300139783 /* commands */ = {
 			isa = PBXGroup;
 			children = (
-				27291E48286A6394006A32C1 /* ipp-options.h */,
-				27291E49286A6394006A32C1 /* ipp-options.c */,
 				2700680A284E80E600AFBD2F /* ipp3dprinter.c */,
 				27EB2BA6204F81710088BC2C /* ippdoclint.c */,
 				72E006031C5C0B49006CF057 /* ippproxy.c */,
-				725C87C31C767CF800FB3AD5 /* ipptransform.c */,
 				2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */,
-				275C6BAA1C87D907000D2DE7 /* dither.h */,
 			);
 			name = commands;
 			sourceTree = "<group>";
@@ -743,23 +679,6 @@
 			productReference = 27EB2BA5204F81470088BC2C /* ippdoclint */;
 			productType = "com.apple.product-type.tool";
 		};
-		725C87B01C7664DE00FB3AD5 /* ipptransform */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 725C87BD1C7664DE00FB3AD5 /* Build configuration list for PBXNativeTarget "ipptransform" */;
-			buildPhases = (
-				725C87B31C7664DE00FB3AD5 /* Sources */,
-				725C87B51C7664DE00FB3AD5 /* Frameworks */,
-				725C87BC1C7664DE00FB3AD5 /* CopyFiles */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = ipptransform;
-			productName = ipptool;
-			productReference = 725C87C01C7664DE00FB3AD5 /* ipptransform */;
-			productType = "com.apple.product-type.tool";
-		};
 		72B402171C0CDFB400139783 /* ippserver */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 72B4021F1C0CDFB400139783 /* Build configuration list for PBXNativeTarget "ippserver" */;
@@ -830,7 +749,6 @@
 				27EB2B94204F81470088BC2C /* ippdoclint */,
 				72E005F21C5C0B10006CF057 /* ippproxy */,
 				72B402171C0CDFB400139783 /* ippserver */,
-				725C87B01C7664DE00FB3AD5 /* ipptransform */,
 				2778EB9C1D2FF60E00DE72EC /* ipptransform3d */,
 			);
 		};
@@ -858,15 +776,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				27EB2BA7204F81730088BC2C /* ippdoclint.c in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		725C87B31C7664DE00FB3AD5 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				27291E4A286A6395006A32C1 /* ipp-options.c in Sources */,
-				725C87C41C767CF800FB3AD5 /* ipptransform.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -914,11 +823,6 @@
 			isa = PBXTargetDependency;
 			target = 2778EB9C1D2FF60E00DE72EC /* ipptransform3d */;
 			targetProxy = 2778EBB11D2FF67B00DE72EC /* PBXContainerItemProxy */;
-		};
-		725C87C21C7664EF00FB3AD5 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 725C87B01C7664DE00FB3AD5 /* ipptransform */;
-			targetProxy = 725C87C11C7664EF00FB3AD5 /* PBXContainerItemProxy */;
 		};
 		72E006161C5C0C52006CF057 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -993,26 +897,6 @@
 			};
 			name = Release;
 		};
-		725C87BE1C7664DE00FB3AD5 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CODE_SIGN_IDENTITY = "-";
-				GCC_C_LANGUAGE_STANDARD = gnu99;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Debug;
-		};
-		725C87BF1C7664DE00FB3AD5 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CODE_SIGN_IDENTITY = "-";
-				GCC_C_LANGUAGE_STANDARD = gnu99;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Release;
-		};
 		72B4021D1C0CDFB400139783 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1077,7 +961,7 @@
 					/usr/local/include,
 				);
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
-				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				ONLY_ACTIVE_ARCH = YES;
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
@@ -1144,7 +1028,7 @@
 					/usr/local/include,
 				);
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
-				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -1231,15 +1115,6 @@
 			buildConfigurations = (
 				27EB2BA3204F81470088BC2C /* Debug */,
 				27EB2BA4204F81470088BC2C /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		725C87BD1C7664DE00FB3AD5 /* Build configuration list for PBXNativeTarget "ipptransform" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				725C87BE1C7664DE00FB3AD5 /* Debug */,
-				725C87BF1C7664DE00FB3AD5 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
