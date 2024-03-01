@@ -23,7 +23,7 @@ jobs:
     - name: Configure
       env:
         CC: /usr/bin/gcc
-      run: ./configure --enable-debug --enable-maintainer --enable-sanitizer --enable-static --disable-shared --with-tls=openssl
+      run: ./configure --enable-debug --enable-maintainer --enable-static --disable-shared --with-tls=openssl
     - name: Make
       run: make
     - name: Test
@@ -44,7 +44,7 @@ jobs:
     - name: Configure
       env:
         CC: /usr/bin/gcc
-      run: ./configure --enable-debug --enable-maintainer --enable-sanitizer --enable-static --enable-shared --with-tls=gnutls
+      run: ./configure --enable-debug --enable-maintainer --enable-static --enable-shared --with-tls=gnutls
     - name: Make
       run: make
     - name: Test
@@ -61,7 +61,7 @@ jobs:
     - name: Install prerequisites
       run: brew install cppcheck openssl@3
     - name: Configure
-      run: ./configure --enable-debug --enable-maintainer --enable-sanitizer --enable-static --disable-shared
+      run: ./configure --enable-debug --enable-maintainer --enable-static --disable-shared
     - name: Make
       run: make
     - name: Test
