@@ -10,8 +10,8 @@ original CUPS `ippeveprinter` source code.
 ![Version](https://img.shields.io/github/v/release/istopwg/ippsample?include_prereleases)
 ![Apache 2.0](https://img.shields.io/github/license/istopwg/ippsample)
 ![Build and Test](https://github.com/istopwg/ippsample/workflows/Build%20and%20Test/badge.svg)
-[![ipp](https://snapcraft.io/ipp/badge.svg)](https://snapcraft.io/ipp)
-[![Coverity Scan Status](https://img.shields.io/coverity/scan/22384.svg)](https://scan.coverity.com/projects/istopwg-ippsample)
+![ipp](https://snapcraft.io/ipp/badge.svg)
+![Coverity Scan Status](https://img.shields.io/coverity/scan/22384.svg)
 
 > Note: This code is provided for educational purposes only.  While we will make
 > every effort to ensure the code is bug-free and regularly run the code
@@ -26,7 +26,7 @@ Getting the Code
 
 *Do not use the ZIP file available via the Github "Code" button on the*
 *main project page, as that archive is missing the libcups and PDFio submodules*
-*submodules and will not compile.*
+*and will not compile.*
 
 The source code is available in semi-monthly release tarballs or via the Github
 repository.  For a release tarball, run the following commands:
@@ -47,13 +47,12 @@ option *or* use the `git submodule` commands:
 
     git clone git@github.com:istopwg/ippsample.git
     cd ippsample
-    git submodule init
-    git submodule update
+    git submodule update --init --recursive
 
 To update an already-cloned repository:
 
     git pull
-    git submodule update
+    git submodule update --init --recursive
 
 
 Building the Code
@@ -141,15 +140,6 @@ Shared Infrastructure Extensions as well as support local printing or document
 processing.
 
 
-ipptransform
-------------
-
-The `ipptransform` program is a generic file conversion utility that is used
-primarily with `ippeveprinter` and `ippserver` to support transformation of
-JPEG, PNG, PDF, and text documents to PDF or raster data for IPP Everywhere™
-and HP PCL printers.
-
-
 ipptransform3d
 --------------
 
@@ -161,7 +151,7 @@ printers using the [CuraEngine][CURA] software.
 Legal Stuff
 -----------
 
-Copyright © 2014-2023 by the Printer Working Group.
+Copyright © 2014-2024 by the Printer Working Group.
 
 Copyright © 2007-2019 by Apple Inc.
 
