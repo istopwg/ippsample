@@ -1,7 +1,7 @@
 dnl
 dnl Configuration script for the IPP sample code.
 dnl
-dnl Copyright © 2014-2023 by the Printer Working Group
+dnl Copyright © 2014-2024 by the Printer Working Group
 dnl
 dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
 dnl information.
@@ -19,7 +19,7 @@ AC_PREREQ([2.70])
 
 
 dnl Check for submodules...
-AS_IF([test ! -d libcups -o ! -d pdfio], [
+AS_IF([test ! -d libcups], [
     AS_IF([test -d .git], [
         AC_MSG_ERROR([Run "git submodule init && git submodule update" to get the libcups and PDFio submodules.])
     ], [
@@ -29,7 +29,7 @@ AS_IF([test ! -d libcups -o ! -d pdfio], [
 
 
 dnl Package name and version...
-AC_INIT([IPPSAMPLE], [YYYY.MM], [https://github.com/istopwg/ippsample/issues], [ippsample], [http://istopwg.github.io/ippsample])
+AC_INIT([ippsample], [YYYY.MM], [https://github.com/istopwg/ippsample/issues], [ippsample], [https://istopwg.github.io/ippsample])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SUBDIRS([libcups])
 

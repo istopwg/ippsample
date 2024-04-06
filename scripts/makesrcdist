@@ -75,7 +75,7 @@ rm -rf .tmp/ippsample-$version
 mkdir -p .tmp/ippsample-$version
 git archive HEAD | (cd .tmp/ippsample-$version; tar xf -)
 
-for sm in libcups; do
+for sm in libcups libcups/pdfio; do
     (cd $sm; git archive --prefix=$sm/ HEAD) | (cd .tmp/ippsample-$version; tar xf -)
 done
 
