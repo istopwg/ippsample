@@ -27,6 +27,7 @@ TESTFILES	=	\
 			create-job-3d.test \
 			create-resource-strings.test \
 			delete-printer.test \
+			get-jobs-all.test \
 			get-jobs-fetchable.test \
 			get-system-attributes.test \
 			ipp-3d.test \

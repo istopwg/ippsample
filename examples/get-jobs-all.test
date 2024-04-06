@@ -1,0 +1,20 @@
+{
+    NAME "Get all jobs"
+
+    OPERATION Get-Jobs
+
+    GROUP operation-attributes-tag
+        ATTR charset attributes-charset utf-8
+        ATTR language attributes-natural-language en
+        ATTR uri printer-uri $uri
+        ATTR keyword requested-attributes job-name,job-id,job-state,job-state-reasons,job-originating-user-name,output-device-uuid-assigned
+        ATTR keyword which-jobs all
+
+    STATUS successful-ok
+
+    DISPLAY job-id
+    DISPLAY job-name
+    DISPLAY job-state
+    DISPLAY job-state-reasons
+}
+
