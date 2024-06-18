@@ -1137,7 +1137,7 @@ run_job(proxy_info_t *info,		/* I - Proxy information */
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, info->device_uuid);
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
 
-  if (httpReconnect(info->http, 30000, NULL))
+  if (httpConnectAgain(info->http, 30000, NULL))
   {
     job_attrs = cupsDoRequest(info->http, request, info->resource);
   }
@@ -1452,7 +1452,7 @@ run_printer(
     else
       sleep(30);
 
-    httpReconnect(http, 30000, NULL);
+    httpConnectAgain(http, 30000, NULL);
   }
 
  /*
@@ -1887,7 +1887,7 @@ update_device_attrs(
     }
   }
 
-  if (httpReconnect(http, 30000, NULL))
+  if (httpConnectAgain(http, 30000, NULL))
   {
     ippDelete(cupsDoRequest(http, request, resource));
 
