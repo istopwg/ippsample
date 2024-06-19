@@ -4,7 +4,7 @@ RUN apt-get -qq update && apt-get install -y build-essential autoconf avahi-daem
 # Make changes necessary to run Avahi for DNS-SD support
 RUN sed -ie 's/rlimit-nproc=3/rlimit-nproc=8/' /etc/avahi/avahi-daemon.conf
 RUN update-rc.d dbus defaults
-RUN update-rc.d avahi-daemon defaults
+# RUN update-rc.d avahi-daemon defaults
 
 # Create entrypoint.sh script to start dbus and avahi-daemon
 RUN echo '#!/bin/bash\n\
