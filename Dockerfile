@@ -1,6 +1,6 @@
 FROM ubuntu:latest
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get -qq update && apt-get install -y build-essential autoconf avahi-daemon avahi-utils cura-engine libavahi-client-dev libjpeg-dev libnss-mdns libpam-dev libpng-dev libssl-dev libusb-1.0-0-dev zlib1g-dev net-tools iputils-ping vim avahi-daemon tcpdump man curl
+RUN apt-get -qq update && apt-get install -y build-essential autoconf avahi-daemon avahi-utils libavahi-client-dev libjpeg-dev libnss-mdns libpam-dev libpng-dev libssl-dev libusb-1.0-0-dev zlib1g-dev net-tools iputils-ping vim avahi-daemon tcpdump man curl
 # Make changes necessary to run Avahi for DNS-SD support
 RUN sed -ie 's/rlimit-nproc=3/rlimit-nproc=8/' /etc/avahi/avahi-daemon.conf
 RUN update-rc.d dbus defaults
