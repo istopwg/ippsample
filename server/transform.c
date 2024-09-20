@@ -579,7 +579,7 @@ process_attr_message(
 
   serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "%s", message);
 
-  num_options = cupsParseOptions(message + 5, num_options, &options);
+  num_options = cupsParseOptions(message + 5, /*end*/NULL, num_options, &options);
 
   serverLogJob(SERVER_LOGLEVEL_DEBUG, job, "num_options=%u", (unsigned)num_options);
 

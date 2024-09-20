@@ -132,7 +132,7 @@ main(int  argc,				/* I - Number of command-line arguments */
 	      if (i >= argc)
 	        usage(1);
 
-	      num_options = cupsParseOptions(argv[i], num_options, &options);
+	      num_options = cupsParseOptions(argv[i], /*end*/NULL, num_options, &options);
 	      break;
 
 	  case 'v' : /* Be verbose... */
