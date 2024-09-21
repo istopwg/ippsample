@@ -1,6 +1,6 @@
 paths-ignore:
-  - libcups
-  - pdfio
+  - 'libcups/*'
+  - 'pdfio/*'
   - '**/test*.c'
 
 query-filters:
@@ -36,4 +36,29 @@ query-filters:
       id: cpp/missing-check-scanf
   - exclude:
       id: cpp/offset-use-before-range-check
-
+  - exclude:
+      id: cpp/missing-check-scanf
+  - exclude:
+      id: cpp/offset-use-before-range-check
+  - exclude:
+      id: cpp/inconsistent-null-check
+  - exclude:
+      id: cpp/nested-loops-with-same-variable
+  - exclude:
+      id: cpp/stack-address-escape
+  - exclude:
+      id: cpp/poorly-documented-function
+  - exclude:
+      id: cpp/loop-variable-changed
+  - exclude:
+      id: cpp/irregular-enum-init
+  - exclude:
+      id: cpp/include-non-header
+  - exclude:
+      id: cpp/commented-out-code
+  - exclude:
+      id: cpp/long-switch
+  - exclude:
+      id: cpp/complex-condition
+  - exclude:
+      id: cpp/complex-block

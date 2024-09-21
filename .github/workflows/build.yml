@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: Update build environment
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: Update build environment
@@ -55,7 +55,7 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: Install prerequisites
@@ -72,12 +72,12 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: Setup msbuild
       uses: microsoft/setup-msbuild@v1.0.2
     - name: Restore NuGet packages
-      run: cd vcnet; nuget restore ippsample.sln; cd ..\libcups\vcnet; nuget restore libcups.sln
+      run: cd vcnet; nuget restore ippsample.sln; cd ..\libcups\vcnet; nuget restore libcups.sln; cd ..\pdfio; nuget restore
     - name: Build
       run: cd vcnet; msbuild ippsample.sln
