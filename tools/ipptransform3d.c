@@ -910,8 +910,10 @@ xform_document(
   */
 
   if ((base = cupsGetOption("print-base", num_options, options)) == NULL)
+  {
     if ((base = getenv("IPP_PRINT_BASE_DEFAULT")) == NULL)
       base = "none";
+  }
 
   if (!strcmp(base, "brim"))
   {
@@ -968,8 +970,10 @@ xform_document(
   }
 
   if ((supports = cupsGetOption("print-supports", num_options, options)) == NULL)
+  {
     if ((supports = getenv("IPP_PRINT_SUPPORTS_DEFAULT")) == NULL)
       supports = "none";
+  }
 
   if (strcmp(supports, "none"))
   {
