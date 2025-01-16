@@ -1,43 +1,43 @@
-/*
- * Subscription object code for sample IPP server implementation.
- *
- * Copyright © 2014-2022 by the Printer Working Group
- * Copyright © 2010-2018 by Apple Inc.
- *
- * Licensed under Apache License v2.0.  See the file "LICENSE" for more
- * information.
- */
+//
+// Subscription object code for sample IPP server implementation.
+//
+// Copyright © 2014-2024 by the Printer Working Group
+// Copyright © 2010-2018 by Apple Inc.
+//
+// Licensed under Apache License v2.0.  See the file "LICENSE" for more
+// information.
+//
 
 #include "ippserver.h"
 
 
-/*
- * Local functions...
- */
+//
+// Local functions...
+//
 
 static int	compare_subscriptions(server_subscription_t *a, server_subscription_t *b);
 
 
-/*
- * 'serverAddEventNoLock()' - Add an event to a subscription.
- *
- * Note: Printer, job, resource, and subscription objects are not locked.
- */
+//
+// 'serverAddEventNoLock()' - Add an event to a subscription.
+//
+// Note: Printer, job, resource, and subscription objects are not locked.
+//
 
 void
 serverAddEventNoLock(
-    server_printer_t  *printer,		/* I - Printer, if any */
-    server_job_t      *job,		/* I - Job, if any */
-    server_resource_t *res,		/* I - Resource, if any */
-    server_event_t    event,		/* I - Event */
-    const char        *message,		/* I - Printf-style notify-text message */
-    ...)				/* I - Additional printf arguments */
+    server_printer_t  *printer,		// I - Printer, if any
+    server_job_t      *job,		// I - Job, if any
+    server_resource_t *res,		// I - Resource, if any
+    server_event_t    event,		// I - Event
+    const char        *message,		// I - Printf-style notify-text message
+    ...)				// I - Additional printf arguments
 {
-  server_subscription_t *sub;		/* Current subscription */
-  ipp_t			*n;		/* Notify event attributes */
-  ipp_attribute_t	*attr;		/* Event attribute */
-  char			text[1024];	/* notify-text value */
-  va_list		ap;		/* Argument pointer */
+  server_subscription_t *sub;		// Current subscription
+  ipp_t			*n;		// Notify event attributes
+  ipp_attribute_t	*attr;		// Event attribute
+  char			text[1024];	// notify-text value
+  va_list		ap;		// Argument pointer
 
 
   if (message)
@@ -78,7 +78,7 @@ serverAddEventNoLock(
       }
 
       if (job)
-	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-job-id", job->id);
+	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, sub->job ? "notify-job-id" : "job-id", job->id);
       if (res)
 	ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-resource-id", res->id);
       ippAddInteger(n, IPP_TAG_EVENT_NOTIFICATION, IPP_TAG_INTEGER, "notify-subscription-id", sub->id);
@@ -132,35 +132,32 @@ serverAddEventNoLock(
 }
 
 
-/*
- * 'serverCreateSubscription()' - Create a new subscription object from a
- *                                Print-Job, Create-Job, or
- *                                Create-xxx-Subscription request.
- */
+//
+// 'serverCreateSubscription()' - Create a new subscription object from a
+//                                Print-Job, Create-Job, or
+//                                Create-xxx-Subscription request.
+//
 
-server_subscription_t *			/* O - Subscription object */
+server_subscription_t *			// O - Subscription object
 serverCreateSubscription(
-    server_client_t *client,		/* I - Client */
-    int             interval,		/* I - Interval for progress events */
-    int             lease,		/* I - Lease duration */
-    const char      *username,		/* I - User creating the subscription */
-    ipp_attribute_t *notify_charset,	/* I - Character set for notifications */
+    server_client_t *client,		// I - Client
+    int             interval,		// I - Interval for progress events
+    int             lease,		// I - Lease duration
+    const char      *username,		// I - User creating the subscription
+    ipp_attribute_t *notify_charset,	// I - Character set for notifications
     ipp_attribute_t *notify_natural_language,
-					/* I - Language for notifications */
-    ipp_attribute_t *notify_events,	/* I - Events to monitor */
-    ipp_attribute_t *notify_attributes,	/* I - Attributes to report */
-    ipp_attribute_t *notify_user_data)	/* I - User data, if any */
+					// I - Language for notifications
+    ipp_attribute_t *notify_events,	// I - Events to monitor
+    ipp_attribute_t *notify_attributes,	// I - Attributes to report
+    ipp_attribute_t *notify_user_data)	// I - User data, if any
 {
-  server_subscription_t	*sub;		/* Subscription */
-  ipp_attribute_t	*attr;		/* Subscription attribute */
-  char			uuid[64];	/* notify-subscription-uuid value */
-  char			uri[1024];	/* URI */
+  server_subscription_t	*sub;		// Subscription
+  ipp_attribute_t	*attr;		// Subscription attribute
+  char			uuid[64];	// notify-subscription-uuid value
+  char			uri[1024];	// URI
 
 
- /*
-  * Allocate and initialize the subscription object...
-  */
-
+  // Allocate and initialize the subscription object...
   if ((sub = calloc(1, sizeof(server_subscription_t))) == NULL)
   {
     perror("Unable to allocate memory for subscription");
@@ -187,11 +184,7 @@ serverCreateSubscription(
 
   cupsRWInit(&(sub->rwlock));
 
- /*
-  * Add subscription description attributes and add to the subscriptions
-  * array...
-  */
-
+  // Add subscription description attributes and add to the subscriptions array...
   attr = ippAddString(sub->attrs, IPP_TAG_SUBSCRIPTION, IPP_TAG_CHARSET, "notify-charset", NULL, ippGetString(notify_charset ? notify_charset : ippFindAttribute(client->request, "attributes-charset", IPP_TAG_CHARSET), 0, NULL));
   sub->charset = ippGetString(attr, 0, NULL);
 
@@ -227,8 +220,8 @@ serverCreateSubscription(
 
   if (notify_events)
   {
-    int		i;			/* Looping var */
-    server_event_t mask;		/* Event mask */
+    int		i;			// Looping var
+    server_event_t mask;		// Event mask
 
     ippCopyAttribute(sub->attrs, notify_events, 0);
 
@@ -272,13 +265,13 @@ serverCreateSubscription(
 }
 
 
-/*
- * 'serverDeleteSubscription()' - Delete a subscription.
- */
+//
+// 'serverDeleteSubscription()' - Delete a subscription.
+//
 
 void
 serverDeleteSubscription(
-    server_subscription_t *sub)		/* I - Subscription */
+    server_subscription_t *sub)		// I - Subscription
 {
   sub->pending_delete = 1;
 
@@ -296,19 +289,19 @@ serverDeleteSubscription(
 }
 
 
-/*
- * 'serverFindSubscription()' - Find a subscription.
- */
+//
+// 'serverFindSubscription()' - Find a subscription.
+//
 
-server_subscription_t *			/* O - Subscription */
+server_subscription_t *			// O - Subscription
 serverFindSubscription(
-    server_client_t *client,		/* I - Client */
-    int             sub_id)		/* I - Subscription ID or 0 */
+    server_client_t *client,		// I - Client
+    int             sub_id)		// I - Subscription ID or 0
 {
   ipp_attribute_t	*notify_subscription_id;
-					/* notify-subscription-id */
-  server_subscription_t	key,		/* Search key */
-			*sub;		/* Matching subscription */
+					// notify-subscription-id
+  server_subscription_t	key,		// Search key
+			*sub;		// Matching subscription
 
 
   serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "serverFindSubscription: sub_id=%d, printer=%p(%s)", sub_id, (void *)client->printer, client->printer ? client->printer->name : "(null)");
@@ -330,19 +323,19 @@ serverFindSubscription(
 }
 
 
-/*
- * 'serverGetNotifyEventsBits()' - Get the bits associated with "notify-events" values.
- */
+//
+// 'serverGetNotifyEventsBits()' - Get the bits associated with "notify-events" values.
+//
 
-server_event_t				/* O - Bits */
+server_event_t				// O - Bits
 serverGetNotifyEventsBits(
-    ipp_attribute_t *attr)		/* I - "notify-events" attribute */
+    ipp_attribute_t *attr)		// I - "notify-events" attribute
 {
-  size_t	i, j,			/* Looping vars */
-		count;			/* Number of "notify-events" values */
-  const char	*keyword;		/* "notify-events" value */
+  size_t	i, j,			// Looping vars
+		count;			// Number of "notify-events" values
+  const char	*keyword;		// "notify-events" value
   server_event_t events = SERVER_EVENT_NONE;
-					/* Bits for "notify-events" values */
+					// Bits for "notify-events" values
 
 
   count = ippGetCount(attr);
@@ -364,16 +357,16 @@ serverGetNotifyEventsBits(
 }
 
 
-/*
- * 'serverGetNotifySubscribedEvent()' - Get the event name.
- */
+//
+// 'serverGetNotifySubscribedEvent()' - Get the event name.
+//
 
-const char *				/* O - Event name */
+const char *				// O - Event name
 serverGetNotifySubscribedEvent(
-    server_event_t event)		/* I - Event bit */
+    server_event_t event)		// I - Event bit
 {
-  int		i;			/* Looping var */
-  server_event_t mask;			/* Current mask */
+  int		i;			// Looping var
+  server_event_t mask;			// Current mask
 
 
   for (i = 0, mask = 1; i < (int)(sizeof(server_events) / sizeof(server_events[0])); i ++, mask <<= 1)
@@ -384,14 +377,14 @@ serverGetNotifySubscribedEvent(
 }
 
 
-/*
- * 'compare_subscriptions()' - Compare two subscriptions.
- */
+//
+// 'compare_subscriptions()' - Compare two subscriptions.
+//
 
-static int				/* O - Result of comparison */
+static int				// O - Result of comparison
 compare_subscriptions(
-    server_subscription_t *a,		/* I - First subscription */
-    server_subscription_t *b)		/* I - Second subscription */
+    server_subscription_t *a,		// I - First subscription
+    server_subscription_t *b)		// I - Second subscription
 {
   return (b->id - a->id);
 }
