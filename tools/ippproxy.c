@@ -132,7 +132,7 @@ static proxy_job_t *find_job(proxy_info_t *info, int remote_job_id);
 static ipp_t	*get_device_attrs(const char *device_uri);
 static void	make_uuid(const char *device_uri, char *uuid, size_t uuidsize);
 static const char *password_cb(const char *prompt, http_t *http, const char *method, const char *resource, void *user_data);
-static void	plogipp(proxy_job_t *pjob, ipp_t *ipp);
+static void	plogipp(proxy_job_t *pjob, bool is_request, ipp_t *ipp);
 static void	plogf(proxy_job_t *pjob, const char *message, ...);
 static void	*proxy_jobs(proxy_info_t *info);
 static int	register_printer(http_t **http, proxy_info_t *info);
@@ -848,16 +848,26 @@ password_cb(const char *prompt,		// I - Prompt (unused)
 
 static void
 plogipp(proxy_job_t *pjob,		// I - Proxy job, if any
+        bool        is_request,		// I - Request message?
         ipp_t       *ipp)		// I - IPP message
 {
-  ipp_attribute_t	*attr;		// Current attribute
-  ipp_tag_t		prev_group_tag,	// Previous group tag
-			group_tag,	// Current group tag
-			value_tag;	// Current value tag
-  const char		*name;		// Attribute name
-  size_t		count;		// Number of values
-  char			value[4096];	// Attribute value
+  int		minor, major = ippGetVersion(ipp, &minor);
+					// IPP version
+  ipp_attribute_t *attr;		// Current attribute
+  ipp_tag_t	prev_group_tag,		// Previous group tag
+		group_tag,		// Current group tag
+		value_tag;		// Current value tag
+  const char	*name;			// Attribute name
+  size_t	count;			// Number of values
+  char		value[4096];		// Attribute value
+  const char	*prefix = pjob ? "" : "[Printer] ";
+					// Prefix string
 
+
+  if (is_request)
+    plogf(pjob, "%s%s %d IPP/%d.%d", prefix, ippOpString(ippGetOperation(ipp)), ippGetRequestId(ipp), major, minor);
+  else
+    plogf(pjob, "%s%s %d IPP/%d.%d", prefix, ippErrorString(ippGetStatusCode(ipp)), ippGetRequestId(ipp), major, minor);
 
   for (attr = ippGetFirstAttribute(ipp), prev_group_tag = IPP_TAG_ZERO; attr; attr = ippGetNextAttribute(ipp))
   {
@@ -876,16 +886,15 @@ plogipp(proxy_job_t *pjob,		// I - Proxy job, if any
 
     if (group_tag != prev_group_tag)
     {
-      plogf(pjob, "---- %s ----", ippTagString(group_tag));
+      plogf(pjob, "%s  ---- %s ----", prefix, ippTagString(group_tag));
       prev_group_tag = group_tag;
     }
 
-    plogf(pjob, "%s %s%s %s", name, count > 1 ? "1setOf " : "", ippTagString(value_tag), value);
+    plogf(pjob, "%s  %s %s%s %s", prefix, name, count > 1 ? "1setOf " : "", ippTagString(value_tag), value);
   }
 
-  plogf(pjob, "---- end-of-attributes-tag ----");
+  plogf(pjob, "%s  ---- end-of-attributes-tag ----", prefix);
 }
-
 
 
 //
@@ -1032,18 +1041,12 @@ register_printer(
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "printer-service-type", NULL, "print");
 
     if (verbosity)
-    {
-      plogf(NULL, "Register-Output-Device request:");
-      plogipp(NULL, request);
-    }
+      plogipp(/*pjob*/NULL, /*is_request*/true, request);
 
     response = cupsDoRequest(*http, request, info->resource);
 
     if (verbosity)
-    {
-      plogf(NULL, "Register-Output-Device response:");
-      plogipp(NULL, response);
-    }
+      plogipp(/*pjob*/NULL, /*is_request*/false, response);
 
     if (cupsGetError() >= IPP_STATUS_ERROR_BAD_REQUEST)
     {
@@ -1090,7 +1093,13 @@ register_printer(
   ippAddStrings(request, IPP_TAG_SUBSCRIPTION, IPP_TAG_KEYWORD, "notify-events", (int)(sizeof(events) / sizeof(events[0])), NULL, events);
   ippAddInteger(request, IPP_TAG_SUBSCRIPTION, IPP_TAG_INTEGER, "notify-lease-duration", 0);
 
+  if (verbosity)
+    plogipp(/*pjob*/NULL, /*is_request*/true, request);
+
   response = cupsDoRequest(*http, request, info->resource);
+
+  if (verbosity)
+    plogipp(/*pjob*/NULL, /*is_request*/false, response);
 
   if (cupsGetError() != IPP_STATUS_OK)
   {
@@ -1340,18 +1349,12 @@ run_printer(
     ippAddBoolean(request, IPP_TAG_OPERATION, "notify-wait", false);
 
     if (verbosity)
-    {
-      plogf(NULL, "Sending Get-Notifications request.");
-      plogipp(NULL, request);
-    }
+      plogipp(/*pjob*/NULL, /*is_request*/true, request);
 
     response = cupsDoRequest(http, request, info->resource);
 
     if (verbosity)
-    {
-      plogf(NULL, "Get-Notifications response: %s (%s)", ippErrorString(cupsGetError()), cupsGetErrorString());
-      plogipp(NULL, response);
-    }
+      plogipp(/*pjob*/NULL, /*is_request*/false, response);
 
     if ((attr = ippFindAttribute(response, "notify-get-interval", IPP_TAG_INTEGER)) != NULL)
       get_interval = ippGetInteger(attr, 0);
@@ -1624,7 +1627,7 @@ send_document(http_t       *http,	// I - HTTP connection
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
     ippAddStrings(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", (int)(sizeof(pattrs) / sizeof(pattrs[0])), NULL, pattrs);
 
-    response = cupsDoRequest(dev_http, request, info->resource);
+    response = cupsDoRequest(dev_http, request, resource);
 
     if ((attr = ippFindAttribute(response, "operations-supported", IPP_TAG_ENUM)) == NULL)
     {
@@ -1671,28 +1674,15 @@ send_document(http_t       *http,	// I - HTTP connection
     }
 
     if (verbosity)
-    {
-      plogf(pjob, "%s", ippOpString(ippGetOperation(request)));
-
-      for (attr = ippGetFirstAttribute(request); attr; attr = ippGetNextAttribute(request))
-      {
-        const char *name = ippGetName(attr);	// Attribute name
-
-        if (!name)
-        {
-          plogf(pjob, "----");
-          continue;
-	}
-
-        ippAttributeString(attr, doc_buffer, sizeof(doc_buffer));
-
-        plogf(pjob, "%s %s '%s'", name, ippTagString(ippGetValueTag(attr)), doc_buffer);
-      }
-    }
+      plogipp(pjob, /*is_request*/true, request);
 
     if (create_job)
     {
-      response = cupsDoRequest(dev_http, request, info->resource);
+      response = cupsDoRequest(dev_http, request, resource);
+
+      if (verbosity)
+        plogipp(pjob, /*is_request*/false, response);
+
       pjob->local_job_id = ippGetInteger(ippFindAttribute(response, "job-id", IPP_TAG_INTEGER), 0);
       ippDelete(response);
 
@@ -1715,24 +1705,7 @@ send_document(http_t       *http,	// I - HTTP connection
       ippAddBoolean(request, IPP_TAG_OPERATION, "last-document", 1);
 
       if (verbosity)
-      {
-	plogf(pjob, "%s", ippOpString(ippGetOperation(request)));
-
-	for (attr = ippGetFirstAttribute(request); attr; attr = ippGetNextAttribute(request))
-	{
-	  const char *name = ippGetName(attr);	// Attribute name
-
-	  if (!name)
-	  {
-	    plogf(pjob, "----");
-	    continue;
-	  }
-
-	  ippAttributeString(attr, doc_buffer, sizeof(doc_buffer));
-
-	  plogf(pjob, "%s %s '%s'", name, ippTagString(ippGetValueTag(attr)), doc_buffer);
-	}
-      }
+        plogipp(pjob, /*is_request*/true, request);
     }
 
     if (cupsSendRequest(dev_http, request, resource, 0) == HTTP_STATUS_CONTINUE)
@@ -1746,7 +1719,10 @@ send_document(http_t       *http,	// I - HTTP connection
       }
     }
 
-    response = cupsGetResponse(http, resource);
+    response = cupsGetResponse(dev_http, resource);
+
+    if (verbosity)
+      plogipp(pjob, /*is_request*/false, response);
 
     if (!pjob->local_job_id)
       pjob->local_job_id = ippGetInteger(ippFindAttribute(response, "job-id", IPP_TAG_INTEGER), 0);
@@ -1774,7 +1750,13 @@ send_document(http_t       *http,	// I - HTTP connection
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", NULL, "job-state");
 
+      if (verbosity)
+        plogipp(pjob, /*is_request*/true, request);
+
       response = cupsDoRequest(dev_http, request, resource);
+
+      if (verbosity)
+        plogipp(pjob, /*is_request*/false, response);
 
       if (cupsGetError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
 	job_state = IPP_JSTATE_COMPLETED;
@@ -1794,7 +1776,15 @@ send_document(http_t       *http,	// I - HTTP connection
       ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "job-id", pjob->local_job_id);
       ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
 
-      ippDelete(cupsDoRequest(dev_http, request, resource));
+      if (verbosity)
+        plogipp(pjob, /*is_request*/true, request);
+
+      response = cupsDoRequest(dev_http, request, resource);
+
+      if (verbosity)
+        plogipp(pjob, /*is_request*/false, response);
+
+      ippDelete(response);
 
       if (cupsGetError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
 	plogf(pjob, "Unable to cancel local job: %s", cupsGetErrorString());
@@ -1893,7 +1883,8 @@ update_document_status(
     int          doc_number,		// I - Document number
     ipp_dstate_t doc_state)		// I - New document-state value
 {
-  ipp_t	*request;			// IPP request
+  ipp_t	*request,			// IPP request
+	*response;			// IPP response
 
 
   request = ippNewRequest(IPP_OP_UPDATE_DOCUMENT_STATUS);
@@ -1905,7 +1896,15 @@ update_document_status(
 
   ippAddInteger(request, IPP_TAG_DOCUMENT, IPP_TAG_ENUM, "output-device-document-state", (int)doc_state);
 
-  ippDelete(cupsDoRequest(http, request, info->resource));
+  if (verbosity)
+    plogipp(pjob, /*is_request*/true, request);
+
+  response = cupsDoRequest(http, request, info->resource);
+
+  if (verbosity)
+    plogipp(pjob, /*is_request*/false, response);
+
+  ippDelete(response);
 
   if (cupsGetError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
     plogf(pjob, "Unable to update the state for document #%d: %s", doc_number, cupsGetErrorString());
@@ -1921,7 +1920,8 @@ update_job_status(http_t       *http,	// I - HTTP connection
                   proxy_info_t *info,	// I - Proxy info
                   proxy_job_t  *pjob)	// I - Proxy job
 {
-  ipp_t	*request;			// IPP request
+  ipp_t	*request,			// IPP request
+	*response;			// IPP response
 
 
   request = ippNewRequest(IPP_OP_UPDATE_JOB_STATUS);
@@ -1932,7 +1932,15 @@ update_job_status(http_t       *http,	// I - HTTP connection
 
   ippAddInteger(request, IPP_TAG_JOB, IPP_TAG_ENUM, "output-device-job-state", (int)pjob->local_job_state);
 
-  ippDelete(cupsDoRequest(http, request, info->resource));
+  if (verbosity)
+    plogipp(pjob, /*is_request*/true, request);
+
+  response = cupsDoRequest(http, request, info->resource);
+
+  if (verbosity)
+    plogipp(pjob, /*is_request*/false, response);
+
+  ippDelete(response);
 
   if (cupsGetError() >= IPP_STATUS_REDIRECTION_OTHER_SITE)
     plogf(pjob, "Unable to update the job state: %s", cupsGetErrorString());
@@ -1964,11 +1972,17 @@ update_remote_jobs(
   ippAddString(request, IPP_TAG_OPERATION, IPP_CONST_TAG(IPP_TAG_KEYWORD), "which-jobs", NULL, "fetchable");
   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "output-device-uuid", NULL, info->device_uuid);
 
+  if (verbosity)
+    plogipp(/*pjob*/NULL, /*is_request*/true, request);
+
   if ((response = cupsDoRequest(http, request, info->resource)) == NULL)
   {
     plogf(NULL, "Get-Jobs failed: %s", cupsGetErrorString());
     return (false);
   }
+
+  if (verbosity)
+    plogipp(/*pjob*/NULL, /*is_request*/false, response);
 
   // Scan the list...
   for (attr = ippGetFirstAttribute(response); attr; attr = ippGetNextAttribute(response))
