@@ -1306,6 +1306,8 @@ run_printer(
   ipp_t		*device_attrs,		// Device attributes
 		*request,		// IPP request
 		*response;		// IPP response
+  http_status_t	status;			// HTTP status
+  ipp_state_t	state;			// IPP state
   ipp_attribute_t *attr;		// IPP attribute
   const char	*name,			// Attribute name
 		*event;			// Current event
@@ -1346,12 +1348,41 @@ run_printer(
     ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "notify-subscription-ids", subscription_id);
     ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "notify-sequence-numbers", seq_number);
     ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name", NULL, cupsGetUser());
-    ippAddBoolean(request, IPP_TAG_OPERATION, "notify-wait", false);
+    ippAddBoolean(request, IPP_TAG_OPERATION, "notify-wait", true);
 
     if (verbosity)
       plogipp(/*pjob*/NULL, /*is_request*/true, request);
 
-    response = cupsDoRequest(http, request, info->resource);
+    cupsSendRequest(http, request, info->resource, ippGetLength(request));
+
+    status = HTTP_STATUS_CONTINUE;
+
+    while (!stop_running && !info->done)
+    {
+      if (httpWait(http, 1000))
+      {
+        if ((status = httpUpdate(http)) != HTTP_STATUS_CONTINUE)
+          break;
+      }
+    }
+
+    if (stop_running || info->done)
+      break;
+
+    response = ippNew();
+    while ((state = ippRead(http, response)) != IPP_STATE_DATA)
+    {
+      if (state == IPP_STATE_ERROR)
+        break;
+    }
+
+    if (status == IPP_STATE_ERROR)
+    {
+      plogf(/*pjob*/NULL, "[Printer] Unable to read notification response.");
+      httpFlush(http);
+      ippDelete(response);
+      continue;
+    }
 
     if (verbosity)
       plogipp(/*pjob*/NULL, /*is_request*/false, response);
@@ -1359,10 +1390,7 @@ run_printer(
     if ((attr = ippFindAttribute(response, "notify-get-interval", IPP_TAG_INTEGER)) != NULL)
       get_interval = ippGetInteger(attr, 0);
     else
-      get_interval = 10;
-
-    if (verbosity)
-      plogf(NULL, "notify-get-interval=%d", get_interval);
+      get_interval = 1;
 
     for (attr = ippGetFirstAttribute(response); attr; attr = ippGetNextAttribute(response))
     {
@@ -1404,6 +1432,8 @@ run_printer(
 
       if (event && job_id)
       {
+        get_interval = 0;
+
         if (!strcmp(event, "job-fetchable") && job_id)
 	{
 	  // Queue up new job...
@@ -1453,8 +1483,11 @@ run_printer(
     }
 
     // Pause before our next poll of the Infrastructure Printer...
-    if (get_interval < 0 || get_interval > 30)
-      get_interval = 30;
+    if (get_interval < 0 || get_interval > 20)
+      get_interval = 20;
+
+    if (verbosity)
+      plogf(NULL, "Using notify-get-interval=%d", get_interval);
 
     while (get_interval > 0 && !stop_running)
     {
@@ -1462,7 +1495,7 @@ run_printer(
       get_interval --;
     }
 
-    httpConnectAgain(http, /*msec*/30000, /*cancel*/NULL);
+//    httpConnectAgain(http, /*msec*/30000, /*cancel*/NULL);
   }
 
   // Stop the job proxy thread...
@@ -1569,6 +1602,7 @@ send_document(http_t       *http,	// I - HTTP connection
     int			create_job = 0;	// Support for Create-Job/Send-Document?
     const char		*doc_format;	// Document format
     ipp_jstate_t	job_state;	// Current job-state value
+    unsigned		interval = 1;	// Interval for status monitoring
     static const char * const pattrs[] =// Printer attributes we are interested in
     {
       "compression-supported",
@@ -1742,6 +1776,7 @@ send_document(http_t       *http,	// I - HTTP connection
 
     plogf(pjob, "Local job %d created, %ld bytes.", pjob->local_job_id, (long)doc_total);
 
+    // Monitor job state...
     while (pjob->remote_job_state < IPP_JSTATE_CANCELED && job_state < IPP_JSTATE_CANCELED)
     {
       request = ippNewRequest(IPP_OP_GET_JOB_ATTRIBUTES);
@@ -1764,6 +1799,12 @@ send_document(http_t       *http,	// I - HTTP connection
         job_state = (ipp_jstate_t)ippGetInteger(ippFindAttribute(response, "job-state", IPP_TAG_ENUM), 0);
 
       ippDelete(response);
+
+      if (job_state < IPP_JSTATE_CANCELED)
+      {
+        sleep(FIB_VALUE(interval));
+        interval = FIB_NEXT(interval);
+      }
     }
 
     if (pjob->remote_job_state == IPP_JSTATE_CANCELED)
