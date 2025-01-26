@@ -1307,7 +1307,6 @@ run_printer(
 		*request,		// IPP request
 		*response;		// IPP response
   http_status_t	status;			// HTTP status
-  ipp_state_t	state;			// IPP state
   ipp_attribute_t *attr;		// IPP attribute
   const char	*name,			// Attribute name
 		*event;			// Current event
@@ -1353,34 +1352,43 @@ run_printer(
     if (verbosity)
       plogipp(/*pjob*/NULL, /*is_request*/true, request);
 
-    cupsSendRequest(http, request, info->resource, ippGetLength(request));
+    response = NULL;
 
-    status = HTTP_STATUS_CONTINUE;
-
-    while (!stop_running && !info->done)
+    while (response == NULL && !stop_running && !info->done)
     {
-      if (httpWait(http, 1000))
+      // Send the request...
+      status = cupsSendRequest(http, request, info->resource, ippGetLength(request));
+
+      // Wait for a response...
+      while (status == HTTP_STATUS_CONTINUE && !stop_running && !info->done)
       {
-        if ((status = httpUpdate(http)) != HTTP_STATUS_CONTINUE)
-          break;
+	if (httpWait(http, 1000))
+	  break;
       }
-    }
 
-    if (stop_running || info->done)
-      break;
-
-    response = ippNew();
-    while ((state = ippRead(http, response)) != IPP_STATE_DATA)
-    {
-      if (state == IPP_STATE_ERROR)
+      if (stop_running || info->done)
         break;
+
+      // Get the server's response...
+      if (status <= HTTP_STATUS_CONTINUE || status == HTTP_STATUS_OK)
+	response = cupsGetResponse(http, info->resource);
+
+      if (httpGetState(http) != HTTP_STATE_WAITING)
+      {
+	// Flush any remaining data...
+	httpFlush(http);
+      }
+
+      if (status == HTTP_STATUS_ERROR || (status >= HTTP_STATUS_BAD_REQUEST && status != HTTP_STATUS_UNAUTHORIZED && status != HTTP_STATUS_UPGRADE_REQUIRED))
+	break;
     }
 
-    if (status == IPP_STATE_ERROR)
+    ippDelete(request);
+
+    if (!response)
     {
-      plogf(/*pjob*/NULL, "[Printer] Unable to read notification response.");
-      httpFlush(http);
-      ippDelete(response);
+      plogf(/*pjob*/NULL, "Unable to get notifications: %s", cupsGetErrorString());
+      sleep(30);
       continue;
     }
 
@@ -1483,8 +1491,8 @@ run_printer(
     }
 
     // Pause before our next poll of the Infrastructure Printer...
-    if (get_interval < 0 || get_interval > 20)
-      get_interval = 20;
+    if (get_interval < 0 || get_interval > 30)
+      get_interval = 30;
 
     if (verbosity)
       plogf(NULL, "Using notify-get-interval=%d", get_interval);
