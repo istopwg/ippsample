@@ -31,6 +31,7 @@ RUN apt-get update
 RUN apt-get upgrade -y
 RUN apt-get install -y avahi-daemon avahi-utils curl man iputils-ping net-tools tcpdump vim
 COPY --from=builder /usr/local /usr/local
+RUN ldconfig
 
 # Make changes necessary to run Avahi for DNS-SD support
 RUN sed -ie 's/rlimit-nproc=3/rlimit-nproc=8/' /etc/avahi/avahi-daemon.conf
