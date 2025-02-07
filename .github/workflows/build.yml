@@ -27,7 +27,7 @@ jobs:
     - name: Make
       run: make
     - name: Test
-      run: make test || cat test/test-ippserver.log
+      run: mkdir -p $HOME; whoami; make test || cat test/test-ippserver.log
 
   build-linux-shared-gnutls:
 
@@ -48,7 +48,7 @@ jobs:
     - name: Make
       run: make
     - name: Test
-      run: make test || cat test/test-ippserver.log
+      run: mkdir -p $HOME; whoami; make test || cat test/test-ippserver.log
 
   build-macos:
 
@@ -65,7 +65,7 @@ jobs:
     - name: Make
       run: make
     - name: Test
-      run: make test || cat test/test-ippserver.log
+      run: mkdir -p $HOME; whoami; make test || cat test/test-ippserver.log
 
   build-windows:
 
