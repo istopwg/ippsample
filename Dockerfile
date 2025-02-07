@@ -20,7 +20,7 @@ RUN apt-get install -y build-essential autoconf libavahi-client-dev libjpeg-dev 
 # Copy source files to image
 COPY . /root/ippsample/
 WORKDIR /root/ippsample
-RUN ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var; test -f server/ippserver && make clean; make && make install
+RUN ./configure; test -f server/ippserver && make clean; make && make install
 
 
 # Use latest Ubuntu for run-time image...
@@ -30,8 +30,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update
 RUN apt-get upgrade -y
 RUN apt-get install -y avahi-daemon avahi-utils curl man iputils-ping net-tools tcpdump vim
-COPY --from=builder /root/ippsample /root/ippsample
-WORKDIR /root/ippsample
+COPY --from=builder /usr/local /usr/local
 
 # Make changes necessary to run Avahi for DNS-SD support
 RUN sed -ie 's/rlimit-nproc=3/rlimit-nproc=8/' /etc/avahi/avahi-daemon.conf
