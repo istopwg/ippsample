@@ -1,7 +1,7 @@
 /*
  * Logging support for sample IPP server implementation.
  *
- * Copyright © 2014-2021 by the Printer Working Group
+ * Copyright © 2014-2025 by the Printer Working Group
  * Copyright © 2010-2018 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -551,6 +551,7 @@ server_log_to_file(
   struct tm	curdate;		/* Current date and time */
   static const char * const pris[] =	/* Log priority strings */
   {
+    "<62>",				/* "None" message (never used, but mapped to critical for completeness) */
     "<63>",				/* Error message */
     "<66>",				/* Informational message */
     "<67>"				/* Debugging message */
