@@ -719,7 +719,7 @@ serverRespondHTTP(
 
   if (code == HTTP_STATUS_UNAUTHORIZED || code == HTTP_STATUS_FORBIDDEN)
   {
-    char www_auth[HTTP_MAX_VALUE];	/* WWW-Authenicate header value */
+    char www_auth[256];		/* WWW-Authenicate header value */
 
     if (AuthType && !strcasecmp(AuthType, "Basic"))
       snprintf(www_auth, sizeof(www_auth), "Basic realm=\"%s\" charset=\"UTF-8\"", AuthName);
