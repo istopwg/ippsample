@@ -5,6 +5,9 @@ This file describes how to compile and install the IPP sample code. For more
 information on the IPP sample code see the file called `README.md`.  Changes are
 summarized in the file `CHANGES.md`.
 
+If you are building the sample code on Windows, skip to the bottom of this page
+to the section titled ["Building on Windows."](#building-on-windows)
+
 
 Prerequisites
 -------------
@@ -101,3 +104,24 @@ debug logging at run-time:
   the messages to stderr.  Prefix a filename with "+" to append to an existing
   file.  You can include a single "%d" in the filename to embed the current
   process ID.
+
+
+Building on Windows
+-------------------
+
+The IPP Sample Code includes a Visual Studio 2019+ solution file in the "vcnet"
+directory called "ippsample.sln".  After opening the solution in Visual Studio
+(VS 2022 users will need to "upgrade" the projects), please do the following
+steps to ensure that the package dependencies are installed:
+
+1. From the "Tools" menu select "Command-Line" and "Developer PowerShell" to
+   open a PowerShell window in the "vcnet" directory.
+
+2. Type the following commands:
+
+    cd ..\libcups\vcnet
+    nuget restore
+    cd ..\pdfio
+    nuget restore
+
+3. You should then be able to build the solution (F7).
