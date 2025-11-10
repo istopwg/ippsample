@@ -1,7 +1,7 @@
 /*
  * ippdoclint utility for checking common print file formats.
  *
- * Copyright © 2018-2022 by the Printer Working Group.
+ * Copyright © 2018-2025 by the Printer Working Group.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
  * information.
@@ -17,9 +17,9 @@
 #include <cups/cups.h>
 #include <cups/raster.h>
 
-#ifdef HAVE_COREGRAPHICS
+#ifdef HAVE_COREGRAPHICS_H
 #  include <CoreGraphics/CoreGraphics.h>
-#endif /* HAVE_COREGRAPHICS */
+#endif /* HAVE_COREGRAPHICS_H */
 
 
 /*
@@ -418,13 +418,13 @@ lint_pdf(const char    *filename,	/* I - File to check */
   int			first_page,	/* First page in range */
 			last_page,	/* Last page in range */
 			num_pages;	/* Number of pages */
-#ifdef HAVE_COREGRAPHICS
+#ifdef HAVE_COREGRAPHICS_H
   CFURLRef		url;		/* CFURL object for PDF filename */
   CGPDFDocumentRef	document = NULL;/* Input document */
 #elif defined(HAVE_MUPDF)
   fz_context		*context;	/* MuPDF context */
   fz_document		*document;	/* Document to print */
-#endif /* HAVE_COREGRAPHICS */
+#endif /* HAVE_COREGRAPHICS_H */
 
 
  /*
@@ -457,7 +457,7 @@ lint_pdf(const char    *filename,	/* I - File to check */
   else
     duplex = 0;
 
-#ifdef HAVE_COREGRAPHICS
+#ifdef HAVE_COREGRAPHICS_H
  /*
   * Open the PDF...
   */
@@ -587,7 +587,7 @@ lint_pdf(const char    *filename,	/* I - File to check */
   * grayscale...
   */
 
-#endif /* HAVE_COREGRAPHICS */
+#endif /* HAVE_COREGRAPHICS_H */
 
  /*
   * Update the page counters...

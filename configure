@@ -4065,6 +4065,31 @@ fi
 fi
 
 
+case "$host_os_name" in #(
+  darwin*) :
+
+    SAVELIBS="$LIBS"
+    LIBS="-framework CoreGraphics -framework ImageIO -framework CoreFoundation $LIBS"
+    ac_fn_c_check_header_compile "$LINENO" "CoreGraphics/CoreGraphics.h" "ac_cv_header_CoreGraphics_CoreGraphics_h" "$ac_includes_default"
+if test "x$ac_cv_header_CoreGraphics_CoreGraphics_h" = xyes
+then :
+
+
+printf "%s\n" "#define HAVE_COREGRAPHICS_H 1" >>confdefs.h
+
+
+else $as_nop
+
+	LIBS="$SAVELIBS"
+
+fi
+
+ ;; #(
+  *) :
+     ;;
+esac
+
+
 # Check whether --enable-debug was given.
 if test ${enable_debug+y}
 then :

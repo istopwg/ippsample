@@ -4346,14 +4346,20 @@ process_job(ipp3d_job_t *job)		/* I - Job */
       * Child comes here...
       */
 
-      close(1);
-      dup2(mystdout, 1);
-      close(mystdout);
+      if (mystdout >= 0)
+      {
+	close(1);
+	dup2(mystdout, 1);
+	close(mystdout);
+      }
 
-      close(2);
-      dup2(mypipe[1], 2);
-      close(mypipe[0]);
-      close(mypipe[1]);
+      if (mypipe[1] >= 0)
+      {
+	close(2);
+	dup2(mypipe[1], 2);
+	close(mypipe[0]);
+	close(mypipe[1]);
+      }
 
       execve(job->printer->command, myargv, myenvp);
       exit(errno);

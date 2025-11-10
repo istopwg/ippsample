@@ -139,6 +139,18 @@ AS_IF([test x$enable_libpam != xno], [
 ])
 
 
+dnl PDF library...
+AS_CASE(["$host_os_name"],[darwin*],[
+    SAVELIBS="$LIBS"
+    LIBS="-framework CoreGraphics -framework ImageIO -framework CoreFoundation $LIBS"
+    AC_CHECK_HEADER([CoreGraphics/CoreGraphics.h], [
+	AC_DEFINE([HAVE_COREGRAPHICS_H], [1], [Do we have CoreGraphics support?])
+    ], [
+	LIBS="$SAVELIBS"
+    ])
+])
+
+
 dnl Extra compiler options...
 AC_ARG_ENABLE([debug], AS_HELP_STRING([--enable-debug], [turn on debugging, default=no]))
 AC_ARG_ENABLE([maintainer], AS_HELP_STRING([--enable-maintainer], [turn on maintainer mode, default=no]))

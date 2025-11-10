@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 50;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXAggregateTarget section */
@@ -26,8 +26,6 @@
 
 /* Begin PBXBuildFile section */
 		270067F9284E80BD00AFBD2F /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74E9282C3B370026ECAF /* libcups_static.a */; };
-		270067FA284E80BD00AFBD2F /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74EE282C4FF90026ECAF /* libssl.a */; };
-		270067FB284E80BD00AFBD2F /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74ED282C4FF80026ECAF /* libcrypto.a */; };
 		270067FC284E80BD00AFBD2F /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EB1C0CE81900139783 /* SystemConfiguration.framework */; };
 		270067FD284E80BD00AFBD2F /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
 		270067FE284E80BD00AFBD2F /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EA1C0CE81900139783 /* CoreFoundation.framework */; };
@@ -46,22 +44,16 @@
 		2778EBB01D2FF64300DE72EC /* ipptransform3d.c in Sources */ = {isa = PBXBuildFile; fileRef = 2778EBAE1D2FF62B00DE72EC /* ipptransform3d.c */; };
 		2794FFA320E2F17F000A7214 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2794FF9920E2F068000A7214 /* CoreGraphics.framework */; };
 		2794FFA420E2F187000A7214 /* ImageIO.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2794FF9B20E2F06F000A7214 /* ImageIO.framework */; };
+		279838992EC2907900B9D361 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
+		2798389A2EC2907900B9D361 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EB1C0CE81900139783 /* SystemConfiguration.framework */; };
+		2798389B2EC2957900B9D361 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
+		2798389C2EC2957900B9D361 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EB1C0CE81900139783 /* SystemConfiguration.framework */; };
 		279B74EA282C3B370026ECAF /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74E9282C3B370026ECAF /* libcups_static.a */; };
 		279B74EC282C3B370026ECAF /* libpdfio.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74EB282C3B370026ECAF /* libpdfio.a */; };
-		279B74EF282C4FF90026ECAF /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74ED282C4FF80026ECAF /* libcrypto.a */; };
-		279B74F0282C4FF90026ECAF /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74EE282C4FF90026ECAF /* libssl.a */; };
-		279B74F1282C51080026ECAF /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74ED282C4FF80026ECAF /* libcrypto.a */; };
-		279B74F2282C51080026ECAF /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74EE282C4FF90026ECAF /* libssl.a */; };
 		279B74F3282C51160026ECAF /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74E9282C3B370026ECAF /* libcups_static.a */; };
-		279B74FA282C51890026ECAF /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74ED282C4FF80026ECAF /* libcrypto.a */; };
-		279B74FB282C51890026ECAF /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74EE282C4FF90026ECAF /* libssl.a */; };
 		279B74FC282C518D0026ECAF /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74E9282C3B370026ECAF /* libcups_static.a */; };
 		279B74FE282C519F0026ECAF /* libpdfio.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74EB282C3B370026ECAF /* libpdfio.a */; };
-		279B7500282C51BD0026ECAF /* libjpeg.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74F7282C516B0026ECAF /* libjpeg.a */; };
-		279B7501282C51BD0026ECAF /* libpng16.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74F6282C516B0026ECAF /* libpng16.a */; };
 		279B7502282C55650026ECAF /* libcups_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74E9282C3B370026ECAF /* libcups_static.a */; };
-		279B7503282C55780026ECAF /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74ED282C4FF80026ECAF /* libcrypto.a */; };
-		279B7504282C55780026ECAF /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 279B74EE282C4FF90026ECAF /* libssl.a */; };
 		27E2CC681C99C69400D203EC /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B403061C0DE7FC00139783 /* Security.framework */; };
 		27E2CC691C99C6A000D203EC /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72B402EB1C0CE81900139783 /* SystemConfiguration.framework */; };
 		27EB2B8F20463E4B0088BC2C /* auth.c in Sources */ = {isa = PBXBuildFile; fileRef = 27EB2B8E20463E4B0088BC2C /* auth.c */; };
@@ -339,8 +331,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				270067F9284E80BD00AFBD2F /* libcups_static.a in Frameworks */,
-				270067FA284E80BD00AFBD2F /* libssl.a in Frameworks */,
-				270067FB284E80BD00AFBD2F /* libcrypto.a in Frameworks */,
 				270067FC284E80BD00AFBD2F /* SystemConfiguration.framework in Frameworks */,
 				270067FD284E80BD00AFBD2F /* Security.framework in Frameworks */,
 				270067FE284E80BD00AFBD2F /* CoreFoundation.framework in Frameworks */,
@@ -354,9 +344,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				279838992EC2907900B9D361 /* Security.framework in Frameworks */,
+				2798389A2EC2907900B9D361 /* SystemConfiguration.framework in Frameworks */,
 				279B74FC282C518D0026ECAF /* libcups_static.a in Frameworks */,
-				279B74FA282C51890026ECAF /* libcrypto.a in Frameworks */,
-				279B74FB282C51890026ECAF /* libssl.a in Frameworks */,
 				2778EBA71D2FF60E00DE72EC /* CoreFoundation.framework in Frameworks */,
 				2778EBA21D2FF60E00DE72EC /* libiconv.dylib in Frameworks */,
 				2778EBA31D2FF60E00DE72EC /* libresolv.dylib in Frameworks */,
@@ -368,11 +358,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2798389B2EC2957900B9D361 /* Security.framework in Frameworks */,
+				2798389C2EC2957900B9D361 /* SystemConfiguration.framework in Frameworks */,
 				279B7502282C55650026ECAF /* libcups_static.a in Frameworks */,
-				279B7503282C55780026ECAF /* libcrypto.a in Frameworks */,
-				279B7504282C55780026ECAF /* libssl.a in Frameworks */,
-				279B7500282C51BD0026ECAF /* libjpeg.a in Frameworks */,
-				279B7501282C51BD0026ECAF /* libpng16.a in Frameworks */,
 				279B74FE282C519F0026ECAF /* libpdfio.a in Frameworks */,
 				2794FFA320E2F17F000A7214 /* CoreGraphics.framework in Frameworks */,
 				2794FFA420E2F187000A7214 /* ImageIO.framework in Frameworks */,
@@ -389,8 +377,6 @@
 			files = (
 				279B74EC282C3B370026ECAF /* libpdfio.a in Frameworks */,
 				279B74EA282C3B370026ECAF /* libcups_static.a in Frameworks */,
-				279B74F0282C4FF90026ECAF /* libssl.a in Frameworks */,
-				279B74EF282C4FF90026ECAF /* libcrypto.a in Frameworks */,
 				72B402EE1C0CE81900139783 /* SystemConfiguration.framework in Frameworks */,
 				72B403071C0DE7FC00139783 /* Security.framework in Frameworks */,
 				72B402ED1C0CE81900139783 /* CoreFoundation.framework in Frameworks */,
@@ -407,8 +393,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				279B74F3282C51160026ECAF /* libcups_static.a in Frameworks */,
-				279B74F2282C51080026ECAF /* libssl.a in Frameworks */,
-				279B74F1282C51080026ECAF /* libcrypto.a in Frameworks */,
 				27E2CC691C99C6A000D203EC /* SystemConfiguration.framework in Frameworks */,
 				27E2CC681C99C69400D203EC /* Security.framework in Frameworks */,
 				72E005FD1C5C0B10006CF057 /* CoreFoundation.framework in Frameworks */,
@@ -719,8 +703,9 @@
 		72B402101C0CDFB400139783 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
+				BuildIndependentTargetsInParallel = YES;
 				DefaultBuildSystemTypeForWorkspace = Latest;
-				LastUpgradeCheck = 1200;
+				LastUpgradeCheck = 2600;
 				ORGANIZATIONNAME = "Printer Working Group";
 				TargetAttributes = {
 					72B402171C0CDFB400139783 = {
@@ -842,7 +827,15 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "-";
+				DEAD_CODE_STRIPPING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
+				OTHER_LDFLAGS = (
+					"-L/usr/local/lib",
+					"-L/opt/local/lib",
+					"-L/opt/homebrew/lib",
+					"-lssl",
+					"-lcrypto",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -852,7 +845,15 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "-";
+				DEAD_CODE_STRIPPING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
+				OTHER_LDFLAGS = (
+					"-L/usr/local/lib",
+					"-L/opt/local/lib",
+					"-L/opt/homebrew/lib",
+					"-lssl",
+					"-lcrypto",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -862,7 +863,15 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "-";
+				DEAD_CODE_STRIPPING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
+				OTHER_LDFLAGS = (
+					"-L/usr/local/lib",
+					"-L/opt/local/lib",
+					"-L/opt/homebrew/lib",
+					"-lssl",
+					"-lcrypto",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -872,7 +881,15 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "-";
+				DEAD_CODE_STRIPPING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
+				OTHER_LDFLAGS = (
+					"-L/usr/local/lib",
+					"-L/opt/local/lib",
+					"-L/opt/homebrew/lib",
+					"-lssl",
+					"-lcrypto",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -882,7 +899,17 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "-";
+				DEAD_CODE_STRIPPING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
+				OTHER_LDFLAGS = (
+					"-L/usr/local/lib",
+					"-L/opt/local/lib",
+					"-L/opt/homebrew/lib",
+					"-lssl",
+					"-lcrypto",
+					"-ljpeg",
+					"-lpng16",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -892,7 +919,17 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "-";
+				DEAD_CODE_STRIPPING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
+				OTHER_LDFLAGS = (
+					"-L/usr/local/lib",
+					"-L/opt/local/lib",
+					"-L/opt/homebrew/lib",
+					"-lssl",
+					"-lcrypto",
+					"-ljpeg",
+					"-lpng16",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -931,9 +968,11 @@
 				CODE_SIGN_IDENTITY = "-";
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 2023.04;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -965,6 +1004,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
@@ -1003,9 +1043,11 @@
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1.0;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = "";
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
@@ -1031,6 +1073,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
@@ -1040,6 +1083,14 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "-";
+				DEAD_CODE_STRIPPING = YES;
+				OTHER_LDFLAGS = (
+					"-L/usr/local/lib",
+					"-L/opt/local/lib",
+					"-L/opt/homebrew/lib",
+					"-lssl",
+					"-lcrypto",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -1049,6 +1100,14 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "-";
+				DEAD_CODE_STRIPPING = YES;
+				OTHER_LDFLAGS = (
+					"-L/usr/local/lib",
+					"-L/opt/local/lib",
+					"-L/opt/homebrew/lib",
+					"-lssl",
+					"-lcrypto",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -1058,7 +1117,15 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "-";
+				DEAD_CODE_STRIPPING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
+				OTHER_LDFLAGS = (
+					"-L/usr/local/lib",
+					"-L/opt/local/lib",
+					"-L/opt/homebrew/lib",
+					"-lssl",
+					"-lcrypto",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -1068,7 +1135,15 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "-";
+				DEAD_CODE_STRIPPING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
+				OTHER_LDFLAGS = (
+					"-L/usr/local/lib",
+					"-L/opt/local/lib",
+					"-L/opt/homebrew/lib",
+					"-lssl",
+					"-lcrypto",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -1077,6 +1152,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
+				DEAD_CODE_STRIPPING = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -1085,6 +1161,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
+				DEAD_CODE_STRIPPING = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;

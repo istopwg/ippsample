@@ -983,7 +983,7 @@ copy_job_attributes(
     }
     else
     {
-      const char *message = "";		/* Message string */
+      const char *message;		/* Message string */
 
       switch (job->state)
       {
