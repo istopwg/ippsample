@@ -66,6 +66,9 @@ serverCreateDevicePinfo(
   device->state = IPP_PSTATE_STOPPED;
   device->attrs = ippNew();
 
+  ippAddInteger(device->attrs, IPP_TAG_PRINTER, IPP_TAG_ENUM, "printer-state", IPP_PSTATE_STOPPED);
+  ippAddString(device->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-state-reasons", NULL, "printer-stopped");
+
   if (!pinfo->devices)
     pinfo->devices = cupsArrayNew((cups_array_cb_t)compare_devices, NULL, NULL, 0, NULL, NULL);
 
