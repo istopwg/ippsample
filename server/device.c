@@ -66,6 +66,8 @@ serverCreateDevicePinfo(
   device->state = IPP_PSTATE_STOPPED;
   device->attrs = ippNew();
 
+  ippAddBoolean(device->attrs, IPP_TAG_PRINTER, "printer-is-accepting-jobs", false);
+  ippAddString(device->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_TEXT), "printer-make-and-model", NULL, "Unknown");
   ippAddInteger(device->attrs, IPP_TAG_PRINTER, IPP_TAG_ENUM, "printer-state", IPP_PSTATE_STOPPED);
   ippAddString(device->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "printer-state-reasons", NULL, "printer-stopped");
 
