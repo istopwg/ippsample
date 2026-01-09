@@ -1,7 +1,7 @@
 dnl
 dnl Configuration script for the IPP sample code.
 dnl
-dnl Copyright © 2014-2024 by the Printer Working Group
+dnl Copyright © 2014-2026 by the Printer Working Group
 dnl
 dnl Licensed under Apache License v2.0.  See the file "LICENSE" for more
 dnl information.
@@ -255,13 +255,9 @@ AS_IF([test -n "$GCC"], [
         ], [echo "$CPPFLAGS $CFLAGS $LDFLAGS $OPTIM" | grep -q "\\-mmacosx-version-"], [
             # Don't add architecture/min-version flags if they are already present
             AC_MSG_RESULT([none])
-        ], [test "$host_os_version" -ge 200 -a x$enable_debug != xyes], [
-	    # macOS 11.0 and higher support the Apple Silicon (arm64) CPUs
-	    OPTIM="$OPTIM -mmacosx-version-min=10.14 -arch x86_64 -arch arm64"
-            AC_MSG_RESULT([-mmacosx-version-min=10.14 -arch x86_64 -arch arm64])
 	], [test x$enable_debug != xyes], [
-	    OPTIM="$OPTIM -mmacosx-version-min=10.14 -arch x86_64"
-            AC_MSG_RESULT([-mmacosx-version-min=10.14 -arch x86_64])
+	    OPTIM="$OPTIM -mmacosx-version-min=11.0 -arch x86_64 -arch arm64"
+            AC_MSG_RESULT([-mmacosx-version-min=11.0 -arch x86_64 -arch arm64])
 	], [
 	    # Don't add architecture/min-version flags if debug enabled
             AC_MSG_RESULT([none])
