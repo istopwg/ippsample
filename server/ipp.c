@@ -1,7 +1,7 @@
 /*
  * IPP processing code for sample IPP server implementation.
  *
- * Copyright © 2014-2022 by the Printer Working Group
+ * Copyright © 2014-2026 by the Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -8399,7 +8399,7 @@ ipp_update_output_device_attributes(
     if (!attrname)
       continue;
 
-    if (strncmp(attrname, "copies", 6) && strncmp(attrname, "document-format", 15) && strncmp(attrname, "finishings", 10) && strncmp(attrname, "media", 5) && strncmp(attrname, "print-", 6) && strncmp(attrname, "sides", 5) && strncmp(attrname, "printer-alert", 13) && strncmp(attrname, "printer-input", 13) && strncmp(attrname, "printer-output", 14) && strncmp(attrname, "printer-resolution", 18) && strncmp(attrname, "pwg-raster", 10) && strncmp(attrname, "urf-", 4))
+    if (strncmp(attrname, "copies", 6) && strncmp(attrname, "document-format", 15) && strncmp(attrname, "finishings", 10) && strncmp(attrname, "media", 5) && strncmp(attrname, "print-", 6) && strncmp(attrname, "sides", 5) && strncmp(attrname, "printer-alert", 13) && strncmp(attrname, "printer-input", 13) && strncmp(attrname, "printer-output", 14) && strncmp(attrname, "printer-resolution", 18) && strncmp(attrname, "printer-state", 13) && strncmp(attrname, "pwg-raster", 10) && strncmp(attrname, "urf-", 4))
       continue;
 
     if (strncmp(attrname, "printer-alert", 13) || strncmp(attrname, "printer-state", 13))
