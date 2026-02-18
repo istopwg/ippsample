@@ -76,6 +76,12 @@
       <DataExecutionPrevention />
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
+    <PostBuildEvent>
+      <Command>.\copydlls.bat $(OutDir)</Command>
+    </PostBuildEvent>
+    <PostBuildEvent>
+      <Message>Copy NuGet DLLs to output directory...</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Midl>
@@ -101,10 +107,10 @@
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
     <PostBuildEvent>
-      <Command>signtool sign /n "IEEE INDUSTRY STANDARDS AND TECHNOLOGY ORGANIZATION" $(TargetPath)</Command>
+      <Command>.\copydlls.bat $(OutDir)</Command>
     </PostBuildEvent>
     <PostBuildEvent>
-      <Message>Sign code with IEEE-ISTO certificate</Message>
+      <Message>Copy NuGet DLLs to output directory...</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
