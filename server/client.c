@@ -1,7 +1,7 @@
 /*
  * Client code for sample IPP server implementation.
  *
- * Copyright © 2014-2023 by the Printer Working Group
+ * Copyright © 2014-2026 by the Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -1300,8 +1300,7 @@ parse_options(server_client_t *client,	/* I - Client */
     name        = next;
   }
 
-  if (post_data)
-    free(post_data);
+  free(post_data);
 
   return (num_options);
 }

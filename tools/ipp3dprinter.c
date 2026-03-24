@@ -1,7 +1,7 @@
 /*
  * IPP 3D printer application.
  *
- * Copyright © 2019-2022 by the Printer Working Group.
+ * Copyright © 2019-2026 by the Printer Working Group.
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -1653,8 +1653,7 @@ delete_job(ipp3d_job_t *job)		/* I - Job */
 
   ippDelete(job->attrs);
 
-  if (job->message)
-    free(job->message);
+  free(job->message);
 
   if (job->filename)
   {

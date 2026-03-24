@@ -1,7 +1,7 @@
 /*
  * Device support for sample IPP server implementation.
  *
- * Copyright © 2014-2022 by the Printer Working Group
+ * Copyright © 2014-2026 by the Printer Working Group
  * Copyright © 2010-2018 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -98,9 +98,7 @@ serverDeleteDevice(
 
   cupsRWDestroy(&device->rwlock);
 
-  if (device->name)
-    free(device->name);
-
+  free(device->name);
   free(device->uuid);
 
   ippDelete(device->attrs);

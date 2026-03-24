@@ -7549,8 +7549,7 @@ ipp_set_printer_attributes(
     }
     else if (!strcmp(name, "printer-name"))
     {
-      if (printer->name)
-        free(printer->name);
+      free(printer->name);
 
       printer->name = strdup(value);
 
