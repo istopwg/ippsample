@@ -13,7 +13,7 @@ FROM ubuntu:latest AS builder
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -qq update
 RUN apt-get upgrade -y
-RUN apt-get install -y avahi-daemon avahi-utils curl man iputils-ping net-tools tcpdump vim
+RUN apt-get install -y avahi-daemon avahi-utils curl iputils-ping libnss-mdns man net-tools tcpdump vim
 RUN apt-get install -y build-essential autoconf libavahi-client-dev libjpeg-dev libnss-mdns libpam-dev libpng-dev libssl-dev libusb-1.0-0-dev zlib1g-dev
 
 # Copy source files to image
@@ -27,7 +27,8 @@ FROM ubuntu:latest
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -qq update
 RUN apt-get upgrade -y
-RUN apt-get install -y avahi-daemon avahi-utils curl man iputils-ping net-tools tcpdump vim
+RUN apt-get install -y avahi-daemon avahi-utils curl iputils-ping libnss-mdns man net-tools tcpdump vim
+RUN apt-get install -y libjpeg-turbo8 libpng16-16t64
 COPY --from=builder /usr/local /usr/local
 RUN ldconfig
 
@@ -37,12 +38,12 @@ RUN update-rc.d dbus defaults
 # RUN update-rc.d avahi-daemon defaults
 
 # Create entrypoint.sh script to start dbus and avahi-daemon
-RUN echo '#!/bin/bash\n\
-service dbus start\n\
-service avahi-daemon start\n\
-$*\n\
-' > /usr/bin/entrypoint.sh && chmod +x /usr/bin/entrypoint.sh
-ENTRYPOINT ["/usr/bin/entrypoint.sh"]
+#RUN echo '#!/bin/bash\n\
+#/usr/bin/systemctl start dbus.service\n\
+#/usr/bin/systemctl start avahi-daemon.service\n\
+#$*\n\
+#' > /usr/bin/entrypoint.sh && chmod +x /usr/bin/entrypoint.sh
+#ENTRYPOINT ["/usr/bin/entrypoint.sh"]
 
 # Export port 8000 for ippserver
 EXPOSE 8000

@@ -14,6 +14,7 @@ include Makedefs
 DIRS	=	\
 		libcups/doc \
 		libcups/cups \
+		libcups/examples \
 		libcups/man \
 		libcups/pdfio \
 		libcups/tools \
