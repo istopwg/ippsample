@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-linux-static-openssl:
+  build-linux-openssl:
 
     runs-on: ubuntu-latest
 
@@ -29,7 +29,7 @@ jobs:
     - name: Test
       run: mkdir -p $HOME; whoami; make test || cat test/test-ippserver.log
 
-  build-linux-shared-gnutls:
+  build-linux-gnutls:
 
     runs-on: ubuntu-latest
 
@@ -44,7 +44,7 @@ jobs:
     - name: Configure
       env:
         CC: /usr/bin/gcc
-      run: ./configure --enable-debug --enable-maintainer --enable-static --enable-shared --with-tls=gnutls
+      run: ./configure --enable-debug --enable-maintainer --enable-static --disable-shared --with-tls=gnutls
     - name: Make
       run: make
     - name: Test
