@@ -103,3 +103,22 @@ To run the IPP everywhere tests on the IPP Client using setup from the previous
 commands, run:
 
     docker run --rm -it -w /root/ippsample/examples ippsample ipptool -V 2.0 -tf document-letter.pdf [URL returned] ipp-everywhere.test
+
+
+Using the Published ippsample Docker Image
+------------------------------------------
+
+You can build upon the current published ippsample docker image via the
+"docker-compose" command.  For example, the following "compose.yaml" file
+creates and IPP server with automatic health checks:
+
+    [docker:printer]
+    image = ghcr.io/istopwg/ippsample:latest
+    cmd = ippserver -n printer -p 631 -vvvv server
+    ports =
+        0:631/TCP
+    healthcheck_cmd = ipptool -V 2.0 -t ipp://localhost:631/ipp/print /root/ippsample/examples/identify-printer.test
+    healthcheck_interval = 3
+    healthcheck_timeout = 3
+    healthcheck_retries = 30
+    healthcheck_start_period = 5
