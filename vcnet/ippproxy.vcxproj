@@ -113,9 +113,6 @@
     <ClCompile Include="..\tools\ippproxy.c" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\libcups\vcnet\dnssdstub.vcxproj">
-      <Project>{c0899b3a-43e7-4bc3-a785-659e1fd2ea83}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\libcups\vcnet\libcups3.vcxproj">
       <Project>{cb4aa6f2-3e84-45be-b505-95cd375e8be3}</Project>
     </ProjectReference>

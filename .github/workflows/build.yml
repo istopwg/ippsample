@@ -76,7 +76,7 @@ jobs:
       with:
         submodules: recursive
     - name: Setup msbuild
-      uses: microsoft/setup-msbuild@v2
+      uses: microsoft/setup-msbuild@v2.0.0
     - name: Restore NuGet packages
       run: cd vcnet; nuget restore ippsample.sln; cd ..\libcups\vcnet; nuget restore libcups.sln; cd ..\pdfio; nuget restore
     - name: Build
