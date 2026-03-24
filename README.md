@@ -97,10 +97,10 @@ The IPP sample code includes per-specification ipptool test files under the
 
 The following documentation files may be of use as well:
 
-- `BUILD.md`: Detailed build instructions
 - `CONTRIBUTING.md`: How to contribute to the ippsample project
 - `DEVELOPING.md`: How to develop code for the ippsample project
 - `DOCKER.md`: How to build ippsample in a Docker container
+- `INSTALL.md`: Detailed build instructions
 - `PI.md`: How to build ippsample for various Raspberry Pi boards
 - `SCRIPTING.md`: How to use the ippserver REST API
 - `TESTING.md`: How to test ippserver with the sample configuration under the
