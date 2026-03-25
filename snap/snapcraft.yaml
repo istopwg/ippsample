@@ -40,9 +40,9 @@ apps:
     ipptransform:
         command: usr/local/bin/ipptransform
         plugs: [home, network]
-    ipptransform3d:
-        command: usr/local/bin/ipptransform3d
-        plugs: [home, network]
+#     ipptransform3d:
+#         command: usr/local/bin/ipptransform3d
+#         plugs: [home, network]
 
 parts:
     main:
