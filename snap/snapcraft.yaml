@@ -1,4 +1,4 @@
-name: ippsample
+name: ipp
 base: core22
 version: '2026.04'
 summary: IPP Sample Implementation
