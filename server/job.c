@@ -1,7 +1,7 @@
 /*
  * Job object code for sample IPP server implementation.
  *
- * Copyright © 2014-2022 by the Printer Working Group
+ * Copyright © 2014-2026 by the Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -9,6 +9,40 @@
  */
 
 #include "ippserver.h"
+
+
+/*
+ * 'serverCancelJob()' - Cancel a print job.
+ */
+
+int					/* O - 1 on success, 0 on failure */
+serverCancelJob(server_job_t *job)	/* I - Job to cancel */
+{
+  if (job->state >= IPP_JSTATE_CANCELED)
+    return (0);
+
+  cupsRWLockWrite(&job->rwlock);
+
+  if (job->state == IPP_JSTATE_PROCESSING ||
+      (job->state == IPP_JSTATE_HELD && job->fd >= 0))
+  {
+    job->cancel = 1;
+
+    if (job->state == IPP_JSTATE_PROCESSING)
+      serverStopJob(job);
+  }
+  else
+  {
+    job->state     = IPP_JSTATE_CANCELED;
+    job->completed = time(NULL);
+  }
+
+  serverAddEventNoLock(job->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, "Job canceled.");
+
+  cupsRWUnlock(&job->rwlock);
+
+  return (1);
+}
 
 
 /*

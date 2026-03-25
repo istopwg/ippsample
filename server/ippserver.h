@@ -1,7 +1,7 @@
 /*
  * Header file for sample IPP server implementation.
  *
- * Copyright © 2014-2022 by the Printer Working Group
+ * Copyright © 2014-2026 by the Printer Working Group
  * Copyright © 2010-2019 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -10,12 +10,6 @@
 
 #ifndef IPPSERVER_H
 #  define IPPSERVER_H
-
-
-/*
- * Include necessary headers...
- */
-
 #  include <config.h>			/* Configuration header */
 #  include <cups/cups.h>		/* Public API */
 #  include <cups/dnssd.h>		/* DNS-SD API */
@@ -676,6 +670,8 @@ extern void		serverAddStringsFileNoLock(server_printer_t *printer, const char *l
 extern void		serverAllocatePrinterResource(server_printer_t *printer, server_resource_t *resource);
 extern http_status_t	serverAuthenticateClient(server_client_t *client);
 extern int		serverAuthorizeUser(server_client_t *client, const char *owner, gid_t group, const char *scope);
+
+extern int		serverCancelJob(server_job_t *job);
 extern void		serverCheckJobs(server_printer_t *printer);
 extern void             serverCleanAllJobs(void);
 extern void		serverCleanJobs(server_printer_t *printer);
@@ -693,6 +689,7 @@ extern server_resource_t *serverCreateResource(const char *resource, const char 
 extern void		serverCreateResourceFilename(server_resource_t *res, const char *format, const char *prefix, char *fname, size_t fnamesize);
 extern server_subscription_t *serverCreateSubscription(server_client_t *client, int interval, int lease, const char *username, ipp_attribute_t *notify_charset, ipp_attribute_t *notify_natural_language, ipp_attribute_t *notify_events, ipp_attribute_t *notify_attributes, ipp_attribute_t *notify_user_data);
 extern int		serverCreateSystem(const char *directory);
+
 extern void		serverDeallocatePrinterResource(server_printer_t *printer, server_resource_t *resource);
 extern void		serverDeleteClient(server_client_t *client);
 extern void		serverDeleteDevice(server_device_t *device);
@@ -701,7 +698,9 @@ extern void		serverDeletePrinter(server_printer_t *printer);
 extern void		serverDeleteResource(server_resource_t *res);
 extern void		serverDeleteSubscription(server_subscription_t *sub);
 extern void		serverDisablePrinter(server_printer_t *printer);
+
 extern void		serverEnablePrinter(server_printer_t *printer);
+
 extern server_device_t	*serverFindDevice(server_client_t *client);
 extern server_job_t	*serverFindJob(server_client_t *client, int job_id);
 extern server_printer_t	*serverFindPrinter(const char *resource);
@@ -709,23 +708,29 @@ extern server_resource_t *serverFindResourceById(int id);
 extern server_resource_t *serverFindResourceByPath(const char *resource);
 extern server_resource_t *serverFindResourceByFilename(const char *filename);
 extern server_subscription_t *serverFindSubscription(server_client_t *client, int sub_id);
+
 extern server_jreason_t	serverGetJobStateReasonsBits(ipp_attribute_t *attr);
 extern server_event_t	serverGetNotifyEventsBits(ipp_attribute_t *attr);
 extern const char	*serverGetNotifySubscribedEvent(server_event_t event);
 extern server_preason_t	serverGetPrinterStateReasonsBits(ipp_attribute_t *attr);
+
 extern int		serverHoldJob(server_job_t *job, ipp_attribute_t *hold_until);
+
 extern int		serverLoadAttributes(const char *filename, server_pinfo_t *pinfo);
 extern void		serverLog(server_loglevel_t level, const char *format, ...) _CUPS_FORMAT(2, 3);
 extern void		serverLogAttributes(server_client_t *client, const char *title, ipp_t *ipp, int type);
 extern void		serverLogClient(server_loglevel_t level, server_client_t *client, const char *format, ...) _CUPS_FORMAT(3, 4);
 extern void		serverLogJob(server_loglevel_t level, server_job_t *job, const char *format, ...) _CUPS_FORMAT(3, 4);
 extern void		serverLogPrinter(server_loglevel_t level, server_printer_t *printer, const char *format, ...) _CUPS_FORMAT(3, 4);
+
 extern char		*serverMakeVCARD(const char *user, const char *name, const char *location, const char *email, const char *phone, char *buffer, size_t bufsize);
+
 extern void		serverPausePrinter(server_printer_t *printer, int immediately);
 extern void		*serverProcessClient(server_client_t *client);
 extern int		serverProcessHTTP(server_client_t *client);
 extern int		serverProcessIPP(server_client_t *client);
 extern void		*serverProcessJob(server_job_t *job);
+
 extern int		serverRegisterPrinter(server_printer_t *printer);
 extern int		serverReleaseJob(server_job_t *job);
 extern int		serverRespondHTTP(server_client_t *client, http_status_t code, const char *content_coding, const char *type, size_t length);
@@ -734,11 +739,14 @@ extern void		serverRespondUnsupported(server_client_t *client, ipp_attribute_t *
 extern void		serverRestartPrinter(server_printer_t *printer);
 extern void		serverResumePrinter(server_printer_t *printer);
 extern void		serverRun(void);
+
 extern void		serverSaveSystem(void);
 extern void		serverSetResourceState(server_resource_t *resource, ipp_rstate_t state, const char *message, ...) _CUPS_FORMAT(3, 4);
 extern void		serverStopJob(server_job_t *job);
+
 extern char		*serverTimeString(time_t tv, char *buffer, size_t bufsize);
 extern int		serverTransformJob(server_client_t *client, server_job_t *job, const char *command, const char *format, server_transform_t mode);
+
 extern void		serverUnregisterPrinter(server_printer_t *printer);
 extern void		serverUpdateDeviceAttributesNoLock(server_printer_t *printer);
 extern void		serverUpdateDeviceStateNoLock(server_printer_t *printer);

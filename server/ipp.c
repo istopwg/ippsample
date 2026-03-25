@@ -2028,25 +2028,7 @@ ipp_cancel_job(server_client_t *client)	/* I - Client */
         * Cancel the job...
 	*/
 
-	cupsRWLockWrite(&(client->printer->rwlock));
-
-	if (job->state == IPP_JSTATE_PROCESSING ||
-	    (job->state == IPP_JSTATE_HELD && job->fd >= 0))
-        {
-          job->cancel = 1;
-
-          if (job->state == IPP_JSTATE_PROCESSING)
-	    serverStopJob(job);
-	}
-	else
-	{
-	  job->state     = IPP_JSTATE_CANCELED;
-	  job->completed = time(NULL);
-	}
-
-	cupsRWUnlock(&(client->printer->rwlock));
-
-        serverAddEventNoLock(client->printer, job, NULL, SERVER_EVENT_JOB_COMPLETED, NULL);
+        serverCancelJob(job);
 
 	serverRespondIPP(client, IPP_STATUS_OK, NULL);
         break;

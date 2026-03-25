@@ -960,7 +960,7 @@ html_footer(server_client_t *client)	/* I - Client */
 {
   html_printf(client,
 	      "</div>\n"
-	      "<div class=\"footer\">Copyright &copy; 2014-2023 by the Printer Working Group.<br>\n"
+	      "<div class=\"footer\">Copyright &copy; 2014-2026 by the Printer Working Group.<br>\n"
 	      "ippserver is part of the <a href=\"https://github.com/istopwg/ippsample\" target=\"_blank\">ippsample</a> project and is provided on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. It is <em>not</em> intended for production use.</div>\n"
 	      "</body>\n"
 	      "</html>\n");
@@ -1952,6 +1952,8 @@ show_status(server_client_t  *client,	/* I - Client connection */
   int			i, j;		/* Looping vars */
   server_preason_t	reason;		/* Current reason */
   int			apple_client;	/* Is the client running an Apple OS? */
+  size_t		num_options = 0;/* Number of form options */
+  cups_option_t		*options = NULL;/* Form options */
   static const char * const reasons[] =	/* Reason strings */
   {
     "Other",
@@ -1992,6 +1994,52 @@ show_status(server_client_t  *client,	/* I - Client connection */
         html_printf(client, " <a class=\"button\" href=\"%s/apple.mobileconfig\">Use on iOS</a>", printer->resource);
       html_printf(client, "</p>\n");
     }
+
+   /*
+    * Process form data if present...
+    */
+
+    if (printer->pinfo.web_forms)
+      num_options = parse_options(client, &options);
+
+    if (num_options > 0)
+    {
+     /*
+      * WARNING: A real printer/server implementation MUST NOT implement
+      * media updates via a GET request - GET requests are supposed to be
+      * idempotent (without side-effects) and we obviously are not
+      * authenticating access here.  This form is provided solely to
+      * enable testing and development!
+      */
+
+      const char	 *val;		/* Form value */
+      server_job_t	*job = NULL;	/* Job */
+
+      if ((val = cupsGetOption("job-id", num_options, options)) != NULL)
+        job = serverFindJob(client, atoi(val));
+
+      if (job && cupsGetOption("cancel-job", num_options, options))
+      {
+       /*
+        * Cancel the job...
+        */
+
+        serverCancelJob(job);
+      }
+      else if (job && cupsGetOption("release-job", num_options, options))
+      {
+       /*
+        * Release the job...
+        */
+
+        serverReleaseJob(job);
+      }
+    }
+
+   /*
+    * Show printer state...
+    */
+
     html_printf(client, "<h1><img align=\"left\" src=\"%s/icon.png\" width=\"64\" height=\"64\">%s Jobs</h1>\n", printer->resource, printer->dns_sd_name);
     html_printf(client, "<p>%s, %u job(s).", printer->state == IPP_PSTATE_IDLE ? "Idle" : printer->state == IPP_PSTATE_PROCESSING ? "Printing" : "Stopped", (unsigned)cupsArrayGetCount(printer->jobs));
     for (i = 0, reason = 1; i < (int)(sizeof(reasons) / sizeof(reasons[0])); i ++, reason <<= 1)
@@ -2019,18 +2067,31 @@ show_status(server_client_t  *client,	/* I - Client connection */
           case IPP_JSTATE_STOPPED :
               snprintf(when, sizeof(when), "Started at %s", serverTimeString(job->processing, hhmmss, sizeof(hhmmss)));
               break;
-          case IPP_JSTATE_ABORTED :
-              snprintf(when, sizeof(when), "Aborted at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
-              break;
           case IPP_JSTATE_CANCELED :
               snprintf(when, sizeof(when), "Canceled at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
+              break;
+          case IPP_JSTATE_ABORTED :
+              snprintf(when, sizeof(when), "Aborted at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
               break;
           case IPP_JSTATE_COMPLETED :
               snprintf(when, sizeof(when), "Completed at %s", serverTimeString(job->completed, hhmmss, sizeof(hhmmss)));
               break;
         }
 
-        html_printf(client, "<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td></tr>\n", job->id, job->name, job->username, when);
+        html_printf(client, "<tr><td>%d</td><td>%s</td><td>%s</td><td>%s", job->id, job->name, job->username, when);
+        if (printer->pinfo.web_forms && job->state < IPP_JSTATE_CANCELED)
+        {
+          // Show job control buttons...
+          html_printf(client, "<form action=\"%s\" method=\"GET\"><input type=\"hidden\" name=\"job-id\" value=\"%d\"><input type=\"submit\" name=\"cancel-job\" value=\"Cancel\">", printer->resource, job->id);
+          if (job->state == IPP_JSTATE_HELD)
+	    html_printf(client, "<input type=\"submit\" name=\"release-job\" value=\"Release\">");
+          html_printf(client, "</form></td></tr>\n");
+        }
+        else
+        {
+          // Close out this row without buttons...
+	  html_printf(client, "</td></tr>\n");
+	}
       }
       html_printf(client, "</tbody></table>\n");
 
