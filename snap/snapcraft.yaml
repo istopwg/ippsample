@@ -48,6 +48,5 @@ parts:
     main:
         plugin: autotools
         source: .
-        source-submodules: [libcups, libcups/pdfio]
         build-packages: [libavahi-client-dev, libjpeg-dev, libpam-dev, libpng-dev, libssl-dev, libusb-1.0-0-dev, zlib1g-dev]
         stage-packages: [libavahi-client3, libjpeg-turbo8, poppler-utils]
