@@ -1,7 +1,7 @@
 //
 // Visual Studio configuration file for the IPP sample code.
 //
-// Copyright © 2014-2023 by the Printer Working Group.
+// Copyright © 2014-2026 by the Printer Working Group.
 //
 // Licensed under Apache License v2.0.  See the file "LICENSE" for more
 // information.
@@ -83,7 +83,7 @@ typedef unsigned long useconds_t;
 
 
 // Version number
-#define IPPSAMPLE_VERSION "2023.10"
+#define IPPSAMPLE_VERSION "2026.04"
 
 
 // PAM support
