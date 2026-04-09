@@ -1948,7 +1948,7 @@ show_status(server_client_t  *client,	/* I - Client connection */
             server_printer_t *printer,	/* I - Printer to show or NULL for system */
             const char       *encoding)	/* I - Content-Encoding to use */
 {
-  server_job_t		*job;		/* Current job */
+  server_job_t		*job = NULL;	/* Current job */
   int			i, j;		/* Looping vars */
   server_preason_t	reason;		/* Current reason */
   int			apple_client;	/* Is the client running an Apple OS? */
@@ -2013,7 +2013,6 @@ show_status(server_client_t  *client,	/* I - Client connection */
       */
 
       const char	 *val;		/* Form value */
-      server_job_t	*job = NULL;	/* Job */
 
       if ((val = cupsGetOption("job-id", num_options, options)) != NULL)
         job = serverFindJob(client, atoi(val));
