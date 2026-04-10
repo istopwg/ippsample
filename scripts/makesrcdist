@@ -48,7 +48,7 @@ fi
 
 # Check that the various version numbers are up to date...
 temp="$(grep '^version:' snap/snapcraft.yaml | awk -F: '{print $2}' | tr -d ' ')"
-if test "v$temp" != "v$version"; then
+if test "$temp" != "'$version'"; then
     echo "snap/snapcraft.yaml needs to be updated - saw '$temp', expected '$version'."
     exit 1
 fi
