@@ -5,6 +5,9 @@
 /config.status
 /configure~
 /data
+/ippsample-*.sig
+/ippsample-*.tar.gz
+/ippsample-*.zip
 /parts
 /prime
 /server/ippserver
