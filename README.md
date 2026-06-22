@@ -1,11 +1,12 @@
 IPP Sample Implementations
 ==========================
 
-This code provides sample, non-production-ready implementations of IPP Clients,
-Printers, Proxies, and Systems.  It makes use of the [CUPS Library v3][LIBCUPS]
-and [PDFio library][PDFIO] projects to provide low-level HTTP, IPP, and PDF
-support.  The `ippserver` and `ipp3dprinter` code was also inspired by the
-original CUPS `ippeveprinter` source code.
+This project provides non-production-ready sample code implementations of IPP
+Clients, Printers, Proxies, and Systems.  It makes use of the
+[CUPS Library v3][LIBCUPS] and [PDFio library][PDFIO] projects to provide low-
+level HTTP, IPP, and PDF support.  The `ippserver` and `ipp3dprinter` code was
+inspired by the original CUPS `ippeveprinter` source code but is separately
+developed and maintained.
 
 ![Version](https://img.shields.io/github/v/release/istopwg/ippsample?include_prereleases)
 ![Apache 2.0](https://img.shields.io/github/license/istopwg/ippsample)
@@ -13,12 +14,12 @@ original CUPS `ippeveprinter` source code.
 ![ipp](https://snapcraft.io/ipp/badge.svg)
 ![Coverity Scan Status](https://img.shields.io/coverity/scan/22384.svg)
 
-> Note: This code is provided for educational purposes only.  While we will make
+> *Note:* This code is provided for educational purposes only.  While we make
 > every effort to ensure the code is bug-free and regularly run the code
-> through dynamic and static analysis tools, it is written for correctness, not
-> performance, and so is not intended for use as a production solution.  This
-> code is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
-> ANY KIND, either express or implied.
+> through dynamic and static analysis tools, it is written for correctness,
+> not performance, and so is not intended for use or supported as a production
+> solution.  This code is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
+> OR CONDITIONS OF ANY KIND, either express or implied.
 
 
 Getting the Code
@@ -28,8 +29,9 @@ Getting the Code
 *main project page, as that archive is missing the libcups and PDFio submodules*
 *and will not compile.*
 
-The source code is available in semi-monthly release tarballs or via the Github
-repository.  For a release tarball, run the following commands:
+The source code is available in semi-monthly (non-production) release tarballs
+or via the Github repository.  For a release tarball, run the following
+commands:
 
     tar xvzf ippsample-VERSION.tar.gz
     cd ippsample-VERSION
@@ -103,6 +105,7 @@ The following documentation files may be of use as well:
 - `INSTALL.md`: Detailed build instructions
 - `PI.md`: How to build ippsample for various Raspberry Pi boards
 - `SCRIPTING.md`: How to use the ippserver REST API
+- `SECURITY.md`: The security policy for this project
 - `TESTING.md`: How to test ippserver with the sample configuration under the
   `test` subdirectory
 - `man/*`: Man pages for each of the ippsample programs in nroff and HTML
