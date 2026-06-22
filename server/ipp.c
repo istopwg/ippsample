@@ -9630,7 +9630,7 @@ valid_job_attributes(
 
   cupsRWLockRead(&client->printer->rwlock);
 
-  supported = ippFindAttribute(client->printer->pinfo.attrs, "job-creation-attributes-suppored", IPP_TAG_KEYWORD);
+  supported = ippFindAttribute(client->printer->pinfo.attrs, "job-creation-attributes-supported", IPP_TAG_KEYWORD);
 
   if ((resource_ids = ippFindAttribute(client->request, "resource-ids", IPP_TAG_INTEGER)) != NULL)
   {
