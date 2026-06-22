@@ -1,7 +1,7 @@
 /*
  * Authentication code for sample IPP server implementation.
  *
- * Copyright © 2018-2022 by the Printer Working Group
+ * Copyright © 2018-2026 by the Printer Working Group
  * Copyright © 2018 by Apple Inc.
  *
  * Licensed under Apache License v2.0.  See the file "LICENSE" for more
@@ -223,7 +223,7 @@ serverAuthenticateClient(
  * 'serverAuthorizeUser()' - Authorize access for an authenticated user.
  */
 
-int					/* O - 1 if authorized, 0 otherwise */
+bool					/* O - `true` if authorized, `false` otherwise */
 serverAuthorizeUser(
     server_client_t *client,		/* I - Client connection */
     const char      *owner,		/* I - Object owner or @code NULL@ if none/not applicable */
@@ -250,12 +250,12 @@ serverAuthorizeUser(
   if (!strcmp(scope, SERVER_SCOPE_ALL))
   {
     serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" is authorized because scope is \"all\".", client->username);
-    return (1);
+    return (true);
   }
   else if (!strcmp(scope, SERVER_SCOPE_NONE))
   {
     serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" not authorized because scope is \"none\".", client->username);
-    return (0);
+    return (false);
   }
 
  /*
@@ -266,7 +266,7 @@ serverAuthorizeUser(
   if (!client->username[0])
   {
     serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "No authenticated user name, not authorized.");
-    return (0);
+    return (false);
   }
 
  /*
@@ -276,7 +276,7 @@ serverAuthorizeUser(
   if (owner && !strcmp(client->username, owner) && strcmp(scope, SERVER_SCOPE_ADMIN))
   {
     serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" is authorized because they are the owner.", client->username);
-    return (1);
+    return (true);
   }
 
 #ifdef _WIN32
@@ -286,7 +286,7 @@ serverAuthorizeUser(
 
   serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" is authorized because groups are currently not validated on Windows.", client->username);
 
-  return (1);
+  return (true);
 
 #else
  /*
@@ -296,7 +296,7 @@ serverAuthorizeUser(
   if ((pw = getpwnam(client->username)) == NULL)
   {
     serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" does not have a local account.", client->username);
-    return (0);
+    return (false);
   }
 
  /*
@@ -312,7 +312,7 @@ serverAuthorizeUser(
 #  endif /* __APPLE__ */
   {
     serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" not authorized because the group list could not be retrieved: %s", client->username, strerror(errno));
-    return (0);
+    return (false);
   }
 
   if (group != SERVER_GROUP_NONE)
@@ -324,7 +324,7 @@ serverAuthorizeUser(
     if (i < ngroups)
     {
       serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" is authorized because they are a group member.", client->username);
-      return (1);
+      return (true);
     }
   }
 
@@ -356,12 +356,12 @@ serverAuthorizeUser(
     else
       serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" is authorized because they are an operator.", client->username);
 
-    return (1);
+    return (true);
   }
   else
   {
     serverLogClient(SERVER_LOGLEVEL_DEBUG, client, "User \"%s\" not authorized because they failed the group test.", client->username);
-    return (0);
+    return (false);
   }
 #endif /* _WIN32 */
 }

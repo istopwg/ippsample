@@ -669,7 +669,7 @@ extern void		serverAddResourceFile(server_resource_t *res, const char *filename,
 extern void		serverAddStringsFileNoLock(server_printer_t *printer, const char *language, server_resource_t *resource);
 extern void		serverAllocatePrinterResource(server_printer_t *printer, server_resource_t *resource);
 extern http_status_t	serverAuthenticateClient(server_client_t *client);
-extern int		serverAuthorizeUser(server_client_t *client, const char *owner, gid_t group, const char *scope);
+extern bool		serverAuthorizeUser(server_client_t *client, const char *owner, gid_t group, const char *scope);
 
 extern int		serverCancelJob(server_job_t *job);
 extern void		serverCheckJobs(server_printer_t *printer);

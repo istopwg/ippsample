@@ -2432,7 +2432,7 @@ ipp_create_job(server_client_t *client)	/* I - Client */
     return;
   }
 
-  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  if (Authentication && client->printer && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
     return;
@@ -2974,20 +2974,23 @@ ipp_create_xxx_subscriptions(
 			ok_subs = 0;	/* Number of good subscriptions */
 
 
-  if (Authentication && !client->username[0])
+  if (Authentication)
   {
-   /*
-    * Require authenticated username...
-    */
+    if (!client->username[0])
+    {
+     /*
+      * Require authenticated username...
+      */
 
-    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
-    return;
-  }
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
 
-  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
-    return;
+    if (client->printer && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
+      return;
+    }
   }
 
  /*
@@ -4711,7 +4714,7 @@ ipp_get_printers(
 
     cupsRWLockRead(&printer->rwlock);
 
-    if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+    if (Authentication && printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
     {
       cupsRWUnlock(&printer->rwlock);
       continue;
@@ -5025,25 +5028,28 @@ ipp_get_subscription_attributes(
 			*pa = NULL;	/* Privacy attributes */
 
 
-  if (Authentication && !client->username[0])
+  if (Authentication)
   {
-   /*
-    * Require authenticated username...
-    */
+    if (!client->username[0])
+    {
+     /*
+      * Require authenticated username...
+      */
 
-    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
-    return;
-  }
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
 
-  if (Authentication && client->printer && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
-    return;
-  }
-  else if (Authentication && !client->printer && !serverAuthorizeUser(client, NULL, SERVER_GROUP_NONE, SERVER_SCOPE_DEFAULT))
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this system.");
-    return;
+    if (client->printer && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
+      return;
+    }
+    else if (!client->printer && !serverAuthorizeUser(client, NULL, SERVER_GROUP_NONE, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this system.");
+      return;
+    }
   }
 
   ra = ippCreateRequestedArray(client->request);
@@ -5087,25 +5093,28 @@ ipp_get_subscriptions(
   const char		*username;	/* Most authenticated user name */
 
 
-  if (Authentication && !client->username[0])
+  if (Authentication)
   {
-   /*
-    * Require authenticated username...
-    */
+    if (!client->username[0])
+    {
+     /*
+      * Require authenticated username...
+      */
 
-    serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
-    return;
-  }
+      serverRespondHTTP(client, HTTP_STATUS_UNAUTHORIZED, NULL, NULL, 0);
+      return;
+    }
 
-  if (Authentication && client->printer && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
-    return;
-  }
-  else if (Authentication && !client->printer && !serverAuthorizeUser(client, NULL, SERVER_GROUP_NONE, SERVER_SCOPE_DEFAULT))
-  {
-    serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this system.");
-    return;
+    if (client->printer && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
+      return;
+    }
+    else if (!client->printer && !serverAuthorizeUser(client, NULL, SERVER_GROUP_NONE, SERVER_SCOPE_DEFAULT))
+    {
+      serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this system.");
+      return;
+    }
   }
 
   job_id  = ippGetInteger(ippFindAttribute(client->request, "notify-job-id", IPP_TAG_INTEGER), 0);
@@ -5861,7 +5870,7 @@ ipp_print_job(server_client_t *client)	/* I - Client */
     return;
   }
 
-  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  if (Authentication && client->printer && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
     return;
@@ -6043,7 +6052,7 @@ ipp_print_uri(server_client_t *client)	/* I - Client */
     return;
   }
 
-  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  if (Authentication && client->printer && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
     return;
@@ -8659,7 +8668,7 @@ ipp_validate_document(
     return;
   }
 
-  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  if (Authentication && client->printer && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
     return;
@@ -8687,7 +8696,7 @@ ipp_validate_job(server_client_t *client)	/* I - Client */
     return;
   }
 
-  if (Authentication && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
+  if (Authentication && client->printer && client->printer->pinfo.print_group != SERVER_GROUP_NONE && !serverAuthorizeUser(client, NULL, client->printer->pinfo.print_group, SERVER_SCOPE_DEFAULT))
   {
     serverRespondIPP(client, IPP_STATUS_ERROR_NOT_AUTHORIZED, "Not authorized to access this printer.");
     return;
