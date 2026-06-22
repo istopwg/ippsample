@@ -9593,7 +9593,7 @@ valid_filename(const char *filename)	/* I - Filename to validate */
     dir    = (char *)cupsArrayGetElement(FileDirectories, i);
     dirlen = strlen(dir);
 
-    if (filelen >= dirlen && strncmp(filename, dir, dirlen) && (filename[dirlen] == '/' || !filename[dirlen]))
+    if (filelen >= dirlen && !strncmp(filename, dir, dirlen) && (filename[dirlen] == '/' || !filename[dirlen]))
       return (true);
   }
 
