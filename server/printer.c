@@ -1570,7 +1570,7 @@ serverCreatePrinter(
       ippAddResolution(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-resolution-default", IPP_RES_PER_INCH, 600, 600);
 
     /* printer-resolution-supported */
-    if (!cupsArrayFind(existing, (void *)"printer-resolutions-supported"))
+    if (!cupsArrayFind(existing, (void *)"printer-resolution-supported"))
       ippAddResolution(printer->pinfo.attrs, IPP_TAG_PRINTER, "printer-resolution-supported", IPP_RES_PER_INCH, 600, 600);
   }
 
